@@ -183,13 +183,13 @@ const IB_NAMES = ['A', 'AA', 'B', 'C', 'BN HUB'];
 const DOCK_Y = WB;
 const DOCK_H = 55;
 
-function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, onEnter, onLeave, addCenterLine, isTruck }:
+function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, onEnter, onLeave, onClick, addCenterLine, isTruck }:
   { c:any, d:any, bx:number, by:number, bw:number, bh:number, midLabelY:number,
-    isHovered:boolean, onEnter:()=>void, onLeave:()=>void, addCenterLine?:boolean, isTruck?:boolean }) {
+    isHovered:boolean, onEnter:()=>void, onLeave:()=>void, onClick?:()=>void, addCenterLine?:boolean, isTruck?:boolean }) {
   const col = isTruck ? 'rgba(255,255,255,0.2)' : (UTILCOL[d.bucket] || '#374151');
   const fillH = (bh - 2) * Math.min(d.utilization, 110) / 110;
   return (
-    <g onMouseEnter={onEnter} onMouseLeave={onLeave} className="cursor-pointer">
+    <g onMouseEnter={onEnter} onMouseLeave={onLeave} onClick={onClick} className="cursor-pointer">
       <rect x={bx} y={by} width={bw} height={bh}
             fill={isTruck ? (isHovered ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.02)') : col}
             fillOpacity={isTruck ? 1 : (isHovered ? 0.35 : 0.14)}
@@ -214,6 +214,9 @@ function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, onEnter, onLeave
 }
 
 export default function App() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [activeTab, setActiveTab] = useState<'layout' | 'top10' | 'stats'>('layout');
+  const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
   const [data,       setData]       = useState<any>(generateMockData());
   const [utilTotal,  setUtilTotal]  = useState('0.0');
   const [free,       setFree]       = useState(0);
@@ -394,8 +397,46 @@ export default function App() {
     setTranslateY(0);
   };
 
+  const handleZoomIn = () => {
+    setScale(prev => Math.min(prev * 1.2, 6));
+  };
+  const handleZoomOut = () => {
+    setScale(prev => Math.max(prev / 1.2, 0.5));
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<SVGSVGElement>) => {
+    if (e.touches.length !== 1) return;
+    setIsDragging(true);
+    const touch = e.touches[0];
+    setDragStart({ x: touch.clientX - translateX, y: touch.clientY - translateY });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<SVGSVGElement>) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    setTranslateX(touch.clientX - dragStart.x);
+    setTranslateY(touch.clientY - dragStart.y);
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+  };
+
+  const handleGoogleBtnMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    e.currentTarget.style.setProperty('--mouse-x', `${x}px`);
+    e.currentTarget.style.setProperty('--mouse-y', `${y}px`);
+  };
+
   useEffect(() => {
     fetchAndUpdateData();
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   useEffect(() => {
@@ -416,211 +457,18 @@ export default function App() {
     );
   }, [data]);
 
-  return (
-    <div className="w-full h-full relative font-sans text-white bg-[#0a0e14]">
-      <div className="absolute top-0 left-0 right-0 h-12 flex items-center justify-between px-6 z-20"
-           style={{background:'linear-gradient(180deg,rgba(10,14,20,.95),rgba(10,14,20,0))'}}>
-        <div className="flex items-center gap-3 select-none">
-          {/* Logo J&T Cargo */}
-          <svg width="120" height="30" viewBox="0 0 135 50" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-8 w-auto">
-            {/* Green background matching the attached image */}
-            <rect width="135" height="50" rx="6" fill="#006a38" />
-            <g transform="skewX(-16) translate(6, 2)">
-              {/* J */}
-              <path d="M 28,10 H 20 V 32 H 5 V 37 H 28 Z" fill="#ffffff" />
-              {/* & */}
-              <text x="29" y="33" fill="#ffffff" fontSize="20" fontWeight="950" fontFamily="'Arial', sans-serif">{"&"}</text>
-              {/* T */}
-              <rect x="52" y="15" width="8" height="22" fill="#ffffff" />
-              <rect x="40" y="10" width="32" height="5" fill="#ffffff" />
-              <rect x="72" y="10" width="16" height="1.4" fill="#ffffff" />
-              <rect x="72" y="11.8" width="11" height="1.4" fill="#ffffff" />
-              <rect x="72" y="13.6" width="6" height="1.4" fill="#ffffff" />
-              {/* Cargo */}
-              <text x="76" y="36" fill="#ffffff" fontSize="18" fontWeight="bold" fontFamily="'Montserrat', 'Arial', sans-serif">Cargo</text>
-            </g>
-          </svg>
-          <div className="h-5 w-px bg-white/20" />
-          <div className="disp font-extrabold text-sm tracking-[0.18em] text-white/90"
-               style={{textShadow:'0 0 12px rgba(255,255,255,0.1)'}}>HCM HUB</div>
-        </div>
-        <div className="flex gap-6">
-          <div className="mono text-xs text-[var(--muted)]">SYSTEM: <b className="text-[var(--green)]">ONLINE</b></div>
-          <div className="mono text-xs text-[var(--muted)]">ZONE: LAT 10.823 • LONG 106.63</div>
-        </div>
-      </div>
 
-      <div className="absolute z-20 top-16 left-6 w-80 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4">
-        <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">OPERATIONAL MONITOR</h3>
-        <div className="space-y-3">
-          {[['TỈ LỆ LẤP ĐẦY', `${utilTotal}%`, 'var(--cyan)'],
-            ['CÒN TRỐNG', `${free}`, 'var(--green)'],
-            ['Ô ĐANG DÙNG', `${usedCells}/${CHUTE_RACKS.length}`, '#fff']
-          ].map(([label, val, col]) => (
-            <div key={label as string} className="flex justify-between items-center text-[13px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
-              <span>{label}</span>
-              <span className="mono font-bold text-[15px]" style={{color: col as string}}>{val}</span>
-            </div>
-          ))}
-          <div className="h-1.5 rounded bg-[var(--line)] overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-[var(--green)] to-[var(--cyan)] transition-all duration-1000"
-                 style={{width:`${Math.min(100,Number(utilTotal))}%`}}/>
-          </div>
-        </div>
-        <div className="mt-5 pt-4 border-t border-[var(--line)]">
-          <h4 className="disp text-[10px] tracking-[0.12em] text-[var(--muted)] mb-3">CHI TIẾT Ô CHỨA</h4>
-          {hoveredRack ? (
-            <div className="space-y-2 bg-[#101622]/60 rounded-md p-3 border border-white/5">
-              {[['Mã ô', hoveredRack.areaId,'var(--cyan)'],
-                ['Tên', hoveredRack.name, '#fff'],
-                ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#fff'],
-                ['% Lấp đầy', `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
-              ].map(([k,v,c]) => (
-                <div key={k as string} className="flex justify-between">
-                  <span className="text-[11px] text-[var(--muted)]">{k}:</span>
-                  <span className="mono text-[11px] font-bold truncate max-w-[150px]" style={{color:c as string}}>{v}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-6 text-[11px] text-[var(--muted)] border border-dashed border-[var(--line)] rounded-md">
-              Rê chuột vào ô để xem thông tin chi tiết
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="absolute z-20 top-[390px] left-6 w-80 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4">
-        <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">TOP 10 BƯU CỤC TỒN HÀNG</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-[var(--line)] text-[10px] text-[var(--muted)] uppercase mono font-bold">
-                <th className="py-1 w-8">#</th>
-                <th className="py-1 w-12">Mã</th>
-                <th className="py-1">Bưu Cục</th>
-                <th className="py-1 text-right w-16">Lượng tồn</th>
-                <th className="py-1 text-right w-12">% Lấp đầy</th>
-              </tr>
-            </thead>
-            <tbody>
-              {getTop10Chutes().map((chute, index) => {
-                const colors: Record<string, string> = {
-                  green: 'var(--green)',
-                  yellow: 'var(--yellow)',
-                  orange: 'var(--orange)',
-                  red: 'var(--red)',
-                  darkred: 'var(--red)'
-                };
-                const col = colors[chute.bucket] || '#fff';
-                return (
-                  <tr key={chute.areaId} className="border-b border-[#1e2942]/20 last:border-0 hover:bg-white/5 transition-colors cursor-pointer text-[11px]"
-                      onMouseEnter={() => {
-                        const d = data[chute.areaId];
-                        setHoveredRack({ areaId: chute.areaId, name: chute.name, ...d });
-                        if (chute.zone && chute.areaId !== 'A19') setHoveredZone(chute.zone);
-                      }}
-                      onMouseLeave={() => {
-                        setHoveredRack(null);
-                        setHoveredZone(null);
-                      }}>
-                    <td className="py-1 text-[var(--muted)] mono">{index + 1}</td>
-                    <td className="py-1 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
-                    <td className="py-1 truncate max-w-[110px] font-medium text-white/95" title={chute.name}>
-                      {chute.name}
-                    </td>
-                    <td className="py-1 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
-                    <td className="py-1 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="absolute z-20 top-16 right-6 w-60 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4">
-        <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">REAL-TIME TELEMETRY</h3>
-        <div className="space-y-4">
-          <div className="p-3 text-center border-b border-[var(--line)] bg-[#101622]/30 rounded-md">
-            <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">TỔNG ĐƠN HÀNG</div>
-            <div className="disp font-extrabold text-3xl text-[var(--cyan)]">{totalOrders.toLocaleString()}</div>
-            <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">ĐƠN HÀNG / KHO</div>
-          </div>
-          <div className="p-3 text-center bg-[#101622]/30 rounded-md">
-            <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">Ô QUÁ TẢI</div>
-            <div className="disp font-extrabold text-3xl" style={{color:over>0?'var(--red)':'var(--green)'}}>
-              {over.toString().padStart(2,'0')}
-            </div>
-            <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">FLEET MATRIX</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="absolute z-20 top-[335px] right-6 w-60 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--cyan)] rounded-lg backdrop-blur-md shadow-2xl p-4">
-        <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--cyan)]">ZONE METRICS</h3>
-        {hoveredZone !== null ? (
-          (() => {
-            const zInfo = getZoneInfo(hoveredZone);
-            return (
-              <div className="space-y-3">
-                <div className="flex justify-between items-center text-[12px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
-                  <span>Phân khu</span>
-                  <span className="disp font-extrabold text-[14px] text-[var(--cyan)]">ZONE {zInfo.zone}</span>
-                </div>
-                <div className="flex justify-between items-center text-[12px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
-                  <span>Bưu cục có hàng</span>
-                  <span className="mono font-bold text-[13px] text-white">{zInfo.activeChutesCount} / {zInfo.totalChutes}</span>
-                </div>
-                <div className="flex justify-between items-center text-[12px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
-                  <span>Tổng lượng đơn</span>
-                  <span className="mono font-bold text-[13px] text-white">{zInfo.zoneOrders.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center text-[12px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
-                  <span>Tỉ lệ chứa hàng</span>
-                  <span className="mono font-bold text-[13px] text-[var(--cyan)]">{zInfo.ratio}%</span>
-                </div>
-                <div className="h-1.5 rounded bg-[var(--line)] overflow-hidden">
-                  <div className="h-full bg-[var(--cyan)] transition-all duration-500"
-                       style={{width:`${Math.min(100,Number(zInfo.ratio))}%`}}/>
-                </div>
-              </div>
-            );
-          })()
-        ) : (
-          <div className="text-center py-6 text-[11px] text-[var(--muted)] border border-dashed border-[var(--line)] rounded-md">
-            Rê chuột vào ô của Zone để xem chi tiết phân khu
-          </div>
-        )}
-      </div>
-
-      <div className="absolute bottom-16 left-6 z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg">
-        {[['#0c883d','Ô chứa'],['var(--orange)','Cổng Outbound'],
-          ['var(--inbound)','Cổng Inbound'],['rgba(100,116,139,0.7)','Xe tải']].map(([c,l])=>(
-          <span key={l} className="flex items-center gap-1.5">
-            <i className="w-2.5 h-2.5 rounded-sm" style={{background:c}}/>
-            {l}
-          </span>
-        ))}
-      </div>
-
-      <button onClick={handleResetZoom}
-              className="absolute bottom-16 right-36 z-20 font-sans font-bold text-xs uppercase py-2.5 px-4 rounded-md border border-white/20 bg-[var(--panel)] text-[var(--muted)] cursor-pointer hover:bg-white/10 hover:text-white transition-all shadow-lg">
-        THU NHỎ / RESET
-      </button>
-
-      <button onClick={fetchAndUpdateData} disabled={loading}
-              className="absolute bottom-16 right-6 z-20 reload-pulse font-sans font-bold text-xs uppercase py-2.5 px-4 rounded-md border border-[var(--accent)] bg-[var(--void)] text-[var(--accent)] cursor-pointer hover:bg-[var(--accent)] hover:text-[#0a0e14] transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-        {loading ? 'ĐANG ĐỒNG BỘ...' : 'ĐỒNG BỘ'}
-      </button>
-
-      <div className="absolute inset-0 flex items-center justify-center pt-10 pb-20 px-6">
-        <svg viewBox="0 0 1100 600" className="w-full h-full max-h-[85vh] drop-shadow-2xl select-none"
+  const renderSVG = () => {
+    return (
+      <svg viewBox="0 0 1100 600" className="w-full h-full max-h-[75vh] md:max-h-[85vh] drop-shadow-2xl select-none"
              onWheel={handleWheel}
              onMouseDown={handleMouseDown}
              onMouseMove={handleMouseMove}
              onMouseUp={handleMouseUp}
              onMouseLeave={handleMouseUp}
+             onTouchStart={handleTouchStart}
+             onTouchMove={handleTouchMove}
+             onTouchEnd={handleTouchEnd}
              style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
           <defs>
             <pattern id="mesh" width="10" height="10" patternUnits="userSpaceOnUse">
@@ -733,6 +581,10 @@ export default function App() {
                             setHoveredRack(null);
                             setHoveredZone(null);
                           }}
+                          onClick={() => {
+                            setHoveredRack({...c,...d});
+                            if (isMobile) setBottomSheetOpen(true);
+                          }}
                           addCenterLine={true}/>
               );
             })}
@@ -753,6 +605,10 @@ export default function App() {
                             onLeave={() => {
                               setHoveredRack(null);
                               setHoveredZone(null);
+                            }}
+                            onClick={() => {
+                              setHoveredRack({...c,...d});
+                              if (isMobile) setBottomSheetOpen(true);
                             }}
                             isTruck={true}/>
                   <g pointerEvents="none" opacity="0.8">
@@ -815,6 +671,10 @@ export default function App() {
                               setHoveredRack(null);
                               setHoveredZone(null);
                             }}
+                            onClick={() => {
+                              setHoveredRack({...c,...d});
+                              if (isMobile) setBottomSheetOpen(true);
+                            }}
                             isTruck={true}/>
                   <g pointerEvents="none" opacity="0.8">
                     <rect x={bx+3} y={by+6} width={TR_BAY_W-6} height={10}
@@ -858,6 +718,10 @@ export default function App() {
                                  setHoveredRack(null);
                                  setHoveredZone(null);
                                 }}
+                               onClick={() => {
+                                 setHoveredRack({...c,...d});
+                                 if (isMobile) setBottomSheetOpen(true);
+                               }}
                                addCenterLine={true}/>;
             })}
             <rect x={248} y={Z1_Y} width={392} height={Z_H} rx="2"
@@ -986,7 +850,389 @@ export default function App() {
           </text>
           </g>
         </svg>
+    );
+  };
+
+  return (
+    <div className="w-full h-full relative font-sans text-white bg-[#0a0e14]">
+      <div className="absolute top-0 left-0 right-0 h-12 flex items-center justify-between px-6 z-20"
+           style={{background:'linear-gradient(180deg,rgba(10,14,20,.95),rgba(10,14,20,0))'}}>
+        <div className="flex items-center gap-3 select-none">
+          {/* Logo J&T Cargo */}
+          <svg width="120" height="30" viewBox="0 0 135 50" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-8 w-auto">
+            <rect width="135" height="50" rx="6" fill="#006a38" />
+            <g transform="skewX(-16) translate(6, 2)">
+              <path d="M 28,10 H 20 V 32 H 5 V 37 H 28 Z" fill="#ffffff" />
+              <text x="29" y="33" fill="#ffffff" fontSize="20" fontWeight="950" fontFamily="'Arial', sans-serif">{"&"}</text>
+              <rect x="52" y="15" width="8" height="22" fill="#ffffff" />
+              <rect x="40" y="10" width="32" height="5" fill="#ffffff" />
+              <rect x="72" y="10" width="16" height="1.4" fill="#ffffff" />
+              <rect x="72" y="11.8" width="11" height="1.4" fill="#ffffff" />
+              <rect x="72" y="13.6" width="6" height="1.4" fill="#ffffff" />
+              <text x="76" y="36" fill="#ffffff" fontSize="18" fontWeight="bold" fontFamily="'Montserrat', 'Arial', sans-serif">Cargo</text>
+            </g>
+          </svg>
+          <div className="h-5 w-px bg-white/20" />
+          <div className="disp font-extrabold text-sm tracking-[0.18em] text-white/90"
+               style={{textShadow:'0 0 12px rgba(255,255,255,0.1)'}}>HCM HUB</div>
+        </div>
+        {!isMobile && (
+          <div className="flex gap-6">
+            <div className="mono text-xs text-[var(--muted)]">SYSTEM: <b className="text-[var(--green)]">ONLINE</b></div>
+            <div className="mono text-xs text-[var(--muted)]">ZONE: LAT 10.823 • LONG 106.63</div>
+          </div>
+        )}
       </div>
+
+      {!isMobile ? (
+        /* ── DESKTOP LAYOUT ── */
+        <>
+          <div className="absolute z-20 top-16 left-6 w-80 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4">
+            <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">OPERATIONAL MONITOR</h3>
+            <div className="space-y-3">
+              {[
+                ['TỈ LỆ LẤP ĐẦY', `${utilTotal}%`, 'var(--cyan)'],
+                ['CÒN TRỐNG', `${free}`, 'var(--green)'],
+                ['Ô ĐANG DÙNG', `${usedCells}/${CHUTE_RACKS.length}`, '#fff']
+              ].map(([label, val, col]) => (
+                <div key={label} className="flex justify-between items-center text-[13px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
+                  <span>{label}</span>
+                  <span className="mono font-bold text-[15px]" style={{color: col}}>{val}</span>
+                </div>
+              ))}
+              <div className="h-1.5 rounded bg-[var(--line)] overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-[var(--green)] to-[var(--cyan)] transition-all duration-1000"
+                     style={{width:`${Math.min(100,Number(utilTotal))}%`}}/>
+              </div>
+            </div>
+            <div className="mt-5 pt-4 border-t border-[var(--line)]">
+              <h4 className="disp text-[10px] tracking-[0.12em] text-[var(--muted)] mb-3">CHI TIẾT Ô CHỨA</h4>
+              {hoveredRack ? (
+                <div className="space-y-2 bg-[#101622]/60 rounded-md p-3 border border-white/5">
+                  {[
+                    ['Mã ô', hoveredRack.areaId,'var(--cyan)'],
+                    ['Tên', hoveredRack.name, '#fff'],
+                    ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#fff'],
+                    ['% Lấp đầy', `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
+                  ].map(([k,v,c]) => (
+                    <div key={k} className="flex justify-between">
+                      <span className="text-[11px] text-[var(--muted)]">{k}:</span>
+                      <span className="mono text-[11px] font-bold truncate max-w-[150px]" style={{color:c}}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 text-[11px] text-[var(--muted)] border border-dashed border-[var(--line)] rounded-md">
+                  Rê chuột vào ô để xem thông tin chi tiết
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="absolute z-20 top-[390px] left-6 w-80 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4">
+            <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">TOP 10 BƯU CỤC TỒN HÀNG</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-[var(--line)] text-[10px] text-[var(--muted)] uppercase mono font-bold">
+                    <th className="py-1 w-8">#</th>
+                    <th className="py-1 w-12">Mã</th>
+                    <th className="py-1">Bưu Cục</th>
+                    <th className="py-1 text-right w-16">Lượng tồn</th>
+                    <th className="py-1 text-right w-12">% Lấp đầy</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {getTop10Chutes().map((chute, index) => {
+                    const colors: Record<string, string> = {
+                      green: 'var(--green)',
+                      yellow: 'var(--yellow)',
+                      orange: 'var(--orange)',
+                      red: 'var(--red)',
+                      darkred: 'var(--red)'
+                    };
+                    const col = colors[chute.bucket] || '#fff';
+                    return (
+                      <tr key={chute.areaId} className="border-b border-[#1e2942]/20 last:border-0 hover:bg-white/5 transition-colors cursor-pointer text-[11px]"
+                          onMouseEnter={() => {
+                            const d = data[chute.areaId];
+                            setHoveredRack({ areaId: chute.areaId, name: chute.name, ...d });
+                            if (chute.zone && chute.areaId !== 'A19') setHoveredZone(chute.zone);
+                          }}
+                          onMouseLeave={() => {
+                            setHoveredRack(null);
+                            setHoveredZone(null);
+                          }}>
+                        <td className="py-1 text-[var(--muted)] mono">{index + 1}</td>
+                        <td className="py-1 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
+                        <td className="py-1 truncate max-w-[110px] font-medium text-white/95" title={chute.name}>
+                          {chute.name}
+                        </td>
+                        <td className="py-1 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
+                        <td className="py-1 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="absolute z-20 top-16 right-6 w-60 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4">
+            <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">REAL-TIME TELEMETRY</h3>
+            <div className="space-y-4">
+              <div className="p-3 text-center border-b border-[var(--line)] bg-[#101622]/30 rounded-md">
+                <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">TỔNG ĐƠN HÀNG</div>
+                <div className="disp font-extrabold text-3xl text-[var(--cyan)]">{totalOrders.toLocaleString()}</div>
+                <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">ĐƠN HÀNG / KHO</div>
+              </div>
+              <div className="p-3 text-center bg-[#101622]/30 rounded-md">
+                <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">Ô QUÁ TẢI</div>
+                <div className="disp font-extrabold text-3xl" style={{color:over>0?'var(--red)':'var(--green)'}}>
+                  {over.toString().padStart(2,'0')}
+                </div>
+                <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">FLEET MATRIX</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="absolute z-20 top-[335px] right-6 w-60 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--cyan)] rounded-lg backdrop-blur-md shadow-2xl p-4">
+            <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--cyan)]">ZONE METRICS</h3>
+            {hoveredZone !== null ? (
+              (() => {
+                const zInfo = getZoneInfo(hoveredZone);
+                return (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center text-[12px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
+                      <span>Phân khu</span>
+                      <span className="disp font-extrabold text-[14px] text-[var(--cyan)]">ZONE {zInfo.zone}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[12px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
+                      <span>Bưu cục có hàng</span>
+                      <span className="mono font-bold text-[13px] text-white">{zInfo.activeChutesCount} / {zInfo.totalChutes}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[12px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
+                      <span>Tổng lượng đơn</span>
+                      <span className="mono font-bold text-[13px] text-white">{zInfo.zoneOrders.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-[12px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
+                      <span>Tỉ lệ chứa hàng</span>
+                      <span className="mono font-bold text-[13px] text-[var(--cyan)]">{zInfo.ratio}%</span>
+                    </div>
+                    <div className="h-1.5 rounded bg-[var(--line)] overflow-hidden">
+                      <div className="h-full bg-[var(--cyan)] transition-all duration-500"
+                           style={{width:`${Math.min(100,Number(zInfo.ratio))}%`}}/>
+                    </div>
+                  </div>
+                );
+              })()
+            ) : (
+              <div className="text-center py-6 text-[11px] text-[var(--muted)] border border-dashed border-[var(--line)] rounded-md">
+                Rê chuột vào ô của Zone để xem chi tiết phân khu
+              </div>
+            )}
+          </div>
+
+          <div className="absolute bottom-16 left-6 z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg">
+            {[['#0c883d','Ô chứa'],['var(--orange)','Cổng Outbound'],
+              ['var(--inbound)','Cổng Inbound'],['rgba(100,116,139,0.7)','Xe tải']].map(([c,l])=>(
+              <span key={l} className="flex items-center gap-1.5">
+                <i className="w-2.5 h-2.5 rounded-sm" style={{background:c}}/>
+                {l}
+              </span>
+            ))}
+          </div>
+
+          <button onClick={handleResetZoom}
+                  className="absolute bottom-16 right-48 z-20 font-sans font-bold text-xs uppercase py-2.5 px-4 rounded-md border border-white/20 bg-[var(--panel)] text-[var(--muted)] cursor-pointer hover:bg-white/10 hover:text-white transition-all shadow-lg">
+            THU NHỎ / RESET
+          </button>
+
+          <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading}
+                  className="absolute bottom-16 right-6 z-20 google-sync-btn">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
+            {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
+          </button>
+
+          <div className="absolute inset-0 flex items-center justify-center pt-10 pb-20 px-6">
+            {renderSVG()}
+          </div>
+        </>
+      ) : (
+        /* ── MOBILE LAYOUT ── */
+        <>
+          <div className="w-full h-full pt-16 pb-24 px-4 overflow-hidden flex flex-col justify-between">
+            {activeTab === 'layout' && (
+              <div className="w-full h-full flex items-center justify-center relative">
+                {/* Floating Sync Button */}
+                <div className="absolute top-2 right-2 z-30">
+                  <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading} className="google-sync-btn">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
+                    {loading ? '...' : 'Đồng bộ'}
+                  </button>
+                </div>
+                
+                {/* Floating Zoom controls */}
+                <div className="mobile-fab-container">
+                  <button className="mobile-fab text-base font-bold" onClick={handleZoomIn}>＋</button>
+                  <button className="mobile-fab text-base font-bold" onClick={handleZoomOut}>－</button>
+                  <button className="mobile-fab text-sm" onClick={handleResetZoom}>🔄</button>
+                </div>
+
+                {renderSVG()}
+
+                {/* Bottom Sheet for Mobile Chute Details */}
+                <div className={`bottom-sheet ${bottomSheetOpen && hoveredRack ? 'open' : ''}`}>
+                  {hoveredRack && (
+                    <>
+                      <div className="bottom-sheet-close" onClick={() => { setBottomSheetOpen(false); setHoveredRack(null); }}>✕</div>
+                      <h4 className="disp text-[10px] tracking-[0.14em] text-[var(--accent)] mb-3 uppercase font-bold">Chi tiết ô chứa</h4>
+                      <div className="grid grid-cols-2 gap-3 bg-[#101622]/60 rounded-md p-3 border border-white/5">
+                        <div>
+                          <div className="text-[9px] text-[var(--muted)]">Mã ô:</div>
+                          <div className="mono text-[11px] font-bold text-[var(--cyan)]">{hoveredRack.areaId}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] text-[var(--muted)]">Tên bưu cục:</div>
+                          <div className="text-[11px] font-bold text-white truncate" title={hoveredRack.name}>{hoveredRack.name}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] text-[var(--muted)]">Sản lượng:</div>
+                          <div className="mono text-[11px] font-bold text-white">{hoveredRack.current?.toLocaleString()} / {hoveredRack.capacity}</div>
+                        </div>
+                        <div>
+                          <div className="text-[9px] text-[var(--muted)]">% Lấp đầy:</div>
+                          <div className="mono text-[11px] font-bold" style={{color: UTILCOL[hoveredRack.bucket] || '#fff'}}>{hoveredRack.utilization}%</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'top10' && (
+              <div className="w-full h-full overflow-y-auto px-1 pt-2">
+                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg p-4 shadow-xl">
+                  <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)] text-center">TOP 10 BƯU CỤC TỒN HÀNG</h3>
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-[var(--line)] text-[10px] text-[var(--muted)] uppercase mono font-bold">
+                        <th className="py-2 w-8">#</th>
+                        <th className="py-2 w-12">Mã</th>
+                        <th className="py-2">Bưu Cục</th>
+                        <th className="py-2 text-right w-16">Tồn</th>
+                        <th className="py-2 text-right w-12">%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getTop10Chutes().map((chute, index) => {
+                        const colors: Record<string, string> = {
+                          green: 'var(--green)',
+                          yellow: 'var(--yellow)',
+                          orange: 'var(--orange)',
+                          red: 'var(--red)',
+                          darkred: 'var(--red)'
+                        };
+                        const col = colors[chute.bucket] || '#fff';
+                        return (
+                          <tr key={chute.areaId} className="border-b border-[#1e2942]/20 last:border-0 hover:bg-white/5 transition-colors text-[11px]">
+                            <td className="py-2 text-[var(--muted)] mono">{index + 1}</td>
+                            <td className="py-2 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
+                            <td className="py-2 truncate max-w-[120px] font-medium text-white/95">{chute.name}</td>
+                            <td className="py-2 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
+                            <td className="py-2 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'stats' && (
+              <div className="w-full h-full overflow-y-auto space-y-4 px-1 pt-2">
+                {/* Telemetry Block */}
+                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg p-4 shadow-xl">
+                  <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">TÌNH TRẠNG VẬN HÀNH</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 text-center bg-[#101622]/30 rounded-md">
+                      <div className="mono text-[9px] text-[var(--muted)] mb-1">TỔNG ĐƠN HÀNG</div>
+                      <div className="disp font-extrabold text-xl text-[var(--cyan)]">{totalOrders.toLocaleString()}</div>
+                    </div>
+                    <div className="p-3 text-center bg-[#101622]/30 rounded-md">
+                      <div className="mono text-[9px] text-[var(--muted)] mb-1">Ô QUÁ TẢI</div>
+                      <div className="disp font-extrabold text-xl" style={{color: over > 0 ? 'var(--red)' : 'var(--green)'}}>
+                        {over.toString().padStart(2,'0')}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Operational Stats */}
+                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg p-4 shadow-xl">
+                  <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">THỐNG KÊ CHI TIẾT</h3>
+                  <div className="space-y-3">
+                    {[
+                      ['TỈ LỆ LẤP ĐẦY', `${utilTotal}%`, 'var(--cyan)'],
+                      ['CÒN TRỐNG', `${free}`, 'var(--green)'],
+                      ['Ô ĐANG DÙNG', `${usedCells}/${CHUTE_RACKS.length}`, '#fff']
+                    ].map(([label, val, col]) => (
+                      <div key={label} className="flex justify-between items-center text-xs text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
+                        <span>{label}</span>
+                        <span className="mono font-bold text-sm" style={{color: col}}>{val}</span>
+                      </div>
+                    ))}
+                    <div className="h-1.5 rounded bg-[var(--line)] overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-[var(--green)] to-[var(--cyan)] transition-all duration-1000"
+                           style={{width:`${Math.min(100,Number(utilTotal))}%`}}/>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Zone Metrics Blocks */}
+                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--cyan)] rounded-lg p-4 shadow-xl">
+                  <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--cyan)]">THỐNG KÊ PHÂN KHU (ZONES)</h3>
+                  <div className="space-y-4">
+                    {[3, 2, 1].map(zoneNum => {
+                      const zInfo = getZoneInfo(zoneNum);
+                      return (
+                        <div key={zoneNum} className="p-3 bg-[#101622]/40 rounded-md border border-white/5">
+                          <div className="flex justify-between items-center border-b border-[#1e2942]/50 pb-2 mb-2">
+                            <span className="disp font-extrabold text-[11px] text-[var(--cyan)]">ZONE {zoneNum}</span>
+                            <span className="mono text-[11px] font-bold text-[var(--cyan)]">{zInfo.ratio}% sản lượng</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-[10px] text-[var(--muted)]">
+                            <div>Bưu cục có hàng: <b className="text-white mono">{zInfo.activeChutesCount}/{zInfo.totalChutes}</b></div>
+                            <div>Tổng lượng đơn: <b className="text-white mono">{zInfo.zoneOrders.toLocaleString()}</b></div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Navigation Bar */}
+          <div className="mobile-nav">
+            <div className={`mobile-nav-item ${activeTab === 'layout' ? 'active' : ''}`} onClick={() => setActiveTab('layout')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              <span>Sơ đồ</span>
+            </div>
+            <div className={`mobile-nav-item ${activeTab === 'top10' ? 'active' : ''}`} onClick={() => setActiveTab('top10')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+              <span>Top 10</span>
+            </div>
+            <div className={`mobile-nav-item ${activeTab === 'stats' ? 'active' : ''}`} onClick={() => setActiveTab('stats')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <span>Thống kê</span>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── Critical Alert Ticker ── */}
       <div className="absolute bottom-0 left-0 right-0 h-8 bg-[var(--accent)] text-[#0a0e14] flex items-center z-30 mono font-bold text-[12px] tracking-[0.05em] overflow-hidden">
@@ -998,3 +1244,4 @@ export default function App() {
     </div>
   );
 }
+
