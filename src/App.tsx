@@ -873,7 +873,7 @@ export default function App() {
               if (!c) return null;
               const d = data[c.areaId];
               if (!d) return null;
-              const bx = 110;
+              const bx = 181;
               const by = Z1_Y;
               const bw = 56; // 2 cells wide
               return (
@@ -947,14 +947,14 @@ export default function App() {
 
           <g>
             {[
-              { id: 'A1-A2', x: 110, w: 74, type: 'outbound' },
-              { id: 'A3-A4', x: 248, w: 74, type: 'outbound' },
-              { id: 'A5', x: 334, w: 25, type: 'outbound' },
-              { id: 'A6', x: 371, w: 25, type: 'outbound' },
-              { id: 'A7', x: 408, w: 25, type: 'outbound' },
-              { id: 'A8', x: 445, w: 25, type: 'outbound' },
-              { id: 'A9-A10', x: 482, w: 74, type: 'outbound' },
-              { id: 'A11-A12', x: 568, w: 74, type: 'outbound' },
+              { id: 'A1-A2', x: 167, w: 74, type: 'outbound' },
+              { id: 'A3-A4', x: 252, w: 74, type: 'outbound' },
+              { id: 'A5', x: 338, w: 25, type: 'outbound' },
+              { id: 'A6', x: 375, w: 25, type: 'outbound' },
+              { id: 'A7', x: 412, w: 25, type: 'outbound' },
+              { id: 'A8', x: 449, w: 25, type: 'outbound' },
+              { id: 'A9-A10', x: 486, w: 74, type: 'outbound' },
+              { id: 'A11-A12', x: 572, w: 74, type: 'outbound' },
               { id: 'A13-A14', x: 663, w: 74, type: 'inbound' },
               { id: 'A15-A16', x: 748, w: 74, type: 'inbound' },
               { id: 'A17', x: 833, w: 25, type: 'inbound' },
