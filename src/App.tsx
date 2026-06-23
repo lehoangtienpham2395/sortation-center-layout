@@ -116,8 +116,8 @@ async function fetchSheetData() {
       const zone = parts[0].trim();
       const areaId = parts[1].trim();
       const buuCuc = parts[2].trim();
-      const volumeStr = parts[3] ? parts[3].trim().replace(/,/g, '') : '';
-      const capacityStr = parts[7] ? parts[7].trim().replace(/,/g, '') : '780';
+      const volumeStr = parts[3] ? parts[3].trim().replace(/[,.]/g, '') : '';
+      const capacityStr = parts[7] ? parts[7].trim().replace(/[,.]/g, '') : '780';
       
       const volume = volumeStr !== '' ? parseInt(volumeStr, 10) : NaN;
       const capacity = capacityStr !== '' ? parseInt(capacityStr, 10) : 780;
