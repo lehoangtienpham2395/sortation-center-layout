@@ -1066,7 +1066,7 @@ export default function App() {
               <div className="w-full h-full flex items-center justify-center relative">
                 {/* Floating Sync Button */}
                 <div className="absolute top-2 right-2 z-30">
-                  <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading} className="google-sync-btn">
+                  <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading} className="relative google-sync-btn">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
                     {loading ? '...' : 'Đồng bộ'}
                   </button>
