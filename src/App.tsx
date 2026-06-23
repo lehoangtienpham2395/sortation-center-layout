@@ -94,17 +94,33 @@ async function fetchSheetData() {
       const line = lines[i].trim();
       if (!line) continue;
       
-      const parts = line.split(',');
+      // Parse CSV line correctly handling commas inside double quotes
+      const parts: string[] = [];
+      let current = '';
+      let inQuotes = false;
+      for (let charIndex = 0; charIndex < line.length; charIndex++) {
+        const char = line[charIndex];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          parts.push(current);
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      parts.push(current);
+
       if (parts.length < 4) continue;
       
-      const zone = parts[0].trim().replace(/^"|"$/g, '');
-      const areaId = parts[1].trim().replace(/^"|"$/g, '');
-      const buuCuc = parts[2].trim().replace(/^"|"$/g, '');
-      const volumeStr = parts[3].trim().replace(/^"|"$/g, '');
-      const capacityStr = parts[7] ? parts[7].trim().replace(/^"|"$/g, '') : '780';
+      const zone = parts[0].trim();
+      const areaId = parts[1].trim();
+      const buuCuc = parts[2].trim();
+      const volumeStr = parts[3] ? parts[3].trim().replace(/,/g, '') : '';
+      const capacityStr = parts[7] ? parts[7].trim().replace(/,/g, '') : '780';
       
-      const volume = volumeStr.trim() !== '' ? parseInt(volumeStr, 10) : NaN;
-      const capacity = capacityStr.trim() !== '' ? parseInt(capacityStr, 10) : 780;
+      const volume = volumeStr !== '' ? parseInt(volumeStr, 10) : NaN;
+      const capacity = capacityStr !== '' ? parseInt(capacityStr, 10) : 780;
       
       if (areaId && zone) {
         const key = `${zone}_${areaId}`;
@@ -271,6 +287,11 @@ export default function App() {
         }
       }
 
+      if (curr.areaId === 'A19') {
+        capacity = 1400;
+        util = Math.floor((current / capacity) * 100);
+      }
+
       let bucket = 'green';
       if (util > 100) bucket = 'darkred';
       else if (util >= 95) bucket = 'red';
@@ -295,7 +316,7 @@ export default function App() {
   const getZoneInfo = (zone: number) => {
     let activeChutesCount = 0;
     let zoneOrders = 0;
-    const zoneChutes = CHUTE_RACKS.filter(c => c.zone === zone);
+    const zoneChutes = CHUTE_RACKS.filter(c => c.zone === zone && c.areaId !== 'A19');
     
     zoneChutes.forEach(c => {
       const d = data[c.areaId];
@@ -497,7 +518,7 @@ export default function App() {
                       onMouseEnter={() => {
                         const d = data[chute.areaId];
                         setHoveredRack({ areaId: chute.areaId, name: chute.name, ...d });
-                        if (chute.zone) setHoveredZone(chute.zone);
+                        if (chute.zone && chute.areaId !== 'A19') setHoveredZone(chute.zone);
                       }}
                       onMouseLeave={() => {
                         setHoveredRack(null);
@@ -823,7 +844,7 @@ export default function App() {
                 fill="rgba(234,179,8,0.65)" className="mono text-[5.5px] font-bold">XE TẢI CHỤM ĐẦU</text>
 
           <g>
-            {ZONE1_LIST.map((c, i) => {
+            {ZONE1_LIST.filter(c => c.areaId !== 'A19').map((c, i) => {
               const d = data[c.areaId]; if (!d) return null;
               const bx = 612 - i * TR_BAY_W;
               return <ZoneCell key={c.areaId} c={c} d={d} bx={bx} by={Z1_Y}
@@ -839,10 +860,42 @@ export default function App() {
                                 }}
                                addCenterLine={true}/>;
             })}
-            <rect x={220} y={Z1_Y} width={420} height={Z_H} rx="2"
+            <rect x={248} y={Z1_Y} width={392} height={Z_H} rx="2"
                   fill="none" stroke="var(--orange)" strokeWidth="1.8" strokeOpacity="0.8" pointerEvents="none"/>
-            <text x={218} y={Z1_Y-6} fill="rgba(249,115,22,0.7)"
+            <text x={248} y={Z1_Y-6} fill="rgba(249,115,22,0.7)"
                   className="mono text-[6.5px] font-bold tracking-wide">KHU CHỜ XUẤT TẢI (ZONE 1)</text>
+          </g>
+
+          {/* Render A19 (BN HUB) separately at A1-A2 with double cell width */}
+          <g>
+            {(() => {
+              const c = ZONE1_LIST.find(item => item.areaId === 'A19');
+              if (!c) return null;
+              const d = data[c.areaId];
+              if (!d) return null;
+              const bx = 110;
+              const by = Z1_Y;
+              const bw = 56; // 2 cells wide
+              return (
+                <>
+                  <ZoneCell c={c} d={d} bx={bx} by={by}
+                            bw={bw} bh={Z_H} midLabelY={by+Z_H/2}
+                            isHovered={hoveredRack?.areaId===c.areaId}
+                            onEnter={() => {
+                              setHoveredRack({...c,...d});
+                              // Separated from Zone 1, do not highlight Zone 1 metrics
+                            }}
+                            onLeave={() => {
+                              setHoveredRack(null);
+                            }}
+                            addCenterLine={true}/>
+                  <rect x={bx} y={by} width={bw} height={Z_H} rx="2"
+                        fill="none" stroke="var(--orange)" strokeWidth="1.8" strokeOpacity="0.8" pointerEvents="none"/>
+                  <text x={bx} y={by-6} fill="rgba(249,115,22,0.7)"
+                        className="mono text-[6.5px] font-bold tracking-wide">BN HUB</text>
+                </>
+              );
+            })()}
           </g>
 
           <g>
@@ -895,12 +948,12 @@ export default function App() {
           <g>
             {[
               { id: 'A1-A2', x: 110, w: 74, type: 'outbound' },
-              { id: 'A3-A4', x: 194, w: 74, type: 'outbound' },
-              { id: 'A5', x: 289, w: 25, type: 'outbound' },
-              { id: 'A6', x: 335, w: 25, type: 'outbound' },
-              { id: 'A7', x: 381, w: 25, type: 'outbound' },
-              { id: 'A8', x: 427, w: 25, type: 'outbound' },
-              { id: 'A9-A10', x: 473, w: 74, type: 'outbound' },
+              { id: 'A3-A4', x: 248, w: 74, type: 'outbound' },
+              { id: 'A5', x: 334, w: 25, type: 'outbound' },
+              { id: 'A6', x: 371, w: 25, type: 'outbound' },
+              { id: 'A7', x: 408, w: 25, type: 'outbound' },
+              { id: 'A8', x: 445, w: 25, type: 'outbound' },
+              { id: 'A9-A10', x: 482, w: 74, type: 'outbound' },
               { id: 'A11-A12', x: 568, w: 74, type: 'outbound' },
               { id: 'A13-A14', x: 663, w: 74, type: 'inbound' },
               { id: 'A15-A16', x: 748, w: 74, type: 'inbound' },
