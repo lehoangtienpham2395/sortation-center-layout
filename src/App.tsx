@@ -259,95 +259,17 @@ export default function App() {
   const [hoveredRack,setHoveredRack]= useState<any>(null);
   const [tickerText, setTickerText] = useState('HỆ THỐNG ỔN ĐỊNH — KHÔNG CÓ CẢNH BÁO');
   const [loading,    setLoading]    = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [hoveredZone,setHoveredZone] = useState<number | null>(null);
 
-  // New state variables for historic date/type filter and settings configuration
+  // State variables for historic date/type filter
   const [rawSheetRows, setRawSheetRows] = useState<SheetRow[]>([]);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog'>('Outbound');
-  
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [settingsOwner, setSettingsOwner] = useState(localStorage.getItem('github_owner') || 'lehoa');
-  const [settingsRepo, setSettingsRepo] = useState(localStorage.getItem('github_repo') || 'sortation-center-layout');
-  const [settingsBranch, setSettingsBranch] = useState(localStorage.getItem('github_branch') || 'main');
-  const [settingsPat, setSettingsPat] = useState(localStorage.getItem('github_pat') || '');
 
-  // Handle saving of GitHub settings to local storage
-  const handleSaveSettings = () => {
-    localStorage.setItem('github_owner', settingsOwner.trim());
-    localStorage.setItem('github_repo', settingsRepo.trim());
-    localStorage.setItem('github_branch', settingsBranch.trim());
-    localStorage.setItem('github_pat', settingsPat.trim());
-    setShowSettingsModal(false);
-    alert('Đã lưu cấu hình GitHub Actions thành công!');
-  };
-
-  // Trigger dispatch trigger on GitHub Actions
-  const triggerGithubAction = async () => {
-    const owner = localStorage.getItem('github_owner') || 'lehoa';
-    const repo = localStorage.getItem('github_repo') || 'sortation-center-layout';
-    const branch = localStorage.getItem('github_branch') || 'main';
-    const pat = localStorage.getItem('github_pat');
-    
-    if (!pat) {
-      alert('Vui lòng cấu hình GitHub Personal Access Token (PAT) trong phần Cài đặt (⚙️) trước khi Đồng bộ.');
-      return false;
-    }
-    
-    try {
-      const response = await fetch(
-        `https://api.github.com/repos/${owner}/${repo}/actions/workflows/sync_inventory.yml/dispatches`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${pat}`,
-            'Accept': 'application/vnd.github+json',
-            'X-GitHub-Api-Version': '2022-11-28',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            ref: branch
-          })
-        }
-      );
-      
-      if (response.ok || response.status === 204) {
-        return true;
-      } else {
-        const errText = await response.text();
-        console.error('Github API error:', errText);
-        alert(`Lỗi kích hoạt GitHub Actions (${response.status}): ${errText}`);
-        return false;
-      }
-    } catch (error: any) {
-      console.error('Fetch error:', error);
-      alert(`Lỗi kết nối GitHub: ${error.message}`);
-      return false;
-    }
-  };
-
-  // Sync data handler
-  const handleSyncData = async () => {
-    const pat = localStorage.getItem('github_pat');
-    if (!pat) {
-      setShowSettingsModal(true);
-      alert('Vui lòng nhập GitHub Personal Access Token (PAT) để thực hiện đồng bộ qua GitHub Actions.');
-      return;
-    }
-
-    setLoading(true);
-    const success = await triggerGithubAction();
-    if (success) {
-      alert('🚀 Kích hoạt đồng bộ thành công! GitHub Actions đang chạy ngầm và ghi dữ liệu lên Google Sheets. Quá trình này mất khoảng 1-2 phút. Vui lòng bấm "Refresh" sau đó để xem kết quả.');
-    }
-    setLoading(false);
-  };
-
-  // Fetch sheet records
+  // Fetch sheet records directly from Google Sheets
   const fetchAndUpdateData = async () => {
-    setRefreshing(true);
+    setLoading(true);
     const sheetData = await fetchSheetData();
     
     if (sheetData && sheetData.length > 0) {
@@ -367,7 +289,7 @@ export default function App() {
     } else {
       console.warn("Fetched sheet data is empty or null.");
     }
-    setRefreshing(false);
+    setLoading(false);
   };
 
   // Derived state/Filtering effect
@@ -1025,9 +947,6 @@ export default function App() {
           <div className="h-5 w-px bg-white/20" />
           <div className="disp font-extrabold text-sm tracking-[0.18em] text-white/90"
                style={{textShadow:'0 0 12px rgba(255,255,255,0.1)'}}>HCM HUB</div>
-          <button onClick={() => setShowSettingsModal(true)} className="text-white/60 hover:text-white transition-colors cursor-pointer text-base ml-2" title="Cấu hình GitHub Actions">
-            ⚙️
-          </button>
         </div>
         {!isMobile ? (
           <div className="flex items-center gap-4">
@@ -1058,13 +977,7 @@ export default function App() {
             <div className="mono text-xs text-[var(--muted)]">SYSTEM: <b className="text-[var(--green)]">ONLINE</b></div>
             <div className="mono text-xs text-[var(--muted)]">ZONE: LAT 10.823 • LONG 106.63</div>
           </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <button onClick={() => setShowSettingsModal(true)} className="text-white/60 hover:text-white transition-colors cursor-pointer text-base" title="Cấu hình GitHub Actions">
-              ⚙️
-            </button>
-          </div>
-        )}
+        ) : null}
       </div>
 
       {!isMobile ? (
@@ -1226,13 +1139,12 @@ export default function App() {
             ))}
           </div>
 
-          <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={refreshing}
-                  className="absolute bottom-16 right-48 z-20 google-refresh-btn">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#4285F4] animate-pulse shrink-0" />
-            {refreshing ? 'Đang tải...' : 'Refresh'}
+          <button onClick={handleResetZoom}
+                  className="absolute bottom-16 right-48 z-20 font-sans font-bold text-xs uppercase py-2.5 px-4 rounded-md border border-white/20 bg-[var(--panel)] text-[var(--muted)] cursor-pointer hover:bg-white/10 hover:text-white transition-all shadow-lg">
+            THU NHỎ / RESET
           </button>
 
-          <button onClick={handleSyncData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading}
+          <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading}
                   className="absolute bottom-16 right-6 z-20 google-sync-btn">
             <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
             {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
@@ -1249,7 +1161,7 @@ export default function App() {
             {activeTab === 'layout' && (
               <div className="w-full h-full flex flex-col justify-between relative pt-12">
                 {/* Mobile Filter Bar */}
-                <div className="absolute top-2 left-2 right-36 z-30 flex gap-1 bg-[#121824]/90 backdrop-blur border border-white/10 rounded-md p-1">
+                <div className="absolute top-2 left-2 right-28 z-30 flex gap-1 bg-[#121824]/90 backdrop-blur border border-white/10 rounded-md p-1">
                   <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)} 
                           className="flex-1 bg-[#0a0e14] text-white text-[10px] font-bold py-1 px-1.5 rounded border border-white/5 outline-none cursor-pointer">
                     <option value="Outbound">Outbound</option>
@@ -1267,17 +1179,11 @@ export default function App() {
                   </select>
                 </div>
 
-                {/* Floating Action Buttons */}
-                <div className="absolute top-2 right-2 z-30 flex gap-1">
-                  <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={refreshing}
-                          className="google-refresh-btn px-2.5 py-1 text-[9px] gap-1 shadow-lg shrink-0">
-                    <span className="w-1 h-1 rounded-full bg-[#4285F4] animate-pulse shrink-0" />
-                    {refreshing ? '...' : 'Ref'}
-                  </button>
-                  <button onClick={handleSyncData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading}
-                          className="google-sync-btn px-2.5 py-1 text-[9px] gap-1 shadow-lg shrink-0">
-                    <span className="w-1 h-1 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
-                    {loading ? '...' : 'Sync'}
+                {/* Floating Sync Button */}
+                <div className="absolute top-2 right-2 z-30">
+                  <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading} className="relative google-sync-btn px-3 py-1.5 text-[10px] gap-1 shadow-lg">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
+                    {loading ? '...' : 'Đồng bộ'}
                   </button>
                 </div>
 
@@ -1450,62 +1356,6 @@ export default function App() {
         </div>
         <div className="ticker-track">{tickerText}</div>
       </div>
-
-      {/* Settings Modal */}
-      {showSettingsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-[#0e131e] border border-white/10 border-t-4 border-t-[var(--cyan)] rounded-lg shadow-2xl p-6 relative">
-            <button onClick={() => setShowSettingsModal(false)} className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors cursor-pointer text-lg">
-              ✕
-            </button>
-            <h3 className="disp text-sm font-bold tracking-[0.12em] text-[var(--cyan)] mb-4 uppercase">
-              CẤU HÌNH GITHUB ACTIONS
-            </h3>
-            <p className="text-[11px] text-[var(--muted)] mb-4 leading-relaxed">
-              Cập nhật thông tin GitHub repo để kích hoạt tự động chạy Python Sync Script qua GitHub Actions API khi nhấn nút "Đồng bộ".
-            </p>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-[var(--muted)] mb-1">GitHub Owner</label>
-                <input type="text" value={settingsOwner} onChange={e => setSettingsOwner(e.target.value)}
-                       placeholder="Ví dụ: lehoa"
-                       className="w-full bg-[#121824] border border-white/10 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--cyan)]" />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-[var(--muted)] mb-1">GitHub Repository</label>
-                <input type="text" value={settingsRepo} onChange={e => setSettingsRepo(e.target.value)}
-                       placeholder="Ví dụ: sortation-center-layout"
-                       className="w-full bg-[#121824] border border-white/10 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--cyan)]" />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-[var(--muted)] mb-1">GitHub Branch</label>
-                <input type="text" value={settingsBranch} onChange={e => setSettingsBranch(e.target.value)}
-                       placeholder="Ví dụ: main"
-                       className="w-full bg-[#121824] border border-white/10 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--cyan)]" />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-[var(--muted)] mb-1">Personal Access Token (PAT)</label>
-                <input type="password" value={settingsPat} onChange={e => setSettingsPat(e.target.value)}
-                       placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
-                       className="w-full bg-[#121824] border border-white/10 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[var(--cyan)]" />
-                <span className="text-[9px] text-[var(--muted)] mt-1 block">
-                  Cần quyền <code>workflow</code> hoặc <code>repo</code> để trigger Actions. Token được lưu cục bộ ở trình duyệt của bạn.
-                </span>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowSettingsModal(false)}
-                      className="px-4 py-2 bg-transparent hover:bg-white/5 text-[var(--muted)] hover:text-white rounded text-xs font-bold transition-all cursor-pointer">
-                HỦY BỎ
-              </button>
-              <button onClick={handleSaveSettings}
-                      className="px-4 py-2 bg-[var(--cyan)] hover:bg-[#06b6d4] text-[#0a0e14] rounded text-xs font-bold transition-all cursor-pointer">
-                LƯU CẤU HÌNH
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
