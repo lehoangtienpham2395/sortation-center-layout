@@ -268,3 +268,83 @@ body {
   transform: scale(0.95);
 }
 
+/* ── Google One Refresh Button Style ── */
+.google-refresh-btn {
+  background: #1d2025;
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px; /* Pill shape */
+  padding: 10px 24px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Outer border glow effect */
+.google-refresh-btn::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 9999px;
+  padding: 1.5px;
+  background: radial-gradient(
+    70px circle at var(--mouse-x, 0px) var(--mouse-y, 0px),
+    #4285F4 0%,
+    #357AE8 50%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Background hover glow */
+.google-refresh-btn::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--mouse-y, 0px) - 35px);
+  left: calc(var(--mouse-x, 0px) - 35px);
+  width: 70px;
+  height: 70px;
+  background: radial-gradient(
+    35px circle,
+    rgba(66, 133, 244, 0.15) 0%,
+    rgba(66, 133, 244, 0.05) 50%,
+    transparent 100%
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.google-refresh-btn:hover {
+  background: #25282f;
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 0 16px rgba(66, 133, 244, 0.35);
+  transform: translateY(-1px);
+}
+
+.google-refresh-btn:hover::before,
+.google-refresh-btn:hover::after {
+  opacity: 1;
+}
+
+.google-refresh-btn:active {
+  transform: translateY(0.5px);
+}
+
+
