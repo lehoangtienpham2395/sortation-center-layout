@@ -64,8 +64,14 @@ const ZONE1_LIST = [
   { areaId: 'A19', name: 'BN HUB', zone: 1 }
 ];
 
+const ZONE1_TRUCKS = Array.from({ length: 16 }, (_, i) => ({
+  areaId: `T1-${String(16 - i).padStart(2, '0')}`,
+  name: `TẢI Chờ 1-${String(16 - i).padStart(2, '0')}`,
+  zone: 1
+}));
+
 const CHUTE_RACKS = [...ZONE3_LIST, ...ZONE2_LIST, ...ZONE1_LIST];
-const ALL_RACKS = [...CHUTE_RACKS, ...ZONE3_TRUCKS, ...ZONE2_TRUCKS];
+const ALL_RACKS = [...CHUTE_RACKS, ...ZONE3_TRUCKS, ...ZONE2_TRUCKS, ...ZONE1_TRUCKS];
 
 function generateMockData() {
   return ALL_RACKS.reduce((acc, curr) => {
@@ -219,7 +225,12 @@ const DOCK_H = 55;
 function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, onEnter, onLeave, onClick, addCenterLine, isTruck }:
   { c:any, d:any, bx:number, by:number, bw:number, bh:number, midLabelY:number,
     isHovered:boolean, onEnter:()=>void, onLeave:()=>void, onClick?:()=>void, addCenterLine?:boolean, isTruck?:boolean }) {
-  const col = isTruck ? 'rgba(255,255,255,0.2)' : (UTILCOL[d.bucket] || '#374151');
+  const zoneColors: Record<number, string> = {
+    3: 'var(--green)',
+    2: 'var(--yellow)',
+    1: 'var(--orange)'
+  };
+  const col = isTruck ? 'rgba(255,255,255,0.2)' : (zoneColors[c.zone] || '#374151');
   const fillH = (bh - 2) * Math.min(d.utilization, 110) / 110;
   return (
     <g onMouseEnter={onEnter} onMouseLeave={onLeave} onClick={onClick} className="cursor-pointer">
@@ -330,37 +341,32 @@ export default function App() {
       let util = 0;
       let isMocked = true;
 
+      const isTruck = curr.areaId.startsWith('T');
       const key = curr.zone ? `${curr.zone}_${curr.areaId}` : null;
 
-      if (key) {
-        if (filteredMap[key]) {
-          const item = filteredMap[key];
-          capacity = item.capacity;
-          if (item.volume !== -1) {
-            current = item.volume;
-            util = Math.floor((current / capacity) * 100);
-            isMocked = false;
-          } else {
-            current = 0;
-            util = 0;
-            isMocked = false;
-          }
+      if (key && filteredMap[key]) {
+        const item = filteredMap[key];
+        capacity = item.capacity;
+        if (item.volume !== -1) {
+          current = item.volume;
+          util = Math.floor((current / capacity) * 100);
+          isMocked = false;
         } else {
+          current = 0;
+          util = 0;
+          isMocked = false;
+        }
+      } else {
+        if (!isTruck) {
           current = 0;
           util = 0;
           isMocked = false;
         }
       }
 
-      // Mock only for parking trucks (where zone doesn't exist)
       if (isMocked) {
-        if (!curr.zone) {
-          util = Math.floor(Math.random() * 110);
-          current = Math.floor(capacity * (util / 100));
-        } else {
-          current = 0;
-          util = 0;
-        }
+        util = Math.floor(Math.random() * 110);
+        current = Math.floor(capacity * (util / 100));
       }
 
       if (curr.areaId === 'A19') {
@@ -529,10 +535,26 @@ export default function App() {
     );
   }, [data]);
 
+  const getZoneBorderProps = (zone: number, colorVar: string) => {
+    const isHovered = hoveredZone === zone;
+    return {
+      fill: 'none',
+      stroke: `var(${colorVar})`,
+      strokeWidth: isHovered ? 1.5 : 0.8,
+      strokeOpacity: isHovered ? 1.0 : 0.5,
+      style: {
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        filter: isHovered 
+          ? `drop-shadow(0 3px 6px rgba(0,0,0,0.4)) drop-shadow(0 3px 6px var(${colorVar}))` 
+          : 'none'
+      },
+      pointerEvents: 'none' as const
+    };
+  };
 
   const renderSVG = () => {
     return (
-      <svg viewBox="0 0 1100 600" className="w-full h-full max-h-[75vh] md:max-h-[85vh] drop-shadow-2xl select-none"
+      <svg viewBox="0 0 1100 660" className="w-full h-full max-h-[75vh] md:max-h-[85vh] drop-shadow-2xl select-none"
              onWheel={handleWheel}
              onMouseDown={handleMouseDown}
              onMouseMove={handleMouseMove}
@@ -561,7 +583,7 @@ export default function App() {
               <path d="M 2 2.5 L 7.5 5 L 2 7.5 z" fill="rgba(96,165,250,0.85)"/>
             </marker>
           </defs>
-          <g transform={`translate(${translateX}, ${translateY}) scale(${scale})`} style={{ transformOrigin: '550px 350px' }}>
+          <g transform={`translate(${translateX}, ${translateY}) scale(${scale})`} style={{ transformOrigin: '550px 330px' }}>
 
           <rect x={WL} y={WT} width={WR-WL} height={WB-WT}
                 rx="5" fill="#0c111e" fillOpacity="0.45" stroke="#1f2d4d" strokeWidth="2"/>
@@ -694,13 +716,13 @@ export default function App() {
             })}
             {/* Zone 3 Chutes Left border (bao quanh C06->C24) */}
             <rect x={110} y={118} width={532} height={Z_H} rx="2"
-                  fill="none" stroke="var(--cyan)" strokeWidth="1.8" strokeOpacity="0.8" pointerEvents="none"/>
-            {/* Zone 3 Chutes Right border (bao quanh C01->C05 - vùng xanh lá) */}
+                  {...getZoneBorderProps(3, '--green')}/>
+            {/* Zone 3 Chutes Right border (bao quanh C01->C05) */}
             <rect x={642} y={118} width={140} height={Z_H} rx="2"
-                  fill="none" stroke="#22c55e" strokeWidth="1.8" strokeOpacity="0.8" pointerEvents="none"/>
-            {/* Zone 3 Trucks border (bao quanh T3-01->T3-24 - vùng xanh dương) */}
+                  {...getZoneBorderProps(3, '--green')}/>
+            {/* Zone 3 Trucks border (bao quanh T3-01->T3-24) */}
             <rect x={110} y={174} width={672} height={Z_H} rx="2"
-                  fill="none" stroke="var(--cyan)" strokeWidth="1.8" strokeOpacity="0.8" pointerEvents="none"/>
+                  {...getZoneBorderProps(3, '--green')}/>
           </g>
 
           <g>
@@ -759,13 +781,13 @@ export default function App() {
             })}
             {/* Zone 2 Chutes Left border (bao quanh B01->B18) */}
             <rect x={138} y={336} width={504} height={Z_H} rx="2"
-                  fill="none" stroke="var(--yellow)" strokeWidth="1.8" strokeOpacity="0.8" pointerEvents="none"/>
-            {/* Zone 2 Chutes Right border (bao quanh A00->A04 - vùng màu vàng) */}
+                  {...getZoneBorderProps(2, '--yellow')}/>
+            {/* Zone 2 Chutes Right border (bao quanh A00->A04) */}
             <rect x={642} y={336} width={140} height={Z_H} rx="2"
-                  fill="none" stroke="#eab308" strokeWidth="1.8" strokeOpacity="0.8" pointerEvents="none"/>
-            {/* Zone 2 Trucks border (bao quanh T2-01->T2-23 - vùng đỏ) */}
+                  {...getZoneBorderProps(2, '--yellow')}/>
+            {/* Zone 2 Trucks border (bao quanh T2-01->T2-23) */}
             <rect x={138} y={280} width={644} height={Z_H} rx="2"
-                  fill="none" stroke="var(--red)" strokeWidth="1.8" strokeOpacity="0.8" pointerEvents="none"/>
+                  {...getZoneBorderProps(2, '--yellow')}/>
           </g>
 
           <line x1={(A23_X + NS_X)/2} y1={EW_Y+EW_H/2} x2={(A23_X + NS_X)/2} y2={EW_Y+3}
@@ -797,11 +819,11 @@ export default function App() {
                                addCenterLine={true}/>;
             })}
             <rect x={248} y={Z1_Y} width={392} height={Z_H} rx="2"
-                  fill="none" stroke="var(--orange)" strokeWidth="1.8" strokeOpacity="0.8" pointerEvents="none"/>
-            <text x={248} y={Z1_Y-6} fill="rgba(249,115,22,0.7)"
+                  {...getZoneBorderProps(1, '--orange')}/>
+            <text x={248} y={Z1_Y-6} fill="rgba(234, 67, 53, 0.75)"
                   className="mono text-[6.5px] font-bold tracking-wide">KHU CHỜ XUẤT TẢI (ZONE 1)</text>
           </g>
-
+ 
           {/* Render A19 (BN HUB) separately at A1-A2 with double cell width */}
           <g>
             {(() => {
@@ -812,6 +834,7 @@ export default function App() {
               const bx = 181;
               const by = Z1_Y;
               const bw = 56; // 2 cells wide
+              const isHubHovered = hoveredRack?.areaId === 'A19';
               return (
                 <>
                   <ZoneCell c={c} d={d} bx={bx} by={by}
@@ -826,12 +849,60 @@ export default function App() {
                             }}
                             addCenterLine={true}/>
                   <rect x={bx} y={by} width={bw} height={Z_H} rx="2"
-                        fill="none" stroke="var(--orange)" strokeWidth="1.8" strokeOpacity="0.8" pointerEvents="none"/>
-                  <text x={bx} y={by-6} fill="rgba(249,115,22,0.7)"
+                        fill="none"
+                        stroke="var(--orange)"
+                        strokeWidth={isHubHovered ? 1.5 : 0.8}
+                        strokeOpacity={isHubHovered ? 1.0 : 0.5}
+                        style={{
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          filter: isHubHovered ? 'drop-shadow(0 3px 6px rgba(0,0,0,0.4)) drop-shadow(0 3px 6px var(--orange))' : 'none'
+                        }}
+                        pointerEvents="none"/>
+                  <text x={bx} y={by-6} fill="rgba(234, 67, 53, 0.75)"
                         className="mono text-[6.5px] font-bold tracking-wide">BN HUB</text>
                 </>
               );
             })()}
+          </g>
+ 
+          {/* Zone 1 Trucks (Song song ngoài mặt DOCK, đối diện các ô Zone 1) */}
+          <g>
+            {ZONE1_TRUCKS.map((c, i) => {
+              const d = data[c.areaId]; if (!d) return null;
+              const bx = 601 - i * TR_BAY_W;
+              const by = 563; // Ngoài mặt DOCK
+              return (
+                <g key={c.areaId}>
+                  <ZoneCell c={c} d={d} bx={bx} by={by}
+                            bw={TR_BAY_W} bh={Z_H} midLabelY={by+Z_H/2}
+                            isHovered={hoveredRack?.areaId===c.areaId}
+                            onEnter={() => {
+                              setHoveredRack({...c,...d});
+                              if (c.zone) setHoveredZone(c.zone);
+                            }}
+                            onLeave={() => {
+                              setHoveredRack(null);
+                              setHoveredZone(null);
+                            }}
+                            onClick={() => {
+                              setHoveredRack({...c,...d});
+                              if (isMobile) setBottomSheetOpen(true);
+                            }}
+                            isTruck={true}/>
+                  <g pointerEvents="none" opacity="0.8">
+                    {/* Quay đầu hướng ra: cabin ở dưới, thùng hàng ở trên */}
+                    <rect x={bx+4} y={by+4} width={TR_BAY_W-8} height={Z_H-22}
+                          rx="1" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" strokeWidth="0.6"/>
+                    <rect x={bx+3} y={by+Z_H-16} width={TR_BAY_W-6} height={10}
+                          rx="1.5" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.5)" strokeWidth="0.7"/>
+                  </g>
+                </g>
+              );
+            })}
+            <rect x={181} y={563} width={448} height={Z_H} rx="2"
+                  {...getZoneBorderProps(1, '--orange')}/>
+            <text x={181} y={632} fill="rgba(234, 67, 53, 0.75)"
+                  className="mono text-[6.5px] font-bold tracking-wide">BÃI CHỜ XE TẢI (ZONE 1) - QUAY ĐẦU HƯỚNG RA</text>
           </g>
 
           <g>
@@ -916,7 +987,7 @@ export default function App() {
                 className="mono text-[5px] font-bold">VÀO ĐƯỜNG ĐI (A18)</text>
 
           {/* ── Footer note ── */}
-          <text x={(WL+WR)/2} y={DOCK_Y+DOCK_H+11} textAnchor="middle"
+          <text x={(WL+WR)/2} y={650} textAnchor="middle"
                 fill="var(--muted)" className="font-sans text-[7.5px] tracking-wide">
             A1–A12: Cổng xuất (Outbound) | A13–A18: Cổng nhập hàng (Inbound)
           </text>
