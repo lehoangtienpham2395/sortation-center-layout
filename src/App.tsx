@@ -124,13 +124,13 @@ async function fetchSheetData(): Promise<SheetRow[] | null> {
     const headerLine = lines[0].trim();
     const headers = parseCSVLine(headerLine).map(h => h.trim().replace(/^"|"$/g, ''));
     
-    const colZone = headers.indexOf("Zone");
-    const colArea = headers.indexOf("AreaID");
-    const colName = headers.indexOf("Bưu cục");
-    const colVol = headers.indexOf("Volume");
-    const colCap = headers.indexOf("Sức chứa Pallet");
-    const colDate = headers.indexOf("Ngày");
-    const colType = headers.indexOf("Loại");
+    const colZone = headers.indexOf("Zone") !== -1 ? headers.indexOf("Zone") : 0;
+    const colArea = headers.indexOf("AreaID") !== -1 ? headers.indexOf("AreaID") : (headers.indexOf("Area ID") !== -1 ? headers.indexOf("Area ID") : 1);
+    const colName = headers.indexOf("BuuCuc") !== -1 ? headers.indexOf("BuuCuc") : (headers.indexOf("Bưu cục") !== -1 ? headers.indexOf("Bưu cục") : 2);
+    const colVol = headers.indexOf("Volume") !== -1 ? headers.indexOf("Volume") : 3;
+    const colCap = headers.indexOf("Kiện hàng") !== -1 ? headers.indexOf("Kiện hàng") : (headers.indexOf("Sức chứa Pallet") !== -1 ? headers.indexOf("Sức chứa Pallet") : 7);
+    const colDate = headers.indexOf("Ngày") !== -1 ? headers.indexOf("Ngày") : (headers.indexOf("Date") !== -1 ? headers.indexOf("Date") : -1);
+    const colType = headers.indexOf("Loại") !== -1 ? headers.indexOf("Loại") : (headers.indexOf("Type") !== -1 ? headers.indexOf("Type") : -1);
     
     const todayStr = new Date().toISOString().split('T')[0];
     
@@ -141,11 +141,11 @@ async function fetchSheetData(): Promise<SheetRow[] | null> {
       const parts = parseCSVLine(line).map(p => p.trim().replace(/^"|"$/g, ''));
       if (parts.length === 0) continue;
       
-      const zone = colZone !== -1 && parts[colZone] ? parts[colZone] : '';
-      const areaId = colArea !== -1 && parts[colArea] ? parts[colArea] : '';
-      const buuCuc = colName !== -1 && parts[colName] ? parts[colName] : '';
-      const volumeStr = colVol !== -1 && parts[colVol] ? parts[colVol].replace(/[,.]/g, '') : '';
-      const capacityStr = colCap !== -1 && parts[colCap] ? parts[colCap].replace(/[,.]/g, '') : '780';
+      const zone = parts[colZone] ? parts[colZone] : '';
+      const areaId = parts[colArea] ? parts[colArea] : '';
+      const buuCuc = parts[colName] ? parts[colName] : '';
+      const volumeStr = parts[colVol] ? parts[colVol].replace(/[,.]/g, '') : '';
+      const capacityStr = parts[colCap] ? parts[colCap].replace(/[,.]/g, '') : '780';
       const date = colDate !== -1 && parts[colDate] ? parts[colDate] : todayStr;
       const type = colType !== -1 && parts[colType] ? parts[colType] : 'Outbound';
       
