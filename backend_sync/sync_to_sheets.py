@@ -423,9 +423,16 @@ def update_google_sheet(df):
         col_vol = headers.index("Volume") if "Volume" in headers else 3
         col_len = headers.index("Dài") if "Dài" in headers else 4
         col_wid = headers.index("Rộng") if "Rộng" in headers else 5
-        col_cap = headers.index("Sức chứa Pallet") if "Sức chứa Pallet" in headers else 6
-        col_pkg = headers.index("Kiện hàng") if "Kiện hàng" in headers else 7
         
+        # Ưu tiên tìm Kiện hàng trước, sau đó tới Sức chứa Pallet/Sức chứa
+        col_cap = -1
+        for cap_header in ["Kiện hàng", "Sức chứa Pallet", "Sức chứa"]:
+            if cap_header in headers:
+                col_cap = headers.index(cap_header)
+                break
+        if col_cap == -1:
+            col_cap = 6 # Default fallback index
+            
         if "Ngày" not in headers:
             headers.append("Ngày")
         if "Loại" not in headers:
@@ -450,8 +457,7 @@ def update_google_sheet(df):
                             "name": name,
                             "dai": r[col_len] if col_len < len(r) else "8",
                             "rong": r[col_wid] if col_wid < len(r) else "4",
-                            "capacity": r[col_cap] if col_cap < len(r) else "26",
-                            "kien_hang": r[col_pkg] if col_pkg < len(r) else "780"
+                            "capacity": r[col_cap] if (col_cap < len(r) and r[col_cap].strip()) else "780"
                         }
                         
         print(f"   ℹ️ Đã tải {len(master_chutes)} bưu cục cấu hình từ Sheet.")
@@ -484,7 +490,6 @@ def update_google_sheet(df):
                 row[col_len] = info["dai"]
                 row[col_wid] = info["rong"]
                 row[col_cap] = info["capacity"]
-                row[col_pkg] = info["kien_hang"]
                 row[col_date] = current_date
                 row[col_type] = type_name
                 
