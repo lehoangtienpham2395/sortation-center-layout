@@ -886,24 +886,81 @@ def run_once(session, token_mgr):
     _cleanup_old_files(OUTPUT_DIR, keep_file=output_file)
     
     # ── Tính toán sản lượng Backlog & Outbound thực tế để ghi Sheets ──
-    backlog_volumes = {}
-    if 'df_bl' in locals() and not df_bl.empty:
-        df_bl_active = df_bl.copy()
-        df_bl_active['next_station_clean'] = df_bl_active['next_station'].astype(str).str.strip().str.upper()
-        # Thay thế BN HUB -> BN cho layout
-        df_bl_active['next_station_clean'] = df_bl_active['next_station_clean'].replace('BN HUB', 'BN')
-        backlog_volumes = df_bl_active.groupby('next_station_clean').size().to_dict()
+    print("\n📊 Bắt đầu pivot dữ liệu Backlog và Outbound thực tế...")
 
+    # 1. Backlog Volumes
+    backlog_volumes = {}
+    raw_bl_data = results.get('backlog', [])
+    if raw_bl_data:
+        df_bl_raw = pd.DataFrame(raw_bl_data)
+        if not df_bl_raw.empty:
+            # Lọc 'Trong kho'
+            if 'operate_site_type' in df_bl_raw.columns:
+                df_bl_raw = df_bl_raw[df_bl_raw['operate_site_type'] == 'Trong kho']
+            
+            # Khởi tạo cột nếu thiếu và làm sạch dữ liệu
+            for c in ['billcode', 'take_site_name', 'destination_site_name', 'abnormal_remark']:
+                if c not in df_bl_raw.columns:
+                    df_bl_raw[c] = ''
+                else:
+                    df_bl_raw[c] = df_bl_raw[c].fillna('').astype(str).str.strip()
+
+            # Xác định điểm đến (abnormal remark vs destination)
+            is_redeliver = df_bl_raw['abnormal_remark'].isin(BACKLOG_REDELIVER_REMARKS)
+            df_bl_raw['target_site'] = df_bl_raw['destination_site_name']
+            df_bl_raw.loc[is_redeliver, 'target_site'] = df_bl_raw.loc[is_redeliver, 'take_site_name']
+
+            # Ánh xạ bưu cục final
+            df_bl_raw['next_station'] = df_bl_raw['target_site'].map(d_buucuc).fillna('')
+
+            # Loại bỏ trùng lặp mã đơn (keep last)
+            df_bl_raw = df_bl_raw.drop_duplicates(subset='billcode', keep='last')
+
+            # Chuẩn hóa tên bưu cục
+            df_bl_raw['next_station_clean'] = df_bl_raw['next_station'].astype(str).str.strip().str.upper()
+            df_bl_raw['next_station_clean'] = df_bl_raw['next_station_clean'].replace('BN HUB', 'BN')
+
+            # Loại bỏ các đơn không map được vào bưu cục nào
+            df_bl_raw = df_bl_raw[df_bl_raw['next_station_clean'] != '']
+
+            # Nhóm lại để lấy sản lượng (Pivot)
+            backlog_volumes = df_bl_raw.groupby('next_station_clean').size().to_dict()
+            print(f"   💡 Backlog pivot thành công: {len(backlog_volumes)} bưu cục có sản lượng. Tổng đơn: {sum(backlog_volumes.values())}")
+
+    # 2. Outbound Volumes
     outbound_volumes = {}
-    df_out_raw = pd.DataFrame(results.get('outbound', []))
-    if not df_out_raw.empty:
-        df_out_active = df_out_raw.copy()
-        # Ánh xạ upOrNextStation qua valid.csv và gộp BN HUB -> BN
-        df_out_active['next_station'] = df_out_active['upOrNextStation'].astype(str).str.strip().map(d_buucuc).fillna('')
-        df_out_active['next_station_clean'] = df_out_active['next_station'].astype(str).str.strip().str.upper()
-        df_out_active['next_station_clean'] = df_out_active['next_station_clean'].replace('BN HUB', 'BN')
-        outbound_volumes = df_out_active.groupby('next_station_clean').size().to_dict()
-    
+    raw_out_data = results.get('outbound', [])
+    if raw_out_data:
+        df_out_raw = pd.DataFrame(raw_out_data)
+        if not df_out_raw.empty:
+            for c in ['billNo', 'upOrNextStation', 'scanDate']:
+                if c not in df_out_raw.columns:
+                    df_out_raw[c] = ''
+                else:
+                    df_out_raw[c] = df_out_raw[c].fillna('').astype(str).str.strip()
+
+            # Sắp xếp theo ngày quét tăng dần để drop_duplicates lấy quét cuối cùng
+            if 'scanDate' in df_out_raw.columns:
+                df_out_raw['scanDate_dt'] = pd.to_datetime(df_out_raw['scanDate'], errors='coerce')
+                df_out_raw = df_out_raw.sort_values('scanDate_dt')
+
+            # Ánh xạ bưu cục final
+            df_out_raw['next_station'] = df_out_raw['upOrNextStation'].map(d_buucuc).fillna('')
+
+            # Loại bỏ trùng lặp mã đơn (keep last)
+            df_out_raw = df_out_raw.drop_duplicates(subset='billNo', keep='last')
+
+            # Chuẩn hóa tên bưu cục
+            df_out_raw['next_station_clean'] = df_out_raw['next_station'].astype(str).str.strip().str.upper()
+            df_out_raw['next_station_clean'] = df_out_raw['next_station_clean'].replace('BN HUB', 'BN')
+
+            # Loại bỏ các đơn không map được vào bưu cục nào
+            df_out_raw = df_out_raw[df_out_raw['next_station_clean'] != '']
+
+            # Nhóm lại để lấy sản lượng (Pivot)
+            outbound_volumes = df_out_raw.groupby('next_station_clean').size().to_dict()
+            print(f"   💡 Outbound pivot thành công: {len(outbound_volumes)} bưu cục có sản lượng. Tổng đơn: {sum(outbound_volumes.values())}")
+
     # Cập nhật dữ liệu lên Google Sheets với Lịch sử (Date & Type)
     update_google_sheet(df, outbound_volumes, backlog_volumes)
 
