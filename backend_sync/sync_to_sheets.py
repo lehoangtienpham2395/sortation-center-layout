@@ -918,7 +918,6 @@ def run_once(session, token_mgr):
 
             # Chuẩn hóa tên bưu cục
             df_bl_raw['next_station_clean'] = df_bl_raw['next_station'].astype(str).str.strip().str.upper()
-            df_bl_raw['next_station_clean'] = df_bl_raw['next_station_clean'].replace('BN HUB', 'BN')
 
             # Loại bỏ các đơn không map được vào bưu cục nào
             df_bl_raw = df_bl_raw[df_bl_raw['next_station_clean'] != '']
@@ -952,7 +951,6 @@ def run_once(session, token_mgr):
 
             # Chuẩn hóa tên bưu cục
             df_out_raw['next_station_clean'] = df_out_raw['next_station'].astype(str).str.strip().str.upper()
-            df_out_raw['next_station_clean'] = df_out_raw['next_station_clean'].replace('BN HUB', 'BN')
 
             # Loại bỏ các đơn không map được vào bưu cục nào
             df_out_raw = df_out_raw[df_out_raw['next_station_clean'] != '']
