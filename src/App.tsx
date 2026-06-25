@@ -163,7 +163,7 @@ async function fetchSheetData(): Promise<SheetRow[] | null> {
           zone,
           areaId,
           buuCuc,
-          volume: isNaN(volume) ? -1 : volume,
+          volume: isNaN(volume) ? 0 : volume,
           capacity: isNaN(capacity) ? 780 : capacity,
           date,
           type
