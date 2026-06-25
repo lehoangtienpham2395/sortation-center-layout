@@ -336,14 +336,14 @@ def load_valid(path):
         print(f"   ✅ Valid: {len(df)} dòng | Cột: {list(df.columns)}")
         d_sortcode, d_buucuc, d_tuyen, d_rank = {}, {}, {}, {}
         if 'sortcode' in df.columns and 'Bưu cục final' in df.columns:
-            d_sortcode = df.set_index('sortcode')['Bưu cục final'].to_dict()
+            d_sortcode = {str(k).strip(): str(v).strip() for k, v in df.set_index('sortcode')['Bưu cục final'].to_dict().items() if pd.notna(k) and str(k).strip() != '' and pd.notna(v) and str(v).strip() != ''}
         if 'Bưu cục' in df.columns and 'Bưu cục final' in df.columns:
-            d_buucuc = df.set_index('Bưu cục')['Bưu cục final'].to_dict()
+            d_buucuc = {str(k).strip(): str(v).strip() for k, v in df.set_index('Bưu cục')['Bưu cục final'].to_dict().items() if pd.notna(k) and str(k).strip() != '' and pd.notna(v) and str(v).strip() != ''}
         if 'Bưu cục final' in df.columns:
             if 'Tuyến' in df.columns:
-                d_tuyen = df.set_index('Bưu cục final')['Tuyến'].to_dict()
+                d_tuyen = {str(k).strip(): str(v).strip() for k, v in df.set_index('Bưu cục final')['Tuyến'].to_dict().items() if pd.notna(k) and str(k).strip() != '' and pd.notna(v) and str(v).strip() != ''}
             if 'Rank' in df.columns:
-                d_rank = df.set_index('Bưu cục final')['Rank'].to_dict()
+                d_rank = {str(k).strip(): str(v).strip() for k, v in df.set_index('Bưu cục final')['Rank'].to_dict().items() if pd.notna(k) and str(k).strip() != '' and pd.notna(v) and str(v).strip() != ''}
         return d_sortcode, d_buucuc, d_tuyen, d_rank
     except FileNotFoundError:
         print(f"   ❌ Không tìm thấy: {path}")
@@ -377,24 +377,13 @@ def _cleanup_old_files(directory: str, keep_file: str):
 # ================================================================
 # GOOGLE SHEETS SYNC
 # ================================================================
-def update_google_sheet(df):
+def update_google_sheet(df, outbound_volumes, backlog_volumes):
     now = datetime.now()
     current_date = now.strftime('%Y-%m-%d')
     
     print(f"\n📊 Bắt đầu cập nhật dữ liệu Google Sheets cho ngày {current_date}...")
     
-    df_clean = df.copy()
-    df_clean['next_station'] = df_clean['next_station'].astype(str).str.strip().str.upper()
-    
-    # 1. Tính toán lượng Outbound (Đã rời HUB)
-    df_outbound = df_clean[df_clean['status_order'] == 'Đã rời HUB']
-    outbound_volumes = df_outbound.groupby('next_station').size().to_dict()
-    
-    # 2. Tính toán lượng Backlog (Đang trên bãi)
-    df_backlog = df_clean[df_clean['status_order'] == 'Đang trên bãi']
-    backlog_volumes = df_backlog.groupby('next_station').size().to_dict()
-    
-    # 3. Kết nối Google Sheet
+    # 1. Kết nối Google Sheet
     creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
     if not creds_json:
         print("❌ Không tìm thấy biến môi trường GOOGLE_SERVICE_ACCOUNT_JSON. Bỏ qua ghi Sheet.")
@@ -463,19 +452,46 @@ def update_google_sheet(df):
         print(f"   ℹ️ Đã tải {len(master_chutes)} bưu cục cấu hình từ Sheet.")
         
         # Lọc các dòng cũ: giữ lại các dòng của ngày khác, xóa dòng của ngày hiện tại
+        # Đồng thời xóa các dòng cũ hơn 30 ngày so với hiện tại
         new_rows = [headers]
+        pruned_count = 0
         for r in all_rows[1:]:
             if len(r) > col_date:
                 r_date = r[col_date].strip()
-                if r_date and r_date != current_date:
+                if r_date:
+                    # Xóa dữ liệu của ngày hiện tại (để ghi đè)
+                    if r_date == current_date:
+                        continue
+                    
+                    # Dọn dẹp dữ liệu cũ hơn 30 ngày
+                    try:
+                        r_date_obj = datetime.strptime(r_date, "%Y-%m-%d")
+                        days_diff = (now - r_date_obj).days
+                        if days_diff > 30:
+                            pruned_count += 1
+                            continue # Bỏ qua dòng này (xóa)
+                    except ValueError:
+                        pass
+                        
                     while len(r) < len(headers):
                         r.append("")
                     new_rows.append(r)
-            else:
-                pass
-                
-        # Tạo dòng mới cho ngày hiện tại với cả 2 loại Outbound & Backlog
-        for type_name, vol_map in [("Outbound", outbound_volumes), ("Backlog", backlog_volumes)]:
+        
+        if pruned_count > 0:
+            print(f"   🗑️ Đã dọn dẹp {pruned_count} dòng dữ liệu cũ hơn 30 ngày.")
+            
+        # Xác định các loại dữ liệu cần ghi cho ngày hôm nay
+        utc_now = datetime.utcnow()
+        vn_now = utc_now + timedelta(hours=7)
+        is_6am_cap = ((vn_now.hour == 6) and (0 <= vn_now.minute <= 30)) or os.environ.get("FORCE_6AM_CAP") == "true"
+        
+        types_to_write = [("Outbound", outbound_volumes), ("Backlog", backlog_volumes)]
+        if is_6am_cap:
+            types_to_write.append(("Backlog CAP 6AM", backlog_volumes))
+            print("   ⏰ Phát hiện khung giờ 6:00 - 6:30 sáng VN -> Nhân bản snapshot 'Backlog CAP 6AM'")
+            
+        # Tạo dòng mới
+        for type_name, vol_map in types_to_write:
             for (zone, area_id), info in master_chutes.items():
                 name_upper = info["name"].strip().upper()
                 vol = vol_map.get(name_upper, 0)
@@ -496,7 +512,7 @@ def update_google_sheet(df):
                 new_rows.append(row)
                 
         # Ghi đè lại Google Sheet
-        print(f"   📤 Ghi {len(new_rows) - 1} dòng dữ liệu (bao gồm cả lịch sử) lên Google Sheets...")
+        print(f"   📤 Ghi {len(new_rows) - 1} dòng dữ liệu lên Google Sheets...")
         sheet.clear()
         sheet.update(range_name="A1", values=new_rows)
         print("   ✅ Cập nhật Google Sheets thành công!")
@@ -660,6 +676,9 @@ def run_once(session, token_mgr):
         'Sai số điện thoại',
         'Khách yêu cầu dùng thử, kiểm hàng',
         'Người nhận hẹn lại thời gian giao hàng',
+        'Địa chỉ khách hàng sai',
+        'Hàng hóa hư hỏng một phần',
+        'Hàng hóa hư hỏng hoàn toàn'
     }
 
     df_bl = pd.DataFrame(results.get('backlog', []))
@@ -866,8 +885,27 @@ def run_once(session, token_mgr):
 
     _cleanup_old_files(OUTPUT_DIR, keep_file=output_file)
     
+    # ── Tính toán sản lượng Backlog & Outbound thực tế để ghi Sheets ──
+    backlog_volumes = {}
+    if 'df_bl' in locals() and not df_bl.empty:
+        df_bl_active = df_bl.copy()
+        df_bl_active['next_station_clean'] = df_bl_active['next_station'].astype(str).str.strip().str.upper()
+        # Thay thế BN HUB -> BN cho layout
+        df_bl_active['next_station_clean'] = df_bl_active['next_station_clean'].replace('BN HUB', 'BN')
+        backlog_volumes = df_bl_active.groupby('next_station_clean').size().to_dict()
+
+    outbound_volumes = {}
+    df_out_raw = pd.DataFrame(results.get('outbound', []))
+    if not df_out_raw.empty:
+        df_out_active = df_out_raw.copy()
+        # Ánh xạ upOrNextStation qua valid.csv và gộp BN HUB -> BN
+        df_out_active['next_station'] = df_out_active['upOrNextStation'].astype(str).str.strip().map(d_buucuc).fillna('')
+        df_out_active['next_station_clean'] = df_out_active['next_station'].astype(str).str.strip().str.upper()
+        df_out_active['next_station_clean'] = df_out_active['next_station_clean'].replace('BN HUB', 'BN')
+        outbound_volumes = df_out_active.groupby('next_station_clean').size().to_dict()
+    
     # Cập nhật dữ liệu lên Google Sheets với Lịch sử (Date & Type)
-    update_google_sheet(df)
+    update_google_sheet(df, outbound_volumes, backlog_volumes)
 
 
 def main():

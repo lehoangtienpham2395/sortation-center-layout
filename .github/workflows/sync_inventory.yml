@@ -1,6 +1,9 @@
 name: Sync Inventory to Google Sheets
 
 on:
+  schedule:
+    # Runs every 30 mins from 6:00 AM VN time (23:00 UTC) to 10:00 PM VN time (15:00 UTC)
+    - cron: '*/30 23,0-15 * * *'
   workflow_dispatch:
 
 jobs:

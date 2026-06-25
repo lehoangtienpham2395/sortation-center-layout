@@ -276,7 +276,11 @@ export default function App() {
   const [rawSheetRows, setRawSheetRows] = useState<SheetRow[]>([]);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog'>('Outbound');
+  const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM'>('Outbound');
+
+  // Dynamic labels based on selectedType
+  const displayUtilizationLabel = selectedType === 'Outbound' ? 'TỈ LỆ OUTBOUND' : 'TỈ LỆ LẤP ĐẦY';
+  const displayUtilizationLabelLc = selectedType === 'Outbound' ? 'Tỉ lệ Outbound' : '% Lấp đầy';
 
   // Fetch sheet records directly from Google Sheets
   const fetchAndUpdateData = async () => {
@@ -307,24 +311,29 @@ export default function App() {
   useEffect(() => {
     if (rawSheetRows.length === 0) return;
 
-    // Filter rows by date and type
-    const filteredRows = rawSheetRows.filter(
-      r => r.date === selectedDate && r.type === selectedType
-    );
-
-    // Create lookup map
-    const filteredMap: Record<string, SheetRow> = {};
-    filteredRows.forEach(row => {
-      const key = `${row.zone}_${row.areaId}`;
-      filteredMap[key] = row;
+    // Create lookup maps for both Backlog and the selectedType for the selectedDate
+    const selectedMap: Record<string, SheetRow> = {};
+    const backlogMap: Record<string, SheetRow> = {};
+    
+    rawSheetRows.forEach(row => {
+      if (row.date === selectedDate) {
+        const key = `${row.zone}_${row.areaId}`;
+        if (row.type === selectedType) {
+          selectedMap[key] = row;
+        }
+        if (row.type === 'Backlog') {
+          backlogMap[key] = row;
+        }
+      }
     });
 
     // Update static lists
     const updateListName = (list: any[]) => {
       list.forEach(item => {
         const key = `${item.zone}_${item.areaId}`;
-        if (filteredMap[key] && filteredMap[key].buuCuc) {
-          item.name = filteredMap[key].buuCuc;
+        const activeItem = selectedMap[key] || backlogMap[key];
+        if (activeItem && activeItem.buuCuc) {
+          item.name = activeItem.buuCuc;
         } else {
           item.name = `${item.areaId} Dự phòng`;
         }
@@ -340,38 +349,60 @@ export default function App() {
       let current = 0;
       let util = 0;
       let isMocked = true;
+      let backlogCurrent = 0;
 
       const isTruck = curr.areaId.startsWith('T');
       const key = curr.zone ? `${curr.zone}_${curr.areaId}` : null;
 
-      if (key && filteredMap[key]) {
-        const item = filteredMap[key];
-        capacity = item.capacity;
-        if (item.volume !== -1) {
-          current = item.volume;
-          util = Math.floor((current / capacity) * 100);
-          isMocked = false;
-        } else {
-          current = 0;
-          util = 0;
-          isMocked = false;
+      if (key) {
+        const item = selectedMap[key];
+        const blItem = backlogMap[key];
+        
+        if (item) {
+          capacity = item.capacity;
+          if (item.volume !== -1) {
+            current = item.volume;
+            isMocked = false;
+          }
         }
-      } else {
-        if (!isTruck) {
-          current = 0;
-          util = 0;
-          isMocked = false;
+        
+        if (blItem && blItem.volume !== -1) {
+          backlogCurrent = blItem.volume;
+        }
+        
+        // Calculate utilization or outbound rate
+        if (!isMocked) {
+          if (selectedType === 'Outbound') {
+            const denominator = current + backlogCurrent;
+            util = denominator > 0 ? Math.floor((current / denominator) * 100) : 0;
+          } else {
+            util = Math.floor((current / capacity) * 100);
+          }
         }
       }
 
       if (isMocked) {
-        util = Math.floor(Math.random() * 110);
-        current = Math.floor(capacity * (util / 100));
+        if (!isTruck) {
+          util = Math.floor(Math.random() * 110);
+          current = Math.floor(capacity * (util / 100));
+          backlogCurrent = Math.floor(current * 0.3);
+          if (selectedType === 'Outbound') {
+            const denominator = current + backlogCurrent;
+            util = denominator > 0 ? Math.floor((current / denominator) * 100) : 0;
+          }
+        }
       }
 
       if (curr.areaId === 'A19') {
         capacity = 1400;
-        util = Math.floor((current / capacity) * 100);
+        if (!isMocked) {
+          if (selectedType === 'Outbound') {
+            const denominator = current + backlogCurrent;
+            util = denominator > 0 ? Math.floor((current / denominator) * 100) : 0;
+          } else {
+            util = Math.floor((current / capacity) * 100);
+          }
+        }
       }
 
       let bucket = 'green';
@@ -382,6 +413,7 @@ export default function App() {
 
       acc[curr.areaId] = {
         current,
+        backlogCurrent,
         capacity,
         remaining: Math.max(0, capacity - current),
         utilization: util,
@@ -518,22 +550,36 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let tCap=0, tCur=0, tRem=0, tOver=0, tUsed=0;
+    let tCap=0, tCur=0, tRem=0, tOver=0, tUsed=0, tBacklog=0;
     const alerts: string[] = [];
     CHUTE_RACKS.forEach(c => {
       const d = data[c.areaId]; if (!d) return;
       tCap += d.capacity; tCur += d.current; tRem += d.remaining;
+      tBacklog += d.backlogCurrent ?? 0;
       if (d.current > 0) tUsed++;
       if (d.utilization > 100) { tOver++; alerts.push(`${c.areaId} VƯỢT SỨC CHỨA (${d.utilization}%)`); }
       else if (d.utilization >= 95) alerts.push(`${c.areaId} SẮP ĐẦY (${d.utilization}%)`);
     });
-    setUtilTotal((tCap ? (tCur/tCap)*100 : 0).toFixed(1));
+    
+    if (selectedType === 'Outbound') {
+      const denominator = tCur + tBacklog;
+      setUtilTotal((denominator ? (tCur / denominator) * 100 : 0).toFixed(1));
+    } else {
+      setUtilTotal((tCap ? (tCur/tCap)*100 : 0).toFixed(1));
+    }
+    
     setFree(tRem); setUsedCells(tUsed); setTotalOrders(tCur); setOver(tOver);
+    
+    const label = selectedType === 'Outbound' ? 'TỈ LỆ OUTBOUND' : 'LẤP ĐẦY';
+    const rate = selectedType === 'Outbound'
+      ? (tCur + tBacklog ? (tCur / (tCur + tBacklog)) * 100 : 0)
+      : (tCap ? (tCur / tCap) * 100 : 0);
+      
     setTickerText(alerts.length > 0
       ? alerts.join(' // ') + ' // ' + alerts.join(' // ')
-      : `HỆ THỐNG ỔN ĐỊNH — KHÔNG CÓ CẢNH BÁO // TỔNG ${tCur} ĐƠN HÀNG // LẤP ĐẦY ${(tCap?(tCur/tCap)*100:0).toFixed(1)}%`
+      : `HỆ THỐNG ỔN ĐỊNH — KHÔNG CÓ CẢNH BÁO // TỔNG ${tCur} ĐƠN HÀNG // ${label} ${rate.toFixed(1)}%`
     );
-  }, [data]);
+  }, [data, selectedType]);
 
   const getZoneBorderProps = (zone: number, colorVar: string) => {
     const isHovered = hoveredZone === zone;
@@ -1027,6 +1073,7 @@ export default function App() {
                       className="bg-transparent text-white font-bold border-none outline-none cursor-pointer">
                 <option value="Outbound" className="bg-[#121824] text-white">Outbound</option>
                 <option value="Backlog" className="bg-[#121824] text-white">Backlog</option>
+                <option value="Backlog CAP 6AM" className="bg-[#121824] text-white">Backlog CAP 6AM</option>
               </select>
             </div>
             
@@ -1058,7 +1105,7 @@ export default function App() {
             <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">OPERATIONAL MONITOR</h3>
             <div className="space-y-3">
               {[
-                ['TỈ LỆ LẤP ĐẦY', `${utilTotal}%`, 'var(--cyan)'],
+                [displayUtilizationLabel, `${utilTotal}%`, 'var(--cyan)'],
                 ['CÒN TRỐNG', `${free}`, 'var(--green)'],
                 ['Ô ĐANG DÙNG', `${usedCells}/${CHUTE_RACKS.length}`, '#fff']
               ].map(([label, val, col]) => (
@@ -1080,7 +1127,7 @@ export default function App() {
                     ['Mã ô', hoveredRack.areaId,'var(--cyan)'],
                     ['Tên', hoveredRack.name, '#fff'],
                     ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#fff'],
-                    ['% Lấp đầy', `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
+                    [displayUtilizationLabelLc, `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
                   ].map(([k,v,c]) => (
                     <div key={k} className="flex justify-between">
                       <span className="text-[11px] text-[var(--muted)]">{k}:</span>
@@ -1097,7 +1144,9 @@ export default function App() {
           </div>
 
           <div className="absolute z-20 top-[390px] left-6 w-80 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4">
-            <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">TOP 10 BƯU CỤC TỒN HÀNG</h3>
+            <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">
+              {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
+            </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -1105,8 +1154,8 @@ export default function App() {
                     <th className="py-1 w-8">#</th>
                     <th className="py-1 w-12">Mã</th>
                     <th className="py-1">Bưu Cục</th>
-                    <th className="py-1 text-right w-16">Lượng tồn</th>
-                    <th className="py-1 text-right w-12">% Lấp đầy</th>
+                    <th className="py-1 text-right w-16">{selectedType === 'Outbound' ? 'Lượng xuất' : 'Lượng tồn'}</th>
+                    <th className="py-1 text-right w-12">{displayUtilizationLabelLc}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1237,6 +1286,7 @@ export default function App() {
                           className="flex-1 bg-[#0a0e14] text-white text-[10px] font-bold py-1 px-1.5 rounded border border-white/5 outline-none cursor-pointer">
                     <option value="Outbound">Outbound</option>
                     <option value="Backlog">Backlog</option>
+                    <option value="Backlog CAP 6AM">Backlog CAP 6AM</option>
                   </select>
                   <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)} 
                           className="flex-1 bg-[#0a0e14] text-white text-[10px] font-bold py-1 px-1.5 rounded border border-white/5 outline-none cursor-pointer">
@@ -1287,7 +1337,7 @@ export default function App() {
                           <div className="mono text-[11px] font-bold text-white">{hoveredRack.current?.toLocaleString()} / {hoveredRack.capacity}</div>
                         </div>
                         <div>
-                          <div className="text-[9px] text-[var(--muted)]">% Lấp đầy:</div>
+                          <div className="text-[9px] text-[var(--muted)]">{displayUtilizationLabelLc}:</div>
                           <div className="mono text-[11px] font-bold" style={{color: UTILCOL[hoveredRack.bucket] || '#fff'}}>{hoveredRack.utilization}%</div>
                         </div>
                       </div>
@@ -1300,14 +1350,16 @@ export default function App() {
             {activeTab === 'top10' && (
               <div className="w-full h-full overflow-y-auto px-1 pt-2">
                 <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg p-4 shadow-xl">
-                  <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)] text-center">TOP 10 BƯU CỤC TỒN HÀNG</h3>
+                  <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)] text-center">
+                    {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
+                  </h3>
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="border-b border-[var(--line)] text-[10px] text-[var(--muted)] uppercase mono font-bold">
                         <th className="py-2 w-8">#</th>
                         <th className="py-2 w-12">Mã</th>
                         <th className="py-2">Bưu Cục</th>
-                        <th className="py-2 text-right w-16">Tồn</th>
+                        <th className="py-2 text-right w-16">{selectedType === 'Outbound' ? 'Lượng xuất' : 'Tồn'}</th>
                         <th className="py-2 text-right w-12">%</th>
                       </tr>
                     </thead>
@@ -1361,7 +1413,7 @@ export default function App() {
                   <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">THỐNG KÊ CHI TIẾT</h3>
                   <div className="space-y-3">
                     {[
-                      ['TỈ LỆ LẤP ĐẦY', `${utilTotal}%`, 'var(--cyan)'],
+                      [displayUtilizationLabel, `${utilTotal}%`, 'var(--cyan)'],
                       ['CÒN TRỐNG', `${free}`, 'var(--green)'],
                       ['Ô ĐANG DÙNG', `${usedCells}/${CHUTE_RACKS.length}`, '#fff']
                     ].map(([label, val, col]) => (
