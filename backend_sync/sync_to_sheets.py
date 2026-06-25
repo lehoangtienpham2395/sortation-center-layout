@@ -15,8 +15,8 @@ from requests.adapters import HTTPAdapter
 # ============================================================
 # CONFIG ĐĂNG NHẬP (Đọc từ GitHub Secrets / Environment Variables)
 # ============================================================
-ACCOUNT    = os.environ.get("SYSTEM_ACCOUNT", "660021")
-PASSWORD   = os.environ.get("SYSTEM_PASSWORD", "Tien@giang2395")
+ACCOUNT    = os.environ.get("SYSTEM_ACCOUNT", "").strip() or "660021"
+PASSWORD   = os.environ.get("SYSTEM_PASSWORD", "").strip() or "Tien@giang2395"
 COUNTRY_ID = "1"
 LOGIN_URL  = "https://gw.jtcargo.com.vn/basicdata/login"
 
