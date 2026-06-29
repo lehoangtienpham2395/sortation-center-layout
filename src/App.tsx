@@ -117,47 +117,62 @@ interface SheetRow {
   type: string;
 }
 
-async function fetchSheetData(): Promise<SheetRow[] | null> {
+// Sheet GIDs for Google Spreadsheet
+const SHEET_GIDS: Record<string, string> = {
+  'Outbound':         '1650516820',
+  'Backlog':          '1380336385',
+  'Backlog CAP 6AM':  '1380336385',
+  'Inventory':        '1359945051',
+};
+
+async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[] | null> {
   try {
-    const response = await fetch('https://docs.google.com/spreadsheets/d/1GMgvwa1MIEg0P102MDBcvwJPd-0wAeZh3hewmz_LBQI/export?format=csv&gid=0');
+    const gid = SHEET_GIDS[sheetType] || '1650516820';
+    const url = `https://docs.google.com/spreadsheets/d/1GMgvwa1MIEg0P102MDBcvwJPd-0wAeZh3hewmz_LBQI/export?format=csv&gid=${gid}`;
+    const response = await fetch(url);
     if (!response.ok) throw new Error('Network response was not ok');
     const csvText = await response.text();
     const lines = csvText.split('\n');
     const rows: SheetRow[] = [];
-    
+
     if (lines.length === 0) return [];
-    
+
     const headerLine = lines[0].trim();
     const headers = parseCSVLine(headerLine).map(h => h.trim().replace(/^"|"$/g, ''));
-    
+
     const colZone = headers.indexOf("Zone") !== -1 ? headers.indexOf("Zone") : 0;
     const colArea = headers.indexOf("AreaID") !== -1 ? headers.indexOf("AreaID") : (headers.indexOf("Area ID") !== -1 ? headers.indexOf("Area ID") : 1);
-    const colName = headers.indexOf("BuuCuc") !== -1 ? headers.indexOf("BuuCuc") : (headers.indexOf("Bưu cục") !== -1 ? headers.indexOf("Bưu cục") : 2);
-    const colVol = headers.indexOf("Volume") !== -1 ? headers.indexOf("Volume") : 3;
-    const colCap = headers.indexOf("Kiện hàng") !== -1 ? headers.indexOf("Kiện hàng") : (headers.indexOf("Sức chứa Pallet") !== -1 ? headers.indexOf("Sức chứa Pallet") : 7);
-    const colDate = headers.indexOf("Ngày") !== -1 ? headers.indexOf("Ngày") : (headers.indexOf("Date") !== -1 ? headers.indexOf("Date") : -1);
-    const colType = headers.indexOf("Loại") !== -1 ? headers.indexOf("Loại") : (headers.indexOf("Type") !== -1 ? headers.indexOf("Type") : -1);
-    
+    const colName = headers.indexOf("BuuCuc") !== -1 ? headers.indexOf("BuuCuc") : (headers.indexOf("B\u01b0u c\u1ee5c") !== -1 ? headers.indexOf("B\u01b0u c\u1ee5c") : 2);
+    // Inventory has an extra "Tr\u1ea1ng th\u00e1i" col at index 3, so Volume shifts to col 4
+    const colVol = sheetType === 'Inventory'
+      ? (headers.indexOf("Volume") !== -1 ? headers.indexOf("Volume") : 4)
+      : (headers.indexOf("Volume") !== -1 ? headers.indexOf("Volume") : 3);
+    const colCap = headers.indexOf("S\u1ee9c ch\u1ee9a") !== -1 ? headers.indexOf("S\u1ee9c ch\u1ee9a")
+      : (headers.indexOf("Ki\u1ec7n h\u00e0ng") !== -1 ? headers.indexOf("Ki\u1ec7n h\u00e0ng")
+      : (headers.indexOf("S\u1ee9c ch\u1ee9a Pallet") !== -1 ? headers.indexOf("S\u1ee9c ch\u1ee9a Pallet") : 7));
+    const colDate = headers.indexOf("Ng\u00e0y") !== -1 ? headers.indexOf("Ng\u00e0y") : (headers.indexOf("Date") !== -1 ? headers.indexOf("Date") : -1);
+
     const todayStr = new Date().toISOString().split('T')[0];
-    
+
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
-      
+
       const parts = parseCSVLine(line).map(p => p.trim().replace(/^"|"$/g, ''));
       if (parts.length === 0) continue;
-      
-      const zone = parts[colZone] ? parts[colZone] : '';
-      const areaId = parts[colArea] ? parts[colArea] : '';
-      const buuCuc = parts[colName] ? parts[colName] : '';
-      const volumeStr = parts[colVol] ? parts[colVol].replace(/[,.]/g, '') : '';
+
+      const zone    = parts[colZone] ? parts[colZone] : '';
+      const areaId  = parts[colArea] ? parts[colArea] : '';
+      const buuCuc  = parts[colName] ? parts[colName] : '';
+      const volumeStr   = parts[colVol] ? parts[colVol].replace(/[,.]/g, '') : '';
       const capacityStr = parts[colCap] ? parts[colCap].replace(/[,.]/g, '') : '780';
-      const date = colDate !== -1 && parts[colDate] ? parts[colDate] : todayStr;
-      const type = colType !== -1 && parts[colType] ? parts[colType] : 'Outbound';
-      
-      const volume = volumeStr !== '' ? parseInt(volumeStr, 10) : NaN;
+      const date    = colDate !== -1 && parts[colDate] ? parts[colDate] : todayStr;
+      // Force type from which sheet we fetched
+      const type = sheetType;
+
+      const volume   = volumeStr !== '' ? parseInt(volumeStr, 10) : NaN;
       const capacity = capacityStr !== '' ? parseInt(capacityStr, 10) : 780;
-      
+
       if (areaId && zone) {
         rows.push({
           zone,
@@ -276,25 +291,35 @@ export default function App() {
   const [rawSheetRows, setRawSheetRows] = useState<SheetRow[]>([]);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM'>('Outbound');
+  const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Outbound');
 
   // Dynamic labels based on selectedType
   const displayUtilizationLabel = selectedType === 'Outbound' ? 'TỈ LỆ OUTBOUND' : 'TỈ LỆ LẤP ĐẦY';
   const displayUtilizationLabelLc = selectedType === 'Outbound' ? 'Tỉ lệ Outbound' : '% Lấp đầy';
 
-  // Fetch sheet records directly from Google Sheets
+  // Fetch sheet records directly from Google Sheets (all 3 tabs in parallel)
   const fetchAndUpdateData = async () => {
     setLoading(true);
-    const sheetData = await fetchSheetData();
-    
-    if (sheetData && sheetData.length > 0) {
-      setRawSheetRows(sheetData);
-      
-      // Extract unique dates sorted descending
-      const dates = Array.from(new Set(sheetData.map(r => r.date).filter(Boolean))) as string[];
+    const [outboundRows, backlogRows, inventoryRows] = await Promise.all([
+      fetchSheetData('Outbound'),
+      fetchSheetData('Backlog'),
+      fetchSheetData('Inventory'),
+    ]);
+
+    const combined: SheetRow[] = [
+      ...(outboundRows ?? []),
+      ...(backlogRows  ?? []),
+      ...(inventoryRows ?? []),
+    ];
+
+    if (combined.length > 0) {
+      setRawSheetRows(combined);
+
+      // Extract unique dates from Outbound (most reliable date source), sorted descending
+      const dates = Array.from(new Set((outboundRows ?? []).map(r => r.date).filter(Boolean))) as string[];
       dates.sort((a, b) => b.localeCompare(a));
       setAvailableDates(dates);
-      
+
       if (dates.length > 0) {
         setSelectedDate(prev => {
           if (prev && dates.includes(prev)) return prev;
@@ -302,7 +327,7 @@ export default function App() {
         });
       }
     } else {
-      console.warn("Fetched sheet data is empty or null.");
+      console.warn('Fetched sheet data is empty or null.');
     }
     setLoading(false);
   };
@@ -1071,9 +1096,10 @@ export default function App() {
               <span className="text-[var(--muted)] font-medium">Loại:</span>
               <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)} 
                       className="bg-transparent text-white font-bold border-none outline-none cursor-pointer">
-                <option value="Outbound" className="bg-[#121824] text-white">Outbound</option>
-                <option value="Backlog" className="bg-[#121824] text-white">Backlog</option>
-                <option value="Backlog CAP 6AM" className="bg-[#121824] text-white">Backlog CAP 6AM</option>
+                <option value="Outbound" className="bg-[#121824] text-white">📦 Outbound</option>
+                <option value="Backlog" className="bg-[#121824] text-white">🏭 Backlog (realtime)</option>
+                <option value="Backlog CAP 6AM" className="bg-[#121824] text-white">⏰ Backlog CAP 6AM</option>
+                <option value="Inventory" className="bg-[#121824] text-white">📊 Inventory</option>
               </select>
             </div>
             
@@ -1284,9 +1310,10 @@ export default function App() {
                 <div className="absolute top-2 left-2 right-28 z-30 flex gap-1 bg-[#121824]/90 backdrop-blur border border-white/10 rounded-md p-1">
                   <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)} 
                           className="flex-1 bg-[#0a0e14] text-white text-[10px] font-bold py-1 px-1.5 rounded border border-white/5 outline-none cursor-pointer">
-                    <option value="Outbound">Outbound</option>
-                    <option value="Backlog">Backlog</option>
-                    <option value="Backlog CAP 6AM">Backlog CAP 6AM</option>
+                    <option value="Outbound">📦 Outbound</option>
+                    <option value="Backlog">🏭 Backlog (realtime)</option>
+                    <option value="Backlog CAP 6AM">⏰ Backlog CAP 6AM</option>
+                    <option value="Inventory">📊 Inventory</option>
                   </select>
                   <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)} 
                           className="flex-1 bg-[#0a0e14] text-white text-[10px] font-bold py-1 px-1.5 rounded border border-white/5 outline-none cursor-pointer">
