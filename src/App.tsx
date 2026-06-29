@@ -114,6 +114,7 @@ interface SheetRow {
   capacity: number;
   date: string;
   type: string;
+  status?: string;
 }
 
 // Sheet GIDs for Google Spreadsheet
@@ -150,6 +151,10 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
       : (headers.indexOf("Ki\u1ec7n h\u00e0ng") !== -1 ? headers.indexOf("Ki\u1ec7n h\u00e0ng")
       : (headers.indexOf("S\u1ee9c ch\u1ee9a Pallet") !== -1 ? headers.indexOf("S\u1ee9c ch\u1ee9a Pallet") : 7));
     const colDate = headers.indexOf("Ng\u00e0y") !== -1 ? headers.indexOf("Ng\u00e0y") : (headers.indexOf("Date") !== -1 ? headers.indexOf("Date") : -1);
+    // Parse Trạng thái column for Inventory sheet (col index 3)
+    const colStatus = sheetType === 'Inventory'
+      ? (headers.indexOf("Tr\u1ea1ng th\u00e1i") !== -1 ? headers.indexOf("Tr\u1ea1ng th\u00e1i") : 3)
+      : -1;
 
     const todayStr = new Date().toISOString().split('T')[0];
 
@@ -168,6 +173,8 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
       const date    = colDate !== -1 && parts[colDate] ? parts[colDate] : todayStr;
       // Force type from which sheet we fetched
       const type = sheetType;
+      // Parse status for Inventory rows
+      const status = colStatus !== -1 && parts[colStatus] ? parts[colStatus].trim() : undefined;
 
       const volume   = volumeStr !== '' ? parseInt(volumeStr, 10) : NaN;
       const capacity = capacityStr !== '' ? parseInt(capacityStr, 10) : 780;
@@ -180,7 +187,8 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
           volume: isNaN(volume) ? 0 : volume,
           capacity: isNaN(capacity) ? 780 : capacity,
           date,
-          type
+          type,
+          status
         });
       }
     }
@@ -291,6 +299,14 @@ export default function App() {
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Outbound');
+  const INVENTORY_STATUSES = ['\u0110ang tr\u00ean b\u00e3i', 'Ch\u01b0a v\u1ec1 HUB', '\u0110\u00e3 r\u1eddi HUB', '\u0110\u00e3 \u0111i\u1ec1u ph\u1ed1i nh\u00e2n vi\u00ean', '\u0110\u00e3 \u0111i\u1ec1u ph\u1ed1i b\u01b0u c\u1ee5c'];
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['\u0110ang tr\u00ean b\u00e3i']);
+
+  const toggleStatus = (status: string) => {
+    setSelectedStatuses(prev =>
+      prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]
+    );
+  };
 
   // Dynamic labels based on selectedType
   const displayUtilizationLabel = selectedType === 'Outbound' ? 'TỈ LỆ OUTBOUND' : 'TỈ LỆ LẤP ĐẦY';
@@ -338,12 +354,23 @@ export default function App() {
     // Create lookup maps for both Backlog and the selectedType for the selectedDate
     const selectedMap: Record<string, SheetRow> = {};
     const backlogMap: Record<string, SheetRow> = {};
-    
+    // For Inventory: accumulate volumes per areaId across selected statuses
+    const inventoryMap: Record<string, { volume: number; capacity: number; buuCuc: string }> = {};
+
     rawSheetRows.forEach(row => {
       if (row.date === selectedDate) {
         const key = `${row.zone}_${row.areaId}`;
-        if (row.type === selectedType) {
+        if (row.type === selectedType && selectedType !== 'Inventory') {
           selectedMap[key] = row;
+        }
+        if (row.type === 'Inventory' && selectedType === 'Inventory') {
+          // Only sum volumes for the user-selected statuses
+          if (!row.status || selectedStatuses.includes(row.status)) {
+            if (!inventoryMap[key]) {
+              inventoryMap[key] = { volume: 0, capacity: row.capacity, buuCuc: row.buuCuc };
+            }
+            inventoryMap[key].volume += row.volume;
+          }
         }
         if (row.type === 'Backlog') {
           backlogMap[key] = row;
@@ -351,13 +378,15 @@ export default function App() {
       }
     });
 
-    // Update static lists
+    // Update static lists (prefer inventoryMap > selectedMap > backlogMap for names)
     const updateListName = (list: any[]) => {
       list.forEach(item => {
         const key = `${item.zone}_${item.areaId}`;
+        const invEntry = inventoryMap[key];
         const activeItem = selectedMap[key] || backlogMap[key];
-        if (activeItem && activeItem.buuCuc) {
-          item.name = activeItem.buuCuc;
+        const name = invEntry?.buuCuc || activeItem?.buuCuc;
+        if (name) {
+          item.name = name;
         } else {
           item.name = `${item.areaId} Dự phòng`;
         }
@@ -379,23 +408,30 @@ export default function App() {
       const key = curr.zone ? `${curr.zone}_${curr.areaId}` : null;
 
       if (key) {
-        const item = selectedMap[key];
+        const item = selectedType === 'Inventory' ? null : selectedMap[key];
         const blItem = backlogMap[key];
-        
-        if (item) {
+        const invEntry = inventoryMap[key];
+
+        if (selectedType === 'Inventory' && invEntry) {
+          // Inventory mode: use sum of selected statuses as current
+          capacity = invEntry.capacity || 780;
+          current = invEntry.volume;
+          isMocked = false;
+          util = Math.floor((current / capacity) * 100);
+        } else if (item) {
           capacity = item.capacity;
           if (item.volume !== -1) {
             current = item.volume;
             isMocked = false;
           }
         }
-        
+
         if (blItem && blItem.volume !== -1) {
           backlogCurrent = blItem.volume;
         }
-        
-        // Calculate utilization or outbound rate
-        if (!isMocked) {
+
+        // Calculate utilization or outbound rate (non-Inventory)
+        if (!isMocked && selectedType !== 'Inventory') {
           if (selectedType === 'Outbound') {
             const denominator = current + backlogCurrent;
             util = denominator > 0 ? Math.floor((current / denominator) * 100) : 0;
@@ -448,7 +484,7 @@ export default function App() {
     }, {} as any);
 
     setData(newData);
-  }, [rawSheetRows, selectedDate, selectedType]);
+  }, [rawSheetRows, selectedDate, selectedType, selectedStatuses]);
 
   const getZoneInfo = (zone: number) => {
     let activeChutesCount = 0;
@@ -1119,6 +1155,26 @@ export default function App() {
             <div className="h-5 w-px bg-white/20" />
             <div className="mono text-xs text-[var(--muted)]">SYSTEM: <b className="text-[var(--green)]">ONLINE</b></div>
             <div className="mono text-xs text-[var(--muted)]">ZONE: LAT 10.823 • LONG 106.63</div>
+
+            {/* Inventory Status Filter — hiện khi chọn Inventory */}
+            {selectedType === 'Inventory' && (
+              <div className="flex items-center gap-2 bg-[#121824] border border-yellow-500/30 rounded-md px-3 py-1 text-xs ml-2">
+                <span className="text-yellow-400 font-bold shrink-0">📊 Trạng thái:</span>
+                {INVENTORY_STATUSES.map(status => (
+                  <label key={status} className="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedStatuses.includes(status)}
+                      onChange={() => toggleStatus(status)}
+                      className="accent-yellow-400 w-3 h-3"
+                    />
+                    <span className={`text-[10px] font-medium ${selectedStatuses.includes(status) ? 'text-yellow-300' : 'text-[var(--muted)]'}`}>
+                      {status}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
         ) : null}
       </div>
