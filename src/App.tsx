@@ -850,13 +850,13 @@ export default function App() {
               );
             })}
             {/* Zone 2 Chutes Left border (bao quanh B01->B16, đã bỏ B17-B18) */}
-            <rect x={138} y={336} width={448} height={Z_H} rx="2"
+            <rect x={194} y={336} width={448} height={Z_H} rx="2"
                   {...getZoneBorderProps(2, '--yellow')}/>
             {/* Zone 2 Chutes Right border (bao quanh A00->A04) */}
             <rect x={642} y={336} width={140} height={Z_H} rx="2"
                   {...getZoneBorderProps(2, '--yellow')}/>
             {/* Zone 2 Trucks border (bao quanh T2-01->T2-21) */}
-            <rect x={138} y={280} width={588} height={Z_H} rx="2"
+            <rect x={194} y={280} width={588} height={Z_H} rx="2"
                   {...getZoneBorderProps(2, '--yellow')}/>
           </g>
 
