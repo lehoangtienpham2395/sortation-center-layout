@@ -42,13 +42,12 @@ const ZONE2_LIST = [
   { areaId: 'B09', name: 'SG CỦ CHI', zone: 2 },         { areaId: 'B10', name: 'SG TÂN SƠN NHÌ', zone: 2 },
   { areaId: 'B11', name: 'SG HIỆP BÌNH', zone: 2 },      { areaId: 'B12', name: 'SG PHÚ LÂM', zone: 2 },
   { areaId: 'B13', name: 'SG AN LẠC', zone: 2 },         { areaId: 'B14', name: 'SG BÌNH TÂN', zone: 2 },
-  { areaId: 'B15', name: 'SG TÂN HƯNG', zone: 2 },       { areaId: 'B16', name: 'SG ĐÔNG THẠNH', zone: 2 },
-  { areaId: 'B17', name: 'BD DĨ AN', zone: 2 },          { areaId: 'B18', name: 'SG KHÁNH HỘI', zone: 2 }
+  { areaId: 'B15', name: 'SG TÂN HƯNG', zone: 2 },       { areaId: 'B16', name: 'SG ĐÔNG THẠNH', zone: 2 }
 ];
 
-const ZONE2_TRUCKS = Array.from({ length: 23 }, (_, i) => ({
-  areaId: `T2-${String(23 - i).padStart(2, '0')}`,
-  name: `TẢI Chờ 2-${String(23 - i).padStart(2, '0')}`,
+const ZONE2_TRUCKS = Array.from({ length: 21 }, (_, i) => ({
+  areaId: `T2-${String(21 - i).padStart(2, '0')}`,
+  name: `TẢI Chờ 2-${String(21 - i).padStart(2, '0')}`,
   zone: 2
 }));
 
@@ -850,14 +849,14 @@ export default function App() {
                 </g>
               );
             })}
-            {/* Zone 2 Chutes Left border (bao quanh B01->B18) */}
-            <rect x={138} y={336} width={504} height={Z_H} rx="2"
+            {/* Zone 2 Chutes Left border (bao quanh B01->B16, đã bỏ B17-B18) */}
+            <rect x={138} y={336} width={448} height={Z_H} rx="2"
                   {...getZoneBorderProps(2, '--yellow')}/>
             {/* Zone 2 Chutes Right border (bao quanh A00->A04) */}
             <rect x={642} y={336} width={140} height={Z_H} rx="2"
                   {...getZoneBorderProps(2, '--yellow')}/>
-            {/* Zone 2 Trucks border (bao quanh T2-01->T2-23) */}
-            <rect x={138} y={280} width={644} height={Z_H} rx="2"
+            {/* Zone 2 Trucks border (bao quanh T2-01->T2-21) */}
+            <rect x={138} y={280} width={588} height={Z_H} rx="2"
                   {...getZoneBorderProps(2, '--yellow')}/>
           </g>
 
