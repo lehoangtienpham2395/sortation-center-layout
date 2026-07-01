@@ -308,6 +308,14 @@ export default function App() {
     );
   };
 
+  const toggleAllStatuses = () => {
+    if (selectedStatuses.length === INVENTORY_STATUSES.length) {
+      setSelectedStatuses([]);
+    } else {
+      setSelectedStatuses([...INVENTORY_STATUSES]);
+    }
+  };
+
   // Dynamic labels based on selectedType
   const displayUtilizationLabel = selectedType === 'Outbound' ? 'TỈ LỆ OUTBOUND' : 'TỈ LỆ LẤP ĐẦY';
   const displayUtilizationLabelLc = selectedType === 'Outbound' ? 'Tỉ lệ Outbound' : '% Lấp đầy';
@@ -321,7 +329,6 @@ export default function App() {
     };
 
     CHUTE_RACKS.forEach(c => {
-      if (c.areaId === 'A19') return; // Exclude BN HUB for Zone 1
       const d = data[c.areaId];
       if (d && c.zone) {
         stats[c.zone].current += d.current;
@@ -364,12 +371,13 @@ export default function App() {
       // Extract unique dates from all rows (Outbound, Backlog, Inventory), sorted descending
       const dates = Array.from(new Set(combined.map(r => r.date).filter(Boolean))) as string[];
       dates.sort((a, b) => b.localeCompare(a));
-      setAvailableDates(dates);
+      const recentDates = dates.slice(0, 7);
+      setAvailableDates(recentDates);
 
-      if (dates.length > 0) {
+      if (recentDates.length > 0) {
         setSelectedDate(prev => {
-          if (prev && dates.includes(prev)) return prev;
-          return dates[0];
+          if (prev && recentDates.includes(prev)) return prev;
+          return recentDates[0];
         });
       }
     } else {
@@ -520,7 +528,7 @@ export default function App() {
   const getZoneInfo = (zone: number) => {
     let activeChutesCount = 0;
     let zoneOrders = 0;
-    const zoneChutes = CHUTE_RACKS.filter(c => c.zone === zone && c.areaId !== 'A19');
+    const zoneChutes = CHUTE_RACKS.filter(c => c.zone === zone);
     
     zoneChutes.forEach(c => {
       const d = data[c.areaId];
@@ -919,9 +927,9 @@ export default function App() {
             {/* Zone 2 Chutes Left border (bao quanh B01->B16, đã bỏ B17-B18) */}
             <rect x={194} y={336} width={448} height={Z_H} rx="2"
                   {...getZoneBorderProps(2, '--yellow')}/>
-            {/* Zone 2 Chutes Right border (bao quanh A00->A04) */}
+            {/* Zone 2 Chutes Right border (bao quanh A00->A04, now Zone 3) */}
             <rect x={642} y={336} width={140} height={Z_H} rx="2"
-                  {...getZoneBorderProps(2, '--yellow')}/>
+                  {...getZoneBorderProps(3, '--green')}/>
             {/* Zone 2 Trucks border (bao quanh T2-01->T2-21) */}
             <rect x={194} y={280} width={588} height={Z_H} rx="2"
                   {...getZoneBorderProps(2, '--yellow')}/>
@@ -979,10 +987,11 @@ export default function App() {
                             isHovered={hoveredRack?.areaId===c.areaId}
                             onEnter={() => {
                               setHoveredRack({...c,...d});
-                              // Separated from Zone 1, do not highlight Zone 1 metrics
+                              setHoveredZone(1);
                             }}
                             onLeave={() => {
                               setHoveredRack(null);
+                              setHoveredZone(null);
                             }}
                             addCenterLine={true}/>
                   <rect x={bx} y={by} width={bw} height={Z_H} rx="2"
@@ -1161,26 +1170,19 @@ export default function App() {
             {/* Type Select */}
             <div className="flex items-center gap-1.5 bg-[#121824] hover:bg-[#1a2336] border border-white/10 rounded-full px-4 py-1.5 text-xs transition-colors duration-200 shadow-inner">
               <span className="text-slate-400 font-medium mr-0.5">Loại:</span>
-              {selectedType === 'Outbound' && <i className="fa-solid fa-arrow-up-from-bracket text-blue-400 mr-0.5"></i>}
-              {selectedType === 'Backlog' && <i className="fa-solid fa-triangle-exclamation text-amber-500 mr-0.5"></i>}
-              {selectedType === 'Backlog CAP 6AM' && <i className="fa-solid fa-clock text-rose-400 mr-0.5"></i>}
-              {selectedType === 'Inventory' && <i className="fa-solid fa-boxes-stacked text-emerald-400 mr-0.5"></i>}
               <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)} 
-                      className="bg-transparent text-white font-bold border-none outline-none cursor-pointer appearance-none pr-4 relative">
+                      className="bg-transparent text-white font-bold border-none outline-none cursor-pointer">
                 <option value="Outbound" className="bg-[#121824] text-white">Outbound</option>
-                <option value="Backlog" className="bg-[#121824] text-white">Backlog (realtime)</option>
-                <option value="Backlog CAP 6AM" className="bg-[#121824] text-white">Backlog CAP 6AM</option>
-                <option value="Inventory" className="bg-[#121824] text-white">Inventory</option>
+                <option value="Backlog" className="bg-[#121824] text-white">Backlog</option>
+                <option value="Inventory" className="bg-[#121824] text-white">Volume</option>
               </select>
-              <i className="fa-solid fa-chevron-down text-[9px] text-slate-400 -ml-3 pointer-events-none"></i>
             </div>
             
             {/* Date Select */}
             <div className="flex items-center gap-1.5 bg-[#121824] hover:bg-[#1a2336] border border-white/10 rounded-full px-4 py-1.5 text-xs transition-colors duration-200 shadow-inner">
               <span className="text-slate-400 font-medium mr-0.5">Ngày:</span>
-              <i className="fa-regular fa-calendar-days text-cyan-400 mr-0.5"></i>
               <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)} 
-                      className="bg-transparent text-white font-bold border-none outline-none cursor-pointer appearance-none pr-4">
+                      className="bg-transparent text-white font-bold border-none outline-none cursor-pointer">
                 {availableDates.length > 0 ? (
                   availableDates.map(d => (
                     <option key={d} value={d} className="bg-[#121824] text-white">{d}</option>
@@ -1189,7 +1191,44 @@ export default function App() {
                   <option value="" className="bg-[#121824] text-white">Chưa có dữ liệu</option>
                 )}
               </select>
-              <i className="fa-solid fa-chevron-down text-[9px] text-slate-400 -ml-3 pointer-events-none"></i>
+            </div>
+
+            {/* Inventory Status Filter — hiển thị bên ngoài, mờ đi nếu không phải Inventory */}
+            <div className={`h-5 w-px bg-white/10 mx-1 transition-opacity duration-300 ${selectedType !== 'Inventory' ? 'opacity-30' : 'opacity-100'}`} />
+            <div className={`flex items-center gap-2 bg-[#121824]/60 border border-white/10 rounded-full px-3 py-1 text-xs transition-all duration-300 ${
+              selectedType !== 'Inventory' ? 'opacity-40 pointer-events-none select-none filter blur-[0.3px]' : 'opacity-100'
+            }`}>
+              <span className="text-slate-300 font-bold shrink-0">
+                Trạng thái:
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={toggleAllStatuses}
+                  className={`px-3 py-1 rounded-full border text-[11.5px] font-medium transition-all duration-200 ${
+                    selectedStatuses.length === INVENTORY_STATUSES.length
+                      ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold shadow-[0_0_8px_rgba(234,179,8,0.1)]'
+                      : 'bg-[#121824]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-300'
+                  }`}
+                >
+                  Tất cả
+                </button>
+                {INVENTORY_STATUSES.map(status => {
+                  const isChecked = selectedStatuses.includes(status);
+                  return (
+                    <button
+                      key={status}
+                      onClick={() => toggleStatus(status)}
+                      className={`px-3 py-1 rounded-full border text-[11.5px] font-medium transition-all duration-200 ${
+                        isChecked
+                          ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold shadow-[0_0_8px_rgba(234,179,8,0.1)]'
+                          : 'bg-[#121824]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-300'
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="h-5 w-px bg-white/10 mx-1" />
@@ -1198,41 +1237,6 @@ export default function App() {
               SYS: <b className="text-emerald-400">ONLINE</b>
             </div>
             <div className="mono text-[10px] text-slate-400">ZONE: LAT 10.823 • LONG 106.63</div>
-
-            {/* Inventory Status Filter — hiện khi chọn Inventory */}
-            {selectedType === 'Inventory' && (
-              <>
-                <div className="h-5 w-px bg-white/10 mx-1" />
-                <div className="flex items-center gap-2 bg-[#121824]/60 border border-white/10 rounded-full px-3 py-1 text-xs">
-                  <span className="text-slate-300 font-bold shrink-0 flex items-center gap-1">
-                    <i className="fa-solid fa-filter text-slate-400"></i> Trạng thái:
-                  </span>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {INVENTORY_STATUSES.map(status => {
-                      const isChecked = selectedStatuses.includes(status);
-                      return (
-                        <button
-                          key={status}
-                          onClick={() => toggleStatus(status)}
-                          className={`px-3 py-1 rounded-full border text-[11.5px] font-medium flex items-center gap-1.5 transition-all duration-200 ${
-                            isChecked
-                              ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold shadow-[0_0_8px_rgba(234,179,8,0.1)]'
-                              : 'bg-[#121824]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-300'
-                          }`}
-                        >
-                          {isChecked ? (
-                            <i className="fa-solid fa-circle-check text-[11px] text-yellow-400"></i>
-                          ) : (
-                            <i className="fa-regular fa-circle text-[11px] text-slate-500"></i>
-                          )}
-                          {status}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         ) : null}
       </div>
@@ -1240,167 +1244,172 @@ export default function App() {
       {!isMobile ? (
         /* ── DESKTOP LAYOUT ── */
         <>
-                    <div className="absolute z-20 top-16 left-6 w-80 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 max-h-[calc(100vh-100px)] overflow-y-auto">
-            <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">OPERATIONAL MONITOR & ZONE METRICS</h3>
-            <div className="space-y-3">
-              {[
-                [displayUtilizationLabel, `${utilTotal}%`, 'var(--cyan)'],
-                ['CÒN TRỐNG', `${free}`, 'var(--green)'],
-                ['Ô ĐANG DÙNG', `${usedCells}/${CHUTE_RACKS.length}`, '#fff']
-              ].map(([label, val, col]) => (
-                <div key={label} className="flex justify-between items-center text-[13px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
-                  <span>{label}</span>
-                  <span className="mono font-bold text-[15px]" style={{color: col}}>{val}</span>
-                </div>
-              ))}
-              <div className="h-1.5 rounded bg-[var(--line)] overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-[var(--green)] to-[var(--cyan)] transition-all duration-1000"
-                     style={{width:`${Math.min(100,Number(utilTotal))}%`}}/>
-              </div>
-            </div>
-
-            {/* Zone metrics section */}
-            <div className="mt-5 pt-4 border-t border-[var(--line)]">
-              <h4 className="disp text-[10px] tracking-[0.12em] text-[var(--muted)] mb-3">ZONE METRICS (CHI TIẾT PHÂN KHU)</h4>
+          <div className="absolute z-20 top-16 left-6 w-80 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2 pb-6 scrollbar-thin">
+            {/* 1. OPERATIONAL MONITOR & ZONE METRICS */}
+            <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
+              <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">OPERATIONAL MONITOR & ZONE METRICS</h3>
               <div className="space-y-3">
                 {[
-                  { id: 3, name: 'ZONE 3', color: 'var(--green)' },
-                  { id: 2, name: 'ZONE 2', color: 'var(--yellow)' },
-                  { id: 1, name: 'ZONE 1', color: 'var(--orange)', desc: ' (trừ BN HUB)' }
-                ].map(zone => {
-                  const stats = zoneStats[zone.id];
-                  const isHovered = hoveredZone === zone.id;
-                  return (
-                    <div 
-                      key={zone.id} 
-                      className={`p-2.5 rounded-md border transition-all duration-300 cursor-pointer ${
-                        isHovered 
-                          ? 'bg-[#101622]/90 border-white/20 shadow-[0_0_12px_rgba(255,255,255,0.05)]' 
-                          : 'bg-[#101622]/40 border-white/5 hover:border-white/10'
-                      }`}
-                      style={isHovered ? { borderColor: zone.color, boxShadow: `0 0 10px ${zone.color}22` } : {}}
-                      onMouseEnter={() => setHoveredZone(zone.id)}
-                      onMouseLeave={() => setHoveredZone(null)}
-                    >
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="font-bold text-[11px] tracking-wide" style={{ color: zone.color }}>
-                          {zone.name}{zone.desc}
-                        </span>
-                        <span className="mono text-[11px] font-bold text-white">
-                          {stats.current.toLocaleString()} đơn
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-[10px] text-[var(--muted)] mb-1.5">
-                        <span>{displayUtilizationLabelLc}</span>
-                        <span className="mono font-bold text-white">{stats.fillRate}%</span>
-                      </div>
-                      <div className="h-1 rounded bg-[var(--line)] overflow-hidden">
-                        <div className="h-full transition-all duration-500"
-                             style={{ 
-                               width: `${Math.min(100, stats.fillRate)}%`,
-                               backgroundColor: zone.color
-                             }}/>
-                      </div>
-                    </div>
-                  );
-                })}
+                  [displayUtilizationLabel, `${utilTotal}%`, 'var(--cyan)'],
+                  ['CÒN TRỐNG', `${free}`, 'var(--green)'],
+                  ['Ô ĐANG DÙNG', `${usedCells}/${CHUTE_RACKS.length}`, '#fff']
+                ].map(([label, val, col]) => (
+                  <div key={label} className="flex justify-between items-center text-[13px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
+                    <span>{label}</span>
+                    <span className="mono font-bold text-[15px]" style={{color: col}}>{val}</span>
+                  </div>
+                ))}
+                <div className="h-1.5 rounded bg-[var(--line)] overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-[var(--green)] to-[var(--cyan)] transition-all duration-1000"
+                       style={{width:`${Math.min(100,Number(utilTotal))}%`}}/>
+                </div>
               </div>
-            </div>
 
-            <div className="mt-5 pt-4 border-t border-[var(--line)]">
-              <h4 className="disp text-[10px] tracking-[0.12em] text-[var(--muted)] mb-3">CHI TIẾT Ô CHỨA</h4>
-              {hoveredRack ? (
-                <div className="space-y-2 bg-[#101622]/60 rounded-md p-3 border border-white/5">
+              {/* Zone metrics section */}
+              <div className="mt-5 pt-4 border-t border-[var(--line)]">
+                <h4 className="disp text-[10px] tracking-[0.12em] text-[var(--muted)] mb-3">ZONE METRICS (CHI TIẾT PHÂN KHU)</h4>
+                <div className="space-y-3">
                   {[
-                    ['Mã ô', hoveredRack.areaId,'var(--cyan)'],
-                    ['Tên', hoveredRack.name, '#fff'],
-                    ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#fff'],
-                    [displayUtilizationLabelLc, `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
-                  ].map(([k,v,c]) => (
-                    <div key={k} className="flex justify-between">
-                      <span className="text-[11px] text-[var(--muted)]">{k}:</span>
-                      <span className="mono text-[11px] font-bold truncate max-w-[150px]" style={{color:c}}>{v}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-[11px] text-[var(--muted)] border border-dashed border-[var(--line)] rounded-md">
-                  Rê chuột vào ô để xem thông tin chi tiết
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="absolute z-20 top-[390px] left-6 w-80 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4">
-            <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">
-              {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
-            </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-[var(--line)] text-[10px] text-[var(--muted)] uppercase mono font-bold">
-                    <th className="py-1 w-8">#</th>
-                    <th className="py-1 w-12">Mã</th>
-                    <th className="py-1">Bưu Cục</th>
-                    <th className="py-1 text-right w-16">{selectedType === 'Outbound' ? 'Lượng xuất' : 'Lượng tồn'}</th>
-                    <th className="py-1 text-right w-12">{displayUtilizationLabelLc}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {getTop10Chutes().map((chute, index) => {
-                    const colors: Record<string, string> = {
-                      green: 'var(--green)',
-                      yellow: 'var(--yellow)',
-                      orange: 'var(--orange)',
-                      red: 'var(--red)',
-                      darkred: 'var(--red)'
-                    };
-                    const col = colors[chute.bucket] || '#fff';
+                    { id: 3, name: 'ZONE 3', color: 'var(--green)' },
+                    { id: 2, name: 'ZONE 2', color: 'var(--yellow)' },
+                    { id: 1, name: 'ZONE 1', color: 'var(--orange)' }
+                  ].map(zone => {
+                    const stats = zoneStats[zone.id];
+                    const isHovered = hoveredZone === zone.id;
                     return (
-                      <tr key={chute.areaId} className="border-b border-[#1e2942]/20 last:border-0 hover:bg-white/5 transition-colors cursor-pointer text-[11px]"
-                          onMouseEnter={() => {
-                            const d = data[chute.areaId];
-                            setHoveredRack({ areaId: chute.areaId, name: chute.name, ...d });
-                            if (chute.zone && chute.areaId !== 'A19') setHoveredZone(chute.zone);
-                          }}
-                          onMouseLeave={() => {
-                            setHoveredRack(null);
-                            setHoveredZone(null);
-                          }}>
-                        <td className="py-1 text-[var(--muted)] mono">{index + 1}</td>
-                        <td className="py-1 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
-                        <td className="py-1 truncate max-w-[110px] font-medium text-white/95" title={chute.name}>
-                          {chute.name}
-                        </td>
-                        <td className="py-1 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
-                        <td className="py-1 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
-                      </tr>
+                      <div 
+                        key={zone.id} 
+                        className={`p-2.5 rounded-md border transition-all duration-300 cursor-pointer ${
+                          isHovered 
+                            ? 'bg-[#101622]/90 border-white/20 shadow-[0_0_12px_rgba(255,255,255,0.05)]' 
+                            : 'bg-[#101622]/40 border-white/5 hover:border-white/10'
+                        }`}
+                        style={isHovered ? { borderColor: zone.color, boxShadow: `0 0 10px ${zone.color}22` } : {}}
+                        onMouseEnter={() => setHoveredZone(zone.id)}
+                        onMouseLeave={() => setHoveredZone(null)}
+                      >
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-bold text-[11px] tracking-wide" style={{ color: zone.color }}>
+                            {zone.name}
+                          </span>
+                          <span className="mono text-[11px] font-bold text-white">
+                            {stats.current.toLocaleString()} đơn
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] text-[var(--muted)] mb-1.5">
+                          <span>{displayUtilizationLabelLc}</span>
+                          <span className="mono font-bold text-white">{stats.fillRate}%</span>
+                        </div>
+                        <div className="h-1 rounded bg-[var(--line)] overflow-hidden">
+                          <div className="h-full transition-all duration-500"
+                               style={{ 
+                                 width: `${Math.min(100, stats.fillRate)}%`,
+                                 backgroundColor: zone.color
+                               }}/>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="absolute z-20 top-16 right-6 w-60 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4">
-            <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">REAL-TIME TELEMETRY</h3>
-            <div className="space-y-4">
-              <div className="p-3 text-center border-b border-[var(--line)] bg-[#101622]/30 rounded-md">
-                <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">TỔNG ĐƠN HÀNG</div>
-                <div className="disp font-extrabold text-3xl text-[var(--cyan)]">{totalOrders.toLocaleString()}</div>
-                <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">ĐƠN HÀNG / KHO</div>
-              </div>
-              <div className="p-3 text-center bg-[#101622]/30 rounded-md">
-                <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">Ô QUÁ TẢI</div>
-                <div className="disp font-extrabold text-3xl" style={{color:over>0?'var(--red)':'var(--green)'}}>
-                  {over.toString().padStart(2,'0')}
                 </div>
-                <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">FLEET MATRIX</div>
+              </div>
+
+              <div className="mt-5 pt-4 border-t border-[var(--line)]">
+                <h4 className="disp text-[10px] tracking-[0.12em] text-[var(--muted)] mb-3">CHI TIẾT Ô CHỨA</h4>
+                {hoveredRack ? (
+                  <div className="space-y-2 bg-[#101622]/60 rounded-md p-3 border border-white/5">
+                    {[
+                      ['Mã ô', hoveredRack.areaId,'var(--cyan)'],
+                      ['Tên', hoveredRack.name, '#fff'],
+                      ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#fff'],
+                      [displayUtilizationLabelLc, `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
+                    ].map(([k,v,c]) => (
+                      <div key={k} className="flex justify-between">
+                        <span className="text-[11px] text-[var(--muted)]">{k}:</span>
+                        <span className="mono text-[11px] font-bold truncate max-w-[150px]" style={{color:c}}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-[11px] text-[var(--muted)] border border-dashed border-[var(--line)] rounded-md">
+                    Rê chuột vào ô để xem thông tin chi tiết
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 2. TOP 10 BƯU CỤC */}
+            <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
+              <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">
+                {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-[var(--line)] text-[10px] text-[var(--muted)] uppercase mono font-bold">
+                      <th className="py-1 w-8">#</th>
+                      <th className="py-1 w-12">Mã</th>
+                      <th className="py-1">Bưu Cục</th>
+                      <th className="py-1 text-right w-16">{selectedType === 'Outbound' ? 'Lượng xuất' : 'Lượng tồn'}</th>
+                      <th className="py-1 text-right w-12">{displayUtilizationLabelLc}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {getTop10Chutes().map((chute, index) => {
+                      const colors: Record<string, string> = {
+                        green: 'var(--green)',
+                        yellow: 'var(--yellow)',
+                        orange: 'var(--orange)',
+                        red: 'var(--red)',
+                        darkred: 'var(--red)'
+                      };
+                      const col = colors[chute.bucket] || '#fff';
+                      return (
+                        <tr key={chute.areaId} className="border-b border-[#1e2942]/20 last:border-0 hover:bg-white/5 transition-colors cursor-pointer text-[11px]"
+                            onMouseEnter={() => {
+                              const d = data[chute.areaId];
+                              setHoveredRack({ areaId: chute.areaId, name: chute.name, ...d });
+                              if (chute.zone) setHoveredZone(chute.zone);
+                            }}
+                            onMouseLeave={() => {
+                              setHoveredRack(null);
+                              setHoveredZone(null);
+                            }}>
+                          <td className="py-1 text-[var(--muted)] mono">{index + 1}</td>
+                          <td className="py-1 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
+                          <td className="py-1 truncate max-w-[110px] font-medium text-white/95" title={chute.name}>
+                            {chute.name}
+                          </td>
+                          <td className="py-1 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
+                          <td className="py-1 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* 3. REAL-TIME TELEMETRY (dời xuống góc trái) */}
+            <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 w-full">
+              <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">REAL-TIME TELEMETRY</h3>
+              <div className="space-y-4">
+                <div className="p-3 text-center border-b border-[var(--line)] bg-[#101622]/30 rounded-md">
+                  <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">TỔNG ĐƠN HÀNG</div>
+                  <div className="disp font-extrabold text-3xl text-[var(--cyan)]">{totalOrders.toLocaleString()}</div>
+                  <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">ĐƠN HÀNG / KHO</div>
+                </div>
+                <div className="p-3 text-center bg-[#101622]/30 rounded-md">
+                  <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">Ô QUÁ TẢI</div>
+                  <div className="disp font-extrabold text-3xl" style={{color:over>0?'var(--red)':'var(--green)'}}>
+                    {over.toString().padStart(2,'0')}
+                  </div>
+                  <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">FLEET MATRIX</div>
+                </div>
               </div>
             </div>
           </div>
 
-                    {/* ZONE METRICS has been merged into OPERATIONAL MONITOR */}
+          {/* ZONE METRICS has been merged into OPERATIONAL MONITOR */}
 
           <div className="absolute bottom-16 left-6 z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg">
             {[['#0c883d','Ô chứa'],['var(--orange)','Cổng Outbound'],
