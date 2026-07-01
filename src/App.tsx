@@ -330,8 +330,8 @@ export default function App() {
     if (combined.length > 0) {
       setRawSheetRows(combined);
 
-      // Extract unique dates from Outbound (most reliable date source), sorted descending
-      const dates = Array.from(new Set((outboundRows ?? []).map(r => r.date).filter(Boolean))) as string[];
+      // Extract unique dates from all rows (Outbound, Backlog, Inventory), sorted descending
+      const dates = Array.from(new Set(combined.map(r => r.date).filter(Boolean))) as string[];
       dates.sort((a, b) => b.localeCompare(a));
       setAvailableDates(dates);
 
@@ -401,7 +401,7 @@ export default function App() {
       let capacity = 780;
       let current = 0;
       let util = 0;
-      let isMocked = true;
+      let isMocked = rawSheetRows.length === 0;
       let backlogCurrent = 0;
 
       const isTruck = curr.areaId.startsWith('T');
