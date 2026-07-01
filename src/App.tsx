@@ -320,9 +320,9 @@ export default function App() {
   const displayUtilizationLabel = selectedType === 'Outbound' ? 'TỈ LỆ OUTBOUND' : 'TỈ LỆ LẤP ĐẦY';
   const displayUtilizationLabelLc = selectedType === 'Outbound' ? 'Tỉ lệ Outbound' : '% Lấp đầy';
 
-    // Calculate statistics for Zone 1, 2, 3 (Zone 1 excluding BN HUB A19)
+    // Calculate statistics for Zone 1, 2, 3 (Zone 1 includes BN HUB A19)
   const zoneStats = useMemo(() => {
-    const stats: Record<number, { current: number; capacity: number; backlog: number; fillRate: number }> = {
+    const stats: Record<number, { current: number; capacity: number; backlog: number; fillRate: number | string }> = {
       1: { current: 0, capacity: 0, backlog: 0, fillRate: 0 },
       2: { current: 0, capacity: 0, backlog: 0, fillRate: 0 },
       3: { current: 0, capacity: 0, backlog: 0, fillRate: 0 }
@@ -337,11 +337,12 @@ export default function App() {
       }
     });
 
+    const totalOrdersOfSelectedType = Object.values(data).reduce((acc, d: any) => acc + d.current, 0) as number;
+
     [1, 2, 3].forEach(z => {
       const s = stats[z];
       if (selectedType === 'Outbound') {
-        const denominator = s.current + s.backlog;
-        s.fillRate = denominator > 0 ? Math.round((s.current / denominator) * 100) : 0;
+        s.fillRate = totalOrdersOfSelectedType > 0 ? ((s.current / totalOrdersOfSelectedType) * 100).toFixed(2) : '0.00';
       } else {
         s.fillRate = s.capacity > 0 ? Math.round((s.current / s.capacity) * 100) : 0;
       }
@@ -1303,7 +1304,7 @@ export default function App() {
                         <div className="h-1 rounded bg-[var(--line)] overflow-hidden">
                           <div className="h-full transition-all duration-500"
                                style={{ 
-                                 width: `${Math.min(100, stats.fillRate)}%`,
+                                 width: `${Math.min(100, Number(stats.fillRate))}%`,
                                  backgroundColor: zone.color
                                }}/>
                         </div>
