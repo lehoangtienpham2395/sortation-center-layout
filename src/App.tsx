@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 // ── Rack / chute definitions (Cập nhật: Zone 3 = 23 chutes + 24 trucks, Zone 2 = 23 chutes + 23 trucks, Zone 1 = 15 chutes) ──
 const ZONE3_LIST = [
@@ -311,6 +311,37 @@ export default function App() {
   // Dynamic labels based on selectedType
   const displayUtilizationLabel = selectedType === 'Outbound' ? 'TỈ LỆ OUTBOUND' : 'TỈ LỆ LẤP ĐẦY';
   const displayUtilizationLabelLc = selectedType === 'Outbound' ? 'Tỉ lệ Outbound' : '% Lấp đầy';
+
+    // Calculate statistics for Zone 1, 2, 3 (Zone 1 excluding BN HUB A19)
+  const zoneStats = useMemo(() => {
+    const stats: Record<number, { current: number; capacity: number; backlog: number; fillRate: number }> = {
+      1: { current: 0, capacity: 0, backlog: 0, fillRate: 0 },
+      2: { current: 0, capacity: 0, backlog: 0, fillRate: 0 },
+      3: { current: 0, capacity: 0, backlog: 0, fillRate: 0 }
+    };
+
+    CHUTE_RACKS.forEach(c => {
+      if (c.areaId === 'A19') return; // Exclude BN HUB for Zone 1
+      const d = data[c.areaId];
+      if (d && c.zone) {
+        stats[c.zone].current += d.current;
+        stats[c.zone].capacity += d.capacity;
+        stats[c.zone].backlog += d.backlogCurrent ?? 0;
+      }
+    });
+
+    [1, 2, 3].forEach(z => {
+      const s = stats[z];
+      if (selectedType === 'Outbound') {
+        const denominator = s.current + s.backlog;
+        s.fillRate = denominator > 0 ? Math.round((s.current / denominator) * 100) : 0;
+      } else {
+        s.fillRate = s.capacity > 0 ? Math.round((s.current / s.capacity) * 100) : 0;
+      }
+    });
+
+    return stats;
+  }, [data, selectedType]);
 
   // Fetch sheet records directly from Google Sheets (all 3 tabs in parallel)
   const fetchAndUpdateData = async () => {
@@ -1125,23 +1156,31 @@ export default function App() {
           <div className="disp font-extrabold text-sm tracking-[0.18em] text-white/90"
                style={{textShadow:'0 0 12px rgba(255,255,255,0.1)'}}>HCM HUB</div>
         </div>
-        {!isMobile ? (
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 bg-[#121824] border border-white/10 rounded-md px-3 py-1 text-xs">
-              <span className="text-[var(--muted)] font-medium">Loại:</span>
+                {!isMobile ? (
+          <div className="flex items-center gap-3">
+            {/* Type Select */}
+            <div className="flex items-center gap-1.5 bg-[#121824] hover:bg-[#1a2336] border border-white/10 rounded-full px-4 py-1.5 text-xs transition-colors duration-200 shadow-inner">
+              <span className="text-slate-400 font-medium mr-0.5">Loại:</span>
+              {selectedType === 'Outbound' && <i className="fa-solid fa-arrow-up-from-bracket text-blue-400 mr-0.5"></i>}
+              {selectedType === 'Backlog' && <i className="fa-solid fa-triangle-exclamation text-amber-500 mr-0.5"></i>}
+              {selectedType === 'Backlog CAP 6AM' && <i className="fa-solid fa-clock text-rose-400 mr-0.5"></i>}
+              {selectedType === 'Inventory' && <i className="fa-solid fa-boxes-stacked text-emerald-400 mr-0.5"></i>}
               <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)} 
-                      className="bg-transparent text-white font-bold border-none outline-none cursor-pointer">
-                <option value="Outbound" className="bg-[#121824] text-white">📦 Outbound</option>
-                <option value="Backlog" className="bg-[#121824] text-white">🏭 Backlog (realtime)</option>
-                <option value="Backlog CAP 6AM" className="bg-[#121824] text-white">⏰ Backlog CAP 6AM</option>
-                <option value="Inventory" className="bg-[#121824] text-white">📊 Inventory</option>
+                      className="bg-transparent text-white font-bold border-none outline-none cursor-pointer appearance-none pr-4 relative">
+                <option value="Outbound" className="bg-[#121824] text-white">Outbound</option>
+                <option value="Backlog" className="bg-[#121824] text-white">Backlog (realtime)</option>
+                <option value="Backlog CAP 6AM" className="bg-[#121824] text-white">Backlog CAP 6AM</option>
+                <option value="Inventory" className="bg-[#121824] text-white">Inventory</option>
               </select>
+              <i className="fa-solid fa-chevron-down text-[9px] text-slate-400 -ml-3 pointer-events-none"></i>
             </div>
             
-            <div className="flex items-center gap-2 bg-[#121824] border border-white/10 rounded-md px-3 py-1 text-xs">
-              <span className="text-[var(--muted)] font-medium">Ngày:</span>
+            {/* Date Select */}
+            <div className="flex items-center gap-1.5 bg-[#121824] hover:bg-[#1a2336] border border-white/10 rounded-full px-4 py-1.5 text-xs transition-colors duration-200 shadow-inner">
+              <span className="text-slate-400 font-medium mr-0.5">Ngày:</span>
+              <i className="fa-regular fa-calendar-days text-cyan-400 mr-0.5"></i>
               <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)} 
-                      className="bg-transparent text-white font-bold border-none outline-none cursor-pointer">
+                      className="bg-transparent text-white font-bold border-none outline-none cursor-pointer appearance-none pr-4">
                 {availableDates.length > 0 ? (
                   availableDates.map(d => (
                     <option key={d} value={d} className="bg-[#121824] text-white">{d}</option>
@@ -1150,30 +1189,49 @@ export default function App() {
                   <option value="" className="bg-[#121824] text-white">Chưa có dữ liệu</option>
                 )}
               </select>
+              <i className="fa-solid fa-chevron-down text-[9px] text-slate-400 -ml-3 pointer-events-none"></i>
             </div>
 
-            <div className="h-5 w-px bg-white/20" />
-            <div className="mono text-xs text-[var(--muted)]">SYSTEM: <b className="text-[var(--green)]">ONLINE</b></div>
-            <div className="mono text-xs text-[var(--muted)]">ZONE: LAT 10.823 • LONG 106.63</div>
+            <div className="h-5 w-px bg-white/10 mx-1" />
+            <div className="mono text-[10px] text-slate-400 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-slow"></span>
+              SYS: <b className="text-emerald-400">ONLINE</b>
+            </div>
+            <div className="mono text-[10px] text-slate-400">ZONE: LAT 10.823 • LONG 106.63</div>
 
             {/* Inventory Status Filter — hiện khi chọn Inventory */}
             {selectedType === 'Inventory' && (
-              <div className="flex items-center gap-2 bg-[#121824] border border-yellow-500/30 rounded-md px-3 py-1 text-xs ml-2">
-                <span className="text-yellow-400 font-bold shrink-0">📊 Trạng thái:</span>
-                {INVENTORY_STATUSES.map(status => (
-                  <label key={status} className="flex items-center gap-1 cursor-pointer select-none whitespace-nowrap">
-                    <input
-                      type="checkbox"
-                      checked={selectedStatuses.includes(status)}
-                      onChange={() => toggleStatus(status)}
-                      className="accent-yellow-400 w-3 h-3"
-                    />
-                    <span className={`text-[10px] font-medium ${selectedStatuses.includes(status) ? 'text-yellow-300' : 'text-[var(--muted)]'}`}>
-                      {status}
-                    </span>
-                  </label>
-                ))}
-              </div>
+              <>
+                <div className="h-5 w-px bg-white/10 mx-1" />
+                <div className="flex items-center gap-2 bg-[#121824]/60 border border-white/10 rounded-full px-3 py-1 text-xs">
+                  <span className="text-slate-300 font-bold shrink-0 flex items-center gap-1">
+                    <i className="fa-solid fa-filter text-slate-400"></i> Trạng thái:
+                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {INVENTORY_STATUSES.map(status => {
+                      const isChecked = selectedStatuses.includes(status);
+                      return (
+                        <button
+                          key={status}
+                          onClick={() => toggleStatus(status)}
+                          className={`px-3 py-1 rounded-full border text-[11.5px] font-medium flex items-center gap-1.5 transition-all duration-200 ${
+                            isChecked
+                              ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold shadow-[0_0_8px_rgba(234,179,8,0.1)]'
+                              : 'bg-[#121824]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-300'
+                          }`}
+                        >
+                          {isChecked ? (
+                            <i className="fa-solid fa-circle-check text-[11px] text-yellow-400"></i>
+                          ) : (
+                            <i className="fa-regular fa-circle text-[11px] text-slate-500"></i>
+                          )}
+                          {status}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
             )}
           </div>
         ) : null}
@@ -1182,8 +1240,8 @@ export default function App() {
       {!isMobile ? (
         /* ── DESKTOP LAYOUT ── */
         <>
-          <div className="absolute z-20 top-16 left-6 w-80 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4">
-            <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">OPERATIONAL MONITOR</h3>
+                    <div className="absolute z-20 top-16 left-6 w-80 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 max-h-[calc(100vh-100px)] overflow-y-auto">
+            <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">OPERATIONAL MONITOR & ZONE METRICS</h3>
             <div className="space-y-3">
               {[
                 [displayUtilizationLabel, `${utilTotal}%`, 'var(--cyan)'],
@@ -1200,6 +1258,55 @@ export default function App() {
                      style={{width:`${Math.min(100,Number(utilTotal))}%`}}/>
               </div>
             </div>
+
+            {/* Zone metrics section */}
+            <div className="mt-5 pt-4 border-t border-[var(--line)]">
+              <h4 className="disp text-[10px] tracking-[0.12em] text-[var(--muted)] mb-3">ZONE METRICS (CHI TIẾT PHÂN KHU)</h4>
+              <div className="space-y-3">
+                {[
+                  { id: 3, name: 'ZONE 3', color: 'var(--green)' },
+                  { id: 2, name: 'ZONE 2', color: 'var(--yellow)' },
+                  { id: 1, name: 'ZONE 1', color: 'var(--orange)', desc: ' (trừ BN HUB)' }
+                ].map(zone => {
+                  const stats = zoneStats[zone.id];
+                  const isHovered = hoveredZone === zone.id;
+                  return (
+                    <div 
+                      key={zone.id} 
+                      className={`p-2.5 rounded-md border transition-all duration-300 cursor-pointer ${
+                        isHovered 
+                          ? 'bg-[#101622]/90 border-white/20 shadow-[0_0_12px_rgba(255,255,255,0.05)]' 
+                          : 'bg-[#101622]/40 border-white/5 hover:border-white/10'
+                      }`}
+                      style={isHovered ? { borderColor: zone.color, boxShadow: `0 0 10px ${zone.color}22` } : {}}
+                      onMouseEnter={() => setHoveredZone(zone.id)}
+                      onMouseLeave={() => setHoveredZone(null)}
+                    >
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-bold text-[11px] tracking-wide" style={{ color: zone.color }}>
+                          {zone.name}{zone.desc}
+                        </span>
+                        <span className="mono text-[11px] font-bold text-white">
+                          {stats.current.toLocaleString()} đơn
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] text-[var(--muted)] mb-1.5">
+                        <span>{displayUtilizationLabelLc}</span>
+                        <span className="mono font-bold text-white">{stats.fillRate}%</span>
+                      </div>
+                      <div className="h-1 rounded bg-[var(--line)] overflow-hidden">
+                        <div className="h-full transition-all duration-500"
+                             style={{ 
+                               width: `${Math.min(100, stats.fillRate)}%`,
+                               backgroundColor: zone.color
+                             }}/>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="mt-5 pt-4 border-t border-[var(--line)]">
               <h4 className="disp text-[10px] tracking-[0.12em] text-[var(--muted)] mb-3">CHI TIẾT Ô CHỨA</h4>
               {hoveredRack ? (
@@ -1293,42 +1400,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="absolute z-20 top-[335px] right-6 w-60 bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--cyan)] rounded-lg backdrop-blur-md shadow-2xl p-4">
-            <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--cyan)]">ZONE METRICS</h3>
-            {hoveredZone !== null ? (
-              (() => {
-                const zInfo = getZoneInfo(hoveredZone);
-                return (
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center text-[12px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
-                      <span>Phân khu</span>
-                      <span className="disp font-extrabold text-[14px] text-[var(--cyan)]">ZONE {zInfo.zone}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[12px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
-                      <span>Bưu cục có hàng</span>
-                      <span className="mono font-bold text-[13px] text-white">{zInfo.activeChutesCount} / {zInfo.totalChutes}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[12px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
-                      <span>Tổng lượng đơn</span>
-                      <span className="mono font-bold text-[13px] text-white">{zInfo.zoneOrders.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[12px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
-                      <span>Tỉ lệ chứa hàng</span>
-                      <span className="mono font-bold text-[13px] text-[var(--cyan)]">{zInfo.ratio}%</span>
-                    </div>
-                    <div className="h-1.5 rounded bg-[var(--line)] overflow-hidden">
-                      <div className="h-full bg-[var(--cyan)] transition-all duration-500"
-                           style={{width:`${Math.min(100,Number(zInfo.ratio))}%`}}/>
-                    </div>
-                  </div>
-                );
-              })()
-            ) : (
-              <div className="text-center py-6 text-[11px] text-[var(--muted)] border border-dashed border-[var(--line)] rounded-md">
-                Rê chuột vào ô của Zone để xem chi tiết phân khu
-              </div>
-            )}
-          </div>
+                    {/* ZONE METRICS has been merged into OPERATIONAL MONITOR */}
 
           <div className="absolute bottom-16 left-6 z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg">
             {[['#0c883d','Ô chứa'],['var(--orange)','Cổng Outbound'],
