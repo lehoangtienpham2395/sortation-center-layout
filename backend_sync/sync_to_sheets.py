@@ -640,10 +640,10 @@ def run_once(session, token_mgr, rebuild_days=None):
             run_backlog_inv = True
         # Khung giờ realtime: 13:00 - 05:59 sáng hôm sau
         elif hour >= 13 or hour <= 5:
-            print(f"⏰ Khung giờ realtime ({hour}:00 VN) -> Chỉ chạy Backlog và Inventory")
+            print(f"⏰ Khung giờ realtime ({hour}:00 VN) -> Chạy cả Outbound để lọc Backlog")
             DATE_START = (now - timedelta(days=2)).strftime('%Y-%m-%d') + ' 06:00:00'
             DATE_END   = now.strftime('%Y-%m-%d %H:%M:%S')  # Query up to current second
-            run_outbound = False
+            run_outbound = True
             run_backlog_inv = True
         else:
             print(f"💤 Ngoài khung giờ hoạt động ({hour}:00 VN). Tự động thoát.")
