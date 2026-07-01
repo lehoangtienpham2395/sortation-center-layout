@@ -4,8 +4,10 @@ import json
 import time
 import math
 import hashlib
+import argparse
 import threading
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
@@ -377,13 +379,126 @@ def _cleanup_old_files(directory: str, keep_file: str):
 # ================================================================
 # GOOGLE SHEETS SYNC
 # ================================================================
-def update_google_sheet(df, outbound_volumes, backlog_volumes):
-    now = datetime.now()
-    current_date = now.strftime('%Y-%m-%d')
+def update_outbound_sheet(gc, master_chutes, outbound_volumes_grouped, target_dates):
+    try:
+        sheet = gc.open_by_key(SHEET_ID).worksheet("Outbound")
+    except Exception:
+        ss = gc.open_by_key(SHEET_ID)
+        sheet = ss.add_worksheet("Outbound", rows=1000, cols=8)
+        
+    all_rows = sheet.get_all_values()
+    headers = ["Zone", "AreaID", "Bưu cục", "Volume", "Dài", "Rộng", "Sức chứa", "Ngày"]
     
-    print(f"\n📊 Bắt đầu cập nhật dữ liệu Google Sheets cho ngày {current_date}...")
+    new_rows = [headers]
+    if all_rows:
+        col_date = all_rows[0].index("Ngày") if "Ngày" in all_rows[0] else 7
+        for r in all_rows[1:]:
+            if len(r) > col_date:
+                r_date = r[col_date].strip()
+                if r_date in target_dates:
+                    continue
+                try:
+                    r_date_obj = datetime.strptime(r_date, "%Y-%m-%d").date()
+                    days_diff = (datetime.now().date() - r_date_obj).days
+                    if days_diff > 30:
+                        continue
+                except ValueError:
+                    pass
+                # Convert volume to integer if possible
+                if len(r) > 3:
+                    try:
+                        r[3] = int(str(r[3]).replace(".", "").replace(",", ""))
+                    except ValueError:
+                        pass
+                new_rows.append(r)
+                
+    for d_str in sorted(target_dates):
+        for (zone, area_id), info in master_chutes.items():
+            name_upper = info["name"].strip().upper()
+            vol = outbound_volumes_grouped.get((d_str, name_upper), 0)
+            
+            row = [""] * len(headers)
+            row[0] = info["zone"]
+            row[1] = info["area_id"]
+            row[2] = info["name"]
+            row[3] = vol  # Write directly as integer
+            row[4] = info["dai"]
+            row[5] = info["rong"]
+            row[6] = info["capacity"]
+            row[7] = d_str
+            new_rows.append(row)
+            
+    sheet.clear()
+    sheet.update(range_name="A1", values=new_rows)
+    print(f"   ✅ Đã cập nhật sheet 'Outbound' cho các ngày: {list(target_dates)}")
+
+
+def update_backlog_sheet(gc, master_chutes, backlog_volumes, current_date_str):
+    try:
+        sheet = gc.open_by_key(SHEET_ID).worksheet("Backlog")
+    except Exception:
+        ss = gc.open_by_key(SHEET_ID)
+        sheet = ss.add_worksheet("Backlog", rows=1000, cols=8)
+        
+    headers = ["Zone", "AreaID", "Bưu cục", "Volume", "Dài", "Rộng", "Sức chứa", "Ngày"]
     
-    # 1. Kết nối Google Sheet
+    new_rows = [headers]
+    for (zone, area_id), info in master_chutes.items():
+        name_upper = info["name"].strip().upper()
+        vol = backlog_volumes.get(name_upper, 0)
+        row = [
+            info["zone"],
+            info["area_id"],
+            info["name"],
+            vol,  # Write directly as integer
+            info["dai"],
+            info["rong"],
+            info["capacity"],
+            current_date_str
+        ]
+        new_rows.append(row)
+        
+    sheet.clear()
+    sheet.update(range_name="A1", values=new_rows)
+    print(f"   ✅ Đã cập nhật sheet 'Backlog' pivoted với {len(new_rows)-1} dòng.")
+
+
+def update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_str):
+    try:
+        sheet = gc.open_by_key(SHEET_ID).worksheet("Inventory")
+    except Exception:
+        ss = gc.open_by_key(SHEET_ID)
+        sheet = ss.add_worksheet("Inventory", rows=1000, cols=9)
+        
+    headers = ["Zone", "AreaID", "Bưu cục", "Trạng thái", "Volume", "Dài", "Rộng", "Sức chứa", "Ngày"]
+    statuses = ["Đã rời HUB", "Đã điều phối nhân viên", "Chưa về HUB", "Đang trên bãi", "Đã điều phối bưu cục"]
+    
+    new_rows = [headers]
+    for (zone, area_id), info in master_chutes.items():
+        name_upper = info["name"].strip().upper()
+        for status in statuses:
+            vol = inventory_volumes.get((name_upper, status), 0)
+            row = [
+                info["zone"],
+                info["area_id"],
+                info["name"],
+                status,
+                vol,  # Write directly as integer
+                info["dai"],
+                info["rong"],
+                info["capacity"],
+                current_date_str
+            ]
+            new_rows.append(row)
+            
+    sheet.clear()
+    sheet.update(range_name="A1", values=new_rows)
+    print(f"   ✅ Đã cập nhật sheet 'Inventory' pivoted với {len(new_rows)-1} dòng.")
+
+
+def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, current_date_str):
+    print(f"\n📊 Bắt đầu cập nhật dữ liệu Google Sheets...")
+    
     creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
     if not creds_json:
         print("❌ Không tìm thấy biến môi trường GOOGLE_SERVICE_ACCOUNT_JSON. Bỏ qua ghi Sheet.")
@@ -396,143 +511,171 @@ def update_google_sheet(df, outbound_volumes, backlog_volumes):
         scopes = ["https://www.googleapis.com/auth/spreadsheets"]
         creds = Credentials.from_service_account_info(json.loads(creds_json), scopes=scopes)
         gc = gspread.authorize(creds)
-        sheet = gc.open_by_key(SHEET_ID).sheet1
         
-        all_rows = sheet.get_all_values()
-        if not all_rows:
-            print("❌ Google Sheet rỗng.")
-            return
-            
-        headers = all_rows[0]
-        
-        # Xác định chỉ mục cột (0-based)
-        col_zone = headers.index("Zone") if "Zone" in headers else 0
-        col_area = headers.index("AreaID") if "AreaID" in headers else 1
-        col_name = headers.index("Bưu cục") if "Bưu cục" in headers else 2
-        col_vol = headers.index("Volume") if "Volume" in headers else 3
-        col_len = headers.index("Dài") if "Dài" in headers else 4
-        col_wid = headers.index("Rộng") if "Rộng" in headers else 5
-        
-        # Ưu tiên tìm Kiện hàng trước, sau đó tới Sức chứa Pallet/Sức chứa
-        col_cap = -1
-        for cap_header in ["Kiện hàng", "Sức chứa Pallet", "Sức chứa"]:
-            if cap_header in headers:
-                col_cap = headers.index(cap_header)
-                break
-        if col_cap == -1:
-            col_cap = 6 # Default fallback index
-            
-        if "Ngày" not in headers:
-            headers.append("Ngày")
-        if "Loại" not in headers:
-            headers.append("Loại")
-            
-        col_date = headers.index("Ngày")
-        col_type = headers.index("Loại")
-        
-        # Thu thập cấu hình bưu cục tĩnh từ dữ liệu hiện tại
+        # Load master chutes from sheet1 (first sheet)
         master_chutes = {}
-        for r in all_rows[1:]:
-            if len(r) > max(col_zone, col_area, col_name):
-                zone = r[col_zone].strip()
-                area_id = r[col_area].strip()
-                name = r[col_name].strip()
-                if zone and area_id and name:
-                    key = (zone, area_id)
-                    if key not in master_chutes:
-                        master_chutes[key] = {
-                            "zone": zone,
-                            "area_id": area_id,
-                            "name": name,
-                            "dai": r[col_len] if col_len < len(r) else "8",
-                            "rong": r[col_wid] if col_wid < len(r) else "4",
-                            "capacity": r[col_cap] if (col_cap < len(r) and r[col_cap].strip()) else "780"
-                        }
-                        
-        print(f"   ℹ️ Đã tải {len(master_chutes)} bưu cục cấu hình từ Sheet.")
-        
-        # Lọc các dòng cũ: giữ lại các dòng của ngày khác, xóa dòng của ngày hiện tại
-        # Đồng thời xóa các dòng cũ hơn 30 ngày so với hiện tại
-        new_rows = [headers]
-        pruned_count = 0
-        for r in all_rows[1:]:
-            if len(r) > col_date:
-                r_date = r[col_date].strip()
-                if r_date:
-                    # Xóa dữ liệu của ngày hiện tại (để ghi đè)
-                    if r_date == current_date:
-                        continue
-                    
-                    # Dọn dẹp dữ liệu cũ hơn 30 ngày
-                    try:
-                        r_date_obj = datetime.strptime(r_date, "%Y-%m-%d")
-                        days_diff = (now - r_date_obj).days
-                        if days_diff > 30:
-                            pruned_count += 1
-                            continue # Bỏ qua dòng này (xóa)
-                    except ValueError:
-                        pass
-                        
-                    while len(r) < len(headers):
-                        r.append("")
-                    new_rows.append(r)
-        
-        if pruned_count > 0:
-            print(f"   🗑️ Đã dọn dẹp {pruned_count} dòng dữ liệu cũ hơn 30 ngày.")
+        try:
+            first_sheet = gc.open_by_key(SHEET_ID).sheet1
+            all_rows = first_sheet.get_all_values()
+            if all_rows and len(all_rows) > 1:
+                headers = all_rows[0]
+                col_zone = headers.index("Zone") if "Zone" in headers else 0
+                col_area = headers.index("AreaID") if "AreaID" in headers else 1
+                col_name = headers.index("Bưu cục") if "Bưu cục" in headers else 2
+                col_len = headers.index("Dài") if "Dài" in headers else 4
+                col_wid = headers.index("Rộng") if "Rộng" in headers else 5
+                col_cap = headers.index("Sức chứa") if "Sức chứa" in headers else 6
+                
+                for r in all_rows[1:]:
+                    if len(r) > max(col_zone, col_area, col_name):
+                        zone = r[col_zone].strip()
+                        area_id = r[col_area].strip()
+                        name = r[col_name].strip()
+                        if zone and area_id and name:
+                            key = (zone, area_id)
+                            if key not in master_chutes:
+                                master_chutes[key] = {
+                                    "zone": zone,
+                                    "area_id": area_id,
+                                    "name": name,
+                                    "dai": r[col_len] if col_len < len(r) else "8",
+                                    "rong": r[col_wid] if col_wid < len(r) else "4",
+                                    "capacity": r[col_cap] if col_cap < len(r) else "780"
+                                }
+        except Exception as ex:
+            print(f"   ⚠️ Không thể load cấu hình bưu cục từ sheet1: {ex}")
             
-        # Xác định các loại dữ liệu cần ghi cho ngày hôm nay
-        utc_now = datetime.utcnow()
-        vn_now = utc_now + timedelta(hours=7)
-        is_6am_cap = ((vn_now.hour == 6) and (0 <= vn_now.minute <= 30)) or os.environ.get("FORCE_6AM_CAP") == "true"
-        
-        types_to_write = [("Outbound", outbound_volumes), ("Backlog", backlog_volumes)]
-        if is_6am_cap:
-            types_to_write.append(("Backlog CAP 6AM", backlog_volumes))
-            print("   ⏰ Phát hiện khung giờ 6:00 - 6:30 sáng VN -> Nhân bản snapshot 'Backlog CAP 6AM'")
+        # Fallback to valid.csv
+        if not master_chutes:
+            print("   ℹ| Load cấu hình bưu cục mặc định từ valid.csv...")
+            try:
+                df_valid = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
+                df_valid.columns = df_valid.columns.str.strip()
+                col_z = 'Zone'
+                col_a = 'area' if 'area' in df_valid.columns else 'Area'
+                col_n = 'Bưu cục final' if 'Bưu cục final' in df_valid.columns else 'Bưu cục'
+                
+                for _, row in df_valid.iterrows():
+                    zone = str(row.get(col_z, '')) if col_z in row else 'A' # fallback zone
+                    area_id = str(row.get(col_a, '')).strip()
+                    name = str(row.get(col_n, '')).strip()
+                    if zone and area_id and name and name.lower() != 'nan':
+                        key = (zone, area_id)
+                        if key not in master_chutes:
+                            master_chutes[key] = {
+                                "zone": zone,
+                                "area_id": area_id,
+                                "name": name,
+                                "dai": "8",
+                                "rong": "4",
+                                "capacity": "780"
+                            }
+            except Exception as ex2:
+                print(f"   ❌ Lỗi load fallback từ valid.csv: {ex2}")
+                
+        # 1. Update Outbound Sheet
+        if run_outbound and target_dates:
+            update_outbound_sheet(gc, master_chutes, outbound_volumes_grouped, target_dates)
             
-        # Tạo dòng mới
-        for type_name, vol_map in types_to_write:
-            for (zone, area_id), info in master_chutes.items():
-                name_upper = info["name"].strip().upper()
-                vol = vol_map.get(name_upper, 0)
-                # Định dạng volume có chấm phân cách hàng nghìn nếu lớn hơn 1000
-                vol_str = f"{vol:,}".replace(",", ".") if vol >= 1000 else str(vol)
-                
-                row = [""] * len(headers)
-                row[col_zone] = info["zone"]
-                row[col_area] = info["area_id"]
-                row[col_name] = info["name"]
-                row[col_vol] = vol_str
-                row[col_len] = info["dai"]
-                row[col_wid] = info["rong"]
-                row[col_cap] = info["capacity"]
-                row[col_date] = current_date
-                row[col_type] = type_name
-                
-                new_rows.append(row)
-                
-        # Ghi đè lại Google Sheet
-        print(f"   📤 Ghi {len(new_rows) - 1} dòng dữ liệu lên Google Sheets...")
-        sheet.clear()
-        sheet.update(range_name="A1", values=new_rows)
-        print("   ✅ Cập nhật Google Sheets thành công!")
-        
+        # 2. Update Backlog Sheet (Realtime Pivot)
+        if run_backlog_inv:
+            backlog_volumes = {}
+            if 'status_order' in df.columns:
+                df_bl_real = df[df['status_order'] == 'Đang trên bãi'].copy()
+                if not df_bl_real.empty:
+                    df_bl_real['next_station_upper'] = df_bl_real['next_station'].astype(str).str.strip().str.upper()
+                    backlog_volumes = df_bl_real.groupby('next_station_upper').size().to_dict()
+            update_backlog_sheet(gc, master_chutes, backlog_volumes, current_date_str)
+            
+        # 3. Update Inventory Sheet (Realtime Pivot)
+        if run_backlog_inv:
+            inventory_volumes = {}
+            if 'status_order' in df.columns:
+                df_inv = df.copy()
+                df_inv['next_station_upper'] = df_inv['next_station'].astype(str).str.strip().str.upper()
+                df_inv['status_upper'] = df_inv['status_order'].astype(str).str.strip()
+                inventory_volumes = df_inv.groupby(['next_station_upper', 'status_upper']).size().to_dict()
+            update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_str)
+            
     except Exception as e:
         print(f"   ❌ Lỗi cập nhật Google Sheets: {e}")
-
 
 # ================================================================
 # MAIN (Run Once)
 # ================================================================
-def run_once(session, token_mgr):
-    now = datetime.now()
-    DATE_START = (now - timedelta(days=3)).strftime('%Y-%m-%d') + ' 00:00:00'
-    DATE_END   = now.strftime('%Y-%m-%d') + ' 23:59:59'
+def sync_valid_from_sheets(gc):
+    print("   📥 Đồng bộ valid.csv từ Google Sheet...")
+    try:
+        sheet = gc.open_by_key(SHEET_ID).worksheet("valid")
+        rows = sheet.get_all_values()
+        if len(rows) > 1:
+            df = pd.DataFrame(rows[1:], columns=rows[0])
+            df.to_csv(VALID_FILE, index=False, encoding='utf-8-sig')
+            print(f"      ✅ Đã cập nhật local valid.csv với {len(df)} dòng từ Google Sheets.")
+    except Exception as e:
+        print(f"      ⚠️ Không thể đồng bộ valid.csv từ Google Sheet: {e}. Sử dụng file local hiện có.")
+
+
+def run_once(session, token_mgr, rebuild_days=None):
+    from zoneinfo import ZoneInfo
+    tz_vn = ZoneInfo('Asia/Ho_Chi_Minh')
+    now = datetime.now(tz_vn)
+
+    is_rebuild = rebuild_days is not None
+    
+    if is_rebuild:
+        print(f"🔄 ĐANG CHẠY CHẾ ĐỘ REBUILD: {rebuild_days} ngày")
+        DATE_START = (now - timedelta(days=rebuild_days)).strftime('%Y-%m-%d') + ' 06:00:00'
+        DATE_END   = now.strftime('%Y-%m-%d %H:%M:%S')  # Query up to current second
+        run_outbound = True
+        run_backlog_inv = True
+    else:
+        hour = now.hour
+        # Khung giờ chốt ca: 06:00 - 06:59
+        if hour == 6:
+            print("⏰ Khung giờ chốt ca (6:00 AM VN) -> Chạy tất cả các mô-đun (Outbound, Backlog, Inventory)")
+            DATE_START = (now - timedelta(days=2)).strftime('%Y-%m-%d') + ' 06:00:00'
+            DATE_END   = now.strftime('%Y-%m-%d %H:%M:%S')  # Query up to current second
+            run_outbound = True
+            run_backlog_inv = True
+        # Khung giờ realtime: 13:00 - 05:59 sáng hôm sau
+        elif hour >= 13 or hour <= 5:
+            print(f"⏰ Khung giờ realtime ({hour}:00 VN) -> Chỉ chạy Backlog và Inventory")
+            DATE_START = (now - timedelta(days=2)).strftime('%Y-%m-%d') + ' 06:00:00'
+            DATE_END   = now.strftime('%Y-%m-%d %H:%M:%S')  # Query up to current second
+            run_outbound = False
+            run_backlog_inv = True
+        else:
+            print(f"💤 Ngoài khung giờ hoạt động ({hour}:00 VN). Tự động thoát.")
+            return
+
+    # Sync valid config sheet if possible
+    creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if creds_json:
+        try:
+            import gspread
+            from google.oauth2.service_account import Credentials
+            scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+            creds = Credentials.from_service_account_info(json.loads(creds_json), scopes=scopes)
+            gc_init = gspread.authorize(creds)
+            sync_valid_from_sheets(gc_init)
+        except Exception as e:
+            print(f"   ⚠️ Lỗi kết nối Google Sheets khi đồng bộ valid: {e}")
 
     print("\n" + "=" * 60)
     print(f"🕐 Bắt đầu : {now.strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"📅 Range   : {DATE_START} → {DATE_END}")
     print("=" * 60)
+
+    # Copy external valid.csv if exists
+    external_valid = r"C:\Users\lehoa\OneDrive\Desktop\testing\Exportauto\Valid\valid.csv"
+    if os.path.exists(external_valid):
+        import shutil
+        try:
+            shutil.copy2(external_valid, VALID_FILE)
+            print(f"   🔄 Tự động đồng bộ valid.csv từ Desktop: {external_valid}")
+        except Exception as e:
+            print(f"   ⚠️ Lỗi đồng bộ valid.csv từ Desktop: {e}")
 
     print("\n📋 Load valid.csv...")
     d_sortcode, d_buucuc, d_tuyen, d_rank = load_valid(VALID_FILE)
@@ -566,16 +709,18 @@ def run_once(session, token_mgr):
     dp_cfg = load_json(os.path.join(BASE_DIR, "config", "dispatchpayload.json"))
     dp_cfg['startInputTime'] = DATE_START; dp_cfg['endInputTime'] = DATE_END
 
-    print("\n🚀 Kéo data song song (5 nguồn)...")
+    print("\n🚀 Kéo data song song...")
     results = {}
     with ThreadPoolExecutor(max_workers=SOURCE_WORKERS) as ex:
         futures = {
             ex.submit(pull_forecast, session, token_mgr, fh, fp): 'forecast',
             ex.submit(pull_scan, session, token_mgr, URL_SCAN, ih, i_params, ip, 'Inbound'): 'inbound',
-            ex.submit(pull_scan, session, token_mgr, URL_SCAN, oh, o_params, op, 'Outbound'): 'outbound',
             ex.submit(pull_scan, session, token_mgr, URL_SCAN, bh, b_params, bp, 'Backlog'): 'backlog',
             ex.submit(pull_dispatch, session, token_mgr, dh, dp_cfg): 'dispatch',
         }
+        if run_outbound:
+            futures[ex.submit(pull_scan, session, token_mgr, URL_SCAN, oh, o_params, op, 'Outbound')] = 'outbound'
+
         for f in as_completed(futures):
             key = futures[f]
             try:
@@ -885,89 +1030,55 @@ def run_once(session, token_mgr):
 
     _cleanup_old_files(OUTPUT_DIR, keep_file=output_file)
     
-    # ── Tính toán sản lượng Backlog & Outbound thực tế để ghi Sheets ──
-    print("\n📊 Bắt đầu pivot dữ liệu Backlog và Outbound thực tế...")
+    # ── Tính toán sản lượng Outbound thực tế để ghi Sheets ──
+    outbound_volumes_grouped = {}
+    target_dates = set()
+    
+    if run_outbound:
+        print("\n📊 Bắt đầu tính toán sản lượng Outbound theo ca vận hành...")
+        raw_out_data = results.get('outbound', [])
+        if raw_out_data:
+            df_out_raw = pd.DataFrame(raw_out_data)
+            if not df_out_raw.empty:
+                for c in ['billNo', 'upOrNextStation', 'scanDate']:
+                    if c not in df_out_raw.columns:
+                        df_out_raw[c] = ''
+                    else:
+                        df_out_raw[c] = df_out_raw[c].fillna('').astype(str).str.strip()
 
-    # 1. Backlog Volumes
-    backlog_volumes = {}
-    raw_bl_data = results.get('backlog', [])
-    if raw_bl_data:
-        df_bl_raw = pd.DataFrame(raw_bl_data)
-        if not df_bl_raw.empty:
-            # Lọc 'Trong kho'
-            if 'operate_site_type' in df_bl_raw.columns:
-                df_bl_raw = df_bl_raw[df_bl_raw['operate_site_type'] == 'Trong kho']
-            
-            # Khởi tạo cột nếu thiếu và làm sạch dữ liệu
-            for c in ['billcode', 'take_site_name', 'destination_site_name', 'abnormal_remark']:
-                if c not in df_bl_raw.columns:
-                    df_bl_raw[c] = ''
-                else:
-                    df_bl_raw[c] = df_bl_raw[c].fillna('').astype(str).str.strip()
-
-            # Xác định điểm đến (abnormal remark vs destination)
-            is_redeliver = df_bl_raw['abnormal_remark'].isin(BACKLOG_REDELIVER_REMARKS)
-            df_bl_raw['target_site'] = df_bl_raw['destination_site_name']
-            df_bl_raw.loc[is_redeliver, 'target_site'] = df_bl_raw.loc[is_redeliver, 'take_site_name']
-
-            # Ánh xạ bưu cục final
-            df_bl_raw['next_station'] = df_bl_raw['target_site'].map(d_buucuc).fillna('')
-
-            # Loại bỏ trùng lặp mã đơn (keep last)
-            df_bl_raw = df_bl_raw.drop_duplicates(subset='billcode', keep='last')
-
-            # Chuẩn hóa tên bưu cục
-            df_bl_raw['next_station_clean'] = df_bl_raw['next_station'].astype(str).str.strip().str.upper()
-
-            # Loại bỏ các đơn không map được vào bưu cục nào
-            df_bl_raw = df_bl_raw[df_bl_raw['next_station_clean'] != '']
-
-            # Nhóm lại để lấy sản lượng (Pivot)
-            backlog_volumes = df_bl_raw.groupby('next_station_clean').size().to_dict()
-            print(f"   💡 Backlog pivot thành công: {len(backlog_volumes)} bưu cục có sản lượng. Tổng đơn: {sum(backlog_volumes.values())}")
-
-    # 2. Outbound Volumes
-    outbound_volumes = {}
-    raw_out_data = results.get('outbound', [])
-    if raw_out_data:
-        df_out_raw = pd.DataFrame(raw_out_data)
-        if not df_out_raw.empty:
-            for c in ['billNo', 'upOrNextStation', 'scanDate']:
-                if c not in df_out_raw.columns:
-                    df_out_raw[c] = ''
-                else:
-                    df_out_raw[c] = df_out_raw[c].fillna('').astype(str).str.strip()
-
-            # Sắp xếp theo ngày quét tăng dần để drop_duplicates lấy quét cuối cùng
-            if 'scanDate' in df_out_raw.columns:
                 df_out_raw['scanDate_dt'] = pd.to_datetime(df_out_raw['scanDate'], errors='coerce')
+                df_out_raw = df_out_raw.dropna(subset=['scanDate_dt'])
+                
+                # Map operating date (06:00 -> 06:00)
+                df_out_raw['operating_date'] = df_out_raw['scanDate_dt'].apply(
+                    lambda dt: dt.strftime('%Y-%m-%d') if dt.hour >= 6 else (dt - timedelta(days=1)).strftime('%Y-%m-%d')
+                )
+                
+                # Deduplicate: keep last scan per billNo per operating_date
                 df_out_raw = df_out_raw.sort_values('scanDate_dt')
+                df_out_raw = df_out_raw.drop_duplicates(subset=['billNo', 'operating_date'], keep='last')
+                
+                df_out_raw['next_station'] = df_out_raw['upOrNextStation'].map(d_buucuc).fillna('')
+                df_out_raw['next_station_clean'] = df_out_raw['next_station'].astype(str).str.strip().str.upper()
+                df_out_raw = df_out_raw[df_out_raw['next_station_clean'] != '']
+                
+                outbound_volumes_grouped = df_out_raw.groupby(['operating_date', 'next_station_clean']).size().to_dict()
+                target_dates = set(df_out_raw['operating_date'].unique())
+                print(f"   💡 Outbound calculated: {len(outbound_volumes_grouped)} groups. Total: {sum(outbound_volumes_grouped.values())}")
 
-            # Ánh xạ bưu cục final
-            df_out_raw['next_station'] = df_out_raw['upOrNextStation'].map(d_buucuc).fillna('')
-
-            # Loại bỏ trùng lặp mã đơn (keep last)
-            df_out_raw = df_out_raw.drop_duplicates(subset='billNo', keep='last')
-
-            # Chuẩn hóa tên bưu cục
-            df_out_raw['next_station_clean'] = df_out_raw['next_station'].astype(str).str.strip().str.upper()
-
-            # Loại bỏ các đơn không map được vào bưu cục nào
-            df_out_raw = df_out_raw[df_out_raw['next_station_clean'] != '']
-
-            # Nhóm lại để lấy sản lượng (Pivot)
-            outbound_volumes = df_out_raw.groupby('next_station_clean').size().to_dict()
-            print(f"   💡 Outbound pivot thành công: {len(outbound_volumes)} bưu cục có sản lượng. Tổng đơn: {sum(outbound_volumes.values())}")
-
-    # Cập nhật dữ liệu lên Google Sheets với Lịch sử (Date & Type)
-    update_google_sheet(df, outbound_volumes, backlog_volumes)
+    # Cập nhật dữ liệu lên Google Sheets
+    update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, now.strftime('%Y-%m-%d'))
 
 
 def main():
+    parser = argparse.ArgumentParser(description="J&T Cargo HCM HUB Inventory & Outbound Sync")
+    parser.add_argument("--rebuild", type=int, help="Rebuild data for the last N operating days (bypasses hour check)")
+    args = parser.parse_args()
+
     session = build_session()
     token_mgr = TokenManager(session, ACCOUNT, PASSWORD, COUNTRY_ID)
     try:
-        run_once(session, token_mgr)
+        run_once(session, token_mgr, rebuild_days=args.rebuild)
     except Exception as e:
         print(f"\n❌ Lỗi thực thi: {e}")
 
