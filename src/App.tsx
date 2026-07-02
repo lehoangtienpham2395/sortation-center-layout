@@ -1817,20 +1817,22 @@ export default function App() {
               });
 
               // 2. Hourly timeline distribution from Inbound sheet (based on Inbound Time of "Đã nhập hàng" status)
-              const hourlyData: Record<string, { hour: string; orders: number; weight: number }> = {};
+                            const hourlyData: Record<string, { hour: string; orders: number; weight: number }> = {};
               for (let i = 0; i < 24; i++) {
                 const hStr = `${String(i).padStart(2, '0')}:00`;
                 hourlyData[hStr] = { hour: hStr, orders: 0, weight: 0 };
               }
               filteredInbound.forEach(d => {
                 if (d['Trạng thái'] === 'Đã nhập hàng') {
-                  const ibTime = d['Inbound Time'] || ''; // e.g. "2026-07-02 14:00"
-                  const match = ibTime.match(/(\d{2}):00/);
-                  if (match) {
-                    const hour = `${match[1]}:00`;
-                    if (hourlyData[hour]) {
-                      hourlyData[hour].orders += parseInt(d['Volume'], 10) || 0;
-                      hourlyData[hour].weight += parseFloat(d['Weight']) || 0;
+                  const ibTime = d['Inbound Time'];
+                  if (ibTime !== undefined && ibTime !== null && ibTime !== '') {
+                    const hrVal = parseInt(String(ibTime), 10);
+                    if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
+                      const hour = `${String(hrVal).padStart(2, '0')}:00`;
+                      if (hourlyData[hour]) {
+                        hourlyData[hour].orders += parseInt(d['Volume'], 10) || 0;
+                        hourlyData[hour].weight += parseFloat(d['Weight']) || 0;
+                      }
                     }
                   }
                 }
@@ -1844,13 +1846,15 @@ export default function App() {
                 hourlyPickupData[hStr] = { hour: hStr, orders: 0, weight: 0 };
               }
               filteredInbound.forEach(d => {
-                const pkTime = d['Pickup Time'] || '';
-                const match = pkTime.match(/(\d{2}):00/);
-                if (match) {
-                  const hour = `${match[1]}:00`;
-                  if (hourlyPickupData[hour]) {
-                    hourlyPickupData[hour].orders += parseInt(d['Volume'], 10) || 0;
-                    hourlyPickupData[hour].weight += parseFloat(d['Weight']) || 0;
+                const pkTime = d['Pickup Time'];
+                if (pkTime !== undefined && pkTime !== null && pkTime !== '') {
+                  const hrVal = parseInt(String(pkTime), 10);
+                  if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
+                    const hour = `${String(hrVal).padStart(2, '0')}:00`;
+                    if (hourlyPickupData[hour]) {
+                      hourlyPickupData[hour].orders += parseInt(d['Volume'], 10) || 0;
+                      hourlyPickupData[hour].weight += parseFloat(d['Weight']) || 0;
+                    }
                   }
                 }
               });

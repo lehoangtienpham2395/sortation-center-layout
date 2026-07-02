@@ -625,7 +625,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         for _, r in df_in_raw.iterrows():
             fc = str(r.get('sendSite', '')).strip()
             fc_mapped = d_buucuc.get(fc, fc)
-            waybill = str(r.get('waybillNo', '')).strip()
+            waybill = str(r.get('billNo') or r.get('waybillNo', '')).strip()
             w = float(r.get('weight') or 0.0)
             ib_date = str(r.get('scanDate', '')).strip()
             pick_time = wb_to_pickup.get(waybill, '')
@@ -672,14 +672,14 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             ib_date_str = r['ib_date']
             try:
                 dt_ib = pd.to_datetime(ib_date_str)
-                ib_hour = dt_ib.strftime('%Y-%m-%d %H:00')
+                ib_hour = int(dt_ib.hour)
                 op_date = get_operating_date(dt_ib)
             except Exception:
-                ib_hour = 'N/A'
+                ib_hour = ""
                 op_date = get_operating_date(now_vn)
         else:
             status_clean = 'Chưa về Hub'
-            ib_hour = 'N/A'
+            ib_hour = ""
             
             # Get op_date from time_ref
             t_ref = r['time_ref']
@@ -688,16 +688,16 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             else:
                 op_date = get_operating_date(now_vn)
                 
-        # Format pickup time to hourly slot
+        # Format pickup time to hour index 0-23
         pk_time_str = r['pickup_time']
         if pk_time_str and str(pk_time_str).strip() not in ('', 'nan', 'None'):
             try:
                 dt_pk = pd.to_datetime(pk_time_str)
-                pk_hour = dt_pk.strftime('%Y-%m-%d %H:00')
+                pk_hour = int(dt_pk.hour)
             except Exception:
-                pk_hour = 'N/A'
+                pk_hour = ""
         else:
-            pk_hour = 'N/A'
+            pk_hour = ""
             
         key = (fc_name, status_clean, op_date, ib_hour, pk_hour)
         if key not in grouped:
