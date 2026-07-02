@@ -1765,7 +1765,7 @@ export default function App() {
             ? `absolute inset-0 flex items-center justify-center pt-10 pb-20 px-6 transition-all duration-300 ${
                 isMobile ? 'pl-6 pr-6' : 'pl-[80px] pr-6'
               }`
-            : `absolute inset-0 pt-16 pb-6 overflow-y-auto scrollbar-thin transition-all duration-300 ${
+            : `absolute inset-0 pt-16 pb-6 overflow-y-auto scrollbar-thin transition-all duration-300 flex flex-col items-center ${
                 isMobile 
                   ? 'px-6' 
                   : sidebarHovered 
