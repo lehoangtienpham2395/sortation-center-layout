@@ -673,35 +673,21 @@ def update_inbound_sheets(gc, results, master_chutes):
         grouped[key]['volume'] += 1
         grouped[key]['weight'] += r['weight']
         
-    # Convert grouped to DataFrame and resolve Zone, AreaID, capacity
+    # Convert grouped to DataFrame without Zone, AreaID, capacity
     final_rows = []
     
     for (fc_name, status, op_date, ib_hour), stats in grouped.items():
-        fc_upper = fc_name.strip().upper()
-        chute = name_to_chute.get(fc_upper)
-        if chute:
-            zone = chute['zone']
-            area_id = chute['area_id']
-            capacity = chute['capacity']
-        else:
-            zone = 'N/A'
-            area_id = 'N/A'
-            capacity = '0'
-            
         final_rows.append({
-            'Zone': zone,
-            'AreaID': area_id,
             'Bưu cục': fc_name,
             'Trạng thái': status,
             'Volume': stats['volume'],
             'Weight': int(stats['weight']),
-            'Sức chứa': capacity,
             'Ngày vận hành': op_date,
             'Inbound Time': ib_hour
         })
         
     df_inbound_aggregated = pd.DataFrame(final_rows)
-    write_sheet("Inbound", df_inbound_aggregated, ["Zone", "AreaID", "Bưu cục", "Trạng thái", "Volume", "Weight", "Sức chứa", "Ngày vận hành", "Inbound Time"])
+    write_sheet("Inbound", df_inbound_aggregated, ["Bưu cục", "Trạng thái", "Volume", "Weight", "Ngày vận hành", "Inbound Time"])
 
     # 4. Linehaul
     df_lh_raw = pd.DataFrame(results.get('linehaul', []))

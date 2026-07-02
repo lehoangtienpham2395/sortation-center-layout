@@ -1875,8 +1875,9 @@ export default function App() {
                 .sort((a, b) => b.weight - a.weight)
                 .slice(0, 10);
 
-              // 4. Incoming vehicles list (filtered)
-              const incomingVehicles = [...filteredLinehaul]
+              // 4. Incoming vehicles list (filtered to only those not yet unloading/unloaded)
+              const incomingVehicles = filteredLinehaul
+                .filter(d => !d['unloadingStartTime'] && !d['unloadingEndTime'])
                 .map(d => ({
                   taskCode: d['Phiếu nhiệm vụ'] || '',
                   subTaskCode: d['Phiếu nhiệm vụ con'] || '',
@@ -2063,6 +2064,7 @@ export default function App() {
                               <tr className="text-slate-500 border-b border-white/5">
                                 <th className="py-2 font-bold uppercase tracking-wider">Mã Xe / Phiếu</th>
                                 <th className="py-2 font-bold uppercase tracking-wider">Nguồn Gửi</th>
+                                <th className="py-2 font-bold uppercase tracking-wider">Giờ Gửi</th>
                                 <th className="py-2 text-right font-bold uppercase tracking-wider">Đơn</th>
                                 <th className="py-2 text-right font-bold uppercase tracking-wider">Tải Trọng</th>
                               </tr>
@@ -2070,17 +2072,22 @@ export default function App() {
                             <tbody>
                               {incomingVehicles.length === 0 ? (
                                 <tr>
-                                  <td colSpan={4} className="py-4 text-center text-slate-500">Chưa có xe đang di chuyển về HUB</td>
+                                  <td colSpan={5} className="py-4 text-center text-slate-500">Chưa có xe đang di chuyển về HUB</td>
                                 </tr>
                               ) : (
-                                incomingVehicles.map((row, idx) => (
-                                  <tr key={`${row.taskCode}-${idx}`} className="border-b border-[#1e2942]/30 hover:bg-white/[0.01]" title={`Phiếu con: ${row.subTaskCode} | Send Time: ${row.sendTime}`}>
-                                    <td className="py-2.5 font-mono font-bold text-[#a78bfa] truncate max-w-[120px]">{row.taskCode}</td>
-                                    <td className="py-2.5 text-slate-300 truncate max-w-[100px]">{row.senderFC}</td>
-                                    <td className="py-2.5 text-right font-mono text-slate-300">{row.orders}</td>
-                                    <td className="py-2.5 text-right font-mono font-bold text-white">{row.weight.toLocaleString()} kg</td>
-                                  </tr>
-                                ))
+                                incomingVehicles.map((row, idx) => {
+                                  const timeMatch = row.sendTime.match(/\s+(\d{2}:\d{2})/);
+                                  const sendHour = timeMatch ? timeMatch[1] : row.sendTime;
+                                  return (
+                                    <tr key={`${row.taskCode}-${idx}`} className="border-b border-[#1e2942]/30 hover:bg-white/[0.01]" title={`Phiếu con: ${row.subTaskCode} | Full Send Time: ${row.sendTime}`}>
+                                      <td className="py-2.5 font-mono font-bold text-[#a78bfa] truncate max-w-[100px]">{row.taskCode}</td>
+                                      <td className="py-2.5 text-slate-300 truncate max-w-[100px]">{row.senderFC}</td>
+                                      <td className="py-2.5 font-mono text-slate-400">{sendHour}</td>
+                                      <td className="py-2.5 text-right font-mono text-slate-300">{row.orders}</td>
+                                      <td className="py-2.5 text-right font-mono font-bold text-white">{row.weight.toLocaleString()} kg</td>
+                                    </tr>
+                                  );
+                                })
                               )}
                             </tbody>
                           </table>
