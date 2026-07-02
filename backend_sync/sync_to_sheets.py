@@ -384,40 +384,49 @@ def update_outbound_sheet(gc, master_chutes, outbound_volumes_grouped, target_da
         sheet = gc.open_by_key(SHEET_ID).worksheet("Outbound")
     except Exception:
         ss = gc.open_by_key(SHEET_ID)
-        sheet = ss.add_worksheet("Outbound", rows=1000, cols=9)
+        sheet = ss.add_worksheet("Outbound", rows=1000, cols=7)
         
     all_rows = sheet.get_all_values()
-    headers = ["Zone", "AreaID", "Bưu cục", "Volume", "Weight", "Dài", "Rộng", "Sức chứa", "Ngày"]
+    headers = ["Zone", "AreaID", "Bưu cục", "Volume", "Weight", "Sức chứa", "Ngày"]
     
     new_rows = [headers]
     if all_rows:
-        has_weight_col = "Weight" in all_rows[0]
-        col_date = all_rows[0].index("Ngày") if "Ngày" in all_rows[0] else 8
         for r in all_rows[1:]:
-            # Pad row if too short
+            # Pad row if too short to prevent index errors
             while len(r) < len(all_rows[0]):
                 r.append("")
-            # Map old 8-col row to new 9-col row
-            if not has_weight_col and len(r) == 8:
-                r.insert(4, 0) # insert 0 weight at index 4
-            
-            r_date = r[-1].strip() if len(r) > 0 else ""
-            if r_date in target_dates:
-                continue
             try:
-                r_date_obj = datetime.strptime(r_date, "%Y-%m-%d").date()
-                days_diff = (datetime.now().date() - r_date_obj).days
-                if days_diff > 30:
+                zone = r[0]
+                area_id = r[1]
+                name = r[2]
+                vol = int(str(r[3]).replace(".", "").replace(",", ""))
+                
+                if len(r) == 7:
+                    weight = int(str(r[4]).replace(".", "").replace(",", ""))
+                    capacity = r[5]
+                    date = r[6].strip()
+                elif len(r) == 9:
+                    weight = int(str(r[4]).replace(".", "").replace(",", ""))
+                    capacity = r[7]
+                    date = r[8].strip()
+                elif len(r) == 8:
+                    weight = 0
+                    capacity = r[6]
+                    date = r[7].strip()
+                else:
                     continue
-            except ValueError:
-                pass
-            # Convert volume to integer if possible
-            if len(r) > 3:
+                
+                if date in target_dates:
+                    continue
                 try:
-                    r[3] = int(str(r[3]).replace(".", "").replace(",", ""))
+                    date_obj = datetime.strptime(date, "%Y-%m-%d").date()
+                    if (datetime.now().date() - date_obj).days > 30:
+                        continue
                 except ValueError:
                     pass
-            new_rows.append(r)
+                new_rows.append([zone, area_id, name, vol, weight, capacity, date])
+            except Exception:
+                pass
                 
     for d_str in sorted(target_dates):
         for (zone, area_id), info in master_chutes.items():
@@ -430,12 +439,10 @@ def update_outbound_sheet(gc, master_chutes, outbound_volumes_grouped, target_da
             row[0] = info["zone"]
             row[1] = info["area_id"]
             row[2] = info["name"]
-            row[3] = vol  # Write directly as integer
+            row[3] = vol
             row[4] = weight
-            row[5] = info["dai"]
-            row[6] = info["rong"]
-            row[7] = info["capacity"]
-            row[8] = d_str
+            row[5] = info["capacity"]
+            row[6] = d_str
             new_rows.append(row)
             
     sheet.clear()
@@ -448,9 +455,9 @@ def update_backlog_sheet(gc, master_chutes, backlog_volumes, current_date_str):
         sheet = gc.open_by_key(SHEET_ID).worksheet("Backlog")
     except Exception:
         ss = gc.open_by_key(SHEET_ID)
-        sheet = ss.add_worksheet("Backlog", rows=1000, cols=9)
+        sheet = ss.add_worksheet("Backlog", rows=1000, cols=7)
         
-    headers = ["Zone", "AreaID", "Bưu cục", "Volume", "Weight", "Dài", "Rộng", "Sức chứa", "Ngày"]
+    headers = ["Zone", "AreaID", "Bưu cục", "Volume", "Weight", "Sức chứa", "Ngày"]
     
     new_rows = [headers]
     for (zone, area_id), info in master_chutes.items():
@@ -464,8 +471,6 @@ def update_backlog_sheet(gc, master_chutes, backlog_volumes, current_date_str):
             info["name"],
             vol,
             weight,
-            info["dai"],
-            info["rong"],
             info["capacity"],
             current_date_str
         ]
@@ -481,9 +486,9 @@ def update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_st
         sheet = gc.open_by_key(SHEET_ID).worksheet("Inventory")
     except Exception:
         ss = gc.open_by_key(SHEET_ID)
-        sheet = ss.add_worksheet("Inventory", rows=1000, cols=10)
+        sheet = ss.add_worksheet("Inventory", rows=1000, cols=8)
         
-    headers = ["Zone", "AreaID", "Bưu cục", "Trạng thái", "Volume", "Weight", "Dài", "Rộng", "Sức chứa", "Ngày"]
+    headers = ["Zone", "AreaID", "Bưu cục", "Trạng thái", "Volume", "Weight", "Sức chứa", "Ngày"]
     statuses = ["Đã rời HUB", "Đã điều phối nhân viên", "Chưa về HUB", "Đang trên bãi", "Đã điều phối bưu cục"]
     
     new_rows = [headers]
@@ -500,8 +505,6 @@ def update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_st
                 status,
                 vol,
                 weight,
-                info["dai"],
-                info["rong"],
                 info["capacity"],
                 current_date_str
             ]
@@ -897,6 +900,11 @@ def run_once(session, token_mgr, rebuild_days=None):
         print("\n⚠️ Không có dữ liệu.")
         return
 
+    if 'weight' in df_all.columns:
+        df_all['weight'] = pd.to_numeric(df_all['weight'], errors='coerce').fillna(0.0).astype(float)
+    else:
+        df_all['weight'] = 0.0
+
     df_all['waybillNo'] = df_all['waybillNo'].astype(str).str.strip()
     print(f"   UNION total: {len(df_all)} đơn")
 
@@ -1084,16 +1092,19 @@ def run_once(session, token_mgr, rebuild_days=None):
                 df_out_raw['next_station_clean'] = df_out_raw['next_station'].astype(str).str.strip().str.upper()
                 df_out_raw = df_out_raw[df_out_raw['next_station_clean'] != '']
                 
-                # Map weight from df (which has waybillNo and weight)
-                weight_map = df.set_index('waybillNo')['weight'].to_dict() if not df.empty else {}
-                df_out_raw['weight'] = df_out_raw['billNo'].map(weight_map).fillna(0).astype(float)
+                # Direct parse JFS weight from outbound dynamic report scans
+                if 'weight' in df_out_raw.columns:
+                    df_out_raw['weight'] = pd.to_numeric(df_out_raw['weight'], errors='coerce').fillna(0.0).astype(float)
+                else:
+                    df_out_raw['weight'] = 0.0
                 
                 outbound_volumes_grouped = df_out_raw.groupby(['operating_date', 'next_station_clean']).agg(
                     volume=('billNo', 'size'),
                     weight=('weight', 'sum')
                 ).to_dict(orient='index')
                 target_dates = set(df_out_raw['operating_date'].unique())
-                print(f"   💡 Outbound calculated: {len(outbound_volumes_grouped)} groups. Total: {sum(outbound_volumes_grouped.values())}")
+                total_vol = sum(item['volume'] for item in outbound_volumes_grouped.values())
+                print(f"   💡 Outbound calculated: {len(outbound_volumes_grouped)} groups. Total: {total_vol}")
 
     # Cập nhật dữ liệu lên Google Sheets
     update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, now.strftime('%Y-%m-%d'))
