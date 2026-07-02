@@ -1837,6 +1837,25 @@ export default function App() {
               });
               const timelineData = Object.values(hourlyData);
 
+              // 2.2. Hourly pickup timeline distribution from Inbound sheet (based on Pickup Time)
+              const hourlyPickupData: Record<string, { hour: string; orders: number; weight: number }> = {};
+              for (let i = 0; i < 24; i++) {
+                const hStr = `${String(i).padStart(2, '0')}:00`;
+                hourlyPickupData[hStr] = { hour: hStr, orders: 0, weight: 0 };
+              }
+              filteredInbound.forEach(d => {
+                const pkTime = d['Pickup Time'] || '';
+                const match = pkTime.match(/(\d{2}):00/);
+                if (match) {
+                  const hour = `${match[1]}:00`;
+                  if (hourlyPickupData[hour]) {
+                    hourlyPickupData[hour].orders += parseInt(d['Volume'], 10) || 0;
+                    hourlyPickupData[hour].weight += parseFloat(d['Weight']) || 0;
+                  }
+                }
+              });
+              const pickupTimelineData = Object.values(hourlyPickupData);
+
               // 3. Group metrics per sending FC (filtered)
               const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
               const getFC = (name: any) => {
@@ -2004,6 +2023,31 @@ export default function App() {
                                   </div>
                                   {/* Bar */}
                                   <div className="w-3 rounded-t transition-all duration-500 bg-gradient-to-t from-[#22d3ee]/20 to-[#22d3ee] group-hover:brightness-110" style={{ height: `${Math.max(4, heightPct)}%` }} />
+                                  <span className="text-[9px] font-mono text-slate-500 mt-2 rotate-45 origin-left whitespace-nowrap">{t.hour}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* B.2. Pickup Timeline */}
+                      <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[#60a5fa] rounded-lg p-4 shadow-xl">
+                        <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[#60a5fa]">BIỂU ĐỒ LẤY HÀNG THEO KHUNG GIỜ (PICKUP TIMELINE)</h3>
+                        <div className="overflow-x-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+                          <div className="min-w-[600px] h-48 flex items-end justify-between px-2 pt-6">
+                            {pickupTimelineData.map(t => {
+                              const maxWeight = Math.max(...pickupTimelineData.map(x => x.weight), 1);
+                              const heightPct = (t.weight / maxWeight) * 80;
+                              return (
+                                <div key={t.hour} className="flex-1 flex flex-col items-center group relative">
+                                  {/* Bar chart tooltip */}
+                                  <div className="absolute bottom-full mb-1 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity bg-slate-900 border border-white/10 text-[9.5px] rounded py-1 px-1.5 z-30 whitespace-nowrap text-center">
+                                    <div className="font-bold text-white">{t.weight.toLocaleString()} kg</div>
+                                    <div className="text-slate-400">{t.orders.toLocaleString()} đơn</div>
+                                  </div>
+                                  {/* Bar */}
+                                  <div className="w-3 rounded-t transition-all duration-500 bg-gradient-to-t from-[#60a5fa]/20 to-[#60a5fa] group-hover:brightness-110" style={{ height: `${Math.max(4, heightPct)}%` }} />
                                   <span className="text-[9px] font-mono text-slate-500 mt-2 rotate-45 origin-left whitespace-nowrap">{t.hour}</span>
                                 </div>
                               );
