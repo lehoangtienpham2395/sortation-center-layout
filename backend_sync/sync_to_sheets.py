@@ -515,7 +515,7 @@ def update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_st
     print(f"   ✅ Đã cập nhật sheet 'Inventory' pivoted với {len(new_rows)-1} dòng.")
 
 
-def update_inbound_sheets(gc, results, master_chutes):
+def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
     print("\n📥 Bắt đầu cập nhật dữ liệu Inbound gom nhóm theo trạng thái & khung giờ lên Google Sheets...")
     
     def write_sheet(sheet_name, df_data, headers):
@@ -571,12 +571,13 @@ def update_inbound_sheets(gc, results, master_chutes):
     if not df_fc_raw.empty:
         for _, r in df_fc_raw.iterrows():
             fc = str(r.get('pickNetworkName', '')).strip()
+            fc_mapped = d_buucuc.get(fc, fc)
             waybill = str(r.get('waybillNo', '')).strip()
             w = float(r.get('loadWeight') or 0.0)
             t_ref = r.get('deliveryTime')
-            if fc and waybill:
+            if fc_mapped and waybill:
                 rows_to_aggregate.append({
-                    'fc': fc,
+                    'fc': fc_mapped,
                     'waybill': waybill,
                     'weight': w,
                     'status': 'Forecast',
@@ -589,13 +590,14 @@ def update_inbound_sheets(gc, results, master_chutes):
     if not df_dp_raw.empty:
         for _, r in df_dp_raw.iterrows():
             fc = str(r.get('pickNetworkName', '')).strip()
+            fc_mapped = d_buucuc.get(fc, fc)
             waybill = str(r.get('waybillNo') or r.get('waybillId', '')).strip()
             w = float(r.get('packageChargeWeight') or 0.0)
             status = str(r.get('orderStatusName') or 'Dispatch').strip()
             t_ref = r.get('updateTime') or r.get('dispatchNetworkTime')
-            if fc and waybill:
+            if fc_mapped and waybill:
                 rows_to_aggregate.append({
-                    'fc': fc,
+                    'fc': fc_mapped,
                     'waybill': waybill,
                     'weight': w,
                     'status': status if status != 'nan' else 'Dispatch',
@@ -608,12 +610,13 @@ def update_inbound_sheets(gc, results, master_chutes):
     if not df_in_raw.empty:
         for _, r in df_in_raw.iterrows():
             fc = str(r.get('sendSite', '')).strip()
+            fc_mapped = d_buucuc.get(fc, fc)
             waybill = str(r.get('waybillNo', '')).strip()
             w = float(r.get('weight') or 0.0)
             ib_date = str(r.get('scanDate', '')).strip()
-            if fc and waybill:
+            if fc_mapped and waybill:
                 rows_to_aggregate.append({
-                    'fc': fc,
+                    'fc': fc_mapped,
                     'waybill': waybill,
                     'weight': w,
                     'status': 'Arrival',
@@ -645,8 +648,10 @@ def update_inbound_sheets(gc, results, master_chutes):
         fc_name = r['fc']
         status = r['status']
         
-        # Inbound map: if inbound scan exists -> "Đã nhập hàng", else corresponding statuses
-        if status == 'Arrival' and r['ib_date']:
+        # Simple Inbound status logic:
+        # If ib_date exists -> "Đã nhập hàng"
+        # Else -> "Chưa về Hub"
+        if r['ib_date'] and str(r['ib_date']).strip() not in ('', 'nan', 'None'):
             status_clean = 'Đã nhập hàng'
             ib_date_str = r['ib_date']
             try:
@@ -657,7 +662,7 @@ def update_inbound_sheets(gc, results, master_chutes):
                 ib_hour = 'N/A'
                 op_date = get_operating_date(now_vn)
         else:
-            status_clean = status if status in ['Forecast', 'Dispatch', 'Inbound'] else 'Chưa về HUB'
+            status_clean = 'Chưa về Hub'
             ib_hour = 'N/A'
             
             # Get op_date from time_ref
@@ -697,7 +702,12 @@ def update_inbound_sheets(gc, results, master_chutes):
         df_lh['Phiếu nhiệm vụ con'] = df_lh_raw['traceSubCode'].fillna('') if 'traceSubCode' in df_lh_raw.columns else ''
         df_lh['sendTime'] = df_lh_raw['sendTime'].fillna('') if 'sendTime' in df_lh_raw.columns else ''
         df_lh['loadingEndTime'] = df_lh_raw['loadingEndTime'].fillna('') if 'loadingEndTime' in df_lh_raw.columns else ''
-        df_lh['nextNetworkName'] = df_lh_raw['nextNetworkName'].fillna('') if 'nextNetworkName' in df_lh_raw.columns else ''
+        
+        if 'nextNetworkName' in df_lh_raw.columns:
+            df_lh['nextNetworkName'] = df_lh_raw['nextNetworkName'].map(d_buucuc).fillna(df_lh_raw['nextNetworkName']).fillna('')
+        else:
+            df_lh['nextNetworkName'] = ''
+            
         df_lh['unloadingStartTime'] = df_lh_raw['unloadingStartTime'].fillna('') if 'unloadingStartTime' in df_lh_raw.columns else ''
         df_lh['unloadingEndTime'] = df_lh_raw['unloadingEndTime'].fillna('') if 'unloadingEndTime' in df_lh_raw.columns else ''
         df_lh['unloadingBillPiece'] = df_lh_raw['unloadingBillPiece'].fillna(0) if 'unloadingBillPiece' in df_lh_raw.columns else 0
@@ -814,7 +824,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             
         # 4. Update Inbound Sheets (aggregated Inbound + raw Linehaul)
         if results:
-            update_inbound_sheets(gc, results, master_chutes)
+            update_inbound_sheets(gc, results, master_chutes, d_buucuc)
             
     except Exception as e:
         print(f"   ❌ Lỗi cập nhật Google Sheets: {e}")

@@ -1799,23 +1799,20 @@ export default function App() {
 
               // 1. Aggregate status counts directly from aggregated Inbound sheet (filtered)
               const stages = {
-                Forecast: { orders: 0, weight: 0 },
-                Dispatch: { orders: 0, weight: 0 },
-                Inbound: { orders: 0, weight: 0 },
-                Arrival: { orders: 0, weight: 0 }
+                'Chưa về Hub': { orders: 0, weight: 0 },
+                'Đã nhập hàng': { orders: 0, weight: 0 }
               };
               
               filteredInbound.forEach(d => {
                 const status = d['Trạng thái'];
                 const vol = parseInt(d['Volume'], 10) || 0;
                 const wt = parseFloat(d['Weight']) || 0;
-                
-                // Map status "Đã nhập hàng" to "Arrival" stage for pipeline visualization
-                const mappedStage = status === 'Đã nhập hàng' ? 'Arrival' : status;
-                
-                if (mappedStage && stages[mappedStage as keyof typeof stages]) {
-                  stages[mappedStage as keyof typeof stages].orders += vol;
-                  stages[mappedStage as keyof typeof stages].weight += wt;
+                if (status === 'Đã nhập hàng') {
+                  stages['Đã nhập hàng'].orders += vol;
+                  stages['Đã nhập hàng'].weight += wt;
+                } else {
+                  stages['Chưa về Hub'].orders += vol;
+                  stages['Chưa về Hub'].weight += wt;
                 }
               });
 
@@ -1961,23 +1958,21 @@ export default function App() {
                       {/* A. Incoming Status Pipeline */}
                       <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[#34d399] rounded-lg p-4 shadow-xl">
                         <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[#34d399]">QUY TRÌNH HÀNG NHẬP (INCOMING STATUS)</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {[
-                            { stage: 'Forecast', label: '1. Dự Báo', color: '#60a5fa', stats: stages.Forecast },
-                            { stage: 'Dispatch', label: '2. Điều Phối', color: '#a78bfa', stats: stages.Dispatch },
-                            { stage: 'Inbound', label: '3. Nhập Trạm', color: '#22d3ee', stats: stages.Inbound },
-                            { stage: 'Arrival', label: '4. Đến HUB', color: '#34d399', stats: stages.Arrival }
+                            { stage: 'Chưa về Hub', label: '1. Chưa Về HUB (In Transit)', color: '#ff6a2b', stats: stages['Chưa về Hub'] },
+                            { stage: 'Đã nhập hàng', label: '2. Đã Nhập Hàng (Arrived)', color: '#34d399', stats: stages['Đã nhập hàng'] }
                           ].map((item) => (
-                            <div key={item.stage} className="bg-[#101622]/40 border border-white/5 rounded-lg p-3 flex flex-col justify-between h-28">
-                              <span className="text-[11px] font-bold tracking-wide" style={{ color: item.color }}>{item.label}</span>
+                            <div key={item.stage} className="bg-[#101622]/40 border border-white/5 rounded-lg p-4 flex flex-col justify-between h-28 hover:border-white/10 transition-colors">
+                              <span className="text-[11.5px] font-bold tracking-wide" style={{ color: item.color }}>{item.label}</span>
                               <div className="mt-2 space-y-1">
                                 <div className="flex justify-between items-baseline">
-                                  <span className="text-[9.5px] text-slate-500">Đơn hàng:</span>
-                                  <span className="text-[13px] font-mono font-bold text-white">{item.stats.orders.toLocaleString()}</span>
+                                  <span className="text-[10px] text-slate-500">Đơn hàng:</span>
+                                  <span className="text-[14px] font-mono font-bold text-white">{item.stats.orders.toLocaleString()}</span>
                                 </div>
                                 <div className="flex justify-between items-baseline">
-                                  <span className="text-[9.5px] text-slate-500">Tải trọng:</span>
-                                  <span className="text-[10.5px] font-mono text-slate-300">{item.stats.weight.toLocaleString()} kg</span>
+                                  <span className="text-[10px] text-slate-500">Tải trọng:</span>
+                                  <span className="text-[11.5px] font-mono text-slate-300">{item.stats.weight.toLocaleString()} kg</span>
                                 </div>
                               </div>
                               {/* Simple line progress at bottom of card */}
