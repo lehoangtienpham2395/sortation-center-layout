@@ -1,4 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
+import { 
+  LayoutDashboard, 
+  Activity, 
+  TrendingUp, 
+  Sliders, 
+  RefreshCw, 
+  Power,
+  ListOrdered,
+  Menu,
+  Inbox
+} from 'lucide-react';
 
 // ── Rack / chute definitions (Cập nhật: Zone 3 = 23 chutes + 24 trucks, Zone 2 = 23 chutes + 23 trucks, Zone 1 = 15 chutes) ──
 const ZONE3_LIST = [
@@ -286,6 +297,12 @@ function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, onEnter, onLeave
 
 export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [sidebarHovered, setSidebarHovered] = useState(false);
+  const [currentView, setCurrentView] = useState<'master' | 'inbound'>('master');
+  const [showMonitor, setShowMonitor] = useState(true);
+  const [showTelemetry, setShowTelemetry] = useState(true);
+  const [showControls, setShowControls] = useState(true);
+  const [showTop10, setShowTop10] = useState(true);
   const [activeTab, setActiveTab] = useState<'layout' | 'top10' | 'stats'>('layout');
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
   const [data,       setData]       = useState<any>(generateMockData());
@@ -1151,7 +1168,9 @@ export default function App() {
 
   return (
     <div className="w-full h-full relative font-sans text-white bg-[#0a0e14]">
-      <div className="absolute top-0 left-0 right-0 h-12 flex items-center justify-between px-6 z-20"
+      <div className={`absolute top-0 right-0 h-12 flex items-center justify-between px-6 z-20 transition-all duration-300 ${
+        isMobile ? 'left-0' : 'left-16'
+      }`}
            style={{background:'linear-gradient(180deg,rgba(10,14,20,.95),rgba(10,14,20,0))'}}>
         <div className="flex items-center gap-3 select-none">
           {/* Logo J&T Cargo */}
@@ -1188,11 +1207,197 @@ export default function App() {
       {!isMobile ? (
         /* ── DESKTOP LAYOUT ── */
         <>
+          {/* Sidebar Menu */}
+          <div 
+            onMouseEnter={() => setSidebarHovered(true)}
+            onMouseLeave={() => setSidebarHovered(false)}
+            className={`fixed top-0 left-0 h-full z-40 flex flex-col bg-[#07121f]/95 backdrop-blur border-r border-white/5 transition-all duration-300 shadow-2xl ${
+              sidebarHovered ? 'w-60' : 'w-16'
+            }`}
+          >
+            {/* Sidebar Header */}
+            <div className={`flex items-center p-3 border-b border-white/5 h-12 ${
+              sidebarHovered ? 'justify-between px-4' : 'justify-center'
+            }`}>
+              {sidebarHovered ? (
+                <span className="text-[10px] text-slate-500 font-bold tracking-widest uppercase select-none">DANH MỤC GIÁM SÁT</span>
+              ) : (
+                <Menu size={16} className="text-slate-400" />
+              )}
+            </div>
+
+            {/* Menu Items */}
+            <div className="flex-1 py-4 space-y-4 px-3 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+              
+              {/* Group 1: DASHBOARD VIEWS */}
+              <div className="space-y-1">
+                {sidebarHovered && (
+                  <div className="px-3 text-[10.5px] text-slate-500 font-bold tracking-widest uppercase mb-2.5 select-none">
+                    Dashboard
+                  </div>
+                )}
+                {[
+                  { id: 'master', label: 'Layout Master', desc: 'Toàn bộ thông tin tổng thể', icon: LayoutDashboard, color: '#60a5fa', active: currentView === 'master', onClick: () => setCurrentView('master') },
+                  { id: 'inbound', label: 'Inbound', desc: 'Thống kê chi tiết luồng nhập', icon: Inbox, color: '#ff6a2b', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
+                ].map(item => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={item.onClick}
+                      className={`w-full flex items-center gap-4 px-4 py-2 rounded-lg text-left transition-all duration-200 group relative ${
+                        item.active 
+                          ? 'text-white border-l-2' 
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                      }`}
+                      style={item.active ? { 
+                        backgroundColor: `${item.color}0a`, 
+                        borderLeftColor: item.color 
+                      } : {}}
+                    >
+                      <div 
+                        className="p-1.5 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200 group-hover:scale-105"
+                        style={{ 
+                          backgroundColor: item.active ? `${item.color}18` : 'rgba(255,255,255,0.02)',
+                          border: `1px solid ${item.active ? `${item.color}30` : 'rgba(255,255,255,0.06)'}`,
+                          color: item.active ? item.color : '#64748b',
+                          boxShadow: item.active ? `0 0 12px ${item.color}12` : 'none'
+                        }}
+                      >
+                        <Icon 
+                          size={15} 
+                          fill={item.active ? 'currentColor' : 'none'} 
+                          fillOpacity={0.15} 
+                        />
+                      </div>
+                      {sidebarHovered && (
+                        <div className="flex flex-col select-none">
+                          <span className="text-[13.5px] font-semibold leading-normal tracking-wider">{item.label}</span>
+                          <span className="text-[11px] text-slate-500 mt-1.5 font-medium leading-relaxed tracking-wider">{item.desc}</span>
+                        </div>
+                      )}
+                      {!sidebarHovered && (
+                        <div className="absolute left-16 bg-[#0a0e14] text-white text-[9.5px] py-1 px-2 rounded border border-white/10 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 shadow-xl">
+                          {item.label}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Group 2: VIEW CONTROLS (Only visible for Master Layout to toggle widgets) */}
+              {currentView === 'master' && (
+                <div className="space-y-1">
+                  {sidebarHovered && (
+                    <div className="px-3 text-[10.5px] text-slate-500 font-bold tracking-widest uppercase mb-2.5 select-none">
+                      Tiện ích / Panel
+                    </div>
+                  )}
+                  {[
+                    { id: 'monitor', label: 'Giám sát phân khu', desc: 'Operational Monitor', icon: Activity, color: '#34d399', active: showMonitor, onClick: () => setShowMonitor(!showMonitor) },
+                    { id: 'telemetry', label: 'Thông số kho', desc: 'Real-time Telemetry', icon: TrendingUp, color: '#ef4444', active: showTelemetry, onClick: () => setShowTelemetry(!showTelemetry) },
+                    { id: 'controls', label: 'Bộ lọc dữ liệu', desc: 'Control Center', icon: Sliders, color: '#22d3ee', active: showControls, onClick: () => setShowControls(!showControls) },
+                    { id: 'top10', label: 'Bảng xếp hạng', desc: 'Top 10 bưu cục', icon: ListOrdered, color: '#a78bfa', active: showTop10, onClick: () => setShowTop10(!showTop10) },
+                  ].map(item => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={item.onClick}
+                        className={`w-full flex items-center gap-4 px-4 py-2 rounded-lg text-left transition-all duration-200 group relative ${
+                          item.active 
+                            ? 'text-white border-l-2' 
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'
+                        }`}
+                        style={item.active ? { 
+                          backgroundColor: `${item.color}0a`, 
+                          borderLeftColor: item.color 
+                        } : {}}
+                      >
+                        <div 
+                          className="p-1.5 rounded-lg flex items-center justify-center shrink-0 transition-all duration-200 group-hover:scale-105"
+                          style={{ 
+                            backgroundColor: item.active ? `${item.color}18` : 'rgba(255,255,255,0.02)',
+                            border: `1px solid ${item.active ? `${item.color}30` : 'rgba(255,255,255,0.06)'}`,
+                            color: item.active ? item.color : '#64748b',
+                            boxShadow: item.active ? `0 0 12px ${item.color}12` : 'none'
+                          }}
+                        >
+                          <Icon 
+                            size={15} 
+                            fill={item.active ? 'currentColor' : 'none'} 
+                            fillOpacity={0.15} 
+                          />
+                        </div>
+                        {sidebarHovered && (
+                          <div className="flex flex-col select-none">
+                            <span className="text-[12.5px] font-semibold leading-none">{item.label}</span>
+                            <span className="text-[10px] text-slate-500 mt-1.5 font-medium leading-none">{item.desc}</span>
+                          </div>
+                        )}
+                        {!sidebarHovered && (
+                          <div className="absolute left-16 bg-[#0a0e14] text-white text-[9.5px] py-1 px-2 rounded border border-white/10 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50 shadow-xl">
+                            {item.label}
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="p-3 border-t border-white/5 space-y-2">
+              {sidebarHovered && (
+                <div className="px-2 py-1 rounded bg-[#101622]/40 border border-white/5 flex items-center justify-between select-none">
+                  <span className="text-[8.5px] font-mono text-slate-500">SYS STATUS</span>
+                  <div className="flex items-center gap-1">
+                    <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="text-[8.5px] font-mono text-emerald-400 font-bold">ONLINE</span>
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <button 
+                  onClick={fetchAndUpdateData}
+                  disabled={loading}
+                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg border text-[9.5px] font-bold cursor-pointer transition-colors duration-200 ${
+                    loading 
+                      ? 'bg-slate-800 border-white/5 text-slate-500' 
+                      : 'bg-[#101622]/60 border-white/10 text-slate-300 hover:bg-white/5 hover:text-white'
+                  }`}
+                  title="Đồng bộ Google Sheets"
+                >
+                  <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
+                  {sidebarHovered && (loading ? 'Đang đồng bộ...' : 'Đồng bộ')}
+                </button>
+                <button 
+                  onClick={() => {
+                    const nextVal = !(showMonitor && showTelemetry && showControls && showTop10);
+                    setShowMonitor(nextVal);
+                    setShowTelemetry(nextVal);
+                    setShowControls(nextVal);
+                    setShowTop10(nextVal);
+                  }}
+                  className="p-1.5 rounded-lg border border-white/10 bg-[#101622]/60 text-slate-400 hover:bg-white/5 hover:text-white cursor-pointer transition-colors"
+                  title="Minimal Mode (Ẩn/Hiện tất cả)"
+                >
+                  <Power size={10} />
+                </button>
+              </div>
+            </div>
+          </div>
+
           {/* Left Column: Stacked panels (w-80) */}
-          <div className="absolute z-20 top-16 left-6 w-80 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2 pb-6 scrollbar-thin">
-            
-            {/* 1. OPERATIONAL MONITOR & ZONE METRICS */}
-            <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
+          {currentView === 'master' && (
+            <div className="absolute z-20 top-16 left-[80px] w-80 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-300">
+              
+              {/* 1. OPERATIONAL MONITOR & ZONE METRICS */}
+              {showMonitor && (
+                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
               <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">OPERATIONAL MONITOR</h3>
               <div className="space-y-3">
                 {[
@@ -1269,7 +1474,7 @@ export default function App() {
                       ['Mã ô', hoveredRack.areaId, 'var(--cyan)'],
                       ['Tên', hoveredRack.name, '#fff'],
                       ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#fff'],
-                      ['Trọng lượng', `${hoveredRack.weight.toLocaleString()} kg`, '#fff'],
+                      ['Trọng lượng', `${(hoveredRack.weight || 0).toLocaleString()} kg`, '#fff'],
                       [displayUtilizationLabelLc, `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
                     ].map(([k,v,c]) => (
                       <div key={k} className="flex justify-between">
@@ -1285,9 +1490,11 @@ export default function App() {
                 )}
               </div>
             </div>
+            )}
 
             {/* 2. REAL-TIME TELEMETRY */}
-            <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 w-full">
+            {showTelemetry && (
+              <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 w-full">
               <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">REAL-TIME TELEMETRY</h3>
               <div className="space-y-4">
                 <div className="p-3 text-center border-b border-[var(--line)] bg-[#101622]/30 rounded-md">
@@ -1304,12 +1511,16 @@ export default function App() {
                 </div>
               </div>
             </div>
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Right Column: Control Center & Top 10 Racks (w-90) */}
-          <div className="absolute z-20 top-16 right-6 w-90 flex flex-col gap-4 max-h-[calc(100vh-210px)] overflow-y-auto pr-2 pb-6 scrollbar-thin">
-            {/* A. Control Center Panel */}
-            <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
+          {currentView === 'master' && (
+            <div className="absolute z-20 top-16 right-6 w-90 flex flex-col gap-4 max-h-[calc(100vh-210px)] overflow-y-auto pr-2 pb-6 scrollbar-thin">
+              {/* A. Control Center Panel */}
+              {showControls && (
+                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
               <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[var(--accent)]">CONTROL CENTER</h3>
               
               <div className="space-y-4">
@@ -1402,9 +1613,11 @@ export default function App() {
                 </div>
               </div>
             </div>
+            )}
 
             {/* B. TOP 10 RACKS (with weight!) */}
-            <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
+            {showTop10 && (
+              <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
               <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">
                 {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
               </h3>
@@ -1457,34 +1670,69 @@ export default function App() {
                 </table>
               </div>
             </div>
-          </div>
+              )}
+            </div>
+          )}
 
           {/* Floating Legend */}
-          <div className="absolute bottom-16 left-6 z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg">
-            {[['#0c883d','Ô chứa'],['var(--orange)','Cổng Outbound'],
-              ['var(--inbound)','Cổng Inbound'],['rgba(100,116,139,0.7)','Xe tải']].map(([c,l])=>(
-              <span key={l} className="flex items-center gap-1.5">
-                <i className="w-2.5 h-2.5 rounded-sm" style={{background:c}}/>
-                {l}
-              </span>
-            ))}
-          </div>
+          {currentView === 'master' && (
+            <div className="absolute bottom-16 left-[80px] z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg transition-all duration-300">
+              {[['#0c883d','Ô chứa'],['var(--orange)','Cổng Outbound'],
+                ['var(--inbound)','Cổng Inbound'],['rgba(100,116,139,0.7)','Xe tải']].map(([c,l])=>(
+                <span key={l} className="flex items-center gap-1.5">
+                  <i className="w-2.5 h-2.5 rounded-sm" style={{background:c}}/>
+                  {l}
+                </span>
+              ))}
+            </div>
+          )}
 
           {/* Aligned bottom right buttons */}
-          <div className="absolute bottom-16 right-6 z-20 flex gap-3 w-90 justify-between">
-            <button onClick={handleResetZoom}
-                    className="flex-1 font-sans font-bold text-[10.5px] uppercase py-2.5 px-4 rounded-md border border-white/20 bg-[var(--panel)] text-[var(--muted)] cursor-pointer hover:bg-white/10 hover:text-white transition-all shadow-lg text-center">
-              THU NHỎ / RESET
-            </button>
-            <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading}
-                    className="flex-1 google-sync-btn justify-center">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
-              {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
-            </button>
-          </div>
+          {currentView === 'master' && (
+            <div className="absolute bottom-16 right-6 z-20 flex gap-3 w-90 justify-between">
+              <button onClick={handleResetZoom}
+                      className="flex-1 font-sans font-bold text-[10.5px] uppercase py-2.5 px-4 rounded-md border border-white/20 bg-[var(--panel)] text-[var(--muted)] cursor-pointer hover:bg-white/10 hover:text-white transition-all shadow-lg text-center">
+                THU NHỎ / RESET
+              </button>
+              <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading}
+                      className="flex-1 google-sync-btn justify-center">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
+                {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
+              </button>
+            </div>
+          )}
 
-          <div className="absolute inset-0 flex items-center justify-center pt-10 pb-20 px-6">
-            {renderSVG()}
+          {/* Center Content: Switch between Layout Master and Inbound */}
+          <div className={`absolute inset-0 flex items-center justify-center pt-10 pb-20 px-6 transition-all duration-300 ${
+            isMobile ? 'pl-6 pr-6' : 'pl-[80px] pr-6'
+          }`}>
+            {currentView === 'master' ? (
+              renderSVG()
+            ) : (
+              <div className="w-full max-w-2xl bg-[var(--panel)] border border-white/10 border-t-2 border-t-[#ff6a2b] rounded-lg p-8 backdrop-blur-md shadow-2xl flex flex-col items-center justify-center text-center space-y-6">
+                <div className="w-16 h-16 rounded-full bg-[#ff6a2b]/10 flex items-center justify-center text-[#ff6a2b] animate-pulse">
+                  <Inbox size={32} />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="disp text-lg tracking-wider text-white">GIÁM SÁT HỆ THỐNG INBOUND</h2>
+                  <p className="text-slate-400 text-xs max-w-md leading-relaxed">
+                    Hệ thống đang được chuẩn bị để tích hợp dữ liệu chi tiết luồng nhập hàng, giám sát hiệu suất các cổng nhập và quản lý tải trọng bãi đỗ xe.
+                  </p>
+                </div>
+                <div className="w-full border-t border-white/5 pt-6 flex justify-around text-left">
+                  <div className="space-y-1">
+                    <span className="text-[9px] text-slate-500 font-mono">DỰ KIẾN TÍCH HỢP</span>
+                    <div className="text-xs font-bold text-white">Thống kê Cổng Nhập</div>
+                    <div className="text-[10px] text-slate-500">Hiển thị lưu lượng theo thời gian thực</div>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[9px] text-slate-500 font-mono">ĐỒNG BỘ DỮ LIỆU</span>
+                    <div className="text-xs font-bold text-white">Google Sheets Sync</div>
+                    <div className="text-[10px] text-slate-500">Đồng bộ tự động tần suất 5 giây</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </>
       ) : ( 
