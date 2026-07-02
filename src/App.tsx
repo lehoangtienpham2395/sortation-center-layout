@@ -111,6 +111,7 @@ interface SheetRow {
   areaId: string;
   buuCuc: string;
   volume: number;
+  weight: number;
   capacity: number;
   date: string;
   type: string;
@@ -151,6 +152,7 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
       : (headers.indexOf("Ki\u1ec7n h\u00e0ng") !== -1 ? headers.indexOf("Ki\u1ec7n h\u00e0ng")
       : (headers.indexOf("S\u1ee9c ch\u1ee9a Pallet") !== -1 ? headers.indexOf("S\u1ee9c ch\u1ee9a Pallet") : 7));
     const colDate = headers.indexOf("Ng\u00e0y") !== -1 ? headers.indexOf("Ng\u00e0y") : (headers.indexOf("Date") !== -1 ? headers.indexOf("Date") : -1);
+    const colWeight = headers.indexOf("Weight") !== -1 ? headers.indexOf("Weight") : (headers.indexOf("Trọng lượng") !== -1 ? headers.indexOf("Trọng lượng") : -1);
     // Parse Trạng thái column for Inventory sheet (col index 3)
     const colStatus = sheetType === 'Inventory'
       ? (headers.indexOf("Tr\u1ea1ng th\u00e1i") !== -1 ? headers.indexOf("Tr\u1ea1ng th\u00e1i") : 3)
@@ -169,6 +171,7 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
       const areaId  = parts[colArea] ? parts[colArea] : '';
       const buuCuc  = parts[colName] ? parts[colName] : '';
       const volumeStr   = parts[colVol] ? parts[colVol].replace(/[,.]/g, '') : '';
+      const weightStr   = colWeight !== -1 && parts[colWeight] ? parts[colWeight].replace(/[,.]/g, '') : '';
       const capacityStr = parts[colCap] ? parts[colCap].replace(/[,.]/g, '') : '780';
       const date    = colDate !== -1 && parts[colDate] ? parts[colDate] : todayStr;
       // Force type from which sheet we fetched
@@ -178,6 +181,7 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
 
       const volume   = volumeStr !== '' ? parseInt(volumeStr, 10) : NaN;
       const capacity = capacityStr !== '' ? parseInt(capacityStr, 10) : 780;
+      const weight   = weightStr !== '' ? parseInt(weightStr, 10) : 0;
 
       if (areaId && zone) {
         rows.push({
@@ -185,6 +189,7 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
           areaId,
           buuCuc,
           volume: isNaN(volume) ? 0 : volume,
+          weight: isNaN(weight) ? 0 : weight,
           capacity: isNaN(capacity) ? 780 : capacity,
           date,
           type,
@@ -288,7 +293,8 @@ export default function App() {
   const [free,       setFree]       = useState(0);
   const [usedCells,  setUsedCells]  = useState(0);
   const [totalOrders,setTotalOrders]= useState(0);
-  const [over,       setOver]       = useState(0);
+
+  const [totalWeight,setTotalWeight] = useState(0);
   const [hoveredRack,setHoveredRack]= useState<any>(null);
   const [tickerText, setTickerText] = useState('HỆ THỐNG ỔN ĐỊNH — KHÔNG CÓ CẢNH BÁO');
   const [loading,    setLoading]    = useState(false);
@@ -322,10 +328,10 @@ export default function App() {
 
     // Calculate statistics for Zone 1, 2, 3 (Zone 1 includes BN HUB A19)
   const zoneStats = useMemo(() => {
-    const stats: Record<number, { current: number; capacity: number; backlog: number; fillRate: number | string }> = {
-      1: { current: 0, capacity: 0, backlog: 0, fillRate: 0 },
-      2: { current: 0, capacity: 0, backlog: 0, fillRate: 0 },
-      3: { current: 0, capacity: 0, backlog: 0, fillRate: 0 }
+    const stats: Record<number, { current: number; capacity: number; backlog: number; weight: number; fillRate: number | string }> = {
+      1: { current: 0, capacity: 0, backlog: 0, weight: 0, fillRate: 0 },
+      2: { current: 0, capacity: 0, backlog: 0, weight: 0, fillRate: 0 },
+      3: { current: 0, capacity: 0, backlog: 0, weight: 0, fillRate: 0 }
     };
 
     CHUTE_RACKS.forEach(c => {
@@ -334,6 +340,7 @@ export default function App() {
         stats[c.zone].current += d.current;
         stats[c.zone].capacity += d.capacity;
         stats[c.zone].backlog += d.backlogCurrent ?? 0;
+        stats[c.zone].weight += d.weight ?? 0;
       }
     });
 
@@ -395,7 +402,7 @@ export default function App() {
     const selectedMap: Record<string, SheetRow> = {};
     const backlogMap: Record<string, SheetRow> = {};
     // For Inventory: accumulate volumes per areaId across selected statuses
-    const inventoryMap: Record<string, { volume: number; capacity: number; buuCuc: string }> = {};
+    const inventoryMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
 
     rawSheetRows.forEach(row => {
       if (row.date === selectedDate) {
@@ -407,9 +414,10 @@ export default function App() {
           // Only sum volumes for the user-selected statuses
           if (!row.status || selectedStatuses.includes(row.status)) {
             if (!inventoryMap[key]) {
-              inventoryMap[key] = { volume: 0, capacity: row.capacity, buuCuc: row.buuCuc };
+              inventoryMap[key] = { volume: 0, weight: 0, capacity: row.capacity, buuCuc: row.buuCuc };
             }
             inventoryMap[key].volume += row.volume;
+            inventoryMap[key].weight += row.weight;
           }
         }
         if (row.type === 'Backlog') {
@@ -440,6 +448,7 @@ export default function App() {
     const newData = ALL_RACKS.reduce((acc, curr: any) => {
       let capacity = 780;
       let current = 0;
+      let weight = 0;
       let util = 0;
       let isMocked = rawSheetRows.length === 0;
       let backlogCurrent = 0;
@@ -453,31 +462,30 @@ export default function App() {
         const invEntry = inventoryMap[key];
 
         if (selectedType === 'Inventory' && invEntry) {
-          // Inventory mode: use sum of selected statuses as current
           capacity = invEntry.capacity || 780;
           current = invEntry.volume;
+          weight = invEntry.weight || 0;
           isMocked = false;
           util = Math.floor((current / capacity) * 100);
         } else if (item) {
           capacity = item.capacity;
           if (item.volume !== -1) {
             current = item.volume;
+            weight = item.weight || 0;
             isMocked = false;
           }
         }
 
         if (blItem && blItem.volume !== -1) {
           backlogCurrent = blItem.volume;
+          if (selectedType === 'Backlog') {
+            weight = blItem.weight || 0;
+          }
         }
 
-        // Calculate utilization or outbound rate (non-Inventory)
-        if (!isMocked && selectedType !== 'Inventory') {
-          if (selectedType === 'Outbound') {
-            const denominator = current + backlogCurrent;
-            util = denominator > 0 ? Math.floor((current / denominator) * 100) : 0;
-          } else {
-            util = Math.floor((current / capacity) * 100);
-          }
+        // Calculate utilization based on capacity for all modes
+        if (!isMocked) {
+          util = Math.floor((current / capacity) * 100);
         }
       }
 
@@ -485,23 +493,15 @@ export default function App() {
         if (!isTruck) {
           util = Math.floor(Math.random() * 110);
           current = Math.floor(capacity * (util / 100));
+          weight = Math.floor(current * 4.5);
           backlogCurrent = Math.floor(current * 0.3);
-          if (selectedType === 'Outbound') {
-            const denominator = current + backlogCurrent;
-            util = denominator > 0 ? Math.floor((current / denominator) * 100) : 0;
-          }
         }
       }
 
       if (curr.areaId === 'A19') {
         capacity = 1400;
         if (!isMocked) {
-          if (selectedType === 'Outbound') {
-            const denominator = current + backlogCurrent;
-            util = denominator > 0 ? Math.floor((current / denominator) * 100) : 0;
-          } else {
-            util = Math.floor((current / capacity) * 100);
-          }
+          util = Math.floor((current / capacity) * 100);
         }
       }
 
@@ -514,6 +514,7 @@ export default function App() {
       acc[curr.areaId] = {
         current,
         backlogCurrent,
+        weight,
         capacity,
         remaining: Math.max(0, capacity - current),
         utilization: util,
@@ -529,12 +530,14 @@ export default function App() {
   const getZoneInfo = (zone: number) => {
     let activeChutesCount = 0;
     let zoneOrders = 0;
+    let zoneWeight = 0;
     const zoneChutes = CHUTE_RACKS.filter(c => c.zone === zone);
     
     zoneChutes.forEach(c => {
       const d = data[c.areaId];
       if (d) {
         zoneOrders += d.current;
+        zoneWeight += d.weight ?? 0;
         if (d.current > 0) {
           activeChutesCount++;
         }
@@ -548,17 +551,19 @@ export default function App() {
       activeChutesCount,
       totalChutes: zoneChutes.length,
       zoneOrders,
+      zoneWeight,
       ratio
     };
   };
 
   const getTop10Chutes = () => {
     return CHUTE_RACKS.map(c => {
-      const d = data[c.areaId] || { current: 0, capacity: 780, utilization: 0, bucket: 'green', name: c.name };
+      const d = data[c.areaId] || { current: 0, weight: 0, capacity: 780, utilization: 0, bucket: 'green', name: c.name };
       return {
         areaId: c.areaId,
         name: d.name || c.name,
         current: d.current,
+        weight: d.weight || 0,
         utilization: d.utilization,
         bucket: d.bucket,
         zone: c.zone
@@ -650,12 +655,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let tCap=0, tCur=0, tRem=0, tOver=0, tUsed=0, tBacklog=0;
+    let tCap=0, tCur=0, tRem=0, tOver=0, tUsed=0, tBacklog=0, tWeight=0;
     const alerts: string[] = [];
     CHUTE_RACKS.forEach(c => {
       const d = data[c.areaId]; if (!d) return;
       tCap += d.capacity; tCur += d.current; tRem += d.remaining;
       tBacklog += d.backlogCurrent ?? 0;
+      tWeight += d.weight ?? 0;
       if (d.current > 0) tUsed++;
       if (d.utilization > 100) { tOver++; alerts.push(`${c.areaId} VƯỢT SỨC CHỨA (${d.utilization}%)`); }
       else if (d.utilization >= 95) alerts.push(`${c.areaId} SẮP ĐẦY (${d.utilization}%)`);
@@ -668,7 +674,7 @@ export default function App() {
       setUtilTotal((tCap ? (tCur/tCap)*100 : 0).toFixed(1));
     }
     
-    setFree(tRem); setUsedCells(tUsed); setTotalOrders(tCur); setOver(tOver);
+    setFree(tRem); setUsedCells(tUsed); setTotalOrders(tCur); setTotalWeight(tWeight);
     
     const label = selectedType === 'Outbound' ? 'TỈ LỆ OUTBOUND' : 'LẤP ĐẦY';
     const rate = selectedType === 'Outbound'
@@ -1167,77 +1173,14 @@ export default function App() {
                style={{textShadow:'0 0 12px rgba(255,255,255,0.1)'}}>HCM HUB</div>
         </div>
                 {!isMobile ? (
-          <div className="flex items-center gap-3">
-            {/* Type Select */}
-            <div className="flex items-center gap-1.5 bg-[#121824] hover:bg-[#1a2336] border border-white/10 rounded-full px-4 py-1.5 text-xs transition-colors duration-200 shadow-inner">
-              <span className="text-slate-400 font-medium mr-0.5">Loại:</span>
-              <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)} 
-                      className="bg-transparent text-white font-bold border-none outline-none cursor-pointer">
-                <option value="Outbound" className="bg-[#121824] text-white">Outbound</option>
-                <option value="Backlog" className="bg-[#121824] text-white">Backlog</option>
-                <option value="Inventory" className="bg-[#121824] text-white">Volume</option>
-              </select>
-            </div>
-            
-            {/* Date Select */}
-            <div className="flex items-center gap-1.5 bg-[#121824] hover:bg-[#1a2336] border border-white/10 rounded-full px-4 py-1.5 text-xs transition-colors duration-200 shadow-inner">
-              <span className="text-slate-400 font-medium mr-0.5">Ngày:</span>
-              <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)} 
-                      className="bg-transparent text-white font-bold border-none outline-none cursor-pointer">
-                {availableDates.length > 0 ? (
-                  availableDates.map(d => (
-                    <option key={d} value={d} className="bg-[#121824] text-white">{d}</option>
-                  ))
-                ) : (
-                  <option value="" className="bg-[#121824] text-white">Chưa có dữ liệu</option>
-                )}
-              </select>
-            </div>
-
-            {/* Inventory Status Filter — hiển thị bên ngoài, mờ đi nếu không phải Inventory */}
-            <div className={`h-5 w-px bg-white/10 mx-1 transition-opacity duration-300 ${selectedType !== 'Inventory' ? 'opacity-30' : 'opacity-100'}`} />
-            <div className={`flex items-center gap-2 bg-[#121824]/60 border border-white/10 rounded-full px-3 py-1 text-xs transition-all duration-300 ${
-              selectedType !== 'Inventory' ? 'opacity-40 pointer-events-none select-none filter blur-[0.3px]' : 'opacity-100'
-            }`}>
-              <span className="text-slate-300 font-bold shrink-0">
-                Trạng thái:
-              </span>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <button
-                  onClick={toggleAllStatuses}
-                  className={`px-3 py-1 rounded-full border text-[11.5px] font-medium transition-all duration-200 ${
-                    selectedStatuses.length === INVENTORY_STATUSES.length
-                      ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold shadow-[0_0_8px_rgba(234,179,8,0.1)]'
-                      : 'bg-[#121824]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-300'
-                  }`}
-                >
-                  Tất cả
-                </button>
-                {INVENTORY_STATUSES.map(status => {
-                  const isChecked = selectedStatuses.includes(status);
-                  return (
-                    <button
-                      key={status}
-                      onClick={() => toggleStatus(status)}
-                      className={`px-3 py-1 rounded-full border text-[11.5px] font-medium transition-all duration-200 ${
-                        isChecked
-                          ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold shadow-[0_0_8px_rgba(234,179,8,0.1)]'
-                          : 'bg-[#121824]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-300'
-                      }`}
-                    >
-                      {status}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="h-5 w-px bg-white/10 mx-1" />
-            <div className="mono text-[10px] text-slate-400 flex items-center gap-1.5">
+          <div className="flex items-center gap-4">
+            <div className="mono text-[10px] text-slate-400 flex items-center gap-1.5 bg-[#121824]/60 border border-white/5 rounded-full px-3 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-slow"></span>
               SYS: <b className="text-emerald-400">ONLINE</b>
             </div>
-            <div className="mono text-[10px] text-slate-400">ZONE: LAT 10.823 • LONG 106.63</div>
+            <div className="mono text-[10px] text-slate-400 bg-[#121824]/60 border border-white/5 rounded-full px-3 py-1">
+              ZONE: LAT 10.823 • LONG 106.63
+            </div>
           </div>
         ) : null}
       </div>
@@ -1245,10 +1188,12 @@ export default function App() {
       {!isMobile ? (
         /* ── DESKTOP LAYOUT ── */
         <>
+          {/* Left Column: Stacked panels (w-80) */}
           <div className="absolute z-20 top-16 left-6 w-80 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2 pb-6 scrollbar-thin">
+            
             {/* 1. OPERATIONAL MONITOR & ZONE METRICS */}
             <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
-              <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">OPERATIONAL MONITOR & ZONE METRICS</h3>
+              <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">OPERATIONAL MONITOR</h3>
               <div className="space-y-3">
                 {[
                   [displayUtilizationLabel, `${utilTotal}%`, 'var(--cyan)'],
@@ -1271,9 +1216,9 @@ export default function App() {
                 <h4 className="disp text-[10px] tracking-[0.12em] text-[var(--muted)] mb-3">ZONE METRICS (CHI TIẾT PHÂN KHU)</h4>
                 <div className="space-y-3">
                   {[
-                    { id: 3, name: 'ZONE 3', color: 'var(--green)' },
-                    { id: 2, name: 'ZONE 2', color: 'var(--yellow)' },
-                    { id: 1, name: 'ZONE 1', color: 'var(--orange)' }
+                    { id: 3, name: 'ZONE 3 CHUTES (A00-A04)', color: 'var(--green)' },
+                    { id: 2, name: 'ZONE 2 CHUTES (A05-A11)', color: 'var(--yellow)' },
+                    { id: 1, name: 'ZONE 1 CHUTES (A12-A19)', color: 'var(--orange)' }
                   ].map(zone => {
                     const stats = zoneStats[zone.id];
                     const isHovered = hoveredZone === zone.id;
@@ -1289,15 +1234,16 @@ export default function App() {
                         onMouseEnter={() => setHoveredZone(zone.id)}
                         onMouseLeave={() => setHoveredZone(null)}
                       >
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="font-bold text-[11px] tracking-wide" style={{ color: zone.color }}>
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="font-bold text-[10px] tracking-wide max-w-[170px]" style={{ color: zone.color }}>
                             {zone.name}
                           </span>
-                          <span className="mono text-[11px] font-bold text-white">
-                            {stats.current.toLocaleString()} đơn
+                          <span className="mono text-[11px] font-bold text-white flex flex-col items-end shrink-0">
+                            <span>{stats.current.toLocaleString()} đơn</span>
+                            <span className="text-[9.5px] text-slate-400 font-medium mt-0.5">{stats.weight.toLocaleString()} kg</span>
                           </span>
                         </div>
-                        <div className="flex justify-between items-center text-[10px] text-[var(--muted)] mb-1.5">
+                        <div className="flex justify-between items-center text-[10px] text-[var(--muted)] mb-1.5 mt-2">
                           <span>{displayUtilizationLabelLc}</span>
                           <span className="mono font-bold text-white">{stats.fillRate}%</span>
                         </div>
@@ -1314,14 +1260,16 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Chi tiết ô chứa (nếu có hover) */}
               <div className="mt-5 pt-4 border-t border-[var(--line)]">
                 <h4 className="disp text-[10px] tracking-[0.12em] text-[var(--muted)] mb-3">CHI TIẾT Ô CHỨA</h4>
                 {hoveredRack ? (
                   <div className="space-y-2 bg-[#101622]/60 rounded-md p-3 border border-white/5">
                     {[
-                      ['Mã ô', hoveredRack.areaId,'var(--cyan)'],
+                      ['Mã ô', hoveredRack.areaId, 'var(--cyan)'],
                       ['Tên', hoveredRack.name, '#fff'],
                       ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#fff'],
+                      ['Trọng lượng', `${hoveredRack.weight.toLocaleString()} kg`, '#fff'],
                       [displayUtilizationLabelLc, `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
                     ].map(([k,v,c]) => (
                       <div key={k} className="flex justify-between">
@@ -1338,7 +1286,124 @@ export default function App() {
               </div>
             </div>
 
-            {/* 2. TOP 10 BƯU CỤC */}
+            {/* 2. REAL-TIME TELEMETRY */}
+            <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 w-full">
+              <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">REAL-TIME TELEMETRY</h3>
+              <div className="space-y-4">
+                <div className="p-3 text-center border-b border-[var(--line)] bg-[#101622]/30 rounded-md">
+                  <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">TỔNG ĐƠN HÀNG</div>
+                  <div className="disp font-extrabold text-3xl text-[var(--cyan)]">{totalOrders.toLocaleString()}</div>
+                  <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">ĐƠN HÀNG / KHO</div>
+                </div>
+                <div className="p-3 text-center bg-[#101622]/30 rounded-md">
+                  <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">TỔNG TRỌNG LƯỢNG</div>
+                  <div className="disp font-extrabold text-2xl text-[var(--green)]">
+                    {totalWeight.toLocaleString()} kg
+                  </div>
+                  <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">TRỌNG LƯỢNG KHO</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Control Center & Top 10 Racks (w-90) */}
+          <div className="absolute z-20 top-16 right-6 w-90 flex flex-col gap-4 max-h-[calc(100vh-210px)] overflow-y-auto pr-2 pb-6 scrollbar-thin">
+            {/* A. Control Center Panel */}
+            <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
+              <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[var(--accent)]">CONTROL CENTER</h3>
+              
+              <div className="space-y-4">
+                {/* 1. LOẠI (Type Selector) - Segmented Control */}
+                <div className="space-y-2">
+                  <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">LOẠI DỮ LIỆU</div>
+                  <div className="flex bg-[#0a0e14]/90 border border-white/10 rounded-full p-1 w-full">
+                    {(['Outbound', 'Backlog', 'Inventory'] as const).map(type => {
+                      const isActive = selectedType === type;
+                      const labelMap = { Outbound: 'Outbound', Backlog: 'Backlog', Inventory: 'Volume' };
+                      return (
+                        <button
+                          key={type}
+                          onClick={() => setSelectedType(type)}
+                          className={`flex-1 text-center py-1.5 rounded-full text-[11px] font-bold transition-all duration-300 relative z-10 ${
+                            isActive
+                              ? 'text-white bg-[var(--accent)] shadow-[0_2px_8px_rgba(255,106,43,0.3)]'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          {labelMap[type]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2. NGÀY (Date Selector) - Scrollable Pill Group */}
+                <div className="space-y-2">
+                  <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">NGÀY BÁO CÁO</div>
+                  <div className="flex gap-1.5 overflow-x-auto py-1 scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                    {availableDates.slice(0, 7).map(d => {
+                      const isActive = selectedDate === d;
+                      return (
+                        <button
+                          key={d}
+                          onClick={() => setSelectedDate(d)}
+                          className={`px-3 py-1.5 rounded-full text-[10.5px] font-bold border transition-all duration-250 shrink-0 ${
+                            isActive
+                              ? 'bg-[#1e2942]/60 border-[var(--cyan)] text-[var(--cyan)] shadow-[0_0_8px_rgba(34,211,238,0.15)]'
+                              : 'bg-[#101622]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-200'
+                          }`}
+                        >
+                          {d}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 3. TRẠNG THÁI (Status Selector) - Modern Toggle Buttons */}
+                <div className={`space-y-2 transition-all duration-300 ${
+                  selectedType !== 'Inventory' ? 'opacity-30 pointer-events-none select-none filter blur-[0.4px]' : 'opacity-100'
+                }`}>
+                  <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">TRẠNG THÁI (VOLUME)</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={toggleAllStatuses}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[11px] font-medium transition-all duration-200 ${
+                        selectedStatuses.length === INVENTORY_STATUSES.length
+                          ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
+                          : 'bg-[#101622]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-300'
+                      }`}
+                    >
+                      <span className={`w-2 h-2 rounded-full ${
+                        selectedStatuses.length === INVENTORY_STATUSES.length ? 'bg-yellow-400 animate-pulse' : 'bg-slate-600'
+                      }`} />
+                      Tất cả
+                    </button>
+                    {INVENTORY_STATUSES.map(status => {
+                      const isChecked = selectedStatuses.includes(status);
+                      return (
+                        <button
+                          key={status}
+                          onClick={() => toggleStatus(status)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[10.5px] font-medium transition-all duration-200 ${
+                            isChecked
+                              ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
+                              : 'bg-[#101622]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-300'
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${
+                            isChecked ? 'bg-yellow-400 animate-pulse' : 'bg-slate-600'
+                          }`} />
+                          {status}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* B. TOP 10 RACKS (with weight!) */}
             <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
               <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">
                 {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
@@ -1347,11 +1412,12 @@ export default function App() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-[var(--line)] text-[10px] text-[var(--muted)] uppercase mono font-bold">
-                      <th className="py-1 w-8">#</th>
-                      <th className="py-1 w-12">Mã</th>
+                      <th className="py-1 w-6">#</th>
+                      <th className="py-1 w-10">Mã</th>
                       <th className="py-1">Bưu Cục</th>
-                      <th className="py-1 text-right w-16">{selectedType === 'Outbound' ? 'Lượng xuất' : 'Lượng tồn'}</th>
-                      <th className="py-1 text-right w-12">{displayUtilizationLabelLc}</th>
+                      <th className="py-1 text-right w-14">{selectedType === 'Outbound' ? 'Xuất' : 'Tồn'}</th>
+                      <th className="py-1 text-right w-16">T.lượng</th>
+                      <th className="py-1 text-right w-10">{displayUtilizationLabelLc}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1364,6 +1430,7 @@ export default function App() {
                         darkred: 'var(--red)'
                       };
                       const col = colors[chute.bucket] || '#fff';
+
                       return (
                         <tr key={chute.areaId} className="border-b border-[#1e2942]/20 last:border-0 hover:bg-white/5 transition-colors cursor-pointer text-[11px]"
                             onMouseEnter={() => {
@@ -1377,10 +1444,11 @@ export default function App() {
                             }}>
                           <td className="py-1 text-[var(--muted)] mono">{index + 1}</td>
                           <td className="py-1 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
-                          <td className="py-1 truncate max-w-[110px] font-medium text-white/95" title={chute.name}>
+                          <td className="py-1 truncate max-w-[80px] font-medium text-white/95" title={chute.name}>
                             {chute.name}
                           </td>
                           <td className="py-1 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
+                          <td className="py-1 text-right mono text-slate-300">{chute.weight.toLocaleString()} kg</td>
                           <td className="py-1 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
                         </tr>
                       );
@@ -1389,29 +1457,9 @@ export default function App() {
                 </table>
               </div>
             </div>
-
-            {/* 3. REAL-TIME TELEMETRY (dời xuống góc trái) */}
-            <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 w-full">
-              <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">REAL-TIME TELEMETRY</h3>
-              <div className="space-y-4">
-                <div className="p-3 text-center border-b border-[var(--line)] bg-[#101622]/30 rounded-md">
-                  <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">TỔNG ĐƠN HÀNG</div>
-                  <div className="disp font-extrabold text-3xl text-[var(--cyan)]">{totalOrders.toLocaleString()}</div>
-                  <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">ĐƠN HÀNG / KHO</div>
-                </div>
-                <div className="p-3 text-center bg-[#101622]/30 rounded-md">
-                  <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">Ô QUÁ TẢI</div>
-                  <div className="disp font-extrabold text-3xl" style={{color:over>0?'var(--red)':'var(--green)'}}>
-                    {over.toString().padStart(2,'0')}
-                  </div>
-                  <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">FLEET MATRIX</div>
-                </div>
-              </div>
-            </div>
           </div>
 
-          {/* ZONE METRICS has been merged into OPERATIONAL MONITOR */}
-
+          {/* Floating Legend */}
           <div className="absolute bottom-16 left-6 z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg">
             {[['#0c883d','Ô chứa'],['var(--orange)','Cổng Outbound'],
               ['var(--inbound)','Cổng Inbound'],['rgba(100,116,139,0.7)','Xe tải']].map(([c,l])=>(
@@ -1422,22 +1470,24 @@ export default function App() {
             ))}
           </div>
 
-          <button onClick={handleResetZoom}
-                  className="absolute bottom-16 right-48 z-20 font-sans font-bold text-xs uppercase py-2.5 px-4 rounded-md border border-white/20 bg-[var(--panel)] text-[var(--muted)] cursor-pointer hover:bg-white/10 hover:text-white transition-all shadow-lg">
-            THU NHỎ / RESET
-          </button>
-
-          <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading}
-                  className="absolute bottom-16 right-6 z-20 google-sync-btn">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
-            {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
-          </button>
+          {/* Aligned bottom right buttons */}
+          <div className="absolute bottom-16 right-6 z-20 flex gap-3 w-90 justify-between">
+            <button onClick={handleResetZoom}
+                    className="flex-1 font-sans font-bold text-[10.5px] uppercase py-2.5 px-4 rounded-md border border-white/20 bg-[var(--panel)] text-[var(--muted)] cursor-pointer hover:bg-white/10 hover:text-white transition-all shadow-lg text-center">
+              THU NHỎ / RESET
+            </button>
+            <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading}
+                    className="flex-1 google-sync-btn justify-center">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
+              {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
+            </button>
+          </div>
 
           <div className="absolute inset-0 flex items-center justify-center pt-10 pb-20 px-6">
             {renderSVG()}
           </div>
         </>
-      ) : (
+      ) : ( 
         /* ── MOBILE LAYOUT ── */
         <>
           <div className="w-full h-full pt-16 pb-24 px-4 overflow-hidden flex flex-col justify-between">
@@ -1537,6 +1587,10 @@ export default function App() {
                           <div className="mono text-[11px] font-bold text-white">{hoveredRack.current?.toLocaleString()} / {hoveredRack.capacity}</div>
                         </div>
                         <div>
+                          <div className="text-[9px] text-[var(--muted)]">Trọng lượng:</div>
+                          <div className="mono text-[11px] font-bold text-white">{hoveredRack.weight?.toLocaleString()} kg</div>
+                        </div>
+                        <div>
                           <div className="text-[9px] text-[var(--muted)]">{displayUtilizationLabelLc}:</div>
                           <div className="mono text-[11px] font-bold" style={{color: UTILCOL[hoveredRack.bucket] || '#fff'}}>{hoveredRack.utilization}%</div>
                         </div>
@@ -1560,6 +1614,7 @@ export default function App() {
                         <th className="py-2 w-12">Mã</th>
                         <th className="py-2">Bưu Cục</th>
                         <th className="py-2 text-right w-16">{selectedType === 'Outbound' ? 'Lượng xuất' : 'Tồn'}</th>
+                        <th className="py-2 text-right w-16">T.lượng</th>
                         <th className="py-2 text-right w-12">%</th>
                       </tr>
                     </thead>
@@ -1577,8 +1632,9 @@ export default function App() {
                           <tr key={chute.areaId} className="border-b border-[#1e2942]/20 last:border-0 hover:bg-white/5 transition-colors text-[11px]">
                             <td className="py-2 text-[var(--muted)] mono">{index + 1}</td>
                             <td className="py-2 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
-                            <td className="py-2 truncate max-w-[120px] font-medium text-white/95">{chute.name}</td>
+                            <td className="py-2 truncate max-w-[90px] font-medium text-white/95">{chute.name}</td>
                             <td className="py-2 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
+                            <td className="py-2 text-right mono text-slate-300">{chute.weight.toLocaleString()} kg</td>
                             <td className="py-2 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
                           </tr>
                         );
@@ -1600,9 +1656,9 @@ export default function App() {
                       <div className="disp font-extrabold text-xl text-[var(--cyan)]">{totalOrders.toLocaleString()}</div>
                     </div>
                     <div className="p-3 text-center bg-[#101622]/30 rounded-md">
-                      <div className="mono text-[9px] text-[var(--muted)] mb-1">Ô QUÁ TẢI</div>
-                      <div className="disp font-extrabold text-xl" style={{color: over > 0 ? 'var(--red)' : 'var(--green)'}}>
-                        {over.toString().padStart(2,'0')}
+                      <div className="mono text-[9px] text-[var(--muted)] mb-1">TỔNG TRỌNG LƯỢNG</div>
+                      <div className="disp font-extrabold text-xl text-[var(--green)]">
+                        {totalWeight.toLocaleString()} kg
                       </div>
                     </div>
                   </div>
@@ -1651,6 +1707,7 @@ export default function App() {
                           <div className="grid grid-cols-2 gap-2 text-[10px] text-[var(--muted)]">
                             <div>Bưu cục có hàng: <b className="text-white mono">{zInfo.activeChutesCount}/{zInfo.totalChutes}</b></div>
                             <div>Tổng lượng đơn: <b className="text-white mono">{zInfo.zoneOrders.toLocaleString()}</b></div>
+                            <div className="col-span-2 mt-1 border-t border-white/5 pt-1">Tổng trọng lượng: <b className="text-white mono">{zInfo.zoneWeight.toLocaleString()} kg</b></div>
                           </div>
                         </div>
                       );
