@@ -1443,33 +1443,69 @@ export default function App() {
           <div className="w-full h-full pt-16 pb-24 px-4 overflow-hidden flex flex-col justify-between">
             {activeTab === 'layout' && (
               <div className="w-full h-full flex flex-col justify-between relative pt-12">
-                {/* Mobile Filter Bar */}
-                <div className="absolute top-2 left-2 right-28 z-30 flex gap-1 bg-[#121824]/90 backdrop-blur border border-white/10 rounded-md p-1">
-                  <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)} 
-                          className="flex-1 bg-[#0a0e14] text-white text-[10px] font-bold py-1 px-1.5 rounded border border-white/5 outline-none cursor-pointer">
-                    <option value="Outbound">📦 Outbound</option>
-                    <option value="Backlog">🏭 Backlog (realtime)</option>
-                    <option value="Backlog CAP 6AM">⏰ Backlog CAP 6AM</option>
-                    <option value="Inventory">📊 Inventory</option>
-                  </select>
-                  <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)} 
-                          className="flex-1 bg-[#0a0e14] text-white text-[10px] font-bold py-1 px-1.5 rounded border border-white/5 outline-none cursor-pointer">
-                    {availableDates.length > 0 ? (
-                      availableDates.map(d => (
-                        <option key={d} value={d}>{d}</option>
-                      ))
-                    ) : (
-                      <option value="">Chưa có</option>
-                    )}
-                  </select>
-                </div>
+                {/* Mobile Filter Bar & Sync Button consolidated */}
+                <div className="absolute top-2 left-2 right-2 z-30 flex flex-col gap-1.5 bg-[#121824]/95 backdrop-blur border border-white/10 rounded-md p-1.5 shadow-xl">
+                  <div className="flex gap-1.5 items-center">
+                    {/* Type Select */}
+                    <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)} 
+                            className="flex-1 bg-[#0a0e14] text-white text-[10px] font-bold py-1.5 px-2 rounded border border-white/5 outline-none cursor-pointer">
+                      <option value="Outbound">Outbound</option>
+                      <option value="Backlog">Backlog</option>
+                      <option value="Inventory">Volume</option>
+                    </select>
 
-                {/* Floating Sync Button */}
-                <div className="absolute top-2 right-2 z-30">
-                  <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading} className="relative google-sync-btn px-3 py-1.5 text-[10px] gap-1 shadow-lg">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
-                    {loading ? '...' : 'Đồng bộ'}
-                  </button>
+                    {/* Date Select */}
+                    <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)} 
+                            className="flex-1 bg-[#0a0e14] text-white text-[10px] font-bold py-1.5 px-2 rounded border border-white/5 outline-none cursor-pointer">
+                      {availableDates.length > 0 ? (
+                        availableDates.map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))
+                      ) : (
+                        <option value="">Chưa có dữ liệu</option>
+                      )}
+                    </select>
+
+                    {/* Inline Sync Button */}
+                    <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading} 
+                            className="google-sync-btn px-2.5 py-1 text-[10px] gap-1 shadow-lg shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
+                      {loading ? '...' : 'Đồng bộ'}
+                    </button>
+                  </div>
+
+                  {/* Mobile Inventory Status Filter */}
+                  {selectedType === 'Inventory' && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none border-t border-white/5 mt-1"
+                         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                      <button
+                        onClick={toggleAllStatuses}
+                        className={`px-2 py-0.5 rounded-full border text-[9px] font-medium transition-all duration-200 shrink-0 ${
+                          selectedStatuses.length === INVENTORY_STATUSES.length
+                            ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
+                            : 'bg-[#121824]/40 border-white/5 text-slate-400'
+                        }`}
+                      >
+                        Tất cả
+                      </button>
+                      {INVENTORY_STATUSES.map(status => {
+                        const isChecked = selectedStatuses.includes(status);
+                        return (
+                          <button
+                            key={status}
+                            onClick={() => toggleStatus(status)}
+                            className={`px-2 py-0.5 rounded-full border text-[9px] font-medium transition-all duration-200 shrink-0 ${
+                              isChecked
+                                ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
+                                : 'bg-[#121824]/40 border-white/5 text-slate-400'
+                            }`}
+                          >
+                            {status}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
                 {/* Floating Zoom controls */}
@@ -1599,11 +1635,18 @@ export default function App() {
                   <div className="space-y-4">
                     {[3, 2, 1].map(zoneNum => {
                       const zInfo = getZoneInfo(zoneNum);
+                      const colors: Record<number, string> = {
+                        1: 'var(--orange)',
+                        2: 'var(--yellow)',
+                        3: 'var(--green)'
+                      };
+                      const zColor = colors[zoneNum] || 'var(--cyan)';
                       return (
-                        <div key={zoneNum} className="p-3 bg-[#101622]/40 rounded-md border border-white/5">
+                        <div key={zoneNum} className="p-3 bg-[#101622]/40 rounded-md border border-white/5"
+                             style={{ borderColor: `${zColor}22` }}>
                           <div className="flex justify-between items-center border-b border-[#1e2942]/50 pb-2 mb-2">
-                            <span className="disp font-extrabold text-[11px] text-[var(--cyan)]">ZONE {zoneNum}</span>
-                            <span className="mono text-[11px] font-bold text-[var(--cyan)]">{zInfo.ratio}% sản lượng</span>
+                            <span className="disp font-extrabold text-[11px]" style={{ color: zColor }}>ZONE {zoneNum}</span>
+                            <span className="mono text-[11px] font-bold" style={{ color: zColor }}>{zInfo.ratio}% sản lượng</span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-[10px] text-[var(--muted)]">
                             <div>Bưu cục có hàng: <b className="text-white mono">{zInfo.activeChutesCount}/{zInfo.totalChutes}</b></div>
