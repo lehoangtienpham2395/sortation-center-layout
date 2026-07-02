@@ -1766,7 +1766,11 @@ export default function App() {
                 isMobile ? 'pl-6 pr-6' : 'pl-[80px] pr-6'
               }`
             : `absolute inset-0 pt-16 pb-6 overflow-y-auto scrollbar-thin transition-all duration-300 ${
-                isMobile ? 'px-6' : 'pl-[104px] pr-[104px]'
+                isMobile 
+                  ? 'px-6' 
+                  : sidebarHovered 
+                    ? 'pl-[264px] pr-[264px]' 
+                    : 'pl-[88px] pr-[88px]'
               }`
           }>
             {currentView === 'master' ? (
