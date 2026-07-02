@@ -516,7 +516,7 @@ def update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_st
 
 
 def update_inbound_sheets(gc, results, master_chutes):
-    print("\n📥 Bắt đầu cập nhật dữ liệu Inbound gom nhóm lên Google Sheets...")
+    print("\n📥 Bắt đầu cập nhật dữ liệu Inbound gom nhóm theo trạng thái & khung giờ lên Google Sheets...")
     
     def write_sheet(sheet_name, df_data, headers):
         try:
@@ -545,6 +545,18 @@ def update_inbound_sheets(gc, results, master_chutes):
         except Exception as e:
             print(f"   ❌ Lỗi ghi dữ liệu lên sheet '{sheet_name}': {e}")
 
+    def get_operating_date(dt_str):
+        if not dt_str or str(dt_str).strip() in ('', 'nan', 'None'):
+            return ""
+        try:
+            dt = pd.to_datetime(dt_str)
+            if dt.hour < 6:
+                return (dt - timedelta(days=1)).strftime('%Y-%m-%d')
+            else:
+                return dt.strftime('%Y-%m-%d')
+        except Exception:
+            return ""
+
     # Build reverse lookup map for chutes
     name_to_chute = {}
     for key, chute in master_chutes.items():
@@ -561,12 +573,15 @@ def update_inbound_sheets(gc, results, master_chutes):
             fc = str(r.get('pickNetworkName', '')).strip()
             waybill = str(r.get('waybillNo', '')).strip()
             w = float(r.get('loadWeight') or 0.0)
+            t_ref = r.get('deliveryTime')
             if fc and waybill:
                 rows_to_aggregate.append({
                     'fc': fc,
                     'waybill': waybill,
                     'weight': w,
-                    'status': 'Forecast'
+                    'status': 'Forecast',
+                    'ib_date': '',
+                    'time_ref': t_ref
                 })
                 
     # 2. Dispatch
@@ -577,12 +592,15 @@ def update_inbound_sheets(gc, results, master_chutes):
             waybill = str(r.get('waybillNo') or r.get('waybillId', '')).strip()
             w = float(r.get('packageChargeWeight') or 0.0)
             status = str(r.get('orderStatusName') or 'Dispatch').strip()
+            t_ref = r.get('updateTime') or r.get('dispatchNetworkTime')
             if fc and waybill:
                 rows_to_aggregate.append({
                     'fc': fc,
                     'waybill': waybill,
                     'weight': w,
-                    'status': status if status != 'nan' else 'Dispatch'
+                    'status': status if status != 'nan' else 'Dispatch',
+                    'ib_date': '',
+                    'time_ref': t_ref
                 })
 
     # 3. Inbound
@@ -592,12 +610,15 @@ def update_inbound_sheets(gc, results, master_chutes):
             fc = str(r.get('sendSite', '')).strip()
             waybill = str(r.get('waybillNo', '')).strip()
             w = float(r.get('weight') or 0.0)
+            ib_date = str(r.get('scanDate', '')).strip()
             if fc and waybill:
                 rows_to_aggregate.append({
                     'fc': fc,
                     'waybill': waybill,
                     'weight': w,
-                    'status': 'Arrival'
+                    'status': 'Arrival',
+                    'ib_date': ib_date,
+                    'time_ref': ib_date
                 })
 
     # Merge / Deduplicate by waybill (highest status: Arrival > Dispatch > Forecast)
@@ -616,15 +637,37 @@ def update_inbound_sheets(gc, results, master_chutes):
         if wb not in unique_waybills or priority > status_priority.get(unique_waybills[wb]['status'], 0):
             unique_waybills[wb] = r
             
-    # Group by fc and status
+    # Group by fc, status, op_date, and hourly slot
     grouped = {}
+    now_vn = datetime.now()
+    
     for wb, r in unique_waybills.items():
         fc_name = r['fc']
         status = r['status']
-        if status not in ['Forecast', 'Dispatch', 'Inbound', 'Arrival']:
-            status = 'Dispatch'
+        
+        # Inbound map: if inbound scan exists -> "Đã nhập hàng", else corresponding statuses
+        if status == 'Arrival' and r['ib_date']:
+            status_clean = 'Đã nhập hàng'
+            ib_date_str = r['ib_date']
+            try:
+                dt_ib = pd.to_datetime(ib_date_str)
+                ib_hour = dt_ib.strftime('%Y-%m-%d %H:00')
+                op_date = get_operating_date(dt_ib)
+            except Exception:
+                ib_hour = 'N/A'
+                op_date = get_operating_date(now_vn)
+        else:
+            status_clean = status if status in ['Forecast', 'Dispatch', 'Inbound'] else 'Chưa về HUB'
+            ib_hour = 'N/A'
             
-        key = (fc_name, status)
+            # Get op_date from time_ref
+            t_ref = r['time_ref']
+            if t_ref:
+                op_date = get_operating_date(t_ref)
+            else:
+                op_date = get_operating_date(now_vn)
+                
+        key = (fc_name, status_clean, op_date, ib_hour)
         if key not in grouped:
             grouped[key] = {'volume': 0, 'weight': 0.0}
         grouped[key]['volume'] += 1
@@ -632,9 +675,8 @@ def update_inbound_sheets(gc, results, master_chutes):
         
     # Convert grouped to DataFrame and resolve Zone, AreaID, capacity
     final_rows = []
-    current_date_str = datetime.now().strftime('%Y-%m-%d')
     
-    for (fc_name, status), stats in grouped.items():
+    for (fc_name, status, op_date, ib_hour), stats in grouped.items():
         fc_upper = fc_name.strip().upper()
         chute = name_to_chute.get(fc_upper)
         if chute:
@@ -654,11 +696,12 @@ def update_inbound_sheets(gc, results, master_chutes):
             'Volume': stats['volume'],
             'Weight': int(stats['weight']),
             'Sức chứa': capacity,
-            'Ngày': current_date_str
+            'Ngày vận hành': op_date,
+            'Inbound Time': ib_hour
         })
         
     df_inbound_aggregated = pd.DataFrame(final_rows)
-    write_sheet("Inbound", df_inbound_aggregated, ["Zone", "AreaID", "Bưu cục", "Trạng thái", "Volume", "Weight", "Sức chứa", "Ngày"])
+    write_sheet("Inbound", df_inbound_aggregated, ["Zone", "AreaID", "Bưu cục", "Trạng thái", "Volume", "Weight", "Sức chứa", "Ngày vận hành", "Inbound Time"])
 
     # 4. Linehaul
     df_lh_raw = pd.DataFrame(results.get('linehaul', []))

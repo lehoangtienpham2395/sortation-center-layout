@@ -337,6 +337,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<'master' | 'inbound'>('master');
   const [inboundData, setInboundData] = useState<any[]>([]);
   const [linehaulData, setLinehaulData] = useState<any[]>([]);
+  const [selectedInboundDate, setSelectedInboundDate] = useState<string>('');
   const [showMonitor, setShowMonitor] = useState(true);
   const [showTelemetry, setShowTelemetry] = useState(true);
   const [showControls, setShowControls] = useState(true);
@@ -429,6 +430,17 @@ export default function App() {
 
     setInboundData(ibRows ?? []);
     setLinehaulData(lhRows ?? []);
+
+    if (ibRows && ibRows.length > 0) {
+      const ibDates = Array.from(new Set(ibRows.map(r => r['Ngày vận hành']).filter(Boolean))) as string[];
+      ibDates.sort((a, b) => b.localeCompare(a));
+      if (ibDates.length > 0) {
+        setSelectedInboundDate(prev => {
+          if (prev && ibDates.includes(prev)) return prev;
+          return ibDates[0];
+        });
+      }
+    }
 
     const combined: SheetRow[] = [
       ...(outboundRows ?? []),
@@ -1760,7 +1772,32 @@ export default function App() {
             {currentView === 'master' ? (
               renderSVG()
             ) : (() => {
-              // 1. Aggregate status counts directly from aggregated Inbound sheet
+              // 0. Extract available dates
+              const inboundDates = Array.from(new Set(inboundData.map(d => d['Ngày vận hành']).filter(Boolean))) as string[];
+              inboundDates.sort((a, b) => b.localeCompare(a));
+              const activeDate = selectedInboundDate || inboundDates[0] || '';
+
+              // Filter datasets by active date
+              const filteredInbound = inboundData.filter(d => d['Ngày vận hành'] === activeDate);
+              
+              const getLinehaulOperatingDate = (timeStr: string) => {
+                if (!timeStr) return '';
+                const match = timeStr.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
+                if (match) {
+                  const datePart = match[1];
+                  const hour = parseInt(match[2], 10);
+                  if (hour < 6) {
+                    const d = new Date(datePart);
+                    d.setDate(d.getDate() - 1);
+                    return d.toISOString().split('T')[0];
+                  }
+                  return datePart;
+                }
+                return '';
+              };
+              const filteredLinehaul = linehaulData.filter(d => getLinehaulOperatingDate(d['sendTime']) === activeDate);
+
+              // 1. Aggregate status counts directly from aggregated Inbound sheet (filtered)
               const stages = {
                 Forecast: { orders: 0, weight: 0 },
                 Dispatch: { orders: 0, weight: 0 },
@@ -1768,37 +1805,42 @@ export default function App() {
                 Arrival: { orders: 0, weight: 0 }
               };
               
-              inboundData.forEach(d => {
+              filteredInbound.forEach(d => {
                 const status = d['Trạng thái'];
                 const vol = parseInt(d['Volume'], 10) || 0;
                 const wt = parseFloat(d['Weight']) || 0;
-                if (status && stages[status as keyof typeof stages]) {
-                  stages[status as keyof typeof stages].orders += vol;
-                  stages[status as keyof typeof stages].weight += wt;
+                
+                // Map status "Đã nhập hàng" to "Arrival" stage for pipeline visualization
+                const mappedStage = status === 'Đã nhập hàng' ? 'Arrival' : status;
+                
+                if (mappedStage && stages[mappedStage as keyof typeof stages]) {
+                  stages[mappedStage as keyof typeof stages].orders += vol;
+                  stages[mappedStage as keyof typeof stages].weight += wt;
                 }
               });
 
-              // 2. Hourly timeline distribution from Linehaul vehicle tasks
+              // 2. Hourly timeline distribution from Inbound sheet (based on Inbound Time of "Đã nhập hàng" status)
               const hourlyData: Record<string, { hour: string; orders: number; weight: number }> = {};
               for (let i = 0; i < 24; i++) {
                 const hStr = `${String(i).padStart(2, '0')}:00`;
                 hourlyData[hStr] = { hour: hStr, orders: 0, weight: 0 };
               }
-              linehaulData.forEach(d => {
-                const sendTimeStr = d['sendTime'] || '';
-                if (!sendTimeStr) return;
-                const match = sendTimeStr.match(/(\d{2}):\d{2}:\d{2}/);
-                if (match) {
-                  const hour = `${match[1]}:00`;
-                  if (hourlyData[hour]) {
-                    hourlyData[hour].orders += parseInt(d['unloadingBillPiece'], 10) || 0;
-                    hourlyData[hour].weight += parseFloat(d['unloadingWeight']) || 0;
+              filteredInbound.forEach(d => {
+                if (d['Trạng thái'] === 'Đã nhập hàng') {
+                  const ibTime = d['Inbound Time'] || ''; // e.g. "2026-07-02 14:00"
+                  const match = ibTime.match(/(\d{2}):00/);
+                  if (match) {
+                    const hour = `${match[1]}:00`;
+                    if (hourlyData[hour]) {
+                      hourlyData[hour].orders += parseInt(d['Volume'], 10) || 0;
+                      hourlyData[hour].weight += parseFloat(d['Weight']) || 0;
+                    }
                   }
                 }
               });
               const timelineData = Object.values(hourlyData);
 
-              // 3. Group metrics per sending FC
+              // 3. Group metrics per sending FC (filtered)
               const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
               const getFC = (name: any) => {
                 if (!name) return null;
@@ -1809,14 +1851,14 @@ export default function App() {
                 }
                 return fcMetrics[clean];
               };
-              inboundData.forEach(d => {
+              filteredInbound.forEach(d => {
                 const fc = getFC(d['Bưu cục']);
                 if (fc) {
                   fc.orders += parseInt(d['Volume'], 10) || 0;
                   fc.weight += parseFloat(d['Weight']) || 0;
                 }
               });
-              linehaulData.forEach(d => {
+              filteredLinehaul.forEach(d => {
                 const fcName = d['nextNetworkName'] || 'UNKNOWN';
                 const fc = getFC(fcName);
                 if (fc && d['Phiếu nhiệm vụ']) {
@@ -1833,8 +1875,8 @@ export default function App() {
                 .sort((a, b) => b.weight - a.weight)
                 .slice(0, 10);
 
-              // 4. Incoming vehicles list
-              const incomingVehicles = [...linehaulData]
+              // 4. Incoming vehicles list (filtered)
+              const incomingVehicles = [...filteredLinehaul]
                 .map(d => ({
                   taskCode: d['Phiếu nhiệm vụ'] || '',
                   subTaskCode: d['Phiếu nhiệm vụ con'] || '',
@@ -1845,11 +1887,11 @@ export default function App() {
                 }))
                 .sort((a, b) => b.sendTime.localeCompare(a.sendTime));
 
-              // 5. Summary stats
-              const totalFC = new Set(inboundData.map(d => d['Bưu cục']).filter(Boolean)).size;
-              const totalOrders = inboundData.reduce((sum, d) => sum + (parseInt(d['Volume'], 10) || 0), 0);
-              const totalWeight = inboundData.reduce((sum, d) => sum + (parseFloat(d['Weight']) || 0), 0);
-              const totalVehicles = new Set(linehaulData.map(d => d['Phiếu nhiệm vụ']).filter(Boolean)).size;
+              // 5. Summary stats (filtered)
+              const totalFC = new Set(filteredInbound.map(d => d['Bưu cục']).filter(Boolean)).size;
+              const totalOrders = filteredInbound.reduce((sum, d) => sum + (parseInt(d['Volume'], 10) || 0), 0);
+              const totalWeight = filteredInbound.reduce((sum, d) => sum + (parseFloat(d['Weight']) || 0), 0);
+              const totalVehicles = new Set(filteredLinehaul.map(d => d['Phiếu nhiệm vụ']).filter(Boolean)).size;
 
               return (
                 <div className="w-full max-w-7xl mx-auto space-y-6 pb-12">
@@ -1862,6 +1904,25 @@ export default function App() {
                     </div>
                     {/* Sync status indicator */}
                     <div className="flex items-center gap-3">
+                      {/* Operating Date Dropdown */}
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Ngày vận hành:</span>
+                        <select 
+                          value={activeDate} 
+                          onChange={e => setSelectedInboundDate(e.target.value)} 
+                          className="bg-[#101622]/80 text-white text-[10.5px] font-bold py-1.5 px-2.5 rounded border border-white/10 outline-none cursor-pointer transition-colors hover:border-white/20"
+                        >
+                          {inboundDates.length > 0 ? (
+                            inboundDates.map(d => (
+                              <option key={d} value={d}>{d}</option>
+                            ))
+                          ) : (
+                            <option value="">Chưa có dữ liệu</option>
+                          )}
+                        </select>
+                      </div>
+
+                      <span className="text-[10px] font-mono text-slate-500">|</span>
                       <span className="text-[10px] font-mono text-slate-500">LAST SYNC: {new Date().toLocaleTimeString()}</span>
                       <button 
                         onClick={fetchAndUpdateData}
