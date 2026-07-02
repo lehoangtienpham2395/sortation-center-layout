@@ -1915,7 +1915,7 @@ export default function App() {
               const totalVehicles = new Set(filteredLinehaul.map(d => d['Phiếu nhiệm vụ']).filter(Boolean)).size;
 
               return (
-                <div className="w-full max-w-7xl mx-auto space-y-6 pb-12">
+                <div className="w-full max-w-7xl mx-auto space-y-6 pb-12 text-slate-100 font-sans">
                   
                   {/* 1. Header & Title Block */}
                   <div className="flex items-center justify-between border-b border-white/5 pb-4">
@@ -1923,15 +1923,16 @@ export default function App() {
                       <h2 className="disp text-xl tracking-[0.1em] text-white">INBOUND DASHBOARD</h2>
                       <p className="text-xs text-slate-500 font-medium tracking-wide">Giám sát sản lượng, danh sách xe và trạng thái hàng hóa nhập HUB</p>
                     </div>
-                    {/* Sync status indicator */}
-                    <div className="flex items-center gap-3">
+                    
+                    {/* Filter & Sync Block */}
+                    <div className="flex items-center gap-4">
                       {/* Operating Date Dropdown */}
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
                         <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Ngày vận hành:</span>
                         <select 
                           value={activeDate} 
                           onChange={e => setSelectedInboundDate(e.target.value)} 
-                          className="bg-[#101622]/80 text-white text-[10.5px] font-bold py-1.5 px-2.5 rounded border border-white/10 outline-none cursor-pointer transition-colors hover:border-white/20"
+                          className="bg-[#131824] text-white text-[11px] font-bold py-1.5 px-3 rounded border border-white/10 outline-none cursor-pointer transition-colors hover:border-white/20"
                         >
                           {inboundDates.length > 0 ? (
                             inboundDates.map(d => (
@@ -1943,8 +1944,8 @@ export default function App() {
                         </select>
                       </div>
 
-                      <span className="text-[10px] font-mono text-slate-500">|</span>
-                      <span className="text-[10px] font-mono text-slate-500">LAST SYNC: {new Date().toLocaleTimeString()}</span>
+                      <span className="text-[11.5px] font-mono text-slate-600">|</span>
+                      <span className="text-[10.5px] font-mono text-slate-500">LAST SYNC: {new Date().toLocaleTimeString()}</span>
                       <button 
                         onClick={fetchAndUpdateData}
                         disabled={loading}
@@ -1956,187 +1957,343 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 2. Inbound Summary Cards */}
+                  {/* 2. Top Row Key Metrics (Premium Card Style) */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {[
-                      { label: 'Tổng bưu cục gửi', val: totalFC, desc: 'Số bưu cục gửi hàng về HUB', color: '#60a5fa' },
-                      { label: 'Tổng số đơn hàng', val: totalOrders.toLocaleString(), desc: 'Tổng số đơn trong luồng nhập', color: '#34d399' },
-                      { label: 'Tổng trọng lượng', val: `${totalWeight.toLocaleString()} kg`, desc: 'Tổng trọng lượng tính phí', color: '#ff6a2b' },
-                      { label: 'Tổng số xe tải', val: totalVehicles, desc: 'Số phiếu nhiệm vụ linehaul', color: '#a78bfa' }
-                    ].map(card => (
-                      <div key={card.label} className="bg-[var(--panel)] border border-white/10 border-t-2 rounded-lg p-4 shadow-xl flex flex-col justify-between" style={{ borderTopColor: card.color }}>
-                        <span className="text-[10.5px] text-slate-500 font-bold tracking-widest uppercase">{card.label}</span>
-                        <span className="text-2xl font-bold font-mono text-white mt-2 mb-1">{card.val}</span>
-                        <span className="text-[10.5px] text-slate-400 font-medium">{card.desc}</span>
+                      { label: 'Product GMV / Inbound Volume', val: totalOrders.toLocaleString(), desc: `Arrived Rate ${(totalOrders > 0 ? (stages['Đã nhập hàng'].orders / totalOrders) * 100 : 0).toFixed(1)}%`, color: '#8c8bfb' },
+                      { label: 'Product Quantity / Weight', val: `${totalWeight.toLocaleString()} kg`, desc: `Avg Weight ${(totalOrders > 0 ? totalWeight / totalOrders : 0).toFixed(2)} kg/pkg`, color: '#ffffff' },
+                      { label: 'Selection Quantity / Stations', val: totalFC, desc: 'Active sending stations', color: '#06b6d4' },
+                      { label: 'Brand Quantity / Vehicles', val: totalVehicles, desc: 'Active Linehaul trucks', color: '#ff6a2b' }
+                    ].map((card) => (
+                      <div key={card.label} className="bg-[#121620] border border-white/[0.06] rounded-md p-5 shadow-xl flex flex-col justify-between h-32 relative overflow-hidden group hover:border-white/10 transition-colors">
+                        {/* Decorative glow line on active group */}
+                        <div className="absolute top-0 left-0 right-0 h-[2px] transition-all duration-300" style={{ backgroundColor: card.color }} />
+                        <span className="text-[9.5px] text-slate-500 font-bold tracking-widest uppercase">{card.label}</span>
+                        <span className="text-3xl font-bold font-sans text-white my-1">{card.val}</span>
+                        <span className="text-[10px] font-medium text-emerald-400 flex items-center gap-1">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          {card.desc}
+                        </span>
                       </div>
                     ))}
                   </div>
 
-                  {/* 3. Grid of Main Panels */}
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    
-                    {/* Left Column (7 cols): Incoming Status Pipeline & Timeline */}
-                    <div className="lg:col-span-7 space-y-6">
+                  {/* 3. Middle Row: Spline Line Chart (Selection Price Distribution style) */}
+                  <div className="bg-[#121620] border border-white/[0.06] rounded-md p-6 shadow-xl relative overflow-hidden group hover:border-white/10 transition-colors">
+                    <div className="flex items-center justify-between mb-6">
+                      <div className="space-y-1">
+                        <h3 className="text-xs font-bold tracking-[0.14em] text-slate-400 uppercase">Selection Price Distribution / Hourly Inbound & Pickup</h3>
+                        <p className="text-[10px] text-slate-500">So sánh sản lượng hàng gom tại bưu cục và hàng nhập dỡ tại HUB theo khung giờ</p>
+                      </div>
                       
-                      {/* A. Incoming Status Pipeline */}
-                      <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[#34d399] rounded-lg p-4 shadow-xl">
-                        <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[#34d399]">QUY TRÌNH HÀNG NHẬP (INCOMING STATUS)</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {[
-                            { stage: 'Chưa về Hub', label: '1. Chưa Về HUB (In Transit)', color: '#ff6a2b', stats: stages['Chưa về Hub'] },
-                            { stage: 'Đã nhập hàng', label: '2. Đã Nhập Hàng (Arrived)', color: '#34d399', stats: stages['Đã nhập hàng'] }
-                          ].map((item) => (
-                            <div key={item.stage} className="bg-[#101622]/40 border border-white/5 rounded-lg p-4 flex flex-col justify-between h-28 hover:border-white/10 transition-colors">
-                              <span className="text-[11.5px] font-bold tracking-wide" style={{ color: item.color }}>{item.label}</span>
-                              <div className="mt-2 space-y-1">
-                                <div className="flex justify-between items-baseline">
-                                  <span className="text-[10px] text-slate-500">Đơn hàng:</span>
-                                  <span className="text-[14px] font-mono font-bold text-white">{item.stats.orders.toLocaleString()}</span>
-                                </div>
-                                <div className="flex justify-between items-baseline">
-                                  <span className="text-[10px] text-slate-500">Tải trọng:</span>
-                                  <span className="text-[11.5px] font-mono text-slate-300">{item.stats.weight.toLocaleString()} kg</span>
-                                </div>
-                              </div>
-                              {/* Simple line progress at bottom of card */}
-                              <div className="h-1 w-full bg-white/5 rounded overflow-hidden mt-2">
-                                <div className="h-full transition-all duration-500" style={{ 
-                                  backgroundColor: item.color, 
-                                  width: `${totalOrders > 0 ? (item.stats.orders / totalOrders) * 100 : 0}%` 
-                                }} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                      {/* Chart Legend */}
+                      <div className="flex items-center gap-4 text-[10px] font-bold tracking-wider uppercase">
+                        <span className="flex items-center gap-1.5 text-[#8c8bfb]">
+                          <i className="w-2.5 h-2.5 rounded-full bg-[#8c8bfb]" />
+                          Pickup (Hàng gom bưu cục)
+                        </span>
+                        <span className="flex items-center gap-1.5 text-[#06b6d4]">
+                          <i className="w-2.5 h-2.5 rounded-full bg-[#06b6d4]" />
+                          Inbound (Hàng dỡ HUB)
+                        </span>
                       </div>
-
-                      {/* B. Arrival Timeline */}
-                      <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[#22d3ee] rounded-lg p-4 shadow-xl">
-                        <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[#22d3ee]">BIỂU ĐỒ HÀNG VỀ THEO KHUNG GIỜ (ARRIVAL TIMELINE)</h3>
-                        <div className="overflow-x-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-                          <div className="min-w-[600px] h-48 flex items-end justify-between px-2 pt-6">
-                            {timelineData.map(t => {
-                              const maxWeight = Math.max(...timelineData.map(x => x.weight), 1);
-                              const heightPct = (t.weight / maxWeight) * 80; // Scale to max 80% height
-                              return (
-                                <div key={t.hour} className="flex-1 flex flex-col items-center group relative">
-                                  {/* Bar chart tooltip */}
-                                  <div className="absolute bottom-full mb-1 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity bg-slate-900 border border-white/10 text-[9.5px] rounded py-1 px-1.5 z-30 whitespace-nowrap text-center">
-                                    <div className="font-bold text-white">{t.weight.toLocaleString()} kg</div>
-                                    <div className="text-slate-400">{t.orders.toLocaleString()} đơn</div>
-                                  </div>
-                                  {/* Bar */}
-                                  <div className="w-3 rounded-t transition-all duration-500 bg-gradient-to-t from-[#22d3ee]/20 to-[#22d3ee] group-hover:brightness-110" style={{ height: `${Math.max(4, heightPct)}%` }} />
-                                  <span className="text-[9px] font-mono text-slate-500 mt-2 rotate-45 origin-left whitespace-nowrap">{t.hour}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* B.2. Pickup Timeline */}
-                      <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[#60a5fa] rounded-lg p-4 shadow-xl">
-                        <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[#60a5fa]">BIỂU ĐỒ LẤY HÀNG THEO KHUNG GIỜ (PICKUP TIMELINE)</h3>
-                        <div className="overflow-x-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-                          <div className="min-w-[600px] h-48 flex items-end justify-between px-2 pt-6">
-                            {pickupTimelineData.map(t => {
-                              const maxWeight = Math.max(...pickupTimelineData.map(x => x.weight), 1);
-                              const heightPct = (t.weight / maxWeight) * 80;
-                              return (
-                                <div key={t.hour} className="flex-1 flex flex-col items-center group relative">
-                                  {/* Bar chart tooltip */}
-                                  <div className="absolute bottom-full mb-1 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity bg-slate-900 border border-white/10 text-[9.5px] rounded py-1 px-1.5 z-30 whitespace-nowrap text-center">
-                                    <div className="font-bold text-white">{t.weight.toLocaleString()} kg</div>
-                                    <div className="text-slate-400">{t.orders.toLocaleString()} đơn</div>
-                                  </div>
-                                  {/* Bar */}
-                                  <div className="w-3 rounded-t transition-all duration-500 bg-gradient-to-t from-[#60a5fa]/20 to-[#60a5fa] group-hover:brightness-110" style={{ height: `${Math.max(4, heightPct)}%` }} />
-                                  <span className="text-[9px] font-mono text-slate-500 mt-2 rotate-45 origin-left whitespace-nowrap">{t.hour}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      </div>
-
                     </div>
 
-                    {/* Right Column (5 cols): Top 10 FC & Incoming Vehicle List */}
-                    <div className="lg:col-span-5 space-y-6">
-                      
-                      {/* C. Top 10 FC Sending to HUB */}
-                      <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[#ff6a2b] rounded-lg p-4 shadow-xl flex flex-col">
-                        <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[#ff6a2b]">TOP 10 BƯU CỤC GỬI HÀNG HÀNG ĐẦU</h3>
-                        <div className="overflow-y-auto max-h-[300px] pr-1 scrollbar-thin">
-                          <table className="w-full text-left border-collapse text-xs">
-                            <thead>
-                              <tr className="text-slate-500 border-b border-white/5">
-                                <th className="py-2 font-bold uppercase tracking-wider">FC Gửi</th>
-                                <th className="py-2 text-right font-bold uppercase tracking-wider">Số Xe</th>
-                                <th className="py-2 text-right font-bold uppercase tracking-wider">Số Đơn</th>
-                                <th className="py-2 text-right font-bold uppercase tracking-wider">Trọng Lượng</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {top10FCs.length === 0 ? (
-                                <tr>
-                                  <td colSpan={4} className="py-4 text-center text-slate-500">Chưa có dữ liệu bưu cục gửi hàng</td>
-                                </tr>
-                              ) : (
-                                top10FCs.map((row) => (
-                                  <tr key={row.fc} className="border-b border-[#1e2942]/30 hover:bg-white/[0.01]">
-                                    <td className="py-2.5 font-semibold text-white/95">{row.fc}</td>
-                                    <td className="py-2.5 text-right font-mono text-slate-300">{row.vehicles}</td>
-                                    <td className="py-2.5 text-right font-mono text-slate-300">{row.orders.toLocaleString()}</td>
-                                    <td className="py-2.5 text-right font-mono font-bold text-white">{row.weight.toLocaleString()} kg</td>
-                                  </tr>
-                                ))
-                              )}
-                            </tbody>
-                          </table>
+                    {/* Pure SVG Spline Line Chart */}
+                    {(() => {
+                      const maxVal = Math.max(
+                        ...timelineData.map(x => x.orders),
+                        ...pickupTimelineData.map(x => x.orders),
+                        1
+                      );
+
+                      const width = 1000;
+                      const height = 240;
+                      const paddingLeft = 50;
+                      const paddingRight = 30;
+                      const paddingTop = 20;
+                      const paddingBottom = 40;
+
+                      const chartW = width - paddingLeft - paddingRight;
+                      const chartH = height - paddingTop - paddingBottom;
+                      const dx = chartW / 23;
+
+                      // Map points to SVG coordinates
+                      const getPoints = (dataArray: { orders: number; hour: string }[]) => {
+                        return dataArray.map((d, i) => {
+                          const x = paddingLeft + i * dx;
+                          const y = height - paddingBottom - (d.orders / maxVal) * chartH;
+                          return { x, y };
+                        });
+                      };
+
+                      const pickupPoints = getPoints(pickupTimelineData);
+                      const arrivalPoints = getPoints(timelineData);
+
+                      // Build Cubic Bezier Spline Path
+                      const getBezierPath = (pts: { x: number; y: number }[]) => {
+                        if (pts.length === 0) return '';
+                        let d = `M ${pts[0].x} ${pts[0].y}`;
+                        for (let i = 0; i < pts.length - 1; i++) {
+                          const p0 = pts[i];
+                          const p1 = pts[i + 1];
+                          const cpX1 = p0.x + (p1.x - p0.x) / 3;
+                          const cpY1 = p0.y;
+                          const cpX2 = p0.x + 2 * (p1.x - p0.x) / 3;
+                          const cpY2 = p1.y;
+                          d += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
+                        }
+                        return d;
+                      };
+
+                      const pickupLinePath = getBezierPath(pickupPoints);
+                      const arrivalLinePath = getBezierPath(arrivalPoints);
+
+                      const pickupAreaPath = pickupLinePath 
+                        ? `${pickupLinePath} L ${pickupPoints[pickupPoints.length - 1].x} ${height - paddingBottom} L ${pickupPoints[0].x} ${height - paddingBottom} Z` 
+                        : '';
+                      const arrivalAreaPath = arrivalLinePath 
+                        ? `${arrivalLinePath} L ${arrivalPoints[arrivalPoints.length - 1].x} ${height - paddingBottom} L ${arrivalPoints[0].x} ${height - paddingBottom} Z` 
+                        : '';
+
+                      return (
+                        <div className="w-full overflow-x-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+                          <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[700px] h-60">
+                            <defs>
+                              <linearGradient id="violet-grad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#8c8bfb" stopOpacity="0.2" />
+                                <stop offset="100%" stopColor="#8c8bfb" stopOpacity="0" />
+                              </linearGradient>
+                              <linearGradient id="cyan-grad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.2" />
+                                <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
+                              </linearGradient>
+                            </defs>
+
+                            {/* Horizontal Grid Lines */}
+                            {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+                              const y = paddingTop + ratio * chartH;
+                              const val = Math.round(maxVal * (1 - ratio));
+                              return (
+                                <g key={idx} className="opacity-20">
+                                  <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="#334155" strokeWidth="1" strokeDasharray="4 4" />
+                                  <text x={paddingLeft - 12} y={y + 3} fill="#94a3b8" fontSize="9" textAnchor="end" className="font-mono">{val}</text>
+                                </g>
+                              );
+                            })}
+
+                            {/* Faded Area Fills */}
+                            {pickupAreaPath && <path d={pickupAreaPath} fill="url(#violet-grad)" />}
+                            {arrivalAreaPath && <path d={arrivalAreaPath} fill="url(#cyan-grad)" />}
+
+                            {/* Spline Lines */}
+                            {pickupLinePath && <path d={pickupLinePath} fill="none" stroke="#8c8bfb" strokeWidth="2.5" strokeLinecap="round" />}
+                            {arrivalLinePath && <path d={arrivalLinePath} fill="none" stroke="#06b6d4" strokeWidth="2.5" strokeLinecap="round" />}
+
+                            {/* Interactive Points on hover */}
+                            {pickupPoints.map((p, i) => (
+                              <g key={`pk-${i}`} className="group/pt cursor-pointer">
+                                <circle cx={p.x} cy={p.y} r="3" fill="#8c8bfb" className="opacity-0 group-hover/pt:opacity-100 transition-opacity" />
+                                <circle cx={p.x} cy={p.y} r="6" fill="none" stroke="#8c8bfb" strokeWidth="1.5" className="opacity-0 group-hover/pt:opacity-100 transition-opacity" />
+                              </g>
+                            ))}
+
+                            {/* X-axis Labels */}
+                            {timelineData.map((t, i) => {
+                              const x = paddingLeft + i * dx;
+                              // Draw label only every 2 hours to avoid overlap
+                              if (i % 2 !== 0) return null;
+                              return (
+                                <g key={i}>
+                                  <text x={x} y={height - paddingBottom + 18} fill="#64748b" fontSize="9" textAnchor="middle" className="font-mono">{t.hour}</text>
+                                  <line x1={x} y1={height - paddingBottom} x2={x} y2={height - paddingBottom + 4} stroke="#475569" strokeWidth="1" />
+                                </g>
+                              );
+                            })}
+                          </svg>
                         </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* 4. Bottom Row (Selection Status, Selection Category, Product Category style) */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    
+                    {/* A. Selection Status (Donut Chart) */}
+                    <div className="bg-[#121620] border border-white/[0.06] rounded-md p-6 shadow-xl flex flex-col justify-between h-96 group hover:border-white/10 transition-colors">
+                      <div className="space-y-1 pb-3 border-b border-white/5">
+                        <h3 className="text-xs font-bold tracking-[0.14em] text-slate-400 uppercase">Selection Status</h3>
+                        <p className="text-[10px] text-slate-500">Tỷ lệ phân bổ trạng thái hàng nhập HUB</p>
                       </div>
 
-                      {/* D. Incoming Vehicle List */}
-                      <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[#a78bfa] rounded-lg p-4 shadow-xl flex flex-col">
-                        <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[#a78bfa]">DANH SÁCH XE ĐANG VỀ HUB</h3>
-                        <div className="overflow-y-auto max-h-[300px] pr-1 scrollbar-thin">
-                          <table className="w-full text-left border-collapse text-xs">
-                            <thead>
-                              <tr className="text-slate-500 border-b border-white/5">
-                                <th className="py-2 font-bold uppercase tracking-wider">Mã Xe / Phiếu</th>
-                                <th className="py-2 font-bold uppercase tracking-wider">Nguồn Gửi</th>
-                                <th className="py-2 font-bold uppercase tracking-wider">Giờ Gửi</th>
-                                <th className="py-2 text-right font-bold uppercase tracking-wider">Đơn</th>
-                                <th className="py-2 text-right font-bold uppercase tracking-wider">Tải Trọng</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {incomingVehicles.length === 0 ? (
-                                <tr>
-                                  <td colSpan={5} className="py-4 text-center text-slate-500">Chưa có xe đang di chuyển về HUB</td>
-                                </tr>
-                              ) : (
-                                incomingVehicles.map((row, idx) => {
-                                  const timeMatch = row.sendTime.match(/\s+(\d{2}:\d{2})/);
-                                  const sendHour = timeMatch ? timeMatch[1] : row.sendTime;
-                                  return (
-                                    <tr key={`${row.taskCode}-${idx}`} className="border-b border-[#1e2942]/30 hover:bg-white/[0.01]" title={`Phiếu con: ${row.subTaskCode} | Full Send Time: ${row.sendTime}`}>
-                                      <td className="py-2.5 font-mono font-bold text-[#a78bfa] truncate max-w-[100px]">{row.taskCode}</td>
-                                      <td className="py-2.5 text-slate-300 truncate max-w-[100px]">{row.senderFC}</td>
-                                      <td className="py-2.5 font-mono text-slate-400">{sendHour}</td>
-                                      <td className="py-2.5 text-right font-mono text-slate-300">{row.orders}</td>
-                                      <td className="py-2.5 text-right font-mono font-bold text-white">{row.weight.toLocaleString()} kg</td>
-                                    </tr>
-                                  );
-                                })
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
+                      {/* Donut rendering */}
+                      <div className="py-4 flex justify-center">
+                        {(() => {
+                          const arrived = stages['Đã nhập hàng'].orders;
+                          const inTransit = stages['Chưa về Hub'].orders;
+                          const total = arrived + inTransit;
+                          
+                          const radius = 38;
+                          const circumference = 2 * Math.PI * radius;
+                          const arrivedPercent = total > 0 ? (arrived / total) * 100 : 0;
+                          const inTransitPercent = total > 0 ? (inTransit / total) * 100 : 0;
+
+                          const strokeArrived = (arrivedPercent / 100) * circumference;
+                          const strokeInTransit = (inTransitPercent / 100) * circumference;
+                          
+                          return (
+                            <div className="relative flex items-center justify-center">
+                              <svg width="180" height="180" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r={radius} fill="none" stroke="#1c2130" strokeWidth="9" />
+                                
+                                {/* Arrived (Cyan) */}
+                                <circle 
+                                  cx="50" 
+                                  cy="50" 
+                                  r={radius} 
+                                  fill="none" 
+                                  stroke="#06b6d4" 
+                                  strokeWidth="9" 
+                                  strokeDasharray={`${strokeArrived} ${circumference - strokeArrived}`}
+                                  strokeDashoffset={circumference}
+                                  transform="rotate(-90 50 50)"
+                                  strokeLinecap="round"
+                                  className="transition-all duration-1000"
+                                />
+
+                                {/* In Transit (Violet) */}
+                                <circle 
+                                  cx="50" 
+                                  cy="50" 
+                                  r={radius} 
+                                  fill="none" 
+                                  stroke="#8c8bfb" 
+                                  strokeWidth="9" 
+                                  strokeDasharray={`${strokeInTransit} ${circumference - strokeInTransit}`}
+                                  strokeDashoffset={circumference - strokeArrived}
+                                  transform="rotate(-90 50 50)"
+                                  strokeLinecap="round"
+                                  className="transition-all duration-1000"
+                                />
+                              </svg>
+                              
+                              {/* Center stats */}
+                              <div className="absolute flex flex-col items-center justify-center text-center">
+                                <span className="text-3xl font-bold text-white font-sans">{total.toLocaleString()}</span>
+                                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Total Orders</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
 
+                      {/* Donut Legend */}
+                      <div className="grid grid-cols-2 gap-3 text-xs pt-3 border-t border-white/5">
+                        <div className="flex flex-col items-center text-center">
+                          <span className="flex items-center gap-1 text-[10px] text-slate-400 uppercase font-bold">
+                            <i className="w-2 h-2 rounded-full bg-[#06b6d4]" />
+                            Đã Nhập HUB
+                          </span>
+                          <span className="text-[13px] font-bold text-white font-mono mt-1">
+                            {stages['Đã nhập hàng'].orders.toLocaleString()} ({totalOrders > 0 ? ((stages['Đã nhập hàng'].orders / totalOrders) * 100).toFixed(1) : 0}%)
+                          </span>
+                        </div>
+                        <div className="flex flex-col items-center text-center">
+                          <span className="flex items-center gap-1 text-[10px] text-slate-400 uppercase font-bold">
+                            <i className="w-2 h-2 rounded-full bg-[#8c8bfb]" />
+                            Chưa về HUB
+                          </span>
+                          <span className="text-[13px] font-bold text-white font-mono mt-1">
+                            {stages['Chưa về Hub'].orders.toLocaleString()} ({totalOrders > 0 ? ((stages['Chưa về Hub'].orders / totalOrders) * 100).toFixed(1) : 0}%)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* B. Selection Category (Top 8 FCs Bar Chart) */}
+                    <div className="bg-[#121620] border border-white/[0.06] rounded-md p-6 shadow-xl flex flex-col justify-between h-96 group hover:border-white/10 transition-colors">
+                      <div className="space-y-1 pb-3 border-b border-white/5">
+                        <h3 className="text-xs font-bold tracking-[0.14em] text-slate-400 uppercase">Selection Category</h3>
+                        <p className="text-[10px] text-slate-500">8 bưu cục gửi hàng nhiều nhất theo số lượng đơn</p>
+                      </div>
+
+                      {/* Bar chart rendering */}
+                      {(() => {
+                        const top8 = top10FCs.slice(0, 8);
+                        const maxVal = Math.max(...top8.map(x => x.orders), 1);
+                        
+                        return (
+                          <div className="flex items-end justify-between h-44 pt-6 px-1">
+                            {top8.map((item, idx) => {
+                              const heightPct = (item.orders / maxVal) * 80; // scale to max 80% height
+                              return (
+                                <div key={idx} className="flex-1 flex flex-col items-center gap-2 group/bar relative">
+                                  {/* Tooltip on hover */}
+                                  <div className="absolute bottom-full mb-1 opacity-0 pointer-events-none group-hover/bar:opacity-100 transition-opacity bg-slate-950 border border-white/10 text-[9px] rounded py-1 px-1.5 z-30 whitespace-nowrap text-center">
+                                    <div className="font-bold text-white">{item.orders.toLocaleString()} đơn</div>
+                                    <div className="text-slate-400 font-mono">{(item.weight / 1000).toFixed(1)}k kg</div>
+                                  </div>
+                                  
+                                  {/* Value label */}
+                                  <span className="text-[9px] font-bold font-mono text-slate-400">{item.orders}</span>
+                                  
+                                  {/* Vertical Pill Bar */}
+                                  <div className="w-3.5 rounded-t bg-gradient-to-t from-[#8c8bfb]/10 to-[#8c8bfb] transition-all duration-300 group-hover/bar:brightness-125" style={{ height: `${Math.max(4, heightPct)}%` }} />
+                                  
+                                  {/* X-axis labels */}
+                                  <span className="text-[8.5px] text-slate-500 truncate max-w-[42px] mt-1 text-center font-medium" title={item.fc}>{item.fc}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+
+                      <div className="pt-3 border-t border-white/5 text-[10px] text-slate-500 text-center font-medium">
+                        * Biểu đồ tự động sắp xếp và tối ưu hóa phân phối tải
+                      </div>
+                    </div>
+
+                    {/* C. Product Category (Product Category / Incoming Vehicles style list) */}
+                    <div className="bg-[#121620] border border-white/[0.06] rounded-md p-6 shadow-xl flex flex-col justify-between h-96 group hover:border-white/10 transition-colors">
+                      <div className="space-y-1 pb-3 border-b border-white/5">
+                        <h3 className="text-xs font-bold tracking-[0.14em] text-slate-400 uppercase">Product Category / Vehicles</h3>
+                        <p className="text-[10px] text-slate-500">Danh sách xe đang di chuyển chuẩn bị về HUB</p>
+                      </div>
+
+                      {/* List wrapper */}
+                      <div className="overflow-y-auto flex-1 pr-1 scrollbar-thin my-3 space-y-2.5 max-h-[220px]">
+                        {incomingVehicles.length === 0 ? (
+                          <div className="h-full flex flex-col items-center justify-center text-center py-10">
+                            <span className="text-slate-500 text-[11px] font-medium">Chưa có xe đang di chuyển về HUB</span>
+                          </div>
+                        ) : (
+                          incomingVehicles.map((row, idx) => {
+                            const timeMatch = row.sendTime.match(/\s+(\d{2}:\d{2})/);
+                            const sendHour = timeMatch ? timeMatch[1] : row.sendTime;
+                            
+                            return (
+                              <div key={`${row.taskCode}-${idx}`} className="flex items-center justify-between p-2.5 bg-[#171c2a]/40 border border-white/[0.03] rounded-sm hover:border-white/10 transition-colors" title={`Phiếu con: ${row.subTaskCode}`}>
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10.5px] font-bold font-mono text-[#8c8bfb]">{row.taskCode}</span>
+                                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[#ff6a2b]/10 text-[#ff6a2b] font-bold uppercase tracking-wider">Gửi {sendHour}</span>
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 font-medium">Nguồn: {row.senderFC}</div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="text-xs font-bold text-white font-mono">{row.weight.toLocaleString()} kg</div>
+                                  <div className="text-[9.5px] text-slate-500">{row.orders.toLocaleString()} đơn</div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      <div className="pt-3 border-t border-white/5 text-[10px] text-slate-500 text-center font-medium">
+                        Tổng cộng: {incomingVehicles.length} xe đang trên đường về HUB
+                      </div>
                     </div>
 
                   </div>
