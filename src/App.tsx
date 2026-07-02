@@ -1766,7 +1766,7 @@ export default function App() {
                 isMobile ? 'pl-6 pr-6' : 'pl-[80px] pr-6'
               }`
             : `absolute inset-0 pt-16 pb-6 overflow-y-auto scrollbar-thin transition-all duration-300 ${
-                isMobile ? 'pl-6 pr-6' : 'pl-20 pr-6'
+                isMobile ? 'px-6' : 'pl-[104px] pr-[104px]'
               }`
           }>
             {currentView === 'master' ? (
@@ -1957,7 +1957,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* 2. Top Row Key Metrics (Premium Card Style) */}
+                  {/* 2. Top Row Key Metrics (Premium Card Style with min-h to prevent zoom break) */}
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     {[
                       { label: 'Product GMV / Inbound Volume', val: totalOrders.toLocaleString(), desc: `Arrived Rate ${(totalOrders > 0 ? (stages['Đã nhập hàng'].orders / totalOrders) * 100 : 0).toFixed(1)}%`, color: '#8c8bfb' },
@@ -1965,7 +1965,7 @@ export default function App() {
                       { label: 'Selection Quantity / Stations', val: totalFC, desc: 'Active sending stations', color: '#06b6d4' },
                       { label: 'Brand Quantity / Vehicles', val: totalVehicles, desc: 'Active Linehaul trucks', color: '#ff6a2b' }
                     ].map((card) => (
-                      <div key={card.label} className="bg-[#121620] border border-white/[0.06] rounded-md p-5 shadow-xl flex flex-col justify-between h-32 relative overflow-hidden group hover:border-white/10 transition-colors">
+                      <div key={card.label} className="bg-[#121620] border border-white/[0.06] rounded-md p-5 shadow-xl flex flex-col justify-between min-h-[8.5rem] relative overflow-hidden group hover:border-white/10 transition-colors">
                         {/* Decorative glow line on active group */}
                         <div className="absolute top-0 left-0 right-0 h-[2px] transition-all duration-300" style={{ backgroundColor: card.color }} />
                         <span className="text-[9.5px] text-slate-500 font-bold tracking-widest uppercase">{card.label}</span>
@@ -1978,149 +1978,202 @@ export default function App() {
                     ))}
                   </div>
 
-                  {/* 3. Middle Row: Spline Line Chart (Selection Price Distribution style) */}
-                  <div className="bg-[#121620] border border-white/[0.06] rounded-md p-6 shadow-xl relative overflow-hidden group hover:border-white/10 transition-colors">
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="space-y-1">
-                        <h3 className="text-xs font-bold tracking-[0.14em] text-slate-400 uppercase">Selection Price Distribution / Hourly Inbound & Pickup</h3>
-                        <p className="text-[10px] text-slate-500">So sánh sản lượng hàng gom tại bưu cục và hàng nhập dỡ tại HUB theo khung giờ</p>
-                      </div>
-                      
-                      {/* Chart Legend */}
-                      <div className="flex items-center gap-4 text-[10px] font-bold tracking-wider uppercase">
-                        <span className="flex items-center gap-1.5 text-[#8c8bfb]">
-                          <i className="w-2.5 h-2.5 rounded-full bg-[#8c8bfb]" />
-                          Pickup (Hàng gom bưu cục)
-                        </span>
-                        <span className="flex items-center gap-1.5 text-[#06b6d4]">
-                          <i className="w-2.5 h-2.5 rounded-full bg-[#06b6d4]" />
-                          Inbound (Hàng dỡ HUB)
+                  {/* 3. Middle Row: Separated Spline Line Charts in a 2-Column Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    {/* A. Pickup Timeline (Hourly Pickup Distribution) */}
+                    <div className="bg-[#121620] border border-white/[0.06] rounded-md p-6 shadow-xl relative overflow-hidden group hover:border-white/10 transition-colors">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="space-y-0.5">
+                          <h3 className="text-xs font-bold tracking-[0.14em] text-slate-400 uppercase">Selection Price Distribution / Pickup</h3>
+                          <p className="text-[9.5px] text-slate-500">Sản lượng hàng gom tại bưu cục theo từng khung giờ</p>
+                        </div>
+                        <span className="text-[10px] font-bold text-[#8c8bfb] uppercase tracking-wider bg-[#8c8bfb]/10 px-2 py-0.5 rounded">
+                          Pickup Flow
                         </span>
                       </div>
+
+                      {/* SVG Pickup Spline */}
+                      {(() => {
+                        const maxVal = Math.max(...pickupTimelineData.map(x => x.orders), 1);
+                        const width = 500;
+                        const height = 180;
+                        const paddingLeft = 40;
+                        const paddingRight = 15;
+                        const paddingTop = 15;
+                        const paddingBottom = 30;
+
+                        const chartW = width - paddingLeft - paddingRight;
+                        const chartH = height - paddingTop - paddingBottom;
+                        const dx = chartW / 23;
+
+                        const pts = pickupTimelineData.map((d, i) => ({
+                          x: paddingLeft + i * dx,
+                          y: height - paddingBottom - (d.orders / maxVal) * chartH
+                        }));
+
+                        // Build Bezier Path
+                        let splinePath = '';
+                        if (pts.length > 0) {
+                          splinePath = `M ${pts[0].x} ${pts[0].y}`;
+                          for (let i = 0; i < pts.length - 1; i++) {
+                            const p0 = pts[i];
+                            const p1 = pts[i + 1];
+                            const cpX1 = p0.x + (p1.x - p0.x) / 3;
+                            const cpY1 = p0.y;
+                            const cpX2 = p0.x + 2 * (p1.x - p0.x) / 3;
+                            const cpY2 = p1.y;
+                            splinePath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
+                          }
+                        }
+
+                        const areaPath = splinePath 
+                          ? `${splinePath} L ${pts[pts.length - 1].x} ${height - paddingBottom} L ${pts[0].x} ${height - paddingBottom} Z` 
+                          : '';
+
+                        return (
+                          <div className="w-full">
+                            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-44">
+                              <defs>
+                                <linearGradient id="pk-grad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#8c8bfb" stopOpacity="0.22" />
+                                  <stop offset="100%" stopColor="#8c8bfb" stopOpacity="0" />
+                                </linearGradient>
+                              </defs>
+
+                              {/* Grid lines */}
+                              {[0, 0.5, 1].map((ratio, idx) => {
+                                const y = paddingTop + ratio * chartH;
+                                const val = Math.round(maxVal * (1 - ratio));
+                                return (
+                                  <g key={idx} className="opacity-15">
+                                    <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="#334155" strokeWidth="1" strokeDasharray="3 3" />
+                                    <text x={paddingLeft - 8} y={y + 3} fill="#94a3b8" fontSize="8.5" textAnchor="end" className="font-mono">{val}</text>
+                                  </g>
+                                );
+                              })}
+
+                              {/* Glow area & Line */}
+                              {areaPath && <path d={areaPath} fill="url(#pk-grad)" />}
+                              {splinePath && <path d={splinePath} fill="none" stroke="#8c8bfb" strokeWidth="2" strokeLinecap="round" />}
+
+                              {/* X labels every 3 hours */}
+                              {pickupTimelineData.map((t, i) => {
+                                if (i % 3 !== 0) return null;
+                                const x = paddingLeft + i * dx;
+                                return (
+                                  <g key={i}>
+                                    <text x={x} y={height - paddingBottom + 14} fill="#576f93" fontSize="8" textAnchor="middle" className="font-mono">{t.hour}</text>
+                                    <line x1={x} y1={height - paddingBottom} x2={x} y2={height - paddingBottom + 3} stroke="#475569" strokeWidth="1" />
+                                  </g>
+                                );
+                              })}
+                            </svg>
+                          </div>
+                        );
+                      })()}
                     </div>
 
-                    {/* Pure SVG Spline Line Chart */}
-                    {(() => {
-                      const maxVal = Math.max(
-                        ...timelineData.map(x => x.orders),
-                        ...pickupTimelineData.map(x => x.orders),
-                        1
-                      );
-
-                      const width = 1000;
-                      const height = 240;
-                      const paddingLeft = 50;
-                      const paddingRight = 30;
-                      const paddingTop = 20;
-                      const paddingBottom = 40;
-
-                      const chartW = width - paddingLeft - paddingRight;
-                      const chartH = height - paddingTop - paddingBottom;
-                      const dx = chartW / 23;
-
-                      // Map points to SVG coordinates
-                      const getPoints = (dataArray: { orders: number; hour: string }[]) => {
-                        return dataArray.map((d, i) => {
-                          const x = paddingLeft + i * dx;
-                          const y = height - paddingBottom - (d.orders / maxVal) * chartH;
-                          return { x, y };
-                        });
-                      };
-
-                      const pickupPoints = getPoints(pickupTimelineData);
-                      const arrivalPoints = getPoints(timelineData);
-
-                      // Build Cubic Bezier Spline Path
-                      const getBezierPath = (pts: { x: number; y: number }[]) => {
-                        if (pts.length === 0) return '';
-                        let d = `M ${pts[0].x} ${pts[0].y}`;
-                        for (let i = 0; i < pts.length - 1; i++) {
-                          const p0 = pts[i];
-                          const p1 = pts[i + 1];
-                          const cpX1 = p0.x + (p1.x - p0.x) / 3;
-                          const cpY1 = p0.y;
-                          const cpX2 = p0.x + 2 * (p1.x - p0.x) / 3;
-                          const cpY2 = p1.y;
-                          d += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
-                        }
-                        return d;
-                      };
-
-                      const pickupLinePath = getBezierPath(pickupPoints);
-                      const arrivalLinePath = getBezierPath(arrivalPoints);
-
-                      const pickupAreaPath = pickupLinePath 
-                        ? `${pickupLinePath} L ${pickupPoints[pickupPoints.length - 1].x} ${height - paddingBottom} L ${pickupPoints[0].x} ${height - paddingBottom} Z` 
-                        : '';
-                      const arrivalAreaPath = arrivalLinePath 
-                        ? `${arrivalLinePath} L ${arrivalPoints[arrivalPoints.length - 1].x} ${height - paddingBottom} L ${arrivalPoints[0].x} ${height - paddingBottom} Z` 
-                        : '';
-
-                      return (
-                        <div className="w-full overflow-x-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
-                          <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[700px] h-60">
-                            <defs>
-                              <linearGradient id="violet-grad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#8c8bfb" stopOpacity="0.2" />
-                                <stop offset="100%" stopColor="#8c8bfb" stopOpacity="0" />
-                              </linearGradient>
-                              <linearGradient id="cyan-grad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.2" />
-                                <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
-                              </linearGradient>
-                            </defs>
-
-                            {/* Horizontal Grid Lines */}
-                            {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
-                              const y = paddingTop + ratio * chartH;
-                              const val = Math.round(maxVal * (1 - ratio));
-                              return (
-                                <g key={idx} className="opacity-20">
-                                  <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="#334155" strokeWidth="1" strokeDasharray="4 4" />
-                                  <text x={paddingLeft - 12} y={y + 3} fill="#94a3b8" fontSize="9" textAnchor="end" className="font-mono">{val}</text>
-                                </g>
-                              );
-                            })}
-
-                            {/* Faded Area Fills */}
-                            {pickupAreaPath && <path d={pickupAreaPath} fill="url(#violet-grad)" />}
-                            {arrivalAreaPath && <path d={arrivalAreaPath} fill="url(#cyan-grad)" />}
-
-                            {/* Spline Lines */}
-                            {pickupLinePath && <path d={pickupLinePath} fill="none" stroke="#8c8bfb" strokeWidth="2.5" strokeLinecap="round" />}
-                            {arrivalLinePath && <path d={arrivalLinePath} fill="none" stroke="#06b6d4" strokeWidth="2.5" strokeLinecap="round" />}
-
-                            {/* Interactive Points on hover */}
-                            {pickupPoints.map((p, i) => (
-                              <g key={`pk-${i}`} className="group/pt cursor-pointer">
-                                <circle cx={p.x} cy={p.y} r="3" fill="#8c8bfb" className="opacity-0 group-hover/pt:opacity-100 transition-opacity" />
-                                <circle cx={p.x} cy={p.y} r="6" fill="none" stroke="#8c8bfb" strokeWidth="1.5" className="opacity-0 group-hover/pt:opacity-100 transition-opacity" />
-                              </g>
-                            ))}
-
-                            {/* X-axis Labels */}
-                            {timelineData.map((t, i) => {
-                              const x = paddingLeft + i * dx;
-                              // Draw label only every 2 hours to avoid overlap
-                              if (i % 2 !== 0) return null;
-                              return (
-                                <g key={i}>
-                                  <text x={x} y={height - paddingBottom + 18} fill="#64748b" fontSize="9" textAnchor="middle" className="font-mono">{t.hour}</text>
-                                  <line x1={x} y1={height - paddingBottom} x2={x} y2={height - paddingBottom + 4} stroke="#475569" strokeWidth="1" />
-                                </g>
-                              );
-                            })}
-                          </svg>
+                    {/* B. Arrival Timeline (Hourly Inbound Distribution) */}
+                    <div className="bg-[#121620] border border-white/[0.06] rounded-md p-6 shadow-xl relative overflow-hidden group hover:border-white/10 transition-colors">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="space-y-0.5">
+                          <h3 className="text-xs font-bold tracking-[0.14em] text-slate-400 uppercase">Selection Price Distribution / Inbound</h3>
+                          <p className="text-[9.5px] text-slate-500">Sản lượng hàng đã dỡ tại HUB theo từng khung giờ</p>
                         </div>
-                      );
-                    })()}
+                        <span className="text-[10px] font-bold text-[#06b6d4] uppercase tracking-wider bg-[#06b6d4]/10 px-2 py-0.5 rounded">
+                          Inbound Flow
+                        </span>
+                      </div>
+
+                      {/* SVG Arrival Spline */}
+                      {(() => {
+                        const maxVal = Math.max(...timelineData.map(x => x.orders), 1);
+                        const width = 500;
+                        const height = 180;
+                        const paddingLeft = 40;
+                        const paddingRight = 15;
+                        const paddingTop = 15;
+                        const paddingBottom = 30;
+
+                        const chartW = width - paddingLeft - paddingRight;
+                        const chartH = height - paddingTop - paddingBottom;
+                        const dx = chartW / 23;
+
+                        const pts = timelineData.map((d, i) => ({
+                          x: paddingLeft + i * dx,
+                          y: height - paddingBottom - (d.orders / maxVal) * chartH
+                        }));
+
+                        // Build Bezier Path
+                        let splinePath = '';
+                        if (pts.length > 0) {
+                          splinePath = `M ${pts[0].x} ${pts[0].y}`;
+                          for (let i = 0; i < pts.length - 1; i++) {
+                            const p0 = pts[i];
+                            const p1 = pts[i + 1];
+                            const cpX1 = p0.x + (p1.x - p0.x) / 3;
+                            const cpY1 = p0.y;
+                            const cpX2 = p0.x + 2 * (p1.x - p0.x) / 3;
+                            const cpY2 = p1.y;
+                            splinePath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
+                          }
+                        }
+
+                        const areaPath = splinePath 
+                          ? `${splinePath} L ${pts[pts.length - 1].x} ${height - paddingBottom} L ${pts[0].x} ${height - paddingBottom} Z` 
+                          : '';
+
+                        return (
+                          <div className="w-full">
+                            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-44">
+                              <defs>
+                                <linearGradient id="ib-grad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.22" />
+                                  <stop offset="100%" stopColor="#06b6d4" stopOpacity="0" />
+                                </linearGradient>
+                              </defs>
+
+                              {/* Grid lines */}
+                              {[0, 0.5, 1].map((ratio, idx) => {
+                                const y = paddingTop + ratio * chartH;
+                                const val = Math.round(maxVal * (1 - ratio));
+                                return (
+                                  <g key={idx} className="opacity-15">
+                                    <line x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="#334155" strokeWidth="1" strokeDasharray="3 3" />
+                                    <text x={paddingLeft - 8} y={y + 3} fill="#94a3b8" fontSize="8.5" textAnchor="end" className="font-mono">{val}</text>
+                                  </g>
+                                );
+                              })}
+
+                              {/* Glow area & Line */}
+                              {areaPath && <path d={areaPath} fill="url(#ib-grad)" />}
+                              {splinePath && <path d={splinePath} fill="none" stroke="#06b6d4" strokeWidth="2" strokeLinecap="round" />}
+
+                              {/* X labels every 3 hours */}
+                              {timelineData.map((t, i) => {
+                                if (i % 3 !== 0) return null;
+                                const x = paddingLeft + i * dx;
+                                return (
+                                  <g key={i}>
+                                    <text x={x} y={height - paddingBottom + 14} fill="#576f93" fontSize="8" textAnchor="middle" className="font-mono">{t.hour}</text>
+                                    <line x1={x} y1={height - paddingBottom} x2={x} y2={height - paddingBottom + 3} stroke="#475569" strokeWidth="1" />
+                                  </g>
+                                );
+                              })}
+                            </svg>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
                   </div>
 
-                  {/* 4. Bottom Row (Selection Status, Selection Category, Product Category style) */}
+                  {/* 4. Bottom Row (Selection Status, Selection Category, Product Category style with responsive min-h) */}
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     
                     {/* A. Selection Status (Donut Chart) */}
-                    <div className="bg-[#121620] border border-white/[0.06] rounded-md p-6 shadow-xl flex flex-col justify-between h-96 group hover:border-white/10 transition-colors">
+                    <div className="bg-[#121620] border border-white/[0.06] rounded-md p-6 shadow-xl flex flex-col justify-between min-h-[25rem] group hover:border-white/10 transition-colors">
                       <div className="space-y-1 pb-3 border-b border-white/5">
                         <h3 className="text-xs font-bold tracking-[0.14em] text-slate-400 uppercase">Selection Status</h3>
                         <p className="text-[10px] text-slate-500">Tỷ lệ phân bổ trạng thái hàng nhập HUB</p>
@@ -2211,7 +2264,7 @@ export default function App() {
                     </div>
 
                     {/* B. Selection Category (Top 8 FCs Bar Chart) */}
-                    <div className="bg-[#121620] border border-white/[0.06] rounded-md p-6 shadow-xl flex flex-col justify-between h-96 group hover:border-white/10 transition-colors">
+                    <div className="bg-[#121620] border border-white/[0.06] rounded-md p-6 shadow-xl flex flex-col justify-between min-h-[25rem] group hover:border-white/10 transition-colors">
                       <div className="space-y-1 pb-3 border-b border-white/5">
                         <h3 className="text-xs font-bold tracking-[0.14em] text-slate-400 uppercase">Selection Category</h3>
                         <p className="text-[10px] text-slate-500">8 bưu cục gửi hàng nhiều nhất theo số lượng đơn</p>
@@ -2255,7 +2308,7 @@ export default function App() {
                     </div>
 
                     {/* C. Product Category (Product Category / Incoming Vehicles style list) */}
-                    <div className="bg-[#121620] border border-white/[0.06] rounded-md p-6 shadow-xl flex flex-col justify-between h-96 group hover:border-white/10 transition-colors">
+                    <div className="bg-[#121620] border border-white/[0.06] rounded-md p-6 shadow-xl flex flex-col justify-between min-h-[25rem] group hover:border-white/10 transition-colors">
                       <div className="space-y-1 pb-3 border-b border-white/5">
                         <h3 className="text-xs font-bold tracking-[0.14em] text-slate-400 uppercase">Product Category / Vehicles</h3>
                         <p className="text-[10px] text-slate-500">Danh sách xe đang di chuyển chuẩn bị về HUB</p>
