@@ -515,7 +515,83 @@ def update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_st
     print(f"   ✅ Đã cập nhật sheet 'Inventory' pivoted với {len(new_rows)-1} dòng.")
 
 
-def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, current_date_str):
+def update_inbound_raw_sheets(gc, results):
+    print("\n📥 Bắt đầu cập nhật dữ liệu Inbound thô lên Google Sheets...")
+    
+    def write_sheet(sheet_name, df_data, headers):
+        try:
+            sheet = gc.open_by_key(SHEET_ID).worksheet(sheet_name)
+        except Exception:
+            try:
+                ss = gc.open_by_key(SHEET_ID)
+                sheet = ss.add_worksheet(sheet_name, rows=1000, cols=len(headers))
+            except Exception as e:
+                print(f"   ❌ Không thể tạo sheet '{sheet_name}': {e}")
+                return
+        
+        try:
+            sheet.clear()
+            if df_data.empty:
+                rows = [headers]
+            else:
+                for h in headers:
+                    if h not in df_data.columns:
+                        df_data[h] = ""
+                df_clean = df_data[headers].fillna("")
+                rows = [headers] + df_clean.values.tolist()
+                
+            sheet.update('A1', rows)
+            print(f"   ✅ Đã cập nhật Sheet '{sheet_name}' với {len(rows)-1} dòng.")
+        except Exception as e:
+            print(f"   ❌ Lỗi ghi dữ liệu lên sheet '{sheet_name}': {e}")
+
+    # 1. Forecast
+    df_fc_raw = pd.DataFrame(results.get('forecast', []))
+    df_fc = pd.DataFrame()
+    if not df_fc_raw.empty:
+        df_fc['fc_in'] = df_fc_raw['pickNetworkName'].fillna('') if 'pickNetworkName' in df_fc_raw.columns else ''
+        df_fc['mã đơn'] = df_fc_raw['waybillNo'].fillna('') if 'waybillNo' in df_fc_raw.columns else ''
+        df_fc['trọng lượng tính phí'] = df_fc_raw['loadWeight'].fillna(0) if 'loadWeight' in df_fc_raw.columns else 0
+        df_fc['trạng thái'] = "Forecast"
+    write_sheet("Forecast", df_fc, ["fc_in", "mã đơn", "trọng lượng tính phí", "trạng thái"])
+
+    # 2. Dispatch
+    df_dp_raw = pd.DataFrame(results.get('dispatch', []))
+    df_dp = pd.DataFrame()
+    if not df_dp_raw.empty:
+        df_dp['fc_in'] = df_dp_raw['pickNetworkName'].fillna('') if 'pickNetworkName' in df_dp_raw.columns else ''
+        df_dp['mã đơn'] = df_dp_raw['waybillNo'].where(df_dp_raw['waybillNo'].notna(), df_dp_raw.get('waybillId', '')).fillna('')
+        df_dp['trọng lượng tính phí'] = df_dp_raw['packageChargeWeight'].fillna(0) if 'packageChargeWeight' in df_dp_raw.columns else 0
+        df_dp['trạng thái'] = df_dp_raw['orderStatusName'].fillna('Dispatch') if 'orderStatusName' in df_dp_raw.columns else "Dispatch"
+    write_sheet("Dispatch", df_dp, ["fc_in", "mã đơn", "trọng lượng tính phí", "trạng thái"])
+
+    # 3. Inbound
+    df_in_raw = pd.DataFrame(results.get('inbound', []))
+    df_in = pd.DataFrame()
+    if not df_in_raw.empty:
+        df_in['fc_in'] = df_in_raw['sendSite'].fillna('') if 'sendSite' in df_in_raw.columns else ''
+        df_in['mã đơn'] = df_in_raw['waybillNo'].fillna('') if 'waybillNo' in df_in_raw.columns else ''
+        df_in['trọng lượng tính phí'] = df_in_raw['weight'].fillna(0) if 'weight' in df_in_raw.columns else 0
+        df_in['trạng thái'] = "Inbound"
+    write_sheet("Inbound", df_in, ["fc_in", "mã đơn", "trọng lượng tính phí", "trạng thái"])
+
+    # 4. Linehaul
+    df_lh_raw = pd.DataFrame(results.get('linehaul', []))
+    df_lh = pd.DataFrame()
+    if not df_lh_raw.empty:
+        df_lh['Phiếu nhiệm vụ'] = df_lh_raw['traceCode'].fillna('') if 'traceCode' in df_lh_raw.columns else ''
+        df_lh['Phiếu nhiệm vụ con'] = df_lh_raw['traceSubCode'].fillna('') if 'traceSubCode' in df_lh_raw.columns else ''
+        df_lh['sendTime'] = df_lh_raw['sendTime'].fillna('') if 'sendTime' in df_lh_raw.columns else ''
+        df_lh['loadingEndTime'] = df_lh_raw['loadingEndTime'].fillna('') if 'loadingEndTime' in df_lh_raw.columns else ''
+        df_lh['nextNetworkName'] = df_lh_raw['nextNetworkName'].fillna('') if 'nextNetworkName' in df_lh_raw.columns else ''
+        df_lh['unloadingStartTime'] = df_lh_raw['unloadingStartTime'].fillna('') if 'unloadingStartTime' in df_lh_raw.columns else ''
+        df_lh['unloadingEndTime'] = df_lh_raw['unloadingEndTime'].fillna('') if 'unloadingEndTime' in df_lh_raw.columns else ''
+        df_lh['unloadingBillPiece'] = df_lh_raw['unloadingBillPiece'].fillna(0) if 'unloadingBillPiece' in df_lh_raw.columns else 0
+        df_lh['unloadingWeight'] = df_lh_raw['unloadingWeight'].fillna(0) if 'unloadingWeight' in df_lh_raw.columns else 0
+    write_sheet("Linehaul", df_lh, ["Phiếu nhiệm vụ", "Phiếu nhiệm vụ con", "sendTime", "loadingEndTime", "nextNetworkName", "unloadingStartTime", "unloadingEndTime", "unloadingBillPiece", "unloadingWeight"])
+
+
+def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, current_date_str, results=None):
     print(f"\n📊 Bắt đầu cập nhật dữ liệu Google Sheets...")
     
     creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
@@ -621,6 +697,10 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
                     weight=('weight', 'sum')
                 ).to_dict(orient='index')
             update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_str)
+            
+        # 4. Update Inbound Raw Sheets
+        if results:
+            update_inbound_raw_sheets(gc, results)
             
     except Exception as e:
         print(f"   ❌ Lỗi cập nhật Google Sheets: {e}")
@@ -734,6 +814,12 @@ def run_once(session, token_mgr, rebuild_days=None):
     dp_cfg = load_json(os.path.join(BASE_DIR, "config", "dispatchpayload.json"))
     dp_cfg['startInputTime'] = DATE_START; dp_cfg['endInputTime'] = DATE_END
 
+    lh_h = load_json(os.path.join(BASE_DIR, "config", "linehaulheaders.json"))
+    lh_p = load_json(os.path.join(BASE_DIR, "config", "linehaulpayload.json"))
+    lh_p['startScanTime'] = DATE_START
+    lh_p['endScanTime'] = DATE_END
+    lh_params = {'sqlCode': lh_p.get('sqlCode', ''), 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693', 'routeName': lh_h.get('routeName', '')}
+
     print("\n🚀 Kéo data song song...")
     results = {}
     with ThreadPoolExecutor(max_workers=SOURCE_WORKERS) as ex:
@@ -742,6 +828,7 @@ def run_once(session, token_mgr, rebuild_days=None):
             ex.submit(pull_scan, session, token_mgr, URL_SCAN, ih, i_params, ip, 'Inbound'): 'inbound',
             ex.submit(pull_scan, session, token_mgr, URL_SCAN, bh, b_params, bp, 'Backlog'): 'backlog',
             ex.submit(pull_dispatch, session, token_mgr, dh, dp_cfg): 'dispatch',
+            ex.submit(pull_scan, session, token_mgr, URL_SCAN, lh_h, lh_params, lh_p, 'Linehaul'): 'linehaul',
         }
         if run_outbound:
             futures[ex.submit(pull_scan, session, token_mgr, URL_SCAN, oh, o_params, op, 'Outbound')] = 'outbound'
@@ -1107,7 +1194,7 @@ def run_once(session, token_mgr, rebuild_days=None):
                 print(f"   💡 Outbound calculated: {len(outbound_volumes_grouped)} groups. Total: {total_vol}")
 
     # Cập nhật dữ liệu lên Google Sheets
-    update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, now.strftime('%Y-%m-%d'))
+    update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, now.strftime('%Y-%m-%d'), results)
 
 
 def main():

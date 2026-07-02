@@ -137,6 +137,42 @@ const SHEET_GIDS: Record<string, string> = {
   'Inventory':        '1359945051',
 };
 
+async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul'): Promise<any[] | null> {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/1GMgvwa1MIEg0P102MDBcvwJPd-0wAeZh3hewmz_LBQI/gviz/tq?tqx=out:csv&sheet=${sheetType}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Network response was not ok');
+    const csvText = await response.text();
+    const lines = csvText.split('\n');
+    const rows: any[] = [];
+
+    if (lines.length === 0) return [];
+
+    const headerLine = lines[0].trim();
+    const headers = parseCSVLine(headerLine).map(h => h.trim().replace(/^"|"$/g, ''));
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const parts = parseCSVLine(line).map(p => p.trim().replace(/^"|"$/g, ''));
+      if (parts.length === 0) continue;
+
+      const rowObj: Record<string, any> = {};
+      headers.forEach((h, idx) => {
+        if (idx < parts.length) {
+          rowObj[h] = parts[idx];
+        }
+      });
+      rows.push(rowObj);
+    }
+    return rows;
+  } catch (error) {
+    console.error(`Error fetching inbound sheet ${sheetType}:`, error);
+    return null;
+  }
+}
+
 async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[] | null> {
   try {
     const gid = SHEET_GIDS[sheetType] || '1650516820';
@@ -299,6 +335,10 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [sidebarHovered, setSidebarHovered] = useState(false);
   const [currentView, setCurrentView] = useState<'master' | 'inbound'>('master');
+  const [forecastData, setForecastData] = useState<any[]>([]);
+  const [dispatchData, setDispatchData] = useState<any[]>([]);
+  const [inboundData, setInboundData] = useState<any[]>([]);
+  const [linehaulData, setLinehaulData] = useState<any[]>([]);
   const [showMonitor, setShowMonitor] = useState(true);
   const [showTelemetry, setShowTelemetry] = useState(true);
   const [showControls, setShowControls] = useState(true);
@@ -378,11 +418,23 @@ export default function App() {
   // Fetch sheet records directly from Google Sheets (all 3 tabs in parallel)
   const fetchAndUpdateData = async () => {
     setLoading(true);
-    const [outboundRows, backlogRows, inventoryRows] = await Promise.all([
+    const [
+      outboundRows, backlogRows, inventoryRows,
+      fcRows, dpRows, ibRows, lhRows
+    ] = await Promise.all([
       fetchSheetData('Outbound'),
       fetchSheetData('Backlog'),
       fetchSheetData('Inventory'),
+      fetchInboundSheetData('Forecast'),
+      fetchInboundSheetData('Dispatch'),
+      fetchInboundSheetData('Inbound'),
+      fetchInboundSheetData('Linehaul'),
     ]);
+
+    setForecastData(fcRows ?? []);
+    setDispatchData(dpRows ?? []);
+    setInboundData(ibRows ?? []);
+    setLinehaulData(lhRows ?? []);
 
     const combined: SheetRow[] = [
       ...(outboundRows ?? []),
@@ -1703,36 +1755,323 @@ export default function App() {
           )}
 
           {/* Center Content: Switch between Layout Master and Inbound */}
-          <div className={`absolute inset-0 flex items-center justify-center pt-10 pb-20 px-6 transition-all duration-300 ${
-            isMobile ? 'pl-6 pr-6' : 'pl-[80px] pr-6'
-          }`}>
+          <div className={currentView === 'master'
+            ? `absolute inset-0 flex items-center justify-center pt-10 pb-20 px-6 transition-all duration-300 ${
+                isMobile ? 'pl-6 pr-6' : 'pl-[80px] pr-6'
+              }`
+            : `absolute inset-0 pt-16 pb-6 overflow-y-auto scrollbar-thin transition-all duration-300 ${
+                isMobile ? 'pl-6 pr-6' : 'pl-20 pr-6'
+              }`
+          }>
             {currentView === 'master' ? (
               renderSVG()
-            ) : (
-              <div className="w-full max-w-2xl bg-[var(--panel)] border border-white/10 border-t-2 border-t-[#ff6a2b] rounded-lg p-8 backdrop-blur-md shadow-2xl flex flex-col items-center justify-center text-center space-y-6">
-                <div className="w-16 h-16 rounded-full bg-[#ff6a2b]/10 flex items-center justify-center text-[#ff6a2b] animate-pulse">
-                  <Inbox size={32} />
-                </div>
-                <div className="space-y-2">
-                  <h2 className="disp text-lg tracking-wider text-white">GIÁM SÁT HỆ THỐNG INBOUND</h2>
-                  <p className="text-slate-400 text-xs max-w-md leading-relaxed">
-                    Hệ thống đang được chuẩn bị để tích hợp dữ liệu chi tiết luồng nhập hàng, giám sát hiệu suất các cổng nhập và quản lý tải trọng bãi đỗ xe.
-                  </p>
-                </div>
-                <div className="w-full border-t border-white/5 pt-6 flex justify-around text-left">
-                  <div className="space-y-1">
-                    <span className="text-[9px] text-slate-500 font-mono">DỰ KIẾN TÍCH HỢP</span>
-                    <div className="text-xs font-bold text-white">Thống kê Cổng Nhập</div>
-                    <div className="text-[10px] text-slate-500">Hiển thị lưu lượng theo thời gian thực</div>
+            ) : (() => {
+              // 1. Gather all waybill IDs and their weights/stages
+              const waybills = new Map<string, { weight: number; stage: 'Forecast' | 'Dispatch' | 'Inbound' | 'Arrival' }>();
+
+              forecastData.forEach(d => {
+                const id = d['mã đơn'];
+                const w = parseFloat(d['trọng lượng tính phí']) || 0;
+                if (id) waybills.set(id, { weight: w, stage: 'Forecast' });
+              });
+
+              dispatchData.forEach(d => {
+                const id = d['mã đơn'];
+                const w = parseFloat(d['trọng lượng tính phí']) || 0;
+                if (id) waybills.set(id, { weight: w, stage: 'Dispatch' });
+              });
+
+              inboundData.forEach(d => {
+                const id = d['mã đơn'];
+                const w = parseFloat(d['trọng lượng tính phí']) || 0;
+                if (id) waybills.set(id, { weight: w, stage: 'Arrival' });
+              });
+
+              // 2. Aggregate status counts
+              const stages = {
+                Forecast: { orders: 0, weight: 0 },
+                Dispatch: { orders: 0, weight: 0 },
+                Inbound: { orders: 0, weight: 0 },
+                Arrival: { orders: 0, weight: 0 }
+              };
+              waybills.forEach(info => {
+                stages[info.stage].orders++;
+                stages[info.stage].weight += info.weight;
+              });
+
+              // 3. Hourly timeline distribution
+              const hourlyData: Record<string, { hour: string; orders: number; weight: number }> = {};
+              for (let i = 0; i < 24; i++) {
+                const hStr = `${String(i).padStart(2, '0')}:00`;
+                hourlyData[hStr] = { hour: hStr, orders: 0, weight: 0 };
+              }
+              linehaulData.forEach(d => {
+                const sendTimeStr = d['sendTime'] || '';
+                if (!sendTimeStr) return;
+                const match = sendTimeStr.match(/(\d{2}):\d{2}:\d{2}/);
+                if (match) {
+                  const hour = `${match[1]}:00`;
+                  if (hourlyData[hour]) {
+                    hourlyData[hour].orders += parseInt(d['unloadingBillPiece'], 10) || 0;
+                    hourlyData[hour].weight += parseFloat(d['unloadingWeight']) || 0;
+                  }
+                }
+              });
+              const timelineData = Object.values(hourlyData);
+
+              // 4. Group metrics per sending FC
+              const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: Set<string>; weight: number }> = {};
+              const getFC = (name: any) => {
+                if (!name) return null;
+                const clean = String(name).trim().toUpperCase();
+                if (!clean) return null;
+                if (!fcMetrics[clean]) {
+                  fcMetrics[clean] = { fc: String(name).trim(), vehicles: new Set(), orders: new Set(), weight: 0 };
+                }
+                return fcMetrics[clean];
+              };
+              forecastData.forEach(d => {
+                const fc = getFC(d.fc_in);
+                if (fc && d['mã đơn']) {
+                  fc.orders.add(d['mã đơn']);
+                  fc.weight += parseFloat(d['trọng lượng tính phí']) || 0;
+                }
+              });
+              dispatchData.forEach(d => {
+                const fc = getFC(d.fc_in);
+                if (fc && d['mã đơn']) {
+                  fc.orders.add(d['mã đơn']);
+                  fc.weight += parseFloat(d['trọng lượng tính phí']) || 0;
+                }
+              });
+              inboundData.forEach(d => {
+                const fc = getFC(d.fc_in);
+                if (fc && d['mã đơn']) {
+                  fc.orders.add(d['mã đơn']);
+                  fc.weight += parseFloat(d['trọng lượng tính phí']) || 0;
+                }
+              });
+              linehaulData.forEach(d => {
+                const fcName = d['nextNetworkName'] || 'UNKNOWN';
+                const fc = getFC(fcName);
+                if (fc && d['Phiếu nhiệm vụ']) {
+                  fc.vehicles.add(d['Phiếu nhiệm vụ']);
+                }
+              });
+              const top10FCs = Object.values(fcMetrics)
+                .map(item => ({
+                  fc: item.fc,
+                  vehicles: item.vehicles.size,
+                  orders: item.orders.size,
+                  weight: item.weight
+                }))
+                .sort((a, b) => b.weight - a.weight)
+                .slice(0, 10);
+
+              // 5. Incoming vehicles list
+              const incomingVehicles = [...linehaulData]
+                .map(d => ({
+                  taskCode: d['Phiếu nhiệm vụ'] || '',
+                  subTaskCode: d['Phiếu nhiệm vụ con'] || '',
+                  senderFC: d['nextNetworkName'] || '',
+                  sendTime: d['sendTime'] || '',
+                  orders: parseInt(d['unloadingBillPiece'], 10) || 0,
+                  weight: parseFloat(d['unloadingWeight']) || 0
+                }))
+                .sort((a, b) => b.sendTime.localeCompare(a.sendTime));
+
+              // 6. Summary stats
+              const totalFC = new Set([
+                ...forecastData.map(d => d.fc_in),
+                ...dispatchData.map(d => d.fc_in),
+                ...inboundData.map(d => d.fc_in)
+              ].filter(Boolean)).size;
+              const totalOrders = waybills.size;
+              const totalWeight = Array.from(waybills.values()).reduce((sum, w) => sum + w.weight, 0);
+              const totalVehicles = new Set(linehaulData.map(d => d['Phiếu nhiệm vụ']).filter(Boolean)).size;
+
+              return (
+                <div className="w-full max-w-7xl mx-auto space-y-6 pb-12">
+                  
+                  {/* 1. Header & Title Block */}
+                  <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                    <div className="space-y-1">
+                      <h2 className="disp text-xl tracking-[0.1em] text-white">INBOUND DASHBOARD</h2>
+                      <p className="text-xs text-slate-500 font-medium tracking-wide">Giám sát sản lượng, danh sách xe và trạng thái hàng hóa nhập HUB</p>
+                    </div>
+                    {/* Sync status indicator */}
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-mono text-slate-500">LAST SYNC: {new Date().toLocaleTimeString()}</span>
+                      <button 
+                        onClick={fetchAndUpdateData}
+                        disabled={loading}
+                        className="google-sync-btn px-3 py-1.5 text-xs shadow-lg gap-1.5"
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse" />
+                        {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
+                      </button>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <span className="text-[9px] text-slate-500 font-mono">ĐỒNG BỘ DỮ LIỆU</span>
-                    <div className="text-xs font-bold text-white">Google Sheets Sync</div>
-                    <div className="text-[10px] text-slate-500">Đồng bộ tự động tần suất 5 giây</div>
+
+                  {/* 2. Inbound Summary Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {[
+                      { label: 'Tổng bưu cục gửi', val: totalFC, desc: 'Số bưu cục gửi hàng về HUB', color: '#60a5fa' },
+                      { label: 'Tổng số đơn hàng', val: totalOrders.toLocaleString(), desc: 'Tổng số đơn trong luồng nhập', color: '#34d399' },
+                      { label: 'Tổng trọng lượng', val: `${totalWeight.toLocaleString()} kg`, desc: 'Tổng trọng lượng tính phí', color: '#ff6a2b' },
+                      { label: 'Tổng số xe tải', val: totalVehicles, desc: 'Số phiếu nhiệm vụ linehaul', color: '#a78bfa' }
+                    ].map(card => (
+                      <div key={card.label} className="bg-[var(--panel)] border border-white/10 border-t-2 rounded-lg p-4 shadow-xl flex flex-col justify-between" style={{ borderTopColor: card.color }}>
+                        <span className="text-[10.5px] text-slate-500 font-bold tracking-widest uppercase">{card.label}</span>
+                        <span className="text-2xl font-bold font-mono text-white mt-2 mb-1">{card.val}</span>
+                        <span className="text-[10.5px] text-slate-400 font-medium">{card.desc}</span>
+                      </div>
+                    ))}
                   </div>
+
+                  {/* 3. Grid of Main Panels */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    
+                    {/* Left Column (7 cols): Incoming Status Pipeline & Timeline */}
+                    <div className="lg:col-span-7 space-y-6">
+                      
+                      {/* A. Incoming Status Pipeline */}
+                      <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[#34d399] rounded-lg p-4 shadow-xl">
+                        <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[#34d399]">QUY TRÌNH HÀNG NHẬP (INCOMING STATUS)</h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          {[
+                            { stage: 'Forecast', label: '1. Dự Báo', color: '#60a5fa', stats: stages.Forecast },
+                            { stage: 'Dispatch', label: '2. Điều Phối', color: '#a78bfa', stats: stages.Dispatch },
+                            { stage: 'Inbound', label: '3. Nhập Trạm', color: '#22d3ee', stats: stages.Inbound },
+                            { stage: 'Arrival', label: '4. Đến HUB', color: '#34d399', stats: stages.Arrival }
+                          ].map((item) => (
+                            <div key={item.stage} className="bg-[#101622]/40 border border-white/5 rounded-lg p-3 flex flex-col justify-between h-28">
+                              <span className="text-[11px] font-bold tracking-wide" style={{ color: item.color }}>{item.label}</span>
+                              <div className="mt-2 space-y-1">
+                                <div className="flex justify-between items-baseline">
+                                  <span className="text-[9.5px] text-slate-500">Đơn hàng:</span>
+                                  <span className="text-[13px] font-mono font-bold text-white">{item.stats.orders.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between items-baseline">
+                                  <span className="text-[9.5px] text-slate-500">Tải trọng:</span>
+                                  <span className="text-[10.5px] font-mono text-slate-300">{item.stats.weight.toLocaleString()} kg</span>
+                                </div>
+                              </div>
+                              {/* Simple line progress at bottom of card */}
+                              <div className="h-1 w-full bg-white/5 rounded overflow-hidden mt-2">
+                                <div className="h-full transition-all duration-500" style={{ 
+                                  backgroundColor: item.color, 
+                                  width: `${totalOrders > 0 ? (item.stats.orders / totalOrders) * 100 : 0}%` 
+                                }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* B. Arrival Timeline */}
+                      <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[#22d3ee] rounded-lg p-4 shadow-xl">
+                        <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[#22d3ee]">BIỂU ĐỒ HÀNG VỀ THEO KHUNG GIỜ (ARRIVAL TIMELINE)</h3>
+                        <div className="overflow-x-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+                          <div className="min-w-[600px] h-48 flex items-end justify-between px-2 pt-6">
+                            {timelineData.map(t => {
+                              const maxWeight = Math.max(...timelineData.map(x => x.weight), 1);
+                              const heightPct = (t.weight / maxWeight) * 80; // Scale to max 80% height
+                              return (
+                                <div key={t.hour} className="flex-1 flex flex-col items-center group relative">
+                                  {/* Bar chart tooltip */}
+                                  <div className="absolute bottom-full mb-1 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity bg-slate-900 border border-white/10 text-[9.5px] rounded py-1 px-1.5 z-30 whitespace-nowrap text-center">
+                                    <div className="font-bold text-white">{t.weight.toLocaleString()} kg</div>
+                                    <div className="text-slate-400">{t.orders.toLocaleString()} đơn</div>
+                                  </div>
+                                  {/* Bar */}
+                                  <div className="w-3 rounded-t transition-all duration-500 bg-gradient-to-t from-[#22d3ee]/20 to-[#22d3ee] group-hover:brightness-110" style={{ height: `${Math.max(4, heightPct)}%` }} />
+                                  <span className="text-[9px] font-mono text-slate-500 mt-2 rotate-45 origin-left whitespace-nowrap">{t.hour}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Right Column (5 cols): Top 10 FC & Incoming Vehicle List */}
+                    <div className="lg:col-span-5 space-y-6">
+                      
+                      {/* C. Top 10 FC Sending to HUB */}
+                      <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[#ff6a2b] rounded-lg p-4 shadow-xl flex flex-col">
+                        <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[#ff6a2b]">TOP 10 BƯU CỤC GỬI HÀNG HÀNG ĐẦU</h3>
+                        <div className="overflow-y-auto max-h-[300px] pr-1 scrollbar-thin">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="text-slate-500 border-b border-white/5">
+                                <th className="py-2 font-bold uppercase tracking-wider">FC Gửi</th>
+                                <th className="py-2 text-right font-bold uppercase tracking-wider">Số Xe</th>
+                                <th className="py-2 text-right font-bold uppercase tracking-wider">Số Đơn</th>
+                                <th className="py-2 text-right font-bold uppercase tracking-wider">Trọng Lượng</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {top10FCs.length === 0 ? (
+                                <tr>
+                                  <td colSpan={4} className="py-4 text-center text-slate-500">Chưa có dữ liệu bưu cục gửi hàng</td>
+                                </tr>
+                              ) : (
+                                top10FCs.map((row) => (
+                                  <tr key={row.fc} className="border-b border-[#1e2942]/30 hover:bg-white/[0.01]">
+                                    <td className="py-2.5 font-semibold text-white/95">{row.fc}</td>
+                                    <td className="py-2.5 text-right font-mono text-slate-300">{row.vehicles}</td>
+                                    <td className="py-2.5 text-right font-mono text-slate-300">{row.orders.toLocaleString()}</td>
+                                    <td className="py-2.5 text-right font-mono font-bold text-white">{row.weight.toLocaleString()} kg</td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* D. Incoming Vehicle List */}
+                      <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[#a78bfa] rounded-lg p-4 shadow-xl flex flex-col">
+                        <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[#a78bfa]">DANH SÁCH XE ĐANG VỀ HUB</h3>
+                        <div className="overflow-y-auto max-h-[300px] pr-1 scrollbar-thin">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="text-slate-500 border-b border-white/5">
+                                <th className="py-2 font-bold uppercase tracking-wider">Mã Xe / Phiếu</th>
+                                <th className="py-2 font-bold uppercase tracking-wider">Nguồn Gửi</th>
+                                <th className="py-2 text-right font-bold uppercase tracking-wider">Đơn</th>
+                                <th className="py-2 text-right font-bold uppercase tracking-wider">Tải Trọng</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {incomingVehicles.length === 0 ? (
+                                <tr>
+                                  <td colSpan={4} className="py-4 text-center text-slate-500">Chưa có xe đang di chuyển về HUB</td>
+                                </tr>
+                              ) : (
+                                incomingVehicles.map((row, idx) => (
+                                  <tr key={`${row.taskCode}-${idx}`} className="border-b border-[#1e2942]/30 hover:bg-white/[0.01]" title={`Phiếu con: ${row.subTaskCode} | Send Time: ${row.sendTime}`}>
+                                    <td className="py-2.5 font-mono font-bold text-[#a78bfa] truncate max-w-[120px]">{row.taskCode}</td>
+                                    <td className="py-2.5 text-slate-300 truncate max-w-[100px]">{row.senderFC}</td>
+                                    <td className="py-2.5 text-right font-mono text-slate-300">{row.orders}</td>
+                                    <td className="py-2.5 text-right font-mono font-bold text-white">{row.weight.toLocaleString()} kg</td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                    </div>
+
+                  </div>
+
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </div>
         </>
       ) : ( 
