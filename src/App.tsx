@@ -335,8 +335,6 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [sidebarHovered, setSidebarHovered] = useState(false);
   const [currentView, setCurrentView] = useState<'master' | 'inbound'>('master');
-  const [forecastData, setForecastData] = useState<any[]>([]);
-  const [dispatchData, setDispatchData] = useState<any[]>([]);
   const [inboundData, setInboundData] = useState<any[]>([]);
   const [linehaulData, setLinehaulData] = useState<any[]>([]);
   const [showMonitor, setShowMonitor] = useState(true);
@@ -420,19 +418,15 @@ export default function App() {
     setLoading(true);
     const [
       outboundRows, backlogRows, inventoryRows,
-      fcRows, dpRows, ibRows, lhRows
+      ibRows, lhRows
     ] = await Promise.all([
       fetchSheetData('Outbound'),
       fetchSheetData('Backlog'),
       fetchSheetData('Inventory'),
-      fetchInboundSheetData('Forecast'),
-      fetchInboundSheetData('Dispatch'),
       fetchInboundSheetData('Inbound'),
       fetchInboundSheetData('Linehaul'),
     ]);
 
-    setForecastData(fcRows ?? []);
-    setDispatchData(dpRows ?? []);
     setInboundData(ibRows ?? []);
     setLinehaulData(lhRows ?? []);
 
@@ -1766,40 +1760,25 @@ export default function App() {
             {currentView === 'master' ? (
               renderSVG()
             ) : (() => {
-              // 1. Gather all waybill IDs and their weights/stages
-              const waybills = new Map<string, { weight: number; stage: 'Forecast' | 'Dispatch' | 'Inbound' | 'Arrival' }>();
-
-              forecastData.forEach(d => {
-                const id = d['mã đơn'];
-                const w = parseFloat(d['trọng lượng tính phí']) || 0;
-                if (id) waybills.set(id, { weight: w, stage: 'Forecast' });
-              });
-
-              dispatchData.forEach(d => {
-                const id = d['mã đơn'];
-                const w = parseFloat(d['trọng lượng tính phí']) || 0;
-                if (id) waybills.set(id, { weight: w, stage: 'Dispatch' });
-              });
-
-              inboundData.forEach(d => {
-                const id = d['mã đơn'];
-                const w = parseFloat(d['trọng lượng tính phí']) || 0;
-                if (id) waybills.set(id, { weight: w, stage: 'Arrival' });
-              });
-
-              // 2. Aggregate status counts
+              // 1. Aggregate status counts directly from aggregated Inbound sheet
               const stages = {
                 Forecast: { orders: 0, weight: 0 },
                 Dispatch: { orders: 0, weight: 0 },
                 Inbound: { orders: 0, weight: 0 },
                 Arrival: { orders: 0, weight: 0 }
               };
-              waybills.forEach(info => {
-                stages[info.stage].orders++;
-                stages[info.stage].weight += info.weight;
+              
+              inboundData.forEach(d => {
+                const status = d['Trạng thái'];
+                const vol = parseInt(d['Volume'], 10) || 0;
+                const wt = parseFloat(d['Weight']) || 0;
+                if (status && stages[status as keyof typeof stages]) {
+                  stages[status as keyof typeof stages].orders += vol;
+                  stages[status as keyof typeof stages].weight += wt;
+                }
               });
 
-              // 3. Hourly timeline distribution
+              // 2. Hourly timeline distribution from Linehaul vehicle tasks
               const hourlyData: Record<string, { hour: string; orders: number; weight: number }> = {};
               for (let i = 0; i < 24; i++) {
                 const hStr = `${String(i).padStart(2, '0')}:00`;
@@ -1819,36 +1798,22 @@ export default function App() {
               });
               const timelineData = Object.values(hourlyData);
 
-              // 4. Group metrics per sending FC
-              const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: Set<string>; weight: number }> = {};
+              // 3. Group metrics per sending FC
+              const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
               const getFC = (name: any) => {
                 if (!name) return null;
                 const clean = String(name).trim().toUpperCase();
                 if (!clean) return null;
                 if (!fcMetrics[clean]) {
-                  fcMetrics[clean] = { fc: String(name).trim(), vehicles: new Set(), orders: new Set(), weight: 0 };
+                  fcMetrics[clean] = { fc: String(name).trim(), vehicles: new Set(), orders: 0, weight: 0 };
                 }
                 return fcMetrics[clean];
               };
-              forecastData.forEach(d => {
-                const fc = getFC(d.fc_in);
-                if (fc && d['mã đơn']) {
-                  fc.orders.add(d['mã đơn']);
-                  fc.weight += parseFloat(d['trọng lượng tính phí']) || 0;
-                }
-              });
-              dispatchData.forEach(d => {
-                const fc = getFC(d.fc_in);
-                if (fc && d['mã đơn']) {
-                  fc.orders.add(d['mã đơn']);
-                  fc.weight += parseFloat(d['trọng lượng tính phí']) || 0;
-                }
-              });
               inboundData.forEach(d => {
-                const fc = getFC(d.fc_in);
-                if (fc && d['mã đơn']) {
-                  fc.orders.add(d['mã đơn']);
-                  fc.weight += parseFloat(d['trọng lượng tính phí']) || 0;
+                const fc = getFC(d['Bưu cục']);
+                if (fc) {
+                  fc.orders += parseInt(d['Volume'], 10) || 0;
+                  fc.weight += parseFloat(d['Weight']) || 0;
                 }
               });
               linehaulData.forEach(d => {
@@ -1862,13 +1827,13 @@ export default function App() {
                 .map(item => ({
                   fc: item.fc,
                   vehicles: item.vehicles.size,
-                  orders: item.orders.size,
+                  orders: item.orders,
                   weight: item.weight
                 }))
                 .sort((a, b) => b.weight - a.weight)
                 .slice(0, 10);
 
-              // 5. Incoming vehicles list
+              // 4. Incoming vehicles list
               const incomingVehicles = [...linehaulData]
                 .map(d => ({
                   taskCode: d['Phiếu nhiệm vụ'] || '',
@@ -1880,14 +1845,10 @@ export default function App() {
                 }))
                 .sort((a, b) => b.sendTime.localeCompare(a.sendTime));
 
-              // 6. Summary stats
-              const totalFC = new Set([
-                ...forecastData.map(d => d.fc_in),
-                ...dispatchData.map(d => d.fc_in),
-                ...inboundData.map(d => d.fc_in)
-              ].filter(Boolean)).size;
-              const totalOrders = waybills.size;
-              const totalWeight = Array.from(waybills.values()).reduce((sum, w) => sum + w.weight, 0);
+              // 5. Summary stats
+              const totalFC = new Set(inboundData.map(d => d['Bưu cục']).filter(Boolean)).size;
+              const totalOrders = inboundData.reduce((sum, d) => sum + (parseInt(d['Volume'], 10) || 0), 0);
+              const totalWeight = inboundData.reduce((sum, d) => sum + (parseFloat(d['Weight']) || 0), 0);
               const totalVehicles = new Set(linehaulData.map(d => d['Phiếu nhiệm vụ']).filter(Boolean)).size;
 
               return (

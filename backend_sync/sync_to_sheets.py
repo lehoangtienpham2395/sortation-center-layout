@@ -515,8 +515,8 @@ def update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_st
     print(f"   ✅ Đã cập nhật sheet 'Inventory' pivoted với {len(new_rows)-1} dòng.")
 
 
-def update_inbound_raw_sheets(gc, results):
-    print("\n📥 Bắt đầu cập nhật dữ liệu Inbound thô lên Google Sheets...")
+def update_inbound_sheets(gc, results, master_chutes):
+    print("\n📥 Bắt đầu cập nhật dữ liệu Inbound gom nhóm lên Google Sheets...")
     
     def write_sheet(sheet_name, df_data, headers):
         try:
@@ -545,35 +545,120 @@ def update_inbound_raw_sheets(gc, results):
         except Exception as e:
             print(f"   ❌ Lỗi ghi dữ liệu lên sheet '{sheet_name}': {e}")
 
+    # Build reverse lookup map for chutes
+    name_to_chute = {}
+    for key, chute in master_chutes.items():
+        chute_name = str(chute.get('name', '')).strip().upper()
+        if chute_name:
+            name_to_chute[chute_name] = chute
+
+    rows_to_aggregate = []
+    
     # 1. Forecast
     df_fc_raw = pd.DataFrame(results.get('forecast', []))
-    df_fc = pd.DataFrame()
     if not df_fc_raw.empty:
-        df_fc['fc_in'] = df_fc_raw['pickNetworkName'].fillna('') if 'pickNetworkName' in df_fc_raw.columns else ''
-        df_fc['mã đơn'] = df_fc_raw['waybillNo'].fillna('') if 'waybillNo' in df_fc_raw.columns else ''
-        df_fc['trọng lượng tính phí'] = df_fc_raw['loadWeight'].fillna(0) if 'loadWeight' in df_fc_raw.columns else 0
-        df_fc['trạng thái'] = "Forecast"
-    write_sheet("Forecast", df_fc, ["fc_in", "mã đơn", "trọng lượng tính phí", "trạng thái"])
-
+        for _, r in df_fc_raw.iterrows():
+            fc = str(r.get('pickNetworkName', '')).strip()
+            waybill = str(r.get('waybillNo', '')).strip()
+            w = float(r.get('loadWeight') or 0.0)
+            if fc and waybill:
+                rows_to_aggregate.append({
+                    'fc': fc,
+                    'waybill': waybill,
+                    'weight': w,
+                    'status': 'Forecast'
+                })
+                
     # 2. Dispatch
     df_dp_raw = pd.DataFrame(results.get('dispatch', []))
-    df_dp = pd.DataFrame()
     if not df_dp_raw.empty:
-        df_dp['fc_in'] = df_dp_raw['pickNetworkName'].fillna('') if 'pickNetworkName' in df_dp_raw.columns else ''
-        df_dp['mã đơn'] = df_dp_raw['waybillNo'].where(df_dp_raw['waybillNo'].notna(), df_dp_raw.get('waybillId', '')).fillna('')
-        df_dp['trọng lượng tính phí'] = df_dp_raw['packageChargeWeight'].fillna(0) if 'packageChargeWeight' in df_dp_raw.columns else 0
-        df_dp['trạng thái'] = df_dp_raw['orderStatusName'].fillna('Dispatch') if 'orderStatusName' in df_dp_raw.columns else "Dispatch"
-    write_sheet("Dispatch", df_dp, ["fc_in", "mã đơn", "trọng lượng tính phí", "trạng thái"])
+        for _, r in df_dp_raw.iterrows():
+            fc = str(r.get('pickNetworkName', '')).strip()
+            waybill = str(r.get('waybillNo') or r.get('waybillId', '')).strip()
+            w = float(r.get('packageChargeWeight') or 0.0)
+            status = str(r.get('orderStatusName') or 'Dispatch').strip()
+            if fc and waybill:
+                rows_to_aggregate.append({
+                    'fc': fc,
+                    'waybill': waybill,
+                    'weight': w,
+                    'status': status if status != 'nan' else 'Dispatch'
+                })
 
     # 3. Inbound
     df_in_raw = pd.DataFrame(results.get('inbound', []))
-    df_in = pd.DataFrame()
     if not df_in_raw.empty:
-        df_in['fc_in'] = df_in_raw['sendSite'].fillna('') if 'sendSite' in df_in_raw.columns else ''
-        df_in['mã đơn'] = df_in_raw['waybillNo'].fillna('') if 'waybillNo' in df_in_raw.columns else ''
-        df_in['trọng lượng tính phí'] = df_in_raw['weight'].fillna(0) if 'weight' in df_in_raw.columns else 0
-        df_in['trạng thái'] = "Inbound"
-    write_sheet("Inbound", df_in, ["fc_in", "mã đơn", "trọng lượng tính phí", "trạng thái"])
+        for _, r in df_in_raw.iterrows():
+            fc = str(r.get('sendSite', '')).strip()
+            waybill = str(r.get('waybillNo', '')).strip()
+            w = float(r.get('weight') or 0.0)
+            if fc and waybill:
+                rows_to_aggregate.append({
+                    'fc': fc,
+                    'waybill': waybill,
+                    'weight': w,
+                    'status': 'Arrival'
+                })
+
+    # Merge / Deduplicate by waybill (highest status: Arrival > Dispatch > Forecast)
+    status_priority = {'Arrival': 3, 'Inbound': 2.5, 'Dispatch': 2, 'Forecast': 1}
+    
+    unique_waybills = {}
+    for r in rows_to_aggregate:
+        wb = r['waybill']
+        stat = r['status']
+        priority = status_priority.get(stat, 0)
+        
+        if 'arrival' in stat.lower() or 'đến' in stat.lower():
+            stat = 'Arrival'
+            priority = 3
+            
+        if wb not in unique_waybills or priority > status_priority.get(unique_waybills[wb]['status'], 0):
+            unique_waybills[wb] = r
+            
+    # Group by fc and status
+    grouped = {}
+    for wb, r in unique_waybills.items():
+        fc_name = r['fc']
+        status = r['status']
+        if status not in ['Forecast', 'Dispatch', 'Inbound', 'Arrival']:
+            status = 'Dispatch'
+            
+        key = (fc_name, status)
+        if key not in grouped:
+            grouped[key] = {'volume': 0, 'weight': 0.0}
+        grouped[key]['volume'] += 1
+        grouped[key]['weight'] += r['weight']
+        
+    # Convert grouped to DataFrame and resolve Zone, AreaID, capacity
+    final_rows = []
+    current_date_str = datetime.now().strftime('%Y-%m-%d')
+    
+    for (fc_name, status), stats in grouped.items():
+        fc_upper = fc_name.strip().upper()
+        chute = name_to_chute.get(fc_upper)
+        if chute:
+            zone = chute['zone']
+            area_id = chute['area_id']
+            capacity = chute['capacity']
+        else:
+            zone = 'N/A'
+            area_id = 'N/A'
+            capacity = '0'
+            
+        final_rows.append({
+            'Zone': zone,
+            'AreaID': area_id,
+            'Bưu cục': fc_name,
+            'Trạng thái': status,
+            'Volume': stats['volume'],
+            'Weight': int(stats['weight']),
+            'Sức chứa': capacity,
+            'Ngày': current_date_str
+        })
+        
+    df_inbound_aggregated = pd.DataFrame(final_rows)
+    write_sheet("Inbound", df_inbound_aggregated, ["Zone", "AreaID", "Bưu cục", "Trạng thái", "Volume", "Weight", "Sức chứa", "Ngày"])
 
     # 4. Linehaul
     df_lh_raw = pd.DataFrame(results.get('linehaul', []))
@@ -698,9 +783,9 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
                 ).to_dict(orient='index')
             update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_str)
             
-        # 4. Update Inbound Raw Sheets
+        # 4. Update Inbound Sheets (aggregated Inbound + raw Linehaul)
         if results:
-            update_inbound_raw_sheets(gc, results)
+            update_inbound_sheets(gc, results, master_chutes)
             
     except Exception as e:
         print(f"   ❌ Lỗi cập nhật Google Sheets: {e}")
