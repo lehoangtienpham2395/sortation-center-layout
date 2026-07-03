@@ -1960,14 +1960,20 @@ export default function App() {
               // 4. Incoming vehicles list (filtered to only those not yet unloading/unloaded)
               const incomingVehicles = filteredLinehaul
                 .filter(d => !d['unloadingStartTime'] && !d['unloadingEndTime'])
-                .map(d => ({
-                  taskCode: d['Phiếu nhiệm vụ'] || '',
-                  subTaskCode: d['Phiếu nhiệm vụ con'] || '',
-                  senderFC: d['nextNetworkName'] || '',
-                  sendTime: d['sendTime'] || '',
-                  orders: parseInt(d['unloadingBillPiece'], 10) || 0,
-                  weight: parseFloat(d['unloadingWeight']) || 0
-                }))
+                .map(d => {
+                  const uOrders = parseInt(d['unloadingBillPiece'], 10) || 0;
+                  const uWeight = parseFloat(d['unloadingWeight']) || 0;
+                  const sOrders = parseInt(d['billPiece'], 10) || 0;
+                  const sWeight = parseFloat(d['weight']) || 0;
+                  return {
+                    taskCode: d['Phiếu nhiệm vụ'] || '',
+                    subTaskCode: d['Phiếu nhiệm vụ con'] || '',
+                    senderFC: d['nextNetworkName'] || '',
+                    sendTime: d['sendTime'] || '',
+                    orders: uOrders > 0 ? uOrders : sOrders,
+                    weight: uWeight > 0 ? uWeight : sWeight
+                  };
+                })
                 .sort((a, b) => b.sendTime.localeCompare(a.sendTime));
 
               // 5. Summary stats (filtered)

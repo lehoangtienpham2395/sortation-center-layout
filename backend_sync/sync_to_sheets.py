@@ -761,6 +761,13 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             
         df_lh['unloadingStartTime'] = df_lh_raw['unloadingStartTime'].fillna('') if 'unloadingStartTime' in df_lh_raw.columns else ''
         df_lh['unloadingEndTime'] = df_lh_raw['unloadingEndTime'].fillna('') if 'unloadingEndTime' in df_lh_raw.columns else ''
+        
+        # Lấy sản lượng gửi dự phòng nếu chưa dỡ
+        bill_col = 'billPiece' if 'billPiece' in df_lh_raw.columns else ('totalBillPiece' if 'totalBillPiece' in df_lh_raw.columns else ('loadBillPiece' if 'loadBillPiece' in df_lh_raw.columns else 'unloadingBillPiece'))
+        weight_col = 'weight' if 'weight' in df_lh_raw.columns else ('totalWeight' if 'totalWeight' in df_lh_raw.columns else ('loadWeight' if 'loadWeight' in df_lh_raw.columns else 'unloadingWeight'))
+        
+        df_lh['billPiece'] = df_lh_raw[bill_col].fillna(0) if bill_col in df_lh_raw.columns else 0
+        df_lh['weight'] = df_lh_raw[weight_col].fillna(0) if weight_col in df_lh_raw.columns else 0
         df_lh['unloadingBillPiece'] = df_lh_raw['unloadingBillPiece'].fillna(0) if 'unloadingBillPiece' in df_lh_raw.columns else 0
         df_lh['unloadingWeight'] = df_lh_raw['unloadingWeight'].fillna(0) if 'unloadingWeight' in df_lh_raw.columns else 0
 
@@ -780,7 +787,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
 
         df_lh['Ngày vận hành'] = df_lh_raw.apply(get_lh_operating_date_row, axis=1)
 
-    write_sheet("Linehaul", df_lh, ["Phiếu nhiệm vụ", "Phiếu nhiệm vụ con", "sendTime", "loadingEndTime", "nextNetworkName", "unloadingStartTime", "unloadingEndTime", "unloadingBillPiece", "unloadingWeight", "Ngày vận hành"])
+    write_sheet("Linehaul", df_lh, ["Phiếu nhiệm vụ", "Phiếu nhiệm vụ con", "sendTime", "loadingEndTime", "nextNetworkName", "unloadingStartTime", "unloadingEndTime", "unloadingBillPiece", "unloadingWeight", "billPiece", "weight", "Ngày vận hành"])
 
 
 def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, current_date_str, results=None, d_buucuc=None):
