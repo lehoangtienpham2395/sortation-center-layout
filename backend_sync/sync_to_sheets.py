@@ -527,7 +527,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
                 sheet = ss.add_worksheet(sheet_name, rows=1000, cols=len(headers))
             except Exception as e:
                 print(f"   ❌ Không thể tạo sheet '{sheet_name}': {e}")
-                return
+                raise e
         
         try:
             sheet.clear()
@@ -544,6 +544,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             print(f"   ✅ Đã cập nhật Sheet '{sheet_name}' với {len(rows)-1} dòng.")
         except Exception as e:
             print(f"   ❌ Lỗi ghi dữ liệu lên sheet '{sheet_name}': {e}")
+            raise e
 
     def get_operating_date(dt_str):
         if not dt_str or str(dt_str).strip() in ('', 'nan', 'None'):
