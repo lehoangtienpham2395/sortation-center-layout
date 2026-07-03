@@ -132,6 +132,19 @@ class TokenManager:
             return self._token
 
 
+def get_operating_date(dt_str):
+    if not dt_str or str(dt_str).strip() in ('', 'nan', 'None'):
+        return ""
+    try:
+        dt = pd.to_datetime(dt_str)
+        if dt.hour < 6:
+            return (dt - timedelta(days=1)).strftime('%Y-%m-%d')
+        else:
+            return dt.strftime('%Y-%m-%d')
+    except Exception:
+        return ""
+
+
 def auth_post(session, url, token_mgr, base_headers, *,
               params=None, json_body=None, data=None,
               timeout=REQUEST_TIMEOUT, max_retries=MAX_RETRIES, label=''):
@@ -558,17 +571,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             print(f"   ❌ Lỗi ghi dữ liệu lên sheet '{sheet_name}': {e}")
             raise e
 
-    def get_operating_date(dt_str):
-        if not dt_str or str(dt_str).strip() in ('', 'nan', 'None'):
-            return ""
-        try:
-            dt = pd.to_datetime(dt_str)
-            if dt.hour < 6:
-                return (dt - timedelta(days=1)).strftime('%Y-%m-%d')
-            else:
-                return dt.strftime('%Y-%m-%d')
-        except Exception:
-            return ""
+    # Using module-level get_operating_date
 
     # Build dictionary of waybill -> pickup_time from Forecast & Dispatch first
     wb_to_pickup = {}
@@ -760,7 +763,18 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         df_lh['unloadingEndTime'] = df_lh_raw['unloadingEndTime'].fillna('') if 'unloadingEndTime' in df_lh_raw.columns else ''
         df_lh['unloadingBillPiece'] = df_lh_raw['unloadingBillPiece'].fillna(0) if 'unloadingBillPiece' in df_lh_raw.columns else 0
         df_lh['unloadingWeight'] = df_lh_raw['unloadingWeight'].fillna(0) if 'unloadingWeight' in df_lh_raw.columns else 0
-    write_sheet("Linehaul", df_lh, ["Phiếu nhiệm vụ", "Phiếu nhiệm vụ con", "sendTime", "loadingEndTime", "nextNetworkName", "unloadingStartTime", "unloadingEndTime", "unloadingBillPiece", "unloadingWeight"])
+
+        def get_lh_operating_date_row(row):
+            ust = str(row.get('unloadingStartTime') or '').strip()
+            uet = str(row.get('unloadingEndTime') or '').strip()
+            ust_valid = ust if ust.lower() not in ('', 'nan', 'none') else ''
+            uet_valid = uet if uet.lower() not in ('', 'nan', 'none') else ''
+            dt_src = ust_valid if ust_valid else uet_valid
+            return get_operating_date(dt_src)
+
+        df_lh['Ngày vận hành'] = df_lh_raw.apply(get_lh_operating_date_row, axis=1)
+
+    write_sheet("Linehaul", df_lh, ["Phiếu nhiệm vụ", "Phiếu nhiệm vụ con", "sendTime", "loadingEndTime", "nextNetworkName", "unloadingStartTime", "unloadingEndTime", "unloadingBillPiece", "unloadingWeight", "Ngày vận hành"])
 
 
 def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, current_date_str, results=None, d_buucuc=None):
