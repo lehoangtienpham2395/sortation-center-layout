@@ -28,6 +28,15 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f backend_sync/requirements.txt ]; then pip install -r backend_sync/requirements.txt; fi
 
+    - name: Check secrets configuration
+      run: |
+        if [ -z "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" ]; then
+          echo "❌ GOOGLE_SERVICE_ACCOUNT_JSON is NOT configured in GitHub Secrets! The sync script cannot write to Google Sheets."
+          exit 1
+        else
+          echo "✅ GOOGLE_SERVICE_ACCOUNT_JSON is present."
+        fi
+
     - name: Run sync script
       env:
         SYSTEM_ACCOUNT: ${{ secrets.SYSTEM_ACCOUNT }}

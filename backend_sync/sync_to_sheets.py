@@ -856,6 +856,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             
     except Exception as e:
         print(f"   ❌ Lỗi cập nhật Google Sheets: {e}")
+        raise e
 
 # ================================================================
 # MAIN (Run Once)
