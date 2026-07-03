@@ -1813,31 +1813,33 @@ export default function App() {
               // 1. Aggregate status counts directly from aggregated Inbound sheet (filtered)
               const stages = {
                 'Chưa về Hub': { orders: 0, weight: 0 },
-                'Đã nhập hàng': { orders: 0, weight: 0 }
+                'Đã về Hub': { orders: 0, weight: 0 }
               };
               
               filteredInbound.forEach(d => {
                 const status = d['Trạng thái'];
                 const vol = parseInt(d['Volume'], 10) || 0;
                 const wt = parseFloat(d['Weight']) || 0;
-                if (status === 'Đã nhập hàng') {
-                  stages['Đã nhập hàng'].orders += vol;
-                  stages['Đã nhập hàng'].weight += wt;
+                if (status === 'Đã về Hub' || status === 'Đã nhập hàng') {
+                  stages['Đã về Hub'].orders += vol;
+                  stages['Đã về Hub'].weight += wt;
                 } else {
                   stages['Chưa về Hub'].orders += vol;
                   stages['Chưa về Hub'].weight += wt;
                 }
               });
 
-              // 2. Hourly timeline distribution from Inbound sheet (based on Inbound Time of "Đã nhập hàng" status)
-                            const hourlyData: Record<string, { hour: string; orders: number; weight: number }> = {};
+              // 2. Hourly timeline distribution from Inbound sheet (based on Inbound Hour/Time of "Đã về Hub" status)
+              const hourlyData: Record<string, { hour: string; orders: number; weight: number }> = {};
               for (let i = 0; i < 24; i++) {
                 const hStr = `${String(i).padStart(2, '0')}:00`;
                 hourlyData[hStr] = { hour: hStr, orders: 0, weight: 0 };
               }
               filteredInbound.forEach(d => {
-                if (d['Trạng thái'] === 'Đã nhập hàng') {
-                  const ibTime = d['Inbound Time'];
+                if (d['Trạng thái'] === 'Đã về Hub' || d['Trạng thái'] === 'Đã nhập hàng') {
+                  const ibTime = d['Inbound Hour'] !== undefined && d['Inbound Hour'] !== null && d['Inbound Hour'] !== '' 
+                    ? d['Inbound Hour'] 
+                    : d['Inbound Time'];
                   if (ibTime !== undefined && ibTime !== null && ibTime !== '') {
                     const hrVal = parseInt(String(ibTime), 10);
                     if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
@@ -1880,7 +1882,7 @@ export default function App() {
                 hourlyPendingData[hStr] = { hour: hStr, orders: 0, weight: 0 };
               }
               filteredInbound.forEach(d => {
-                if (d['Trạng thái'] !== 'Đã nhập hàng') {
+                if (d['Trạng thái'] !== 'Đã về Hub' && d['Trạng thái'] !== 'Đã nhập hàng') {
                   const pkTime = d['Pickup Time'];
                   if (pkTime !== undefined && pkTime !== null && pkTime !== '') {
                     const hrVal = parseInt(String(pkTime), 10);
@@ -2012,7 +2014,7 @@ export default function App() {
                   {/* Row 1: Operational Summary (KPI Cards) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
-                      { label: 'Inbound volume', val: totalOrders.toLocaleString(), desc: `Arrived rate ${(totalOrders > 0 ? (stages['Đã nhập hàng'].orders / totalOrders) * 100 : 0).toFixed(1)}%`, icon: Inbox, color: '#22C55E', hoverColor: 'hover:border-[#22C55E]/30' },
+                      { label: 'Inbound volume', val: totalOrders.toLocaleString(), desc: `Arrived rate ${(totalOrders > 0 ? (stages['Đã về Hub'].orders / totalOrders) * 100 : 0).toFixed(1)}%`, icon: Inbox, color: '#22C55E', hoverColor: 'hover:border-[#22C55E]/30' },
                       { label: 'Inbound weight', val: `${totalWeight.toLocaleString()} kg`, desc: `Avg weight ${(totalOrders > 0 ? totalWeight / totalOrders : 0).toFixed(2)} kg/pkg`, icon: TrendingUp, color: '#4F8CFF', hoverColor: 'hover:border-[#4F8CFF]/30' },
                       { label: 'Sending stations', val: totalFC, desc: 'Active sending stations', icon: Sliders, color: '#22D3EE', hoverColor: 'hover:border-[#22D3EE]/30' },
                       { label: 'Vehicles', val: totalVehicles, desc: 'Active Linehaul trucks', icon: Activity, color: '#8B5CF6', hoverColor: 'hover:border-[#8B5CF6]/30' }
@@ -2171,7 +2173,7 @@ export default function App() {
                           <p className="text-xs text-slate-400/65 mt-0.5">Theo dõi sản lượng hàng đã nhập HUB</p>
                         </div>
                         <div className="ml-auto text-right">
-                          <span className="text-[24px] font-bold text-white tracking-tight leading-none block font-mono">{stages['Đã nhập hàng'].orders.toLocaleString()}</span>
+                          <span className="text-[24px] font-bold text-white tracking-tight leading-none block font-mono">{stages['Đã về Hub'].orders.toLocaleString()}</span>
                           <span className="text-[10px] text-slate-400/75 uppercase mt-1 block">Đơn dỡ thành công</span>
                         </div>
                       </div>
@@ -2432,7 +2434,7 @@ export default function App() {
                       {/* Donut Chart Content */}
                       <div className="py-2 flex justify-center items-center flex-grow">
                         {(() => {
-                          const arrived = stages['Đã nhập hàng'].orders;
+                          const arrived = stages['Đã về Hub'].orders;
                           const inTransit = stages['Chưa về Hub'].orders;
                           const total = arrived + inTransit;
                           
@@ -2487,10 +2489,10 @@ export default function App() {
                         <div className="text-center">
                           <span className="text-[11px] text-slate-400/75 uppercase font-bold flex items-center justify-center gap-1.5">
                             <i className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />
-                            Đã Nhập HUB
+                            Đã về Hub
                           </span>
                           <span className="text-[13px] font-bold text-white font-mono mt-0.5 block">
-                            {stages['Đã nhập hàng'].orders.toLocaleString()}
+                            {stages['Đã về Hub'].orders.toLocaleString()}
                           </span>
                         </div>
                         <div className="text-center">

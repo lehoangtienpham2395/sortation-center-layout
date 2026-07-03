@@ -251,10 +251,7 @@ def pull_forecast(session, token_mgr, headers, base_payload, label='Forecast'):
         r = auth_post(session, URL_FORECAST, token_mgr, headers, data=payload, label=label)
         return r.json().get('data', []) or []
 
-    if total > 0:
-        all_data = pull_pages_parallel(fetch_page, total, page_size, label)
-    else:
-        all_data = pull_pages_sequential(fetch_page, page_size, label)
+    all_data = pull_pages_sequential(fetch_page, page_size, label, total=total, stop_short=True)
 
     return all_data
 
@@ -277,10 +274,7 @@ def pull_scan(session, token_mgr, url, headers, params, base_payload, label=''):
         r = auth_post(session, url, token_mgr, headers, params=params, json_body=payload, label=label)
         return r.json().get('data', {}).get('records', []) or []
 
-    if total is not None:
-        all_data = pull_pages_parallel(fetch_page, total, page_size, label)
-    else:
-        all_data = pull_pages_sequential(fetch_page, page_size, label, total=None, stop_short=True)
+    all_data = pull_pages_sequential(fetch_page, page_size, label, total=total, stop_short=True)
 
     if total is not None and len(all_data) < total:
         print(f"   ⚠️ {label}: thu {len(all_data)} < tổng {total} (có thể có trang lỗi)")
@@ -666,10 +660,10 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         status = r['status']
         
         # Simple Inbound status logic:
-        # If ib_date exists -> "Đã nhập hàng"
+        # If ib_date exists -> "Đã về Hub"
         # Else -> "Chưa về Hub"
         if r['ib_date'] and str(r['ib_date']).strip() not in ('', 'nan', 'None'):
-            status_clean = 'Đã nhập hàng'
+            status_clean = 'Đã về Hub'
             ib_date_str = r['ib_date']
             try:
                 dt_ib = pd.to_datetime(ib_date_str)
@@ -716,12 +710,12 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             'Volume': stats['volume'],
             'Weight': int(stats['weight']),
             'Ngày vận hành': op_date,
-            'Inbound Time': ib_hour,
+            'Inbound Hour': ib_hour,
             'Pickup Time': pk_hour
         })
         
     df_inbound_aggregated = pd.DataFrame(final_rows)
-    write_sheet("Inbound", df_inbound_aggregated, ["Bưu cục", "Trạng thái", "Volume", "Weight", "Ngày vận hành", "Inbound Time", "Pickup Time"])
+    write_sheet("Inbound", df_inbound_aggregated, ["Bưu cục", "Trạng thái", "Volume", "Weight", "Ngày vận hành", "Inbound Hour", "Pickup Time"])
 
     # 4. Linehaul
     df_lh_raw = pd.DataFrame(results.get('linehaul', []))
@@ -1349,6 +1343,8 @@ def main():
         run_once(session, token_mgr, rebuild_days=args.rebuild)
     except Exception as e:
         print(f"\n❌ Lỗi thực thi: {e}")
+        import sys
+        sys.exit(1)
 
 
 if __name__ == "__main__":
