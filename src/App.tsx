@@ -2869,73 +2869,54 @@ export default function App() {
       ) : ( 
         /* ── MOBILE LAYOUT ── */
         <>
-          <div className="w-full h-full pt-16 pb-24 px-4 overflow-hidden flex flex-col justify-between">
+          {/* Compact mobile filter bar - sits below header, above content */}
+          <div className="absolute top-12 left-0 right-0 z-30 flex gap-1.5 items-center px-3 py-1.5 bg-[#09111C]/90 backdrop-blur-sm border-b border-white/[0.06]">
+            <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)}
+                    className="flex-1 bg-[#121824] text-white text-[10px] font-bold py-1 px-2 rounded border border-white/5 outline-none cursor-pointer">
+              <option value="Outbound">Outbound</option>
+              <option value="Backlog">Backlog</option>
+              <option value="Inventory">Volume</option>
+            </select>
+            <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+                    className="flex-1 bg-[#121824] text-white text-[10px] font-bold py-1 px-2 rounded border border-white/5 outline-none cursor-pointer">
+              {availableDates.length > 0
+                ? availableDates.map(d => <option key={d} value={d}>{d}</option>)
+                : <option value="">Chưa có dữ liệu</option>}
+            </select>
+            <button onClick={fetchAndUpdateData} disabled={loading}
+                    className="google-sync-btn px-2.5 py-1 text-[10px] gap-1 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
+              {loading ? '...' : 'Sync'}
+            </button>
+          </div>
+
+          <div className="w-full h-full pt-20 pb-24 px-4 overflow-hidden flex flex-col justify-between">
             {activeTab === 'layout' && (
-              <div className="w-full h-full flex flex-col justify-between relative pt-12">
-                {/* Mobile Filter Bar & Sync Button consolidated */}
-                <div className="absolute top-2 left-2 right-2 z-30 flex flex-col gap-1.5 bg-[#121824]/95 backdrop-blur border border-white/10 rounded-md p-1.5 shadow-xl">
-                  <div className="flex gap-1.5 items-center">
-                    {/* Type Select */}
-                    <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)} 
-                            className="flex-1 bg-[#0a0e14] text-white text-[10px] font-bold py-1.5 px-2 rounded border border-white/5 outline-none cursor-pointer">
-                      <option value="Outbound">Outbound</option>
-                      <option value="Backlog">Backlog</option>
-                      <option value="Inventory">Volume</option>
-                    </select>
-
-                    {/* Date Select */}
-                    <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)} 
-                            className="flex-1 bg-[#0a0e14] text-white text-[10px] font-bold py-1.5 px-2 rounded border border-white/5 outline-none cursor-pointer">
-                      {availableDates.length > 0 ? (
-                        availableDates.map(d => (
-                          <option key={d} value={d}>{d}</option>
-                        ))
-                      ) : (
-                        <option value="">Chưa có dữ liệu</option>
-                      )}
-                    </select>
-
-                    {/* Inline Sync Button */}
-                    <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading} 
-                            className="google-sync-btn px-2.5 py-1 text-[10px] gap-1 shadow-lg shrink-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
-                      {loading ? '...' : 'Đồng bộ'}
-                    </button>
+              <div className="w-full h-full flex flex-col justify-between relative">
+                {/* Inventory Status Filter - only shown when needed */}
+                {selectedType === 'Inventory' && (
+                  <div className="absolute top-0 left-0 right-0 z-20 flex items-center gap-1.5 overflow-x-auto py-1 px-1 scrollbar-none bg-[#09111C]/80 rounded-md"
+                       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                    <button onClick={toggleAllStatuses}
+                      className={`px-2 py-0.5 rounded-full border text-[9px] font-medium transition-all duration-200 shrink-0 ${
+                        selectedStatuses.length === INVENTORY_STATUSES.length
+                          ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
+                          : 'bg-[#121824]/40 border-white/5 text-slate-400'
+                      }`}>Tất cả</button>
+                    {INVENTORY_STATUSES.map(status => {
+                      const isChecked = selectedStatuses.includes(status);
+                      return (
+                        <button key={status} onClick={() => toggleStatus(status)}
+                          className={`px-2 py-0.5 rounded-full border text-[9px] font-medium transition-all duration-200 shrink-0 ${
+                            isChecked
+                              ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
+                              : 'bg-[#121824]/40 border-white/5 text-slate-400'
+                          }`}>{status}</button>
+                      );
+                    })}
                   </div>
+                )}
 
-                  {/* Mobile Inventory Status Filter */}
-                  {selectedType === 'Inventory' && (
-                    <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none border-t border-white/5 mt-1"
-                         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                      <button
-                        onClick={toggleAllStatuses}
-                        className={`px-2 py-0.5 rounded-full border text-[9px] font-medium transition-all duration-200 shrink-0 ${
-                          selectedStatuses.length === INVENTORY_STATUSES.length
-                            ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
-                            : 'bg-[#121824]/40 border-white/5 text-slate-400'
-                        }`}
-                      >
-                        Tất cả
-                      </button>
-                      {INVENTORY_STATUSES.map(status => {
-                        const isChecked = selectedStatuses.includes(status);
-                        return (
-                          <button
-                            key={status}
-                            onClick={() => toggleStatus(status)}
-                            className={`px-2 py-0.5 rounded-full border text-[9px] font-medium transition-all duration-200 shrink-0 ${
-                              isChecked
-                                ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
-                                : 'bg-[#121824]/40 border-white/5 text-slate-400'
-                            }`}
-                          >
-                            {status}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
 
                 {/* Floating Zoom controls */}
                 <div className="mobile-fab-container">
