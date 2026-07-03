@@ -534,7 +534,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
                 df_clean = df_data[headers].fillna("")
                 rows = [headers] + df_clean.values.tolist()
                 
-            sheet.update('A1', rows)
+            sheet.update(range_name='A1', values=rows)
             print(f"   ✅ Đã cập nhật Sheet '{sheet_name}' với {len(rows)-1} dòng.")
         except Exception as e:
             print(f"   ❌ Lỗi ghi dữ liệu lên sheet '{sheet_name}': {e}")
