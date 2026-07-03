@@ -40,6 +40,12 @@ URL_FORECAST_COUNT = 'https://gw.jtcargo.com.vn/networkmanagement/omsWaybill/shi
 URL_SCAN           = 'https://gw.jtcargo.com.vn/jfs-report-leader/report/dynamicReport/findByPagination'
 URL_DISPATCH       = 'https://gw.jtcargo.com.vn/customerplatform/omsOrderDispatch/page'
 
+# New correct operating platform endpoints for Linehaul, Arrival & Departure
+URL_LINEHAUL       = 'https://gw.jtcargo.com.vn/operatingplatform/traceSub/queryTraceSubForPage'
+URL_UNLOADING      = 'https://gw.jtcargo.com.vn/operatingplatform/traceSub/queryOpsUnloadingSchedulForPage'
+URL_LOADING        = 'https://gw.jtcargo.com.vn/operatingplatform/traceSub/queryOpsLoadingSchedulForPage'
+
+
 # ============================================================
 # TUNING
 # ============================================================
@@ -258,21 +264,33 @@ def pull_forecast(session, token_mgr, headers, base_payload, label='Forecast'):
 
 def pull_scan(session, token_mgr, url, headers, params, base_payload, label=''):
     page_size = int(base_payload.get('size', 1000))
+    is_dynamic = "findByPagination" in url
 
     total = None
-    try:
-        count_payload = {**base_payload, 'paginationSearchType': 'count', 'size': 1}
-        r = auth_post(session, url, token_mgr, headers, params=params,
-                      json_body=count_payload, label=f'{label} count')
-        t = r.json().get('data', {}).get('total', None)
-        total = t if isinstance(t, int) else None
-    except Exception as e:
-        print(f"   ⚠️ {label} count: {e}")
+    if is_dynamic:
+        try:
+            count_payload = {**base_payload, 'paginationSearchType': 'count', 'size': 1}
+            r = auth_post(session, url, token_mgr, headers, params=params,
+                          json_body=count_payload, label=f'{label} count')
+            t = r.json().get('data', {}).get('total', None)
+            total = t if isinstance(t, int) else None
+        except Exception as e:
+            print(f"   ⚠️ {label} count: {e}")
 
     def fetch_page(p):
-        payload = {**base_payload, 'current': p, 'paginationSearchType': 'list'}
+        payload = {**base_payload, 'current': p}
+        if is_dynamic:
+            payload['paginationSearchType'] = 'list'
         r = auth_post(session, url, token_mgr, headers, params=params, json_body=payload, label=label)
-        return r.json().get('data', {}).get('records', []) or []
+        data_obj = r.json().get('data', {})
+        if not is_dynamic and isinstance(data_obj, dict):
+            nonlocal total
+            t = data_obj.get('total')
+            if isinstance(t, int):
+                total = t
+        if isinstance(data_obj, dict):
+            return data_obj.get('records', []) or []
+        return []
 
     all_data = pull_pages_sequential(fetch_page, page_size, label, total=total, stop_short=True)
 
@@ -726,7 +744,9 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         df_lh['sendTime'] = df_lh_raw['sendTime'].fillna('') if 'sendTime' in df_lh_raw.columns else ''
         df_lh['loadingEndTime'] = df_lh_raw['loadingEndTime'].fillna('') if 'loadingEndTime' in df_lh_raw.columns else ''
         
-        if 'nextNetworkName' in df_lh_raw.columns:
+        if 'endNetworkName' in df_lh_raw.columns:
+            df_lh['nextNetworkName'] = df_lh_raw['endNetworkName'].map(d_buucuc).fillna(df_lh_raw['endNetworkName']).fillna('')
+        elif 'nextNetworkName' in df_lh_raw.columns:
             df_lh['nextNetworkName'] = df_lh_raw['nextNetworkName'].map(d_buucuc).fillna(df_lh_raw['nextNetworkName']).fillna('')
         else:
             df_lh['nextNetworkName'] = ''
@@ -963,7 +983,7 @@ def run_once(session, token_mgr, rebuild_days=None):
             ex.submit(pull_scan, session, token_mgr, URL_SCAN, ih, i_params, ip, 'Inbound'): 'inbound',
             ex.submit(pull_scan, session, token_mgr, URL_SCAN, bh, b_params, bp, 'Backlog'): 'backlog',
             ex.submit(pull_dispatch, session, token_mgr, dh, dp_cfg): 'dispatch',
-            ex.submit(pull_scan, session, token_mgr, URL_SCAN, lh_h, lh_params, lh_p, 'Linehaul'): 'linehaul',
+            ex.submit(pull_scan, session, token_mgr, URL_LINEHAUL, lh_h, lh_params, lh_p, 'Linehaul'): 'linehaul',
         }
         if run_outbound:
             futures[ex.submit(pull_scan, session, token_mgr, URL_SCAN, oh, o_params, op, 'Outbound')] = 'outbound'
