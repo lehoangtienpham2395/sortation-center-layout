@@ -1972,8 +1972,8 @@ export default function App() {
 
               // 5. Summary stats (filtered)
               const totalFC = new Set(filteredInbound.map(d => d['Bưu cục']).filter(Boolean)).size;
-              const totalOrders = filteredInbound.reduce((sum, d) => sum + (parseInt(d['Volume'], 10) || 0), 0);
-              const totalWeight = filteredInbound.reduce((sum, d) => sum + (parseFloat(d['Weight']) || 0), 0);
+              const totalOrders = stages['Đã về Hub'].orders;
+              const totalWeight = stages['Đã về Hub'].weight;
               const totalVehicles = new Set(filteredLinehaul.map(d => d['Phiếu nhiệm vụ']).filter(Boolean)).size;
 
               return (
@@ -2206,7 +2206,77 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Pickup Volume Chart (formerly top-right) */}
+                    {/* Selection Status */}
+                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl flex flex-col justify-between h-[22rem] group hover:border-[#8B5CF6]/30 transition-all duration-[180ms] ease-in-out hover:-translate-y-0.5 hover:shadow-2xl">
+                      {/* Widget Header: Icon + Title + Description + Divider */}
+                      <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04] mb-3.5">
+                        <div className="w-8 h-8 rounded-lg bg-[#8B5CF6]/10 text-[#8B5CF6] flex items-center justify-center shrink-0">
+                          <Activity size={16} strokeWidth={2} />
+                        </div>
+                        <div>
+                          <h3 className="text-[15px] font-semibold text-white leading-tight">Selection status</h3>
+                          <p className="text-xs text-slate-400/65 mt-0.5">Tỷ lệ phân bổ trạng thái hàng nhập HUB</p>
+                        </div>
+                      </div>
+
+                      {/* Donut Chart Content */}
+                      <div className="py-2 flex justify-center items-center flex-grow">
+                        {(() => {
+                          const arrived = stages['Đã về Hub'].orders;
+                          const inTransit = stages['Chưa về Hub'].orders;
+                          const total = arrived + inTransit;
+                          
+                          const radius = 38;
+                          const circumference = 2 * Math.PI * radius;
+                          const arrivedPercent = total > 0 ? (arrived / total) * 100 : 0;
+                          const inTransitPercent = total > 0 ? (inTransit / total) * 100 : 0;
+
+                          const strokeArrived = (arrivedPercent / 100) * circumference;
+                          const strokeInTransit = (inTransitPercent / 100) * circumference;
+                          
+                          return (
+                            <div className="relative flex items-center justify-center scale-95">
+                              <svg width="150" height="150" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r={radius} fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="10" />
+                                <circle 
+                                  cx="50" 
+                                  cy="50" 
+                                  r={radius} 
+                                  fill="none" 
+                                  stroke="#22C55E" 
+                                  strokeWidth="10" 
+                                  strokeDasharray={`${strokeArrived} ${circumference - strokeArrived}`}
+                                  strokeDashoffset={circumference}
+                                  transform="rotate(-90 50 50)"
+                                  strokeLinecap="round"
+                                />
+                                <circle 
+                                  cx="50" 
+                                  cy="50" 
+                                  r={radius} 
+                                  fill="none" 
+                                  stroke="#8B5CF6" 
+                                  strokeWidth="10" 
+                                  strokeDasharray={`${strokeInTransit} ${circumference - strokeInTransit}`}
+                                  strokeDashoffset={circumference - strokeArrived}
+                                  transform="rotate(-90 50 50)"
+                                  strokeLinecap="round"
+                                />
+                              </svg>
+                              <div className="absolute flex flex-col items-center justify-center text-center">
+                                <span className="text-[28px] font-bold text-white tracking-tight leading-none font-mono">{total.toLocaleString()}</span>
+                                <span className="text-[9px] text-slate-400/75 font-semibold uppercase mt-1 tracking-wider">Total Orders</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 3: Pickup Volume & Arrival Volume */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Pickup Volume Chart */}
                     <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-visible group hover:border-[#F97316]/30 transition-all duration-[180ms] ease-in-out flex flex-col justify-between min-h-[22rem] hover:-translate-y-0.5 hover:shadow-2xl">
                       {/* Card Header & Description */}
                       <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04]">
@@ -2223,7 +2293,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Content Area: Chart viewport (70~80% height) */}
+                      {/* Content Area */}
                       <div className="flex-grow flex items-center justify-center mt-3 relative">
                         {(() => {
                           const vals = pickupTimelineData.map(x => x.orders);
@@ -2282,15 +2352,12 @@ export default function App() {
                                     <stop offset="100%" stopColor="#F97316" stopOpacity="0" />
                                   </linearGradient>
                                 </defs>
-
-                                {/* Grid lines - exactly 5 lines */}
                                 {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
                                   const y = paddingTop + ratio * chartH;
                                   return (
                                     <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.025)" strokeWidth="1" />
                                   );
                                 })}
-
                                 {allZeroOrEqual ? (
                                   <>
                                     <line x1={paddingLeft} y1={paddingTop + 0.5 * chartH} x2={width - paddingRight} y2={paddingTop + 0.5 * chartH} stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" strokeDasharray="4 4" />
@@ -2298,11 +2365,8 @@ export default function App() {
                                   </>
                                 ) : (
                                   <>
-                                    {/* Glow area & Line */}
                                     {areaPath && <path d={areaPath} fill="url(#err-orange-2)" />}
                                     {splinePath && <path d={splinePath} fill="none" stroke="#F97316" strokeWidth="2.5" strokeLinecap="round" />}
-
-                                    {/* Hover dots & Interactive elements */}
                                     {pts.map((p, i) => {
                                       const isHovered = hoveredChartPoint && hoveredChartPoint.chartId === 'pickup' && hoveredChartPoint.hour === p.hour;
                                       return (
@@ -2318,7 +2382,6 @@ export default function App() {
                                             onMouseEnter={() => setHoveredChartPoint({ chartId: 'pickup', hour: p.hour, orders: p.orders, weight: p.weight })}
                                             onMouseLeave={() => setHoveredChartPoint(null)}
                                           />
-                                          {/* Hitbox area for easier hovering */}
                                           <circle 
                                             cx={p.x} 
                                             cy={p.y} 
@@ -2333,8 +2396,6 @@ export default function App() {
                                     })}
                                   </>
                                 )}
-
-                                {/* X labels */}
                                 {Array.from({ length: 24 }).map((_, idx) => {
                                   const xPos = paddingLeft + (idx * chartW) / 23;
                                   const label = `${idx.toString().padStart(2, '0')}`;
@@ -2354,8 +2415,6 @@ export default function App() {
                                   );
                                 })}
                               </svg>
-
-                              {/* Tooltip Overlay */}
                               {hoveredChartPoint && hoveredChartPoint.chartId === 'pickup' && (
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 bg-[#09111c]/95 border border-[#F97316]/50 rounded-xl p-3 shadow-2xl backdrop-blur-md pointer-events-none min-w-[130px]">
                                   <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Khung giờ {hoveredChartPoint.hour}</div>
@@ -2376,7 +2435,6 @@ export default function App() {
                         })()}
                       </div>
                       
-                      {/* Optional Footer & Legend */}
                       <div className="pt-2 border-t border-white/[0.04] text-[11px] text-slate-400/65 flex justify-between items-center">
                         <div className="flex items-center gap-3">
                           <span className="flex items-center gap-1.5">
@@ -2389,11 +2447,9 @@ export default function App() {
                         <span>Last updated: just now</span>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Arrival Volume (Moved to full row width) */}
-                  <div className="w-full">
-                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-visible group hover:border-[#22C55E]/30 transition-all duration-[180ms] ease-in-out flex flex-col justify-between min-h-[22rem]">
+                    {/* Arrival Volume */}
+                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-visible group hover:border-[#22C55E]/30 transition-all duration-[180ms] ease-in-out flex flex-col justify-between min-h-[22rem] hover:-translate-y-0.5 hover:shadow-2xl">
                       {/* Card Header & Description */}
                       <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04]">
                         <div className="w-8 h-8 rounded-lg bg-[#22C55E]/10 text-[#22C55E] flex items-center justify-center shrink-0">
@@ -2409,7 +2465,7 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Content Area: Chart viewport (70~80% height) */}
+                      {/* Content Area */}
                       <div className="flex-grow flex items-center justify-center mt-3 relative">
                         {(() => {
                           const vals = timelineData.map(x => x.orders);
@@ -2468,15 +2524,12 @@ export default function App() {
                                     <stop offset="100%" stopColor="#22C55E" stopOpacity="0" />
                                   </linearGradient>
                                 </defs>
-
-                                {/* Grid lines - exactly 5 lines */}
                                 {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
                                   const y = paddingTop + ratio * chartH;
                                   return (
                                     <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.025)" strokeWidth="1" />
                                   );
                                 })}
-
                                 {allZeroOrEqual ? (
                                   <>
                                     <line x1={paddingLeft} y1={paddingTop + 0.5 * chartH} x2={width - paddingRight} y2={paddingTop + 0.5 * chartH} stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" strokeDasharray="4 4" />
@@ -2484,11 +2537,8 @@ export default function App() {
                                   </>
                                 ) : (
                                   <>
-                                    {/* Glow area & Line */}
                                     {areaPath && <path d={areaPath} fill="url(#arr-green-2)" />}
                                     {splinePath && <path d={splinePath} fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" />}
-
-                                    {/* Interactive hovering points */}
                                     {pts.map((p, i) => {
                                       const isHovered = hoveredChartPoint && hoveredChartPoint.chartId === 'arrival' && hoveredChartPoint.hour === p.hour;
                                       return (
@@ -2504,7 +2554,6 @@ export default function App() {
                                             onMouseEnter={() => setHoveredChartPoint({ chartId: 'arrival', hour: p.hour, orders: p.orders, weight: p.weight })}
                                             onMouseLeave={() => setHoveredChartPoint(null)}
                                           />
-                                          {/* Hitbox area for easier hovering */}
                                           <circle 
                                             cx={p.x} 
                                             cy={p.y} 
@@ -2519,8 +2568,6 @@ export default function App() {
                                     })}
                                   </>
                                 )}
-
-                                {/* X labels */}
                                 {Array.from({ length: 24 }).map((_, idx) => {
                                   const xPos = paddingLeft + (idx * chartW) / 23;
                                   const label = `${idx.toString().padStart(2, '0')}`;
@@ -2540,8 +2587,6 @@ export default function App() {
                                   );
                                 })}
                               </svg>
-
-                              {/* Tooltip Overlay */}
                               {hoveredChartPoint && hoveredChartPoint.chartId === 'arrival' && (
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 bg-[#09111c]/95 border border-[#22C55E]/50 rounded-xl p-3 shadow-2xl backdrop-blur-md pointer-events-none min-w-[130px]">
                                   <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Khung giờ {hoveredChartPoint.hour}</div>
@@ -2562,7 +2607,6 @@ export default function App() {
                         })()}
                       </div>
 
-                      {/* Optional Footer & Legend */}
                       <div className="pt-2 border-t border-white/[0.04] text-[11px] text-slate-400/65 flex justify-between items-center">
                         <div className="flex items-center gap-3">
                           <span className="flex items-center gap-1.5">
@@ -2577,7 +2621,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Row 3: Operational Monitoring */}
+                  {/* Row 4: Operational Monitoring */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Top 10 Sending Stations */}
                     <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl flex flex-col justify-between h-[25rem] group hover:border-[#06B6D4]/30 transition-all duration-[180ms] ease-in-out hover:-translate-y-0.5 hover:shadow-2xl">
