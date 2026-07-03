@@ -750,12 +750,15 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         def get_next_network(row):
             end_net = str(row.get('endNetworkName') or '').strip()
             start_net = str(row.get('startNetworkName') or '').strip()
-            # If the destination is HCM HUB, nextNetworkName is the sender (startNetworkName)
-            if 'HCM' in end_net.upper() or 'SR0001' in end_net.upper():
-                val = start_net
+            next_net = str(row.get('nextNetworkName') or '').strip()
+            
+            # Chỉ lấy các xe có đích đến là HCM HUB (SR0001)
+            is_dest_hcm = 'HCM' in end_net.upper() or 'SR0001' in end_net.upper() or 'HCM' in next_net.upper() or 'SR0001' in next_net.upper()
+            
+            if is_dest_hcm:
+                return d_buucuc.get(start_net, start_net)
             else:
-                val = end_net if end_net else str(row.get('nextNetworkName') or '').strip()
-            return d_buucuc.get(val, val)
+                return '' # Gán trống để lọc bỏ xe không về HCM HUB
 
         df_lh['nextNetworkName'] = df_lh_raw.apply(get_next_network, axis=1)
             

@@ -1957,9 +1957,9 @@ export default function App() {
                 .sort((a, b) => b.weight - a.weight)
                 .slice(0, 10);
 
-              // 4. Incoming vehicles list (filtered to only those not yet unloading/unloaded)
+              // 4. Incoming vehicles list (filtered to only those not yet unloading/unloaded và đích đến là HCM HUB)
               const incomingVehicles = filteredLinehaul
-                .filter(d => !d['unloadingStartTime'] && !d['unloadingEndTime'])
+                .filter(d => !d['unloadingStartTime'] && !d['unloadingEndTime'] && d['nextNetworkName'])
                 .map(d => {
                   const uOrders = parseInt(d['unloadingBillPiece'], 10) || 0;
                   const uWeight = parseFloat(d['unloadingWeight']) || 0;
