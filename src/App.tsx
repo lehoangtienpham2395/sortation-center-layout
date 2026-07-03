@@ -356,6 +356,7 @@ export default function App() {
   const [tickerText, setTickerText] = useState('HỆ THỐNG ỔN ĐỊNH — KHÔNG CÓ CẢNH BÁO');
   const [loading,    setLoading]    = useState(false);
   const [hoveredZone,setHoveredZone] = useState<number | null>(null);
+  const [hoveredChartPoint, setHoveredChartPoint] = useState<{ chartId: string; hour: string; orders: number; weight: number } | null>(null);
 
   // State variables for historic date/type filter
   const [rawSheetRows, setRawSheetRows] = useState<SheetRow[]>([]);
@@ -1898,6 +1899,27 @@ export default function App() {
               });
               const timelineData = Object.values(hourlyData);
 
+              // 2.2. Hourly pickup timeline distribution from Inbound sheet (based on Pickup Time)
+              const hourlyPickupData: Record<string, { hour: string; orders: number; weight: number }> = {};
+              for (let i = 0; i < 24; i++) {
+                const hStr = `${String(i).padStart(2, '0')}:00`;
+                hourlyPickupData[hStr] = { hour: hStr, orders: 0, weight: 0 };
+              }
+              filteredInbound.forEach(d => {
+                const pkTime = d['Pickup Time'];
+                if (pkTime !== undefined && pkTime !== null && pkTime !== '') {
+                  const hrVal = parseInt(String(pkTime), 10);
+                  if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
+                    const hour = `${String(hrVal).padStart(2, '0')}:00`;
+                    if (hourlyPickupData[hour]) {
+                      hourlyPickupData[hour].orders += parseInt(d['Volume'], 10) || 0;
+                      hourlyPickupData[hour].weight += parseFloat(d['Weight']) || 0;
+                    }
+                  }
+                }
+              });
+              const pickupTimelineData = Object.values(hourlyPickupData);
+
               // 2.3. Hourly pending timeline distribution (based on Pickup Time of "Chưa về Hub" status)
               const hourlyPendingData: Record<string, { hour: string; orders: number; weight: number }> = {};
               for (let i = 0; i < 24; i++) {
@@ -2021,8 +2043,8 @@ export default function App() {
 
                   {/* Row 2: Primary Operational Analytics */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Inbound trending hourly Chart (formerly Pickup Volume, now showing pending trend) */}
-                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#8B5CF6]/30 transition-all duration-[180ms] ease-in-out flex flex-col justify-between min-h-[22rem] hover:-translate-y-0.5 hover:shadow-2xl">
+                    {/* Inbound trending hourly Chart */}
+                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-visible group hover:border-[#8B5CF6]/30 transition-all duration-[180ms] ease-in-out flex flex-col justify-between min-h-[22rem] hover:-translate-y-0.5 hover:shadow-2xl">
                       {/* Card Header & Description */}
                       <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04]">
                         <div className="w-8 h-8 rounded-lg bg-[#8B5CF6]/10 text-[#8B5CF6] flex items-center justify-center shrink-0">
@@ -2039,7 +2061,7 @@ export default function App() {
                       </div>
 
                       {/* Content Area: Chart viewport (70~80% height) */}
-                      <div className="flex-grow flex items-center justify-center mt-3">
+                      <div className="flex-grow flex items-center justify-center mt-3 relative">
                         {(() => {
                           const vals = pendingTimelineData.map(x => x.orders);
                           const maxValReal = Math.max(...vals, 0);
@@ -2064,7 +2086,10 @@ export default function App() {
 
                           const pts = pendingTimelineData.map((d, i) => ({
                             x: paddingLeft + i * dx,
-                            y: height - paddingBottom - ((d.orders - minVal) / effectiveRange) * chartH
+                            y: height - paddingBottom - ((d.orders - minVal) / effectiveRange) * chartH,
+                            hour: d.hour,
+                            orders: d.orders,
+                            weight: d.weight
                           }));
 
                           let splinePath = '';
@@ -2086,7 +2111,7 @@ export default function App() {
                             : '';
 
                           return (
-                            <div className="w-full">
+                            <div className="w-full relative">
                               <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
                                 <defs>
                                   <linearGradient id="err-purple-2" x1="0" y1="0" x2="0" y2="1">
@@ -2114,10 +2139,35 @@ export default function App() {
                                     {areaPath && <path d={areaPath} fill="url(#err-purple-2)" />}
                                     {splinePath && <path d={splinePath} fill="none" stroke="#8B5CF6" strokeWidth="2.5" strokeLinecap="round" />}
 
-                                    {/* Hover dots */}
-                                    {pts.map((p, i) => (
-                                      <circle key={i} cx={p.x} cy={p.y} r="3" fill="#8B5CF6" className="transition-all duration-150 hover:r-4 cursor-pointer" />
-                                    ))}
+                                    {/* Hover dots & Interactive elements */}
+                                    {pts.map((p, i) => {
+                                      const isHovered = hoveredChartPoint && hoveredChartPoint.chartId === 'pending' && hoveredChartPoint.hour === p.hour;
+                                      return (
+                                        <g key={i}>
+                                          <circle 
+                                            cx={p.x} 
+                                            cy={p.y} 
+                                            r={isHovered ? "5" : "3"} 
+                                            fill="#8B5CF6" 
+                                            stroke={isHovered ? "#fff" : "none"}
+                                            strokeWidth="1.5"
+                                            className="transition-all duration-150 cursor-pointer" 
+                                            onMouseEnter={() => setHoveredChartPoint({ chartId: 'pending', hour: p.hour, orders: p.orders, weight: p.weight })}
+                                            onMouseLeave={() => setHoveredChartPoint(null)}
+                                          />
+                                          {/* Hitbox area for easier hovering */}
+                                          <circle 
+                                            cx={p.x} 
+                                            cy={p.y} 
+                                            r="12" 
+                                            fill="transparent" 
+                                            className="cursor-pointer"
+                                            onMouseEnter={() => setHoveredChartPoint({ chartId: 'pending', hour: p.hour, orders: p.orders, weight: p.weight })}
+                                            onMouseLeave={() => setHoveredChartPoint(null)}
+                                          />
+                                        </g>
+                                      );
+                                    })}
                                   </>
                                 )}
 
@@ -2141,6 +2191,23 @@ export default function App() {
                                   );
                                 })}
                               </svg>
+
+                              {/* Tooltip Overlay */}
+                              {hoveredChartPoint && hoveredChartPoint.chartId === 'pending' && (
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 bg-[#09111c]/95 border border-[#8B5CF6]/50 rounded-xl p-3 shadow-2xl backdrop-blur-md pointer-events-none min-w-[130px]">
+                                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Khung giờ {hoveredChartPoint.hour}</div>
+                                  <div className="mt-1.5 space-y-1">
+                                    <div className="flex justify-between text-xs gap-3">
+                                      <span className="text-slate-300">Đơn chờ dỡ:</span>
+                                      <span className="font-bold text-white font-mono">{hoveredChartPoint.orders.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs gap-3">
+                                      <span className="text-slate-300">Tổng trọng lượng:</span>
+                                      <span className="font-bold text-[#8B5CF6] font-mono">{Math.round(hoveredChartPoint.weight).toLocaleString()} kg</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           );
                         })()}
@@ -2160,8 +2227,194 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Arrival Volume Chart */}
-                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#22C55E]/30 transition-all duration-[180ms] ease-in-out flex flex-col justify-between min-h-[22rem]">
+                    {/* Pickup Volume Chart (formerly top-right) */}
+                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-visible group hover:border-[#F97316]/30 transition-all duration-[180ms] ease-in-out flex flex-col justify-between min-h-[22rem] hover:-translate-y-0.5 hover:shadow-2xl">
+                      {/* Card Header & Description */}
+                      <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04]">
+                        <div className="w-8 h-8 rounded-lg bg-[#F97316]/10 text-[#F97316] flex items-center justify-center shrink-0">
+                          <TrendingUp size={16} strokeWidth={2} />
+                        </div>
+                        <div>
+                          <h3 className="text-[15px] font-semibold text-white leading-tight">Pickup Volume</h3>
+                          <p className="text-xs text-slate-400/65 mt-0.5">Theo dõi sản lượng gom hàng từ bưu cục gửi</p>
+                        </div>
+                        <div className="ml-auto text-right">
+                          <span className="text-[24px] font-bold text-white tracking-tight leading-none block font-mono">{stages['Đã về Hub'].orders + stages['Chưa về Hub'].orders ? (stages['Đã về Hub'].orders + stages['Chưa về Hub'].orders).toLocaleString() : '0'}</span>
+                          <span className="text-[10px] text-slate-400/75 uppercase mt-1 block">Tổng đơn gom</span>
+                        </div>
+                      </div>
+
+                      {/* Content Area: Chart viewport (70~80% height) */}
+                      <div className="flex-grow flex items-center justify-center mt-3 relative">
+                        {(() => {
+                          const vals = pickupTimelineData.map(x => x.orders);
+                          const maxValReal = Math.max(...vals, 0);
+                          const minValReal = Math.min(...vals, 0);
+                          const valRange = maxValReal - minValReal;
+                          const yPad = valRange === 0 ? (maxValReal === 0 ? 10 : maxValReal * 0.15) : valRange * 0.15;
+                          const maxVal = maxValReal + yPad;
+                          const minVal = Math.max(0, minValReal - yPad);
+                          const effectiveRange = maxVal - minVal || 1;
+                          const allZeroOrEqual = vals.every(v => v === vals[0]);
+
+                          const width = 500;
+                          const height = 180;
+                          const paddingLeft = 30;
+                          const paddingRight = 10;
+                          const paddingTop = 10;
+                          const paddingBottom = 20;
+
+                          const chartW = width - paddingLeft - paddingRight;
+                          const chartH = height - paddingTop - paddingBottom;
+                          const dx = chartW / 23;
+
+                          const pts = pickupTimelineData.map((d, i) => ({
+                            x: paddingLeft + i * dx,
+                            y: height - paddingBottom - ((d.orders - minVal) / effectiveRange) * chartH,
+                            hour: d.hour,
+                            orders: d.orders,
+                            weight: d.weight
+                          }));
+
+                          let splinePath = '';
+                          if (pts.length > 0) {
+                            splinePath = `M ${pts[0].x} ${pts[0].y}`;
+                            for (let i = 0; i < pts.length - 1; i++) {
+                              const p0 = pts[i];
+                              const p1 = pts[i + 1];
+                              const cpX1 = p0.x + (p1.x - p0.x) / 3;
+                              const cpY1 = p0.y;
+                              const cpX2 = p0.x + 2 * (p1.x - p0.x) / 3;
+                              const cpY2 = p1.y;
+                              splinePath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
+                            }
+                          }
+
+                          const areaPath = splinePath 
+                            ? `${splinePath} L ${pts[pts.length - 1].x} ${height - paddingBottom} L ${pts[0].x} ${height - paddingBottom} Z` 
+                            : '';
+
+                          return (
+                            <div className="w-full relative">
+                              <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
+                                <defs>
+                                  <linearGradient id="err-orange-2" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#F97316" stopOpacity="0.15" />
+                                    <stop offset="100%" stopColor="#F97316" stopOpacity="0" />
+                                  </linearGradient>
+                                </defs>
+
+                                {/* Grid lines - exactly 5 lines */}
+                                {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+                                  const y = paddingTop + ratio * chartH;
+                                  return (
+                                    <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.025)" strokeWidth="1" />
+                                  );
+                                })}
+
+                                {allZeroOrEqual ? (
+                                  <>
+                                    <line x1={paddingLeft} y1={paddingTop + 0.5 * chartH} x2={width - paddingRight} y2={paddingTop + 0.5 * chartH} stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" strokeDasharray="4 4" />
+                                    <text x={width / 2} y={paddingTop + 0.5 * chartH - 6} fill="#94A3B8" fontSize="8" textAnchor="middle" className="font-sans font-medium">Không ghi nhận sản lượng phát sinh</text>
+                                  </>
+                                ) : (
+                                  <>
+                                    {/* Glow area & Line */}
+                                    {areaPath && <path d={areaPath} fill="url(#err-orange-2)" />}
+                                    {splinePath && <path d={splinePath} fill="none" stroke="#F97316" strokeWidth="2.5" strokeLinecap="round" />}
+
+                                    {/* Hover dots & Interactive elements */}
+                                    {pts.map((p, i) => {
+                                      const isHovered = hoveredChartPoint && hoveredChartPoint.chartId === 'pickup' && hoveredChartPoint.hour === p.hour;
+                                      return (
+                                        <g key={i}>
+                                          <circle 
+                                            cx={p.x} 
+                                            cy={p.y} 
+                                            r={isHovered ? "5" : "3"} 
+                                            fill="#F97316" 
+                                            stroke={isHovered ? "#fff" : "none"}
+                                            strokeWidth="1.5"
+                                            className="transition-all duration-150 cursor-pointer" 
+                                            onMouseEnter={() => setHoveredChartPoint({ chartId: 'pickup', hour: p.hour, orders: p.orders, weight: p.weight })}
+                                            onMouseLeave={() => setHoveredChartPoint(null)}
+                                          />
+                                          {/* Hitbox area for easier hovering */}
+                                          <circle 
+                                            cx={p.x} 
+                                            cy={p.y} 
+                                            r="12" 
+                                            fill="transparent" 
+                                            className="cursor-pointer"
+                                            onMouseEnter={() => setHoveredChartPoint({ chartId: 'pickup', hour: p.hour, orders: p.orders, weight: p.weight })}
+                                            onMouseLeave={() => setHoveredChartPoint(null)}
+                                          />
+                                        </g>
+                                      );
+                                    })}
+                                  </>
+                                )}
+
+                                {/* X labels */}
+                                {Array.from({ length: 24 }).map((_, idx) => {
+                                  const xPos = paddingLeft + (idx * chartW) / 23;
+                                  const label = `${idx.toString().padStart(2, '0')}`;
+                                  return (
+                                    <text
+                                      key={idx}
+                                      x={xPos}
+                                      y={height - 4}
+                                      fill="#94A3B8"
+                                      fontSize="11"
+                                      fontWeight="bold"
+                                      className="font-mono"
+                                      textAnchor="middle"
+                                    >
+                                      {label}
+                                    </text>
+                                  );
+                                })}
+                              </svg>
+
+                              {/* Tooltip Overlay */}
+                              {hoveredChartPoint && hoveredChartPoint.chartId === 'pickup' && (
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 bg-[#09111c]/95 border border-[#F97316]/50 rounded-xl p-3 shadow-2xl backdrop-blur-md pointer-events-none min-w-[130px]">
+                                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Khung giờ {hoveredChartPoint.hour}</div>
+                                  <div className="mt-1.5 space-y-1">
+                                    <div className="flex justify-between text-xs gap-3">
+                                      <span className="text-slate-300">Đơn gom:</span>
+                                      <span className="font-bold text-white font-mono">{hoveredChartPoint.orders.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs gap-3">
+                                      <span className="text-slate-300">Tổng trọng lượng:</span>
+                                      <span className="font-bold text-[#F97316] font-mono">{Math.round(hoveredChartPoint.weight).toLocaleString()} kg</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                      
+                      {/* Optional Footer & Legend */}
+                      <div className="pt-2 border-t border-white/[0.04] text-[11px] text-slate-400/65 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#F97316]" />
+                            Sản lượng gom
+                          </span>
+                          <span>•</span>
+                          <span>Khung giờ: 24h</span>
+                        </div>
+                        <span>Last updated: just now</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Arrival Volume (Moved to full row width) */}
+                  <div className="w-full">
+                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-visible group hover:border-[#22C55E]/30 transition-all duration-[180ms] ease-in-out flex flex-col justify-between min-h-[22rem]">
                       {/* Card Header & Description */}
                       <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04]">
                         <div className="w-8 h-8 rounded-lg bg-[#22C55E]/10 text-[#22C55E] flex items-center justify-center shrink-0">
@@ -2178,7 +2431,7 @@ export default function App() {
                       </div>
 
                       {/* Content Area: Chart viewport (70~80% height) */}
-                      <div className="flex-grow flex items-center justify-center mt-3">
+                      <div className="flex-grow flex items-center justify-center mt-3 relative">
                         {(() => {
                           const vals = timelineData.map(x => x.orders);
                           const maxValReal = Math.max(...vals, 0);
@@ -2203,7 +2456,10 @@ export default function App() {
 
                           const pts = timelineData.map((d, i) => ({
                             x: paddingLeft + i * dx,
-                            y: height - paddingBottom - ((d.orders - minVal) / effectiveRange) * chartH
+                            y: height - paddingBottom - ((d.orders - minVal) / effectiveRange) * chartH,
+                            hour: d.hour,
+                            orders: d.orders,
+                            weight: d.weight
                           }));
 
                           let splinePath = '';
@@ -2225,7 +2481,7 @@ export default function App() {
                             : '';
 
                           return (
-                            <div className="w-full">
+                            <div className="w-full relative">
                               <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
                                 <defs>
                                   <linearGradient id="arr-green-2" x1="0" y1="0" x2="0" y2="1">
@@ -2254,16 +2510,74 @@ export default function App() {
                                     {splinePath && <path d={splinePath} fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" />}
 
                                     {/* Interactive hovering points */}
-                                    {pts.map((p, i) => (
-                                      <circle key={i} cx={p.x} cy={p.y} r="3" fill="#22C55E" className="transition-all duration-150 hover:r-4 cursor-pointer" />
-                                    ))}
+                                    {pts.map((p, i) => {
+                                      const isHovered = hoveredChartPoint && hoveredChartPoint.chartId === 'arrival' && hoveredChartPoint.hour === p.hour;
+                                      return (
+                                        <g key={i}>
+                                          <circle 
+                                            cx={p.x} 
+                                            cy={p.y} 
+                                            r={isHovered ? "5" : "3"} 
+                                            fill="#22C55E" 
+                                            stroke={isHovered ? "#fff" : "none"}
+                                            strokeWidth="1.5"
+                                            className="transition-all duration-150 cursor-pointer" 
+                                            onMouseEnter={() => setHoveredChartPoint({ chartId: 'arrival', hour: p.hour, orders: p.orders, weight: p.weight })}
+                                            onMouseLeave={() => setHoveredChartPoint(null)}
+                                          />
+                                          {/* Hitbox area for easier hovering */}
+                                          <circle 
+                                            cx={p.x} 
+                                            cy={p.y} 
+                                            r="12" 
+                                            fill="transparent" 
+                                            className="cursor-pointer"
+                                            onMouseEnter={() => setHoveredChartPoint({ chartId: 'arrival', hour: p.hour, orders: p.orders, weight: p.weight })}
+                                            onMouseLeave={() => setHoveredChartPoint(null)}
+                                          />
+                                        </g>
+                                      );
+                                    })}
                                   </>
                                 )}
 
                                 {/* X labels */}
-                                <text x={paddingLeft} y={height - 4} fill="#94A3B8" fontSize="8" className="font-mono text-left">00:00</text>
-                                <text x={width - paddingRight} y={height - 4} fill="#94A3B8" fontSize="8" textAnchor="end" className="font-mono">23:00</text>
+                                {Array.from({ length: 24 }).map((_, idx) => {
+                                  const xPos = paddingLeft + (idx * chartW) / 23;
+                                  const label = `${idx.toString().padStart(2, '0')}`;
+                                  return (
+                                    <text
+                                      key={idx}
+                                      x={xPos}
+                                      y={height - 4}
+                                      fill="#94A3B8"
+                                      fontSize="11"
+                                      fontWeight="bold"
+                                      className="font-mono"
+                                      textAnchor="middle"
+                                    >
+                                      {label}
+                                    </text>
+                                  );
+                                })}
                               </svg>
+
+                              {/* Tooltip Overlay */}
+                              {hoveredChartPoint && hoveredChartPoint.chartId === 'arrival' && (
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-35 bg-[#09111c]/95 border border-[#22C55E]/50 rounded-xl p-3 shadow-2xl backdrop-blur-md pointer-events-none min-w-[130px]">
+                                  <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Khung giờ {hoveredChartPoint.hour}</div>
+                                  <div className="mt-1.5 space-y-1">
+                                    <div className="flex justify-between text-xs gap-3">
+                                      <span className="text-slate-300">Đơn nhập HUB:</span>
+                                      <span className="font-bold text-white font-mono">{hoveredChartPoint.orders.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs gap-3">
+                                      <span className="text-slate-300">Tổng trọng lượng:</span>
+                                      <span className="font-bold text-[#22C55E] font-mono">{Math.round(hoveredChartPoint.weight).toLocaleString()} kg</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           );
                         })()}
