@@ -887,24 +887,11 @@ def run_once(session, token_mgr, rebuild_days=None):
         run_outbound = True
         run_backlog_inv = True
     else:
-        hour = now.hour
-        # Khung giờ chốt ca: 06:00 - 06:59
-        if hour == 6:
-            print("⏰ Khung giờ chốt ca (6:00 AM VN) -> Chạy tất cả các mô-đun (Outbound, Backlog, Inventory)")
-            DATE_START = (now - timedelta(days=2)).strftime('%Y-%m-%d') + ' 06:00:00'
-            DATE_END   = now.strftime('%Y-%m-%d %H:%M:%S')  # Query up to current second
-            run_outbound = True
-            run_backlog_inv = True
-        # Khung giờ realtime: 13:00 - 05:59 sáng hôm sau
-        elif hour >= 13 or hour <= 5:
-            print(f"⏰ Khung giờ realtime ({hour}:00 VN) -> Chạy cả Outbound để lọc Backlog")
-            DATE_START = (now - timedelta(days=2)).strftime('%Y-%m-%d') + ' 06:00:00'
-            DATE_END   = now.strftime('%Y-%m-%d %H:%M:%S')  # Query up to current second
-            run_outbound = True
-            run_backlog_inv = True
-        else:
-            print(f"💤 Ngoài khung giờ hoạt động ({hour}:00 VN). Tự động thoát.")
-            return
+        # Chạy 24/7 để đảm bảo dữ liệu luôn được đồng bộ khi có kích hoạt hoặc chạy định kỳ
+        DATE_START = (now - timedelta(days=2)).strftime('%Y-%m-%d') + ' 06:00:00'
+        DATE_END   = now.strftime('%Y-%m-%d %H:%M:%S')  # Query up to current second
+        run_outbound = True
+        run_backlog_inv = True
 
     # Sync valid config sheet if possible
     creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
