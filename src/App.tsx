@@ -2869,7 +2869,8 @@ export default function App() {
       ) : ( 
         /* ── MOBILE LAYOUT ── */
         <>
-          {/* Compact mobile filter bar - sits below header, above content */}
+          {/* Compact mobile filter bar - chỉ hiện khi xem Sơ đồ */}
+          {activeTab === 'layout' && (
           <div className="absolute top-12 left-0 right-0 z-30 flex gap-1.5 items-center px-3 py-1.5 bg-[#09111C]/90 backdrop-blur-sm border-b border-white/[0.06]">
             <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)}
                     className="flex-1 bg-[#121824] text-white text-[10px] font-bold py-1 px-2 rounded border border-white/5 outline-none cursor-pointer">
@@ -2889,6 +2890,7 @@ export default function App() {
               {loading ? '...' : 'Sync'}
             </button>
           </div>
+          )}
 
           <div className="w-full h-full pt-20 pb-24 px-4 overflow-hidden flex flex-col justify-between">
             {activeTab === 'layout' && (
@@ -3076,7 +3078,6 @@ export default function App() {
                 </div>
               </div>
             )}
-          </div>
 
             {activeTab === 'inbound' && (
               <div className="w-full h-full overflow-y-auto space-y-4 px-1 pt-2 pb-6">
@@ -3151,6 +3152,8 @@ export default function App() {
                 </div>
               </div>
             )}
+
+          </div>
 
           {/* Bottom Navigation Bar */}
           <div className="mobile-nav">
