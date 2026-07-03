@@ -1920,28 +1920,7 @@ export default function App() {
               });
               const pickupTimelineData = Object.values(hourlyPickupData);
 
-              // 2.3. Hourly pending timeline distribution (based on Pickup Time of "Chưa về Hub" status)
-              const hourlyPendingData: Record<string, { hour: string; orders: number; weight: number }> = {};
-              for (let i = 0; i < 24; i++) {
-                const hStr = `${String(i).padStart(2, '0')}:00`;
-                hourlyPendingData[hStr] = { hour: hStr, orders: 0, weight: 0 };
-              }
-              filteredInbound.forEach(d => {
-                if (d['Trạng thái'] !== 'Đã về Hub' && d['Trạng thái'] !== 'Đã nhập hàng') {
-                  const pkTime = d['Pickup Time'];
-                  if (pkTime !== undefined && pkTime !== null && pkTime !== '') {
-                    const hrVal = parseInt(String(pkTime), 10);
-                    if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
-                      const hour = `${String(hrVal).padStart(2, '0')}:00`;
-                      if (hourlyPendingData[hour]) {
-                        hourlyPendingData[hour].orders += parseInt(d['Volume'], 10) || 0;
-                        hourlyPendingData[hour].weight += parseFloat(d['Weight']) || 0;
-                      }
-                    }
-                  }
-                }
-              });
-              const pendingTimelineData = Object.values(hourlyPendingData);
+
 
               // 3. Group metrics per sending FC (filtered)
               const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
@@ -2052,18 +2031,18 @@ export default function App() {
                         </div>
                         <div>
                           <h3 className="text-[15px] font-semibold text-white leading-tight">Inbound trend hourly</h3>
-                          <p className="text-xs text-slate-400/65 mt-0.5">Theo dõi lượng hàng còn chờ nhập HUB</p>
+                          <p className="text-xs text-slate-400/65 mt-0.5">Theo dõi sản lượng hàng đã dỡ thành công tại HUB</p>
                         </div>
                         <div className="ml-auto text-right">
-                          <span className="text-[24px] font-bold text-white tracking-tight leading-none block font-mono">{stages['Chưa về Hub'].orders.toLocaleString()}</span>
-                          <span className="text-[10px] text-slate-400/75 uppercase mt-1 block">Đơn chờ dỡ</span>
+                          <span className="text-[24px] font-bold text-white tracking-tight leading-none block font-mono">{stages['Đã về Hub'].orders.toLocaleString()}</span>
+                          <span className="text-[10px] text-slate-400/75 uppercase mt-1 block">Đơn đã dỡ</span>
                         </div>
                       </div>
 
                       {/* Content Area: Chart viewport (70~80% height) */}
                       <div className="flex-grow flex items-center justify-center mt-3 relative">
                         {(() => {
-                          const vals = pendingTimelineData.map(x => x.orders);
+                          const vals = timelineData.map(x => x.orders);
                           const maxValReal = Math.max(...vals, 0);
                           const minValReal = Math.min(...vals, 0);
                           const valRange = maxValReal - minValReal;
@@ -2084,7 +2063,7 @@ export default function App() {
                           const chartH = height - paddingTop - paddingBottom;
                           const dx = chartW / 23;
 
-                          const pts = pendingTimelineData.map((d, i) => ({
+                          const pts = timelineData.map((d, i) => ({
                             x: paddingLeft + i * dx,
                             y: height - paddingBottom - ((d.orders - minVal) / effectiveRange) * chartH,
                             hour: d.hour,
@@ -2198,7 +2177,7 @@ export default function App() {
                                   <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Khung giờ {hoveredChartPoint.hour}</div>
                                   <div className="mt-1.5 space-y-1">
                                     <div className="flex justify-between text-xs gap-3">
-                                      <span className="text-slate-300">Đơn chờ dỡ:</span>
+                                      <span className="text-slate-300">Đơn đã dỡ:</span>
                                       <span className="font-bold text-white font-mono">{hoveredChartPoint.orders.toLocaleString()}</span>
                                     </div>
                                     <div className="flex justify-between text-xs gap-3">
