@@ -43,4 +43,6 @@ jobs:
         SYSTEM_PASSWORD: ${{ secrets.SYSTEM_PASSWORD }}
         GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
       run: |
-        python backend_sync/sync_to_sheets.py
+        python backend_sync/sync_to_sheets.py > sync_output.log 2>&1
+        cat sync_output.log
+
