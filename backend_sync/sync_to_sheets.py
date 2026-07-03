@@ -738,57 +738,91 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
     df_inbound_aggregated = pd.DataFrame(final_rows)
     write_sheet("Inbound", df_inbound_aggregated, ["Bưu cục", "Trạng thái", "Volume", "Weight", "Ngày vận hành", "Inbound Hour", "Pickup Time"])
 
-    # 4. Linehaul
+    # 4. Linehaul (Gộp các dòng trùng Phiếu nhiệm vụ con để kết hợp thông tin gửi & dỡ)
     df_lh_raw = pd.DataFrame(results.get('linehaul', []))
     df_lh = pd.DataFrame()
     if not df_lh_raw.empty:
-        df_lh['Phiếu nhiệm vụ'] = df_lh_raw['traceCode'].fillna('') if 'traceCode' in df_lh_raw.columns else ''
-        df_lh['Phiếu nhiệm vụ con'] = df_lh_raw['traceSubCode'].fillna('') if 'traceSubCode' in df_lh_raw.columns else ''
-        df_lh['sendTime'] = df_lh_raw['sendTime'].fillna('') if 'sendTime' in df_lh_raw.columns else ''
-        df_lh['loadingEndTime'] = df_lh_raw['loadingEndTime'].fillna('') if 'loadingEndTime' in df_lh_raw.columns else ''
+        # Chuẩn hóa cột
+        for col in ['traceCode', 'traceSubCode', 'sendTime', 'loadingEndTime', 'endNetworkName', 'startNetworkName', 'nextNetworkName', 'unloadingStartTime', 'unloadingEndTime', 'unloadingBillPiece', 'unloadingWeight', 'billPiece', 'totalBillPiece', 'loadBillPiece', 'weight', 'totalWeight', 'loadWeight']:
+            if col not in df_lh_raw.columns:
+                df_lh_raw[col] = None
         
-        def get_next_network(row):
+        # Chọn các cột sản lượng gửi
+        bill_col = 'billPiece' if 'billPiece' in df_lh_raw.columns and df_lh_raw['billPiece'].notna().any() else ('totalBillPiece' if 'totalBillPiece' in df_lh_raw.columns and df_lh_raw['totalBillPiece'].notna().any() else ('loadBillPiece' if 'loadBillPiece' in df_lh_raw.columns and df_lh_raw['loadBillPiece'].notna().any() else 'unloadingBillPiece'))
+        weight_col = 'weight' if 'weight' in df_lh_raw.columns and df_lh_raw['weight'].notna().any() else ('totalWeight' if 'totalWeight' in df_lh_raw.columns and df_lh_raw['totalWeight'].notna().any() else ('loadWeight' in df_lh_raw.columns and df_lh_raw['loadWeight'].notna().any() else 'unloadingWeight'))
+        
+        df_lh_raw['billPiece_clean'] = pd.to_numeric(df_lh_raw[bill_col], errors='coerce').fillna(0)
+        df_lh_raw['weight_clean'] = pd.to_numeric(df_lh_raw[weight_col], errors='coerce').fillna(0)
+        df_lh_raw['unloadingBillPiece_clean'] = pd.to_numeric(df_lh_raw['unloadingBillPiece'], errors='coerce').fillna(0)
+        df_lh_raw['unloadingWeight_clean'] = pd.to_numeric(df_lh_raw['unloadingWeight'], errors='coerce').fillna(0)
+        
+        # Tạo hàm lấy nextNetworkName (StartNetworkName) nếu đi đến HCM HUB
+        def get_next_network_val(row):
             end_net = str(row.get('endNetworkName') or '').strip()
             start_net = str(row.get('startNetworkName') or '').strip()
             next_net = str(row.get('nextNetworkName') or '').strip()
-            
-            # Chỉ lấy các xe có đích đến là HCM HUB (SR0001)
             is_dest_hcm = 'HCM' in end_net.upper() or 'SR0001' in end_net.upper() or 'HCM' in next_net.upper() or 'SR0001' in next_net.upper()
-            
             if is_dest_hcm:
                 return d_buucuc.get(start_net, start_net)
-            else:
-                return '' # Gán trống để lọc bỏ xe không về HCM HUB
-
-        df_lh['nextNetworkName'] = df_lh_raw.apply(get_next_network, axis=1)
+            return ''
             
-        df_lh['unloadingStartTime'] = df_lh_raw['unloadingStartTime'].fillna('') if 'unloadingStartTime' in df_lh_raw.columns else ''
-        df_lh['unloadingEndTime'] = df_lh_raw['unloadingEndTime'].fillna('') if 'unloadingEndTime' in df_lh_raw.columns else ''
-        
-        # Lấy sản lượng gửi dự phòng nếu chưa dỡ
-        bill_col = 'billPiece' if 'billPiece' in df_lh_raw.columns else ('totalBillPiece' if 'totalBillPiece' in df_lh_raw.columns else ('loadBillPiece' if 'loadBillPiece' in df_lh_raw.columns else 'unloadingBillPiece'))
-        weight_col = 'weight' if 'weight' in df_lh_raw.columns else ('totalWeight' if 'totalWeight' in df_lh_raw.columns else ('loadWeight' if 'loadWeight' in df_lh_raw.columns else 'unloadingWeight'))
-        
-        df_lh['billPiece'] = df_lh_raw[bill_col].fillna(0) if bill_col in df_lh_raw.columns else 0
-        df_lh['weight'] = df_lh_raw[weight_col].fillna(0) if weight_col in df_lh_raw.columns else 0
-        df_lh['unloadingBillPiece'] = df_lh_raw['unloadingBillPiece'].fillna(0) if 'unloadingBillPiece' in df_lh_raw.columns else 0
-        df_lh['unloadingWeight'] = df_lh_raw['unloadingWeight'].fillna(0) if 'unloadingWeight' in df_lh_raw.columns else 0
+        df_lh_raw['nextNetworkName_clean'] = df_lh_raw.apply(get_next_network_val, axis=1)
 
-        def get_lh_operating_date_row(row):
-            ust = str(row.get('unloadingStartTime') or '').strip()
-            uet = str(row.get('unloadingEndTime') or '').strip()
-            send_t = str(row.get('sendTime') or '').strip()
-            load_et = str(row.get('loadingEndTime') or '').strip()
+        # Định nghĩa hàm gộp (chọn giá trị không rỗng/lớn nhất)
+        def aggregate_lh(group):
+            # Lấy dòng có thông tin gửi
+            send_t = group['sendTime'].dropna().str.strip().replace('', None).dropna()
+            send_val = send_t.iloc[0] if not send_t.empty else ''
             
-            ust_valid = ust if ust.lower() not in ('', 'nan', 'none') else ''
-            uet_valid = uet if uet.lower() not in ('', 'nan', 'none') else ''
-            send_valid = send_t if send_t.lower() not in ('', 'nan', 'none') else ''
-            load_valid = load_et if load_et.lower() not in ('', 'nan', 'none') else ''
+            load_et = group['loadingEndTime'].dropna().str.strip().replace('', None).dropna()
+            load_val = load_et.iloc[0] if not load_et.empty else ''
+            
+            # Lấy dòng có thông tin dỡ
+            ust = group['unloadingStartTime'].dropna().str.strip().replace('', None).dropna()
+            ust_val = ust.iloc[0] if not ust.empty else ''
+            
+            uet = group['unloadingEndTime'].dropna().str.strip().replace('', None).dropna()
+            uet_val = uet.iloc[0] if not uet.empty else ''
+            
+            # Lấy FC gửi lớn nhất hoặc không rỗng
+            fc_names = group['nextNetworkName_clean'].dropna().str.strip().replace('', None).dropna()
+            fc_val = fc_names.iloc[0] if not fc_names.empty else ''
+            
+            # Lấy sản lượng max hoặc sum phù hợp
+            b_piece = group['billPiece_clean'].max()
+            wt = group['weight_clean'].max()
+            un_piece = group['unloadingBillPiece_clean'].max()
+            un_wt = group['unloadingWeight_clean'].max()
+            
+            # Tính ngày vận hành
+            ust_valid = ust_val if ust_val.lower() not in ('', 'nan', 'none') else ''
+            uet_valid = uet_val if uet_val.lower() not in ('', 'nan', 'none') else ''
+            send_valid = send_val if send_val.lower() not in ('', 'nan', 'none') else ''
+            load_valid = load_val if load_val.lower() not in ('', 'nan', 'none') else ''
             
             dt_src = ust_valid if ust_valid else (uet_valid if uet_valid else (send_valid if send_valid else load_valid))
-            return get_operating_date(dt_src)
+            op_date = get_operating_date(dt_src)
+            
+            return pd.Series({
+                'Phiếu nhiệm vụ': group['traceCode'].dropna().iloc[0] if not group['traceCode'].dropna().empty else '',
+                'sendTime': send_val,
+                'loadingEndTime': load_val,
+                'nextNetworkName': fc_val,
+                'unloadingStartTime': ust_val,
+                'unloadingEndTime': uet_val,
+                'unloadingBillPiece': un_piece,
+                'unloadingWeight': un_wt,
+                'billPiece': b_piece,
+                'weight': wt,
+                'Ngày vận hành': op_date
+            })
 
-        df_lh['Ngày vận hành'] = df_lh_raw.apply(get_lh_operating_date_row, axis=1)
+        # Gộp theo traceSubCode (Phiếu nhiệm vụ con)
+        df_lh = df_lh_raw.groupby('traceSubCode', as_index=False).apply(aggregate_lh)
+        df_lh.rename(columns={'traceSubCode': 'Phiếu nhiệm vụ con'}, inplace=True)
+        
+        # Chỉ giữ lại các dòng đi về HCM HUB (nextNetworkName không rỗng)
+        df_lh = df_lh[df_lh['nextNetworkName'].astype(str).str.strip() != '']
 
     write_sheet("Linehaul", df_lh, ["Phiếu nhiệm vụ", "Phiếu nhiệm vụ con", "sendTime", "loadingEndTime", "nextNetworkName", "unloadingStartTime", "unloadingEndTime", "unloadingBillPiece", "unloadingWeight", "billPiece", "weight", "Ngày vận hành"])
 
