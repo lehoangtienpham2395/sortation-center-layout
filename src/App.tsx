@@ -8,7 +8,8 @@ import {
   Power,
   ListOrdered,
   Menu,
-  Inbox
+  Inbox,
+  Truck
 } from 'lucide-react';
 
 // ── Rack / chute definitions (Cập nhật: Zone 3 = 23 chutes + 24 trucks, Zone 2 = 23 chutes + 23 trucks, Zone 1 = 15 chutes) ──
@@ -1953,14 +1954,14 @@ export default function App() {
                 <div className="w-full max-w-7xl mx-auto space-y-6 pb-12 text-slate-100 font-sans">
                   
                   {/* 1. Header & Title Block */}
-                  <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/[0.06] pb-5 gap-4">
                     <div className="space-y-1">
                       <h1 className="text-[18px] font-semibold text-white tracking-tight">Inbound Dashboard</h1>
-                      <p className="text-xs text-[#94A3B8] font-normal">Today's Operational Overview</p>
+                      <p className="text-xs text-[#94A3B8] font-normal">Operational Overview of Today's Inbound Activities</p>
                     </div>
                     
                     {/* Filter & Sync Block */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-4 text-xs">
                       {/* Operating Date Dropdown */}
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] text-[#94A3B8] font-bold uppercase tracking-wider">Ngày vận hành:</span>
@@ -1980,20 +1981,36 @@ export default function App() {
                       </div>
 
                       <span className="text-xs font-mono text-white/10">|</span>
-                      <span className="text-xs font-mono text-[#94A3B8] uppercase">Last Sync: {new Date().toLocaleTimeString()}</span>
+
+                      {/* System Status */}
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#172132] border border-white/10 rounded-xl">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
+                        <span className="text-[#94A3B8] font-semibold">SYS: ONLINE</span>
+                      </div>
+
+                      <span className="text-xs font-mono text-white/10">|</span>
+                      
+                      {/* Last Synchronization */}
+                      <span className="text-xs text-[#94A3B8] font-normal">
+                        Last Sync: <span className="font-mono text-white">{new Date().toLocaleTimeString()}</span>
+                      </span>
+
+                      <span className="text-xs font-mono text-white/10">|</span>
+
+                      {/* Sync Button */}
                       <button 
                         onClick={fetchAndUpdateData}
                         disabled={loading}
-                        className="px-4 py-1.5 bg-[#172132] hover:bg-[#1f2c41] text-[#94A3B8] hover:text-white border border-white/10 rounded-xl transition-all duration-150 text-xs font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3.5 py-1.5 bg-[#172132] hover:bg-[#1f2c41] text-[#94A3B8] hover:text-white border border-white/10 rounded-xl transition-all duration-150 text-xs font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
+                        <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
                         {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
                       </button>
                     </div>
                   </div>
 
                   {/* 2. Top Row Key Metrics (Enterprise Card Design) */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     {[
                       { label: 'Inbound Volume / Tổng Đơn', val: totalOrders.toLocaleString(), desc: `Arrived Rate ${(totalOrders > 0 ? (stages['Đã nhập hàng'].orders / totalOrders) * 100 : 0).toFixed(1)}%`, icon: Inbox, color: '#22C55E' },
                       { label: 'Inbound Weight / Tải Trọng', val: `${totalWeight.toLocaleString()} kg`, desc: `Avg Weight ${(totalOrders > 0 ? totalWeight / totalOrders : 0).toFixed(2)} kg/pkg`, icon: TrendingUp, color: '#4F8CFF' },
@@ -2002,7 +2019,7 @@ export default function App() {
                     ].map((card) => {
                       const CardIcon = card.icon;
                       return (
-                        <div key={card.label} className="bg-[#172132] border border-white/[0.06] rounded-2xl p-5 shadow-xl flex flex-col justify-between min-h-[8.5rem] relative overflow-hidden group hover:border-[#4F8CFF]/20 transition-all duration-150 hover:-translate-y-0.5">
+                        <div key={card.label} className="bg-[#172132] border border-white/[0.06] rounded-2xl p-6 shadow-xl flex flex-col justify-between min-h-[9rem] relative overflow-hidden group hover:border-[#4F8CFF]/20 transition-all duration-150 hover:-translate-y-0.5">
                           <div className="flex items-center justify-between">
                             <span className="text-[11px] text-[#94A3B8] font-bold uppercase tracking-wider">{card.label}</span>
                             <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/5 flex items-center justify-center text-[#94A3B8] group-hover:text-white transition-colors">
@@ -2011,7 +2028,7 @@ export default function App() {
                           </div>
                           <span className="text-[34px] font-bold text-white tracking-tight leading-none my-2">{card.val}</span>
                           <span className="text-xs text-[#94A3B8] font-normal flex items-center gap-1.5">
-                            <span className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: card.color }} />
+                            <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: card.color }} />
                             {card.desc}
                           </span>
                         </div>
@@ -2019,175 +2036,171 @@ export default function App() {
                     })}
                   </div>
 
-                  {/* 3. Middle Grid - 2 Column Charts */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    
-                    {/* A. Pickup Volume */}
-                    <div className="bg-[#172132] border border-white/[0.06] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#4F8CFF]/20 transition-all duration-150 flex flex-col justify-between min-h-[22rem]">
-                      <div className="space-y-1">
-                        <span className="text-[13px] text-[#94A3B8] font-bold uppercase tracking-wider">Pickup Volume / Execution Time</span>
-                        <h3 className="text-[34px] font-bold text-white tracking-tight leading-none my-1">
-                          {totalOrders.toLocaleString()} <span className="text-xs text-[#94A3B8] font-normal uppercase ml-1">Đơn gom bưu cục</span>
-                        </h3>
-                      </div>
-
-                      {/* SVG Area Chart */}
-                      {(() => {
-                        const maxVal = Math.max(...pickupTimelineData.map(x => x.orders), 1);
-                        const width = 500;
-                        const height = 150;
-                        const paddingLeft = 30;
-                        const paddingRight = 10;
-                        const paddingTop = 15;
-                        const paddingBottom = 25;
-
-                        const chartW = width - paddingLeft - paddingRight;
-                        const chartH = height - paddingTop - paddingBottom;
-                        const dx = chartW / 23;
-
-                        const pts = pickupTimelineData.map((d, i) => ({
-                          x: paddingLeft + i * dx,
-                          y: height - paddingBottom - (d.orders / maxVal) * chartH
-                        }));
-
-                        let splinePath = '';
-                        if (pts.length > 0) {
-                          splinePath = `M ${pts[0].x} ${pts[0].y}`;
-                          for (let i = 0; i < pts.length - 1; i++) {
-                            const p0 = pts[i];
-                            const p1 = pts[i + 1];
-                            const cpX1 = p0.x + (p1.x - p0.x) / 3;
-                            const cpY1 = p0.y;
-                            const cpX2 = p0.x + 2 * (p1.x - p0.x) / 3;
-                            const cpY2 = p1.y;
-                            splinePath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
-                          }
-                        }
-
-                        const areaPath = splinePath 
-                          ? `${splinePath} L ${pts[pts.length - 1].x} ${height - paddingBottom} L ${pts[0].x} ${height - paddingBottom} Z` 
-                          : '';
-
-                        return (
-                          <div className="w-full mt-4">
-                            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-40">
-                              <defs>
-                                <linearGradient id="pk-blue" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="#4F8CFF" stopOpacity="0.2" />
-                                  <stop offset="100%" stopColor="#4F8CFF" stopOpacity="0" />
-                                </linearGradient>
-                              </defs>
-
-                              {/* Grid lines */}
-                              {[0, 0.5, 1].map((ratio, idx) => {
-                                const y = paddingTop + ratio * chartH;
-                                return (
-                                  <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.03)" strokeWidth="1" strokeDasharray="3 3" />
-                                );
-                              })}
-
-                              {/* Glow area & Line */}
-                              {areaPath && <path d={areaPath} fill="url(#pk-blue)" />}
-                              {splinePath && <path d={splinePath} fill="none" stroke="#4F8CFF" strokeWidth="2" strokeLinecap="round" />}
-
-                              {/* Interactive hovering point */}
-                              {pts.map((p, i) => (
-                                <circle key={i} cx={p.x} cy={p.y} r="1.5" fill="#4F8CFF" />
-                              ))}
-
-                              {/* X labels */}
-                              <text x={paddingLeft} y={height - 6} fill="#94A3B8" fontSize="8" className="font-mono text-left">00:00</text>
-                              <text x={width - paddingRight} y={height - 6} fill="#94A3B8" fontSize="8" textAnchor="end" className="font-mono">23:00</text>
-                            </svg>
-                          </div>
-                        );
-                      })()}
+                  {/* 3. Hourly Inbound Volume Chart */}
+                  <div className="bg-[#172132] border border-white/[0.06] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#4F8CFF]/20 transition-all duration-150 flex flex-col justify-between min-h-[22rem]">
+                    <div className="space-y-1">
+                      <span className="text-[13px] text-[#94A3B8] font-bold uppercase tracking-wider">Pickup Volume / Execution Time</span>
+                      <h3 className="text-[34px] font-bold text-white tracking-tight leading-none my-1">
+                        {totalOrders.toLocaleString()} <span className="text-xs text-[#94A3B8] font-normal uppercase ml-1">Đơn gom bưu cục</span>
+                      </h3>
                     </div>
 
-                    {/* B. Arrival Volume */}
-                    <div className="bg-[#172132] border border-white/[0.06] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#4F8CFF]/20 transition-all duration-150 flex flex-col justify-between min-h-[22rem]">
-                      <div className="space-y-1">
-                        <span className="text-[13px] text-[#94A3B8] font-bold uppercase tracking-wider">Arrival Volume / Invocations</span>
-                        <h3 className="text-[34px] font-bold text-white tracking-tight leading-none my-1">
-                          {stages['Đã nhập hàng'].orders.toLocaleString()} <span className="text-xs text-[#94A3B8] font-normal uppercase ml-1">Đơn dỡ HUB thành công</span>
-                        </h3>
-                      </div>
+                    {/* SVG Area Chart */}
+                    {(() => {
+                      const maxVal = Math.max(...pickupTimelineData.map(x => x.orders), 1);
+                      const width = 1000;
+                      const height = 180;
+                      const paddingLeft = 30;
+                      const paddingRight = 10;
+                      const paddingTop = 15;
+                      const paddingBottom = 25;
 
-                      {/* SVG Spline Area Chart */}
-                      {(() => {
-                        const maxVal = Math.max(...timelineData.map(x => x.orders), 1);
-                        const width = 500;
-                        const height = 150;
-                        const paddingLeft = 30;
-                        const paddingRight = 10;
-                        const paddingTop = 15;
-                        const paddingBottom = 25;
+                      const chartW = width - paddingLeft - paddingRight;
+                      const chartH = height - paddingTop - paddingBottom;
+                      const dx = chartW / 23;
 
-                        const chartW = width - paddingLeft - paddingRight;
-                        const chartH = height - paddingTop - paddingBottom;
-                        const dx = chartW / 23;
+                      const pts = pickupTimelineData.map((d, i) => ({
+                        x: paddingLeft + i * dx,
+                        y: height - paddingBottom - (d.orders / maxVal) * chartH
+                      }));
 
-                        const pts = timelineData.map((d, i) => ({
-                          x: paddingLeft + i * dx,
-                          y: height - paddingBottom - (d.orders / maxVal) * chartH
-                        }));
-
-                        let splinePath = '';
-                        if (pts.length > 0) {
-                          splinePath = `M ${pts[0].x} ${pts[0].y}`;
-                          for (let i = 0; i < pts.length - 1; i++) {
-                            const p0 = pts[i];
-                            const p1 = pts[i + 1];
-                            const cpX1 = p0.x + (p1.x - p0.x) / 3;
-                            const cpY1 = p0.y;
-                            const cpX2 = p0.x + 2 * (p1.x - p0.x) / 3;
-                            const cpY2 = p1.y;
-                            splinePath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
-                          }
+                      let splinePath = '';
+                      if (pts.length > 0) {
+                        splinePath = `M ${pts[0].x} ${pts[0].y}`;
+                        for (let i = 0; i < pts.length - 1; i++) {
+                          const p0 = pts[i];
+                          const p1 = pts[i + 1];
+                          const cpX1 = p0.x + (p1.x - p0.x) / 3;
+                          const cpY1 = p0.y;
+                          const cpX2 = p0.x + 2 * (p1.x - p0.x) / 3;
+                          const cpY2 = p1.y;
+                          splinePath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
                         }
+                      }
 
-                        const areaPath = splinePath 
-                          ? `${splinePath} L ${pts[pts.length - 1].x} ${height - paddingBottom} L ${pts[0].x} ${height - paddingBottom} Z` 
-                          : '';
+                      const areaPath = splinePath 
+                        ? `${splinePath} L ${pts[pts.length - 1].x} ${height - paddingBottom} L ${pts[0].x} ${height - paddingBottom} Z` 
+                        : '';
 
-                        return (
-                          <div className="w-full mt-4">
-                            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-40">
-                              <defs>
-                                <linearGradient id="arr-green" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="0%" stopColor="#22C55E" stopOpacity="0.2" />
-                                  <stop offset="100%" stopColor="#22C55E" stopOpacity="0" />
-                                </linearGradient>
-                              </defs>
+                      return (
+                        <div className="w-full mt-4 overflow-x-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+                          <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[700px] h-44">
+                            <defs>
+                              <linearGradient id="pk-blue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#4F8CFF" stopOpacity="0.2" />
+                                <stop offset="100%" stopColor="#4F8CFF" stopOpacity="0" />
+                              </linearGradient>
+                            </defs>
 
-                              {/* Grid lines */}
-                              {[0, 0.5, 1].map((ratio, idx) => {
-                                const y = paddingTop + ratio * chartH;
-                                return (
-                                  <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.03)" strokeWidth="1" strokeDasharray="3 3" />
-                                );
-                              })}
+                            {/* Grid lines */}
+                            {[0, 0.5, 1].map((ratio, idx) => {
+                              const y = paddingTop + ratio * chartH;
+                              return (
+                                <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.03)" strokeWidth="1" strokeDasharray="3 3" />
+                              );
+                            })}
 
-                              {/* Glow area & Line */}
-                              {areaPath && <path d={areaPath} fill="url(#arr-green)" />}
-                              {splinePath && <path d={splinePath} fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" />}
+                            {/* Glow area & Line */}
+                            {areaPath && <path d={areaPath} fill="url(#pk-blue)" />}
+                            {splinePath && <path d={splinePath} fill="none" stroke="#4F8CFF" strokeWidth="2" strokeLinecap="round" />}
 
-                              {/* Interactive hovering point */}
-                              {pts.map((p, i) => (
-                                <circle key={i} cx={p.x} cy={p.y} r="1.5" fill="#22C55E" />
-                              ))}
+                            {/* Interactive hovering point */}
+                            {pts.map((p, i) => (
+                              <circle key={i} cx={p.x} cy={p.y} r="1.5" fill="#4F8CFF" />
+                            ))}
 
-                              {/* X labels */}
-                              <text x={paddingLeft} y={height - 6} fill="#94A3B8" fontSize="8" className="font-mono text-left">00:00</text>
-                              <text x={width - paddingRight} y={height - 6} fill="#94A3B8" fontSize="8" textAnchor="end" className="font-mono">23:00</text>
-                            </svg>
-                          </div>
-                        );
-                      })()}
-                    </div>
+                            {/* X labels */}
+                            <text x={paddingLeft} y={height - 6} fill="#94A3B8" fontSize="8" className="font-mono text-left">00:00 (Thời gian bưu cục gom)</text>
+                            <text x={width - paddingRight} y={height - 6} fill="#94A3B8" fontSize="8" textAnchor="end" className="font-mono">23:00</text>
+                          </svg>
+                        </div>
+                      );
+                    })()}
                   </div>
 
-                  {/* 4. Bottom Row (Now separated spline + leaderboard + vehicles) */}
+                  {/* 4. Hourly Arrival / Processing Chart */}
+                  <div className="bg-[#172132] border border-white/[0.06] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#4F8CFF]/20 transition-all duration-150 flex flex-col justify-between min-h-[22rem]">
+                    <div className="space-y-1">
+                      <span className="text-[13px] text-[#94A3B8] font-bold uppercase tracking-wider">Arrival Volume / Invocations</span>
+                      <h3 className="text-[34px] font-bold text-white tracking-tight leading-none my-1">
+                        {stages['Đã nhập hàng'].orders.toLocaleString()} <span className="text-xs text-[#94A3B8] font-normal uppercase ml-1">Đơn dỡ HUB thành công</span>
+                      </h3>
+                    </div>
+
+                    {/* SVG Spline Area Chart */}
+                    {(() => {
+                      const maxVal = Math.max(...timelineData.map(x => x.orders), 1);
+                      const width = 1000;
+                      const height = 180;
+                      const paddingLeft = 30;
+                      const paddingRight = 10;
+                      const paddingTop = 15;
+                      const paddingBottom = 25;
+
+                      const chartW = width - paddingLeft - paddingRight;
+                      const chartH = height - paddingTop - paddingBottom;
+                      const dx = chartW / 23;
+
+                      const pts = timelineData.map((d, i) => ({
+                        x: paddingLeft + i * dx,
+                        y: height - paddingBottom - (d.orders / maxVal) * chartH
+                      }));
+
+                      let splinePath = '';
+                      if (pts.length > 0) {
+                        splinePath = `M ${pts[0].x} ${pts[0].y}`;
+                        for (let i = 0; i < pts.length - 1; i++) {
+                          const p0 = pts[i];
+                          const p1 = pts[i + 1];
+                          const cpX1 = p0.x + (p1.x - p0.x) / 3;
+                          const cpY1 = p0.y;
+                          const cpX2 = p0.x + 2 * (p1.x - p0.x) / 3;
+                          const cpY2 = p1.y;
+                          splinePath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
+                        }
+                      }
+
+                      const areaPath = splinePath 
+                        ? `${splinePath} L ${pts[pts.length - 1].x} ${height - paddingBottom} L ${pts[0].x} ${height - paddingBottom} Z` 
+                        : '';
+
+                      return (
+                        <div className="w-full mt-4 overflow-x-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+                          <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[700px] h-44">
+                            <defs>
+                              <linearGradient id="arr-green" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#22C55E" stopOpacity="0.2" />
+                                <stop offset="100%" stopColor="#22C55E" stopOpacity="0" />
+                              </linearGradient>
+                            </defs>
+
+                            {/* Grid lines */}
+                            {[0, 0.5, 1].map((ratio, idx) => {
+                              const y = paddingTop + ratio * chartH;
+                              return (
+                                <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.03)" strokeWidth="1" strokeDasharray="3 3" />
+                              );
+                            })}
+
+                            {/* Glow area & Line */}
+                            {areaPath && <path d={areaPath} fill="url(#arr-green)" />}
+                            {splinePath && <path d={splinePath} fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" />}
+
+                            {/* Interactive hovering point */}
+                            {pts.map((p, i) => (
+                              <circle key={i} cx={p.x} cy={p.y} r="1.5" fill="#22C55E" />
+                            ))}
+
+                            {/* X labels */}
+                            <text x={paddingLeft} y={height - 6} fill="#94A3B8" fontSize="8" className="font-mono text-left">00:00 (Thời gian xe đến HUB)</text>
+                            <text x={width - paddingRight} y={height - 6} fill="#94A3B8" fontSize="8" textAnchor="end" className="font-mono">23:00</text>
+                          </svg>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* 5. Bottom Row (Leaderboard, Vehicles and Selection Status) */}
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Donut Chart */}
                     <div className="bg-[#172132] border border-white/[0.06] rounded-2xl p-6 shadow-xl flex flex-col justify-between min-h-[25rem] group hover:border-[#4F8CFF]/20 transition-all duration-150">
@@ -2212,14 +2225,14 @@ export default function App() {
                           return (
                             <div className="relative flex items-center justify-center">
                               <svg width="180" height="180" viewBox="0 0 100 100">
-                                <circle cx="50" cy="50" r={radius} fill="none" stroke="#1e293b" strokeWidth="9" />
+                                <circle cx="50" cy="50" r={radius} fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="10" />
                                 <circle 
                                   cx="50" 
                                   cy="50" 
                                   r={radius} 
                                   fill="none" 
                                   stroke="#22C55E" 
-                                  strokeWidth="9" 
+                                  strokeWidth="10" 
                                   strokeDasharray={`${strokeArrived} ${circumference - strokeArrived}`}
                                   strokeDashoffset={circumference}
                                   transform="rotate(-90 50 50)"
@@ -2231,7 +2244,7 @@ export default function App() {
                                   r={radius} 
                                   fill="none" 
                                   stroke="#8B5CF6" 
-                                  strokeWidth="9" 
+                                  strokeWidth="10" 
                                   strokeDasharray={`${strokeInTransit} ${circumference - strokeInTransit}`}
                                   strokeDashoffset={circumference - strokeArrived}
                                   transform="rotate(-90 50 50)"
@@ -2240,7 +2253,7 @@ export default function App() {
                               </svg>
                               <div className="absolute flex flex-col items-center justify-center text-center">
                                 <span className="text-[34px] font-bold text-white tracking-tight leading-none">{total.toLocaleString()}</span>
-                                <span className="text-xs text-[#94A3B8] font-normal uppercase mt-1">Total Orders</span>
+                                <span className="text-[10px] text-[#94A3B8] font-semibold uppercase mt-1.5 tracking-wider">Total Orders</span>
                               </div>
                             </div>
                           );
@@ -2275,26 +2288,40 @@ export default function App() {
                         <p className="text-xs text-[#94A3B8] font-normal">Bưu cục gửi hàng nhiều nhất về HUB</p>
                       </div>
                       <div className="overflow-y-auto flex-1 pr-1 scrollbar-thin my-3 max-h-[220px]">
-                        <table className="w-full text-left border-collapse text-xs">
-                          <thead>
-                            <tr className="text-[#94A3B8] border-b border-white/[0.06] uppercase tracking-wider text-[9px] font-bold">
-                              <th className="py-2.5">FC</th>
-                              <th className="py-2.5 text-right">Số Xe</th>
-                              <th className="py-2.5 text-right">Đơn</th>
-                              <th className="py-2.5 text-right">Tải Trọng</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {top10FCs.slice(0, 8).map((row) => (
-                              <tr key={row.fc} className="border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02] even:bg-white/[0.005] transition-colors">
-                                <td className="py-2.5 font-semibold text-white">{row.fc}</td>
-                                <td className="py-2.5 text-right font-mono text-[#94A3B8]">{row.vehicles}</td>
-                                <td className="py-2.5 text-right font-mono text-[#94A3B8]">{row.orders.toLocaleString()}</td>
-                                <td className="py-2.5 text-right font-mono font-semibold text-[#4F8CFF]">{row.weight.toLocaleString()} kg</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                        {(() => {
+                          const maxOrders = Math.max(...top10FCs.map(x => x.orders), 1);
+                          return (
+                            <table className="w-full text-left border-collapse text-xs">
+                              <thead>
+                                <tr className="text-[#94A3B8] border-b border-white/[0.06] uppercase tracking-wider text-[9px] font-bold">
+                                  <th className="py-2.5 w-8">#</th>
+                                  <th className="py-2.5">FC</th>
+                                  <th className="py-2.5 text-right">Số Xe</th>
+                                  <th className="py-2.5 text-right">Đơn</th>
+                                  <th className="py-2.5 text-right">Tải Trọng</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {top10FCs.slice(0, 8).map((row, idx) => (
+                                  <tr key={row.fc} className="border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02] even:bg-white/[0.005] transition-colors">
+                                    <td className="py-2.5 font-bold font-mono text-[#94A3B8]">{idx + 1}</td>
+                                    <td className="py-2.5">
+                                      <div className="flex flex-col gap-1">
+                                        <span className="font-semibold text-white">{row.fc}</span>
+                                        <div className="w-20 h-1 bg-white/[0.04] rounded-full overflow-hidden">
+                                          <div className="h-full bg-[#4F8CFF] rounded-full" style={{ width: `${(row.orders / maxOrders) * 100}%` }} />
+                                        </div>
+                                      </div>
+                                    </td>
+                                    <td className="py-2.5 text-right font-mono text-[#94A3B8]">{row.vehicles}</td>
+                                    <td className="py-2.5 text-right font-mono text-[#94A3B8]">{row.orders.toLocaleString()}</td>
+                                    <td className="py-2.5 text-right font-mono font-semibold text-[#4F8CFF]">{row.weight.toLocaleString()} kg</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -2306,9 +2333,18 @@ export default function App() {
                       </div>
                       <div className="overflow-y-auto flex-1 pr-1 scrollbar-thin my-3 max-h-[220px] space-y-2">
                         {incomingVehicles.length === 0 ? (
-                          <div className="h-full flex flex-col items-center justify-center text-center py-10 space-y-2">
-                            <Inbox size={24} className="text-[#94A3B8] opacity-40" />
-                            <span className="text-[#94A3B8] text-xs font-normal">No vehicles are currently travelling to HUB.</span>
+                          <div className="h-full flex flex-col items-center justify-center text-center py-8 space-y-4">
+                            <div className="w-16 h-16 rounded-full bg-white/[0.02] border border-white/[0.04] flex items-center justify-center text-[#94A3B8] opacity-60">
+                              <Truck size={32} strokeWidth={1.5} />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-sm font-semibold text-white">No Vehicles Travelling</p>
+                              <p className="text-xs text-[#94A3B8] max-w-[200px]">No vehicles are currently travelling to HUB.</p>
+                            </div>
+                            <button onClick={fetchAndUpdateData} disabled={loading} className="px-3.5 py-1.5 bg-[#172132] hover:bg-[#1f2c41] text-[#94A3B8] hover:text-white border border-white/10 rounded-xl transition-all duration-150 text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50">
+                              <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
+                              Refresh
+                            </button>
                           </div>
                         ) : (
                           incomingVehicles.map((row, idx) => {
