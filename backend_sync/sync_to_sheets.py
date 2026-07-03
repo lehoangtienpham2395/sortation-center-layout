@@ -767,9 +767,15 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         def get_lh_operating_date_row(row):
             ust = str(row.get('unloadingStartTime') or '').strip()
             uet = str(row.get('unloadingEndTime') or '').strip()
+            send_t = str(row.get('sendTime') or '').strip()
+            load_et = str(row.get('loadingEndTime') or '').strip()
+            
             ust_valid = ust if ust.lower() not in ('', 'nan', 'none') else ''
             uet_valid = uet if uet.lower() not in ('', 'nan', 'none') else ''
-            dt_src = ust_valid if ust_valid else uet_valid
+            send_valid = send_t if send_t.lower() not in ('', 'nan', 'none') else ''
+            load_valid = load_et if load_et.lower() not in ('', 'nan', 'none') else ''
+            
+            dt_src = ust_valid if ust_valid else (uet_valid if uet_valid else (send_valid if send_valid else load_valid))
             return get_operating_date(dt_src)
 
         df_lh['Ngày vận hành'] = df_lh_raw.apply(get_lh_operating_date_row, axis=1)
