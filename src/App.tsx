@@ -343,7 +343,7 @@ export default function App() {
   const [showTelemetry, setShowTelemetry] = useState(true);
   const [showControls, setShowControls] = useState(true);
   const [showTop10, setShowTop10] = useState(true);
-  const [activeTab, setActiveTab] = useState<'layout' | 'top10' | 'stats'>('layout');
+  const [activeTab, setActiveTab] = useState<'layout' | 'inbound' | 'top10' | 'stats'>('layout');
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
   const [data,       setData]       = useState<any>(generateMockData());
   const [utilTotal,  setUtilTotal]  = useState('0.0');
@@ -3097,11 +3097,89 @@ export default function App() {
             )}
           </div>
 
+            {activeTab === 'inbound' && (
+              <div className="w-full h-full overflow-y-auto space-y-4 px-1 pt-2 pb-6">
+                {/* Inbound Control Panel */}
+                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[#8B5CF6] rounded-lg p-4 shadow-xl">
+                  <h3 className="disp text-[11px] tracking-[0.14em] pb-2 mb-3 border-b border-white/[0.04] text-[#8B5CF6] uppercase font-bold">Inbound Control</h3>
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <div className="text-[8.5px] text-slate-400 uppercase font-bold mb-1">Ngày vận hành</div>
+                      <select
+                        value={(() => {
+                          const dates = Array.from(new Set(inboundData.map((d: any) => d['Ngày vận hành']).filter(Boolean))) as string[];
+                          dates.sort((a: string, b: string) => b.localeCompare(a));
+                          return selectedInboundDate || dates[0] || '';
+                        })()}
+                        onChange={e => setSelectedInboundDate(e.target.value)}
+                        className="w-full bg-[#0a0e14] text-white text-[10px] font-bold py-1.5 px-2 rounded border border-white/5 outline-none cursor-pointer"
+                      >
+                        {(() => {
+                          const dates = Array.from(new Set(inboundData.map((d: any) => d['Ngày vận hành']).filter(Boolean))) as string[];
+                          dates.sort((a: string, b: string) => b.localeCompare(a));
+                          return dates.map((d: string) => <option key={d} value={d}>{d}</option>);
+                        })()}
+                      </select>
+                    </div>
+                    <button onClick={fetchAndUpdateData} disabled={loading}
+                            className="google-sync-btn px-4 py-1.5 text-[10px] gap-1 shadow-lg shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
+                      {loading ? '...' : 'Đồng bộ'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* KPI Cards Grid */}
+                {(() => {
+                  const ibDates = Array.from(new Set(inboundData.map((d: any) => d['Ngày vận hành']).filter(Boolean))) as string[];
+                  ibDates.sort((a: string, b: string) => b.localeCompare(a));
+                  const activeDate = selectedInboundDate || ibDates[0] || '';
+                  const filteredIb = inboundData.filter((d: any) => d['Ngày vận hành'] === activeDate);
+                  const filteredLh = linehaulData.filter((d: any) => d['Ngày vận hành'] === activeDate);
+                  const hubOrders = filteredIb.filter((d: any) => d['Trạng thái'] === 'Đã về Hub' || d['Trạng thái'] === 'Đã nhập hàng').reduce((s: number, d: any) => s + (parseInt(d['Volume'], 10) || 0), 0);
+                  const hubWeight = filteredIb.filter((d: any) => d['Trạng thái'] === 'Đã về Hub' || d['Trạng thái'] === 'Đã nhập hàng').reduce((s: number, d: any) => s + (parseFloat(d['Weight']) || 0), 0);
+                  const stationCount = new Set(filteredIb.map((d: any) => d['Bưu cục']).filter(Boolean)).size;
+                  const vehicleCount = new Set(filteredLh.map((d: any) => d['Phiếu nhiệm vụ']).filter(Boolean)).size;
+                  const cards = [
+                    { label: 'Inbound Volume', val: hubOrders.toLocaleString(), sub: 'Đơn dỡ thành công', color: '#22C55E', Icon: Inbox },
+                    { label: 'Inbound Weight', val: `${hubWeight.toLocaleString()} kg`, sub: `Avg ${(hubOrders > 0 ? hubWeight / hubOrders : 0).toFixed(1)} kg`, color: '#4F8CFF', Icon: TrendingUp },
+                    { label: 'Sending Stations', val: String(stationCount), sub: 'Bưu cục gửi về', color: '#22D3EE', Icon: Sliders },
+                    { label: 'Vehicles', val: String(vehicleCount), sub: 'Phiếu nhiệm vụ', color: '#8B5CF6', Icon: Activity },
+                  ];
+                  return (
+                    <div className="grid grid-cols-2 gap-3">
+                      {cards.map(card => (
+                        <div key={card.label} className="bg-[#172132] border border-white/5 rounded-xl p-3 flex flex-col justify-between min-h-[5.5rem]">
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold uppercase">
+                            <card.Icon size={11} />
+                            <span>{card.label}</span>
+                          </div>
+                          <div className="text-xl font-bold text-white font-mono mt-1">{card.val}</div>
+                          <div className="text-[9px] mt-1 flex items-center gap-1" style={{ color: card.color }}>
+                            <span className="w-1 h-1 rounded-full animate-pulse" style={{ backgroundColor: card.color }} />
+                            {card.sub}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+
+                <div className="text-center text-[10px] text-slate-500 py-2 bg-white/[0.01] border border-white/5 rounded-lg">
+                  💡 Mở trên máy tính để xem biểu đồ theo giờ với đầy đủ tính năng hover!
+                </div>
+              </div>
+            )}
+
           {/* Bottom Navigation Bar */}
           <div className="mobile-nav">
             <div className={`mobile-nav-item ${activeTab === 'layout' ? 'active' : ''}`} onClick={() => setActiveTab('layout')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
               <span>Sơ đồ</span>
+            </div>
+            <div className={`mobile-nav-item ${activeTab === 'inbound' ? 'active' : ''}`} onClick={() => setActiveTab('inbound')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              <span>Inbound</span>
             </div>
             <div className={`mobile-nav-item ${activeTab === 'top10' ? 'active' : ''}`} onClick={() => setActiveTab('top10')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
