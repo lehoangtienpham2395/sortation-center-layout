@@ -1922,7 +1922,7 @@ export default function App() {
 
 
 
-              // 3. Group metrics per sending FC (filtered)
+              // 3. Group metrics per sending FC (filtered - chỉ lấy các đơn đã dỡ thành công và đếm đúng số xe)
               const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
               const getFC = (name: any) => {
                 if (!name) return null;
@@ -1933,20 +1933,30 @@ export default function App() {
                 }
                 return fcMetrics[clean];
               };
+              
+              // Chỉ tính đơn và trọng lượng đã dỡ thành công
               filteredInbound.forEach(d => {
-                const fc = getFC(d['Bưu cục']);
-                if (fc) {
-                  fc.orders += parseInt(d['Volume'], 10) || 0;
-                  fc.weight += parseFloat(d['Weight']) || 0;
+                const status = d['Trạng thái'];
+                if (status === 'Đã về Hub' || status === 'Đã nhập hàng') {
+                  const fc = getFC(d['Bưu cục']);
+                  if (fc) {
+                    fc.orders += parseInt(d['Volume'], 10) || 0;
+                    fc.weight += parseFloat(d['Weight']) || 0;
+                  }
                 }
               });
+              
+              // Đếm số xe dựa trên "Phiếu nhiệm vụ" (traceCode) của mỗi bưu cục gửi
               filteredLinehaul.forEach(d => {
-                const fcName = d['nextNetworkName'] || 'UNKNOWN';
-                const fc = getFC(fcName);
-                if (fc && d['Phiếu nhiệm vụ']) {
-                  fc.vehicles.add(d['Phiếu nhiệm vụ']);
+                const fcName = d['nextNetworkName'] || '';
+                if (fcName && d['Phiếu nhiệm vụ']) {
+                  const fc = getFC(fcName);
+                  if (fc) {
+                    fc.vehicles.add(d['Phiếu nhiệm vụ']);
+                  }
                 }
               });
+              
               const top10FCs = Object.values(fcMetrics)
                 .map(item => ({
                   fc: item.fc,
@@ -1954,7 +1964,8 @@ export default function App() {
                   orders: item.orders,
                   weight: item.weight
                 }))
-                .sort((a, b) => b.weight - a.weight)
+                .filter(item => item.orders > 0 || item.vehicles > 0) // Lọc bỏ bưu cục không có dữ liệu
+                .sort((a, b) => b.orders - a.orders || b.weight - a.weight) // Sắp xếp theo số đơn dỡ thành công nhiều nhất
                 .slice(0, 10);
 
               // 4. Incoming vehicles list (filtered to only those not yet unloading/unloaded và đích đến là HCM HUB)
