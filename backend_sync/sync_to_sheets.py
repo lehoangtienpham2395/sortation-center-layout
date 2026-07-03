@@ -748,8 +748,21 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
                 df_lh_raw[col] = None
         
         # Chọn các cột sản lượng gửi
-        bill_col = 'billPiece' if 'billPiece' in df_lh_raw.columns and df_lh_raw['billPiece'].notna().any() else ('totalBillPiece' if 'totalBillPiece' in df_lh_raw.columns and df_lh_raw['totalBillPiece'].notna().any() else ('loadBillPiece' if 'loadBillPiece' in df_lh_raw.columns and df_lh_raw['loadBillPiece'].notna().any() else 'unloadingBillPiece'))
-        weight_col = 'weight' if 'weight' in df_lh_raw.columns and df_lh_raw['weight'].notna().any() else ('totalWeight' if 'totalWeight' in df_lh_raw.columns and df_lh_raw['totalWeight'].notna().any() else ('loadWeight' in df_lh_raw.columns and df_lh_raw['loadWeight'].notna().any() else 'unloadingWeight'))
+        bill_col = 'unloadingBillPiece'
+        if 'billPiece' in df_lh_raw.columns and df_lh_raw['billPiece'].notna().any():
+            bill_col = 'billPiece'
+        elif 'totalBillPiece' in df_lh_raw.columns and df_lh_raw['totalBillPiece'].notna().any():
+            bill_col = 'totalBillPiece'
+        elif 'loadBillPiece' in df_lh_raw.columns and df_lh_raw['loadBillPiece'].notna().any():
+            bill_col = 'loadBillPiece'
+            
+        weight_col = 'unloadingWeight'
+        if 'weight' in df_lh_raw.columns and df_lh_raw['weight'].notna().any():
+            weight_col = 'weight'
+        elif 'totalWeight' in df_lh_raw.columns and df_lh_raw['totalWeight'].notna().any():
+            weight_col = 'totalWeight'
+        elif 'loadWeight' in df_lh_raw.columns and df_lh_raw['loadWeight'].notna().any():
+            weight_col = 'loadWeight'
         
         df_lh_raw['billPiece_clean'] = pd.to_numeric(df_lh_raw[bill_col], errors='coerce').fillna(0)
         df_lh_raw['weight_clean'] = pd.to_numeric(df_lh_raw[weight_col], errors='coerce').fillna(0)
