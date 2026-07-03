@@ -744,12 +744,17 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         df_lh['sendTime'] = df_lh_raw['sendTime'].fillna('') if 'sendTime' in df_lh_raw.columns else ''
         df_lh['loadingEndTime'] = df_lh_raw['loadingEndTime'].fillna('') if 'loadingEndTime' in df_lh_raw.columns else ''
         
-        if 'endNetworkName' in df_lh_raw.columns:
-            df_lh['nextNetworkName'] = df_lh_raw['endNetworkName'].map(d_buucuc).fillna(df_lh_raw['endNetworkName']).fillna('')
-        elif 'nextNetworkName' in df_lh_raw.columns:
-            df_lh['nextNetworkName'] = df_lh_raw['nextNetworkName'].map(d_buucuc).fillna(df_lh_raw['nextNetworkName']).fillna('')
-        else:
-            df_lh['nextNetworkName'] = ''
+        def get_next_network(row):
+            end_net = str(row.get('endNetworkName') or '').strip()
+            start_net = str(row.get('startNetworkName') or '').strip()
+            # If the destination is HCM HUB, nextNetworkName is the sender (startNetworkName)
+            if 'HCM' in end_net.upper() or 'SR0001' in end_net.upper():
+                val = start_net
+            else:
+                val = end_net if end_net else str(row.get('nextNetworkName') or '').strip()
+            return d_buucuc.get(val, val)
+
+        df_lh['nextNetworkName'] = df_lh_raw.apply(get_next_network, axis=1)
             
         df_lh['unloadingStartTime'] = df_lh_raw['unloadingStartTime'].fillna('') if 'unloadingStartTime' in df_lh_raw.columns else ''
         df_lh['unloadingEndTime'] = df_lh_raw['unloadingEndTime'].fillna('') if 'unloadingEndTime' in df_lh_raw.columns else ''
