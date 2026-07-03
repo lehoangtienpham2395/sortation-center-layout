@@ -43,14 +43,5 @@ jobs:
         SYSTEM_PASSWORD: ${{ secrets.SYSTEM_PASSWORD }}
         GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
       run: |
-        python backend_sync/sync_to_sheets.py > sync_output.log 2>&1
-        cat sync_output.log
-
-    - name: Commit log file
-      run: |
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-        git add -f sync_output.log || true
-        git commit -m "Auto-commit sync run logs [skip ci]" || true
-        git push origin main || true
+        python backend_sync/sync_to_sheets.py
 
