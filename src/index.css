@@ -1,22 +1,23 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Montserrat:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 
 :root {
-  --void: #0a0e14;
-  --panel: rgba(14, 19, 30, 0.82);
-  --line: #1e2942;
-  --ink: #e6edf7;
-  --muted: #7d8aa3;
-  --accent: #ff6a2b;
-  --cyan: #22d3ee;
-  --green: #34A853;
-  --yellow: #FBBC05;
-  --orange: #EA4335;
-  --red: #ef4444;
+  --void: #09111C;
+  --panel: #172132;
+  --line: rgba(255,255,255,0.06);
+  --ink: #FFFFFF;
+  --muted: #94A3B8;
+  --accent: #4F8CFF;
+  --cyan: #22D3EE;
+  --green: #22C55E;
+  --yellow: #F59E0B;
+  --orange: #F59E0B;
+  --red: #EF4444;
+  --purple: #8B5CF6;
   --darkred: #7f1d1d;
   --gate: #9aa7c2;
-  --inbound: #60a5fa;
+  --inbound: #4F8CFF;
 }
 
 * {
@@ -30,7 +31,7 @@ html, body, #root {
 }
 
 body {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Inter', sans-serif;
   color: var(--ink);
   background: var(--void);
   overflow: hidden;
