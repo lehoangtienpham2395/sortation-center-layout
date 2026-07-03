@@ -653,7 +653,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             
     # Group by fc, status, op_date, hourly ib_date, and hourly pickup_time
     grouped = {}
-    now_vn = datetime.now()
+    now_vn = datetime.now(ZoneInfo('Asia/Ho_Chi_Minh'))
     
     for wb, r in unique_waybills.items():
         fc_name = r['fc']
@@ -738,7 +738,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
     write_sheet("Linehaul", df_lh, ["Phiếu nhiệm vụ", "Phiếu nhiệm vụ con", "sendTime", "loadingEndTime", "nextNetworkName", "unloadingStartTime", "unloadingEndTime", "unloadingBillPiece", "unloadingWeight"])
 
 
-def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, current_date_str, results=None):
+def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, current_date_str, results=None, d_buucuc=None):
     print(f"\n📊 Bắt đầu cập nhật dữ liệu Google Sheets...")
     
     creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
@@ -1329,7 +1329,7 @@ def run_once(session, token_mgr, rebuild_days=None):
                 print(f"   💡 Outbound calculated: {len(outbound_volumes_grouped)} groups. Total: {total_vol}")
 
     # Cập nhật dữ liệu lên Google Sheets
-    update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, now.strftime('%Y-%m-%d'), results)
+    update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, now.strftime('%Y-%m-%d'), results, d_buucuc)
 
 
 def main():
