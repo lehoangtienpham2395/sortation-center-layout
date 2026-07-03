@@ -1954,14 +1954,14 @@ export default function App() {
                 <div className="w-full max-w-7xl mx-auto space-y-6 pb-12 text-slate-100 font-sans">
                   
                   {/* 1. Header & Title Block */}
-                  <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-white/[0.06] pb-5 gap-4">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between border-b border-white/[0.04] pb-5 gap-4">
                     <div className="space-y-1">
-                      <h1 className="text-[18px] font-semibold text-white tracking-tight">Inbound Dashboard</h1>
-                      <p className="text-xs text-[#94A3B8] font-normal">Operational Overview of Today's Inbound Activities</p>
+                      <h1 className="text-[22px] font-bold text-white tracking-tight">Inbound Dashboard</h1>
+                      <p className="text-xs text-slate-400/65 font-normal">Operational overview of today's inbound activities</p>
                     </div>
                     
-                    {/* Filter & Sync Block */}
-                    <div className="flex flex-wrap items-center gap-4 text-xs">
+                    {/* Grouped Operational Metadata Panel */}
+                    <div className="flex flex-wrap items-center gap-4 bg-[#172132]/40 border border-white/[0.04] p-2.5 rounded-2xl text-xs text-slate-300">
                       {/* Operating Date Dropdown */}
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] text-[#94A3B8] font-bold uppercase tracking-wider">Ngày vận hành:</span>
@@ -1985,13 +1985,13 @@ export default function App() {
                       {/* System Status */}
                       <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#172132] border border-white/10 rounded-xl">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
-                        <span className="text-[#94A3B8] font-semibold">SYS: ONLINE</span>
+                        <span className="text-slate-300 font-semibold">SYS: ONLINE</span>
                       </div>
 
                       <span className="text-xs font-mono text-white/10">|</span>
                       
                       {/* Last Synchronization */}
-                      <span className="text-xs text-[#94A3B8] font-normal">
+                      <span className="text-xs text-slate-300 font-normal">
                         Last Sync: <span className="font-mono text-white">{new Date().toLocaleTimeString()}</span>
                       </span>
 
@@ -2001,7 +2001,7 @@ export default function App() {
                       <button 
                         onClick={fetchAndUpdateData}
                         disabled={loading}
-                        className="px-3.5 py-1.5 bg-[#172132] hover:bg-[#1f2c41] text-[#94A3B8] hover:text-white border border-white/10 rounded-xl transition-all duration-150 text-xs font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3.5 py-1.5 bg-[#172132] hover:bg-[#1f2c41] text-[#94A3B8] hover:text-white border border-white/10 rounded-xl transition-all duration-[180ms] ease-in-out text-xs font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
                         {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
@@ -2012,27 +2012,27 @@ export default function App() {
                   {/* Row 1: Operational Summary (KPI Cards) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
-                      { label: 'Inbound volume', val: totalOrders.toLocaleString(), desc: `Arrived rate ${(totalOrders > 0 ? (stages['Đã nhập hàng'].orders / totalOrders) * 100 : 0).toFixed(1)}%`, icon: Inbox, color: '#22C55E' },
-                      { label: 'Inbound weight', val: `${totalWeight.toLocaleString()} kg`, desc: `Avg weight ${(totalOrders > 0 ? totalWeight / totalOrders : 0).toFixed(2)} kg/pkg`, icon: TrendingUp, color: '#4F8CFF' },
-                      { label: 'Sending stations', val: totalFC, desc: 'Active sending stations', icon: Sliders, color: '#22D3EE' },
-                      { label: 'Vehicles', val: totalVehicles, desc: 'Active Linehaul trucks', icon: Activity, color: '#8B5CF6' }
+                      { label: 'Inbound volume', val: totalOrders.toLocaleString(), desc: `Arrived rate ${(totalOrders > 0 ? (stages['Đã nhập hàng'].orders / totalOrders) * 100 : 0).toFixed(1)}%`, icon: Inbox, color: '#22C55E', hoverColor: 'hover:border-[#22C55E]/30' },
+                      { label: 'Inbound weight', val: `${totalWeight.toLocaleString()} kg`, desc: `Avg weight ${(totalOrders > 0 ? totalWeight / totalOrders : 0).toFixed(2)} kg/pkg`, icon: TrendingUp, color: '#4F8CFF', hoverColor: 'hover:border-[#4F8CFF]/30' },
+                      { label: 'Sending stations', val: totalFC, desc: 'Active sending stations', icon: Sliders, color: '#22D3EE', hoverColor: 'hover:border-[#22D3EE]/30' },
+                      { label: 'Vehicles', val: totalVehicles, desc: 'Active Linehaul trucks', icon: Activity, color: '#8B5CF6', hoverColor: 'hover:border-[#8B5CF6]/30' }
                     ].map((card) => {
                       const CardIcon = card.icon;
                       return (
-                        <div key={card.label} className="bg-[#172132] border border-white/[0.06] rounded-2xl p-6 shadow-xl flex flex-col justify-between min-h-[7.5rem] relative overflow-hidden group hover:border-[#4F8CFF]/20 transition-all duration-150 hover:-translate-y-0.5">
+                        <div key={card.label} className={`bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl flex flex-col justify-between min-h-[7.5rem] relative overflow-hidden group transition-all duration-[180ms] ease-in-out hover:-translate-y-0.5 hover:shadow-2xl ${card.hoverColor}`}>
                           {/* 1. Icon & Label */}
                           <div className="flex items-center gap-2">
-                            <CardIcon size={14} className="text-[#94A3B8]" />
-                            <span className="text-[12px] text-[#94A3B8] font-semibold tracking-wide sentence-case">{card.label}</span>
+                            <CardIcon size={14} className="text-[#94A3B8]/75" />
+                            <span className="text-[12px] text-[#94A3B8]/75 font-semibold tracking-wide sentence-case">{card.label}</span>
                           </div>
                           
                           {/* 2. Centered Value */}
                           <div className="flex-grow flex items-center justify-start my-1">
-                            <span className="text-[36px] font-bold text-white tracking-tight leading-none">{card.val}</span>
+                            <span className="text-[42px] font-bold text-white tracking-tight leading-none font-mono">{card.val}</span>
                           </div>
                           
                           {/* 3. Supporting Metric */}
-                          <div className="text-[12px] text-[#94A3B8] font-normal flex items-center gap-1.5">
+                          <div className="text-[12px] text-[#94A3B8]/65 font-normal flex items-center gap-1.5">
                             <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: card.color }} />
                             {card.desc}
                           </div>
@@ -2044,26 +2044,35 @@ export default function App() {
                   {/* Row 2: Primary Operational Analytics */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Pickup Volume Chart */}
-                    <div className="bg-[#172132] border border-white/[0.06] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#4F8CFF]/20 transition-all duration-150 flex flex-col justify-between min-h-[22rem]">
+                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#4F8CFF]/20 transition-all duration-[180ms] ease-in-out flex flex-col justify-between min-h-[22rem]">
                       {/* Card Header & Description */}
-                      <div className="flex items-start gap-3 pb-3 border-b border-white/[0.06]">
+                      <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04]">
                         <div className="w-8 h-8 rounded-lg bg-[#4F8CFF]/10 text-[#4F8CFF] flex items-center justify-center shrink-0">
                           <Sliders size={16} strokeWidth={2} />
                         </div>
                         <div>
                           <h3 className="text-[15px] font-semibold text-white leading-tight">Pickup volume</h3>
-                          <p className="text-xs text-[#94A3B8] mt-0.5">Theo dõi sản lượng Pickup của bưu cục</p>
+                          <p className="text-xs text-slate-400/65 mt-0.5">Theo dõi sản lượng Pickup của bưu cục</p>
                         </div>
                         <div className="ml-auto text-right">
-                          <span className="text-[24px] font-bold text-white tracking-tight leading-none block">{totalOrders.toLocaleString()}</span>
-                          <span className="text-[10px] text-[#94A3B8] font-medium uppercase mt-0.5 block">Tổng đơn gom</span>
+                          <span className="text-[24px] font-bold text-white tracking-tight leading-none block font-mono">{totalOrders.toLocaleString()}</span>
+                          <span className="text-[10px] text-slate-400/75 uppercase mt-1 block">Tổng đơn gom</span>
                         </div>
                       </div>
 
                       {/* Content Area: Chart viewport (70~80% height) */}
                       <div className="flex-grow flex items-center justify-center mt-3">
                         {(() => {
-                          const maxVal = Math.max(...pickupTimelineData.map(x => x.orders), 1);
+                          const vals = pickupTimelineData.map(x => x.orders);
+                          const maxValReal = Math.max(...vals, 0);
+                          const minValReal = Math.min(...vals, 0);
+                          const valRange = maxValReal - minValReal;
+                          const yPad = valRange === 0 ? (maxValReal === 0 ? 10 : maxValReal * 0.15) : valRange * 0.15;
+                          const maxVal = maxValReal + yPad;
+                          const minVal = Math.max(0, minValReal - yPad);
+                          const effectiveRange = maxVal - minVal || 1;
+                          const allZeroOrEqual = vals.every(v => v === vals[0]);
+
                           const width = 500;
                           const height = 180;
                           const paddingLeft = 30;
@@ -2077,7 +2086,7 @@ export default function App() {
 
                           const pts = pickupTimelineData.map((d, i) => ({
                             x: paddingLeft + i * dx,
-                            y: height - paddingBottom - (d.orders / maxVal) * chartH
+                            y: height - paddingBottom - ((d.orders - minVal) / effectiveRange) * chartH
                           }));
 
                           let splinePath = '';
@@ -2103,27 +2112,36 @@ export default function App() {
                               <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
                                 <defs>
                                   <linearGradient id="pk-blue-2" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#4F8CFF" stopOpacity="0.2" />
+                                    <stop offset="0%" stopColor="#4F8CFF" stopOpacity="0.15" />
                                     <stop offset="100%" stopColor="#4F8CFF" stopOpacity="0" />
                                   </linearGradient>
                                 </defs>
 
-                                {/* Grid lines */}
-                                {[0, 0.5, 1].map((ratio, idx) => {
+                                {/* Grid lines - exactly 5 lines */}
+                                {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
                                   const y = paddingTop + ratio * chartH;
                                   return (
-                                    <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.03)" strokeWidth="1" strokeDasharray="3 3" />
+                                    <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.025)" strokeWidth="1" />
                                   );
                                 })}
 
-                                {/* Glow area & Line */}
-                                {areaPath && <path d={areaPath} fill="url(#pk-blue-2)" />}
-                                {splinePath && <path d={splinePath} fill="none" stroke="#4F8CFF" strokeWidth="2" strokeLinecap="round" />}
+                                {allZeroOrEqual ? (
+                                  <>
+                                    <line x1={paddingLeft} y1={paddingTop + 0.5 * chartH} x2={width - paddingRight} y2={paddingTop + 0.5 * chartH} stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" strokeDasharray="4 4" />
+                                    <text x={width / 2} y={paddingTop + 0.5 * chartH - 6} fill="#94A3B8" fontSize="8" textAnchor="middle" className="font-sans font-medium">Không ghi nhận sản lượng phát sinh</text>
+                                  </>
+                                ) : (
+                                  <>
+                                    {/* Glow area & Line */}
+                                    {areaPath && <path d={areaPath} fill="url(#pk-blue-2)" />}
+                                    {splinePath && <path d={splinePath} fill="none" stroke="#4F8CFF" strokeWidth="2.5" strokeLinecap="round" />}
 
-                                {/* Interactive hovering points */}
-                                {pts.map((p, i) => (
-                                  <circle key={i} cx={p.x} cy={p.y} r="1.5" fill="#4F8CFF" />
-                                ))}
+                                    {/* Interactive hovering points */}
+                                    {pts.map((p, i) => (
+                                      <circle key={i} cx={p.x} cy={p.y} r="3" fill="#4F8CFF" className="transition-all duration-150 hover:r-4 cursor-pointer" />
+                                    ))}
+                                  </>
+                                )}
 
                                 {/* X labels */}
                                 <text x={paddingLeft} y={height - 4} fill="#94A3B8" fontSize="8" className="font-mono text-left">00:00</text>
@@ -2142,26 +2160,35 @@ export default function App() {
                     </div>
 
                     {/* Arrival Volume Chart */}
-                    <div className="bg-[#172132] border border-white/[0.06] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#4F8CFF]/20 transition-all duration-150 flex flex-col justify-between min-h-[22rem]">
+                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#22C55E]/30 transition-all duration-[180ms] ease-in-out flex flex-col justify-between min-h-[22rem]">
                       {/* Card Header & Description */}
-                      <div className="flex items-start gap-3 pb-3 border-b border-white/[0.06]">
+                      <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04]">
                         <div className="w-8 h-8 rounded-lg bg-[#22C55E]/10 text-[#22C55E] flex items-center justify-center shrink-0">
                           <TrendingUp size={16} strokeWidth={2} />
                         </div>
                         <div>
                           <h3 className="text-[15px] font-semibold text-white leading-tight">Arrival volume</h3>
-                          <p className="text-xs text-[#94A3B8] mt-0.5">Theo dõi sản lượng hàng đã nhập HUB</p>
+                          <p className="text-xs text-slate-400/65 mt-0.5">Theo dõi sản lượng hàng đã nhập HUB</p>
                         </div>
                         <div className="ml-auto text-right">
-                          <span className="text-[24px] font-bold text-white tracking-tight leading-none block">{stages['Đã nhập hàng'].orders.toLocaleString()}</span>
-                          <span className="text-[10px] text-[#94A3B8] font-medium uppercase mt-0.5 block">Đơn dỡ thành công</span>
+                          <span className="text-[24px] font-bold text-white tracking-tight leading-none block font-mono">{stages['Đã nhập hàng'].orders.toLocaleString()}</span>
+                          <span className="text-[10px] text-slate-400/75 uppercase mt-1 block">Đơn dỡ thành công</span>
                         </div>
                       </div>
 
                       {/* Content Area: Chart viewport (70~80% height) */}
                       <div className="flex-grow flex items-center justify-center mt-3">
                         {(() => {
-                          const maxVal = Math.max(...timelineData.map(x => x.orders), 1);
+                          const vals = timelineData.map(x => x.orders);
+                          const maxValReal = Math.max(...vals, 0);
+                          const minValReal = Math.min(...vals, 0);
+                          const valRange = maxValReal - minValReal;
+                          const yPad = valRange === 0 ? (maxValReal === 0 ? 10 : maxValReal * 0.15) : valRange * 0.15;
+                          const maxVal = maxValReal + yPad;
+                          const minVal = Math.max(0, minValReal - yPad);
+                          const effectiveRange = maxVal - minVal || 1;
+                          const allZeroOrEqual = vals.every(v => v === vals[0]);
+
                           const width = 500;
                           const height = 180;
                           const paddingLeft = 30;
@@ -2175,7 +2202,7 @@ export default function App() {
 
                           const pts = timelineData.map((d, i) => ({
                             x: paddingLeft + i * dx,
-                            y: height - paddingBottom - (d.orders / maxVal) * chartH
+                            y: height - paddingBottom - ((d.orders - minVal) / effectiveRange) * chartH
                           }));
 
                           let splinePath = '';
@@ -2201,27 +2228,36 @@ export default function App() {
                               <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
                                 <defs>
                                   <linearGradient id="arr-green-2" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#22C55E" stopOpacity="0.2" />
+                                    <stop offset="0%" stopColor="#22C55E" stopOpacity="0.15" />
                                     <stop offset="100%" stopColor="#22C55E" stopOpacity="0" />
                                   </linearGradient>
                                 </defs>
 
-                                {/* Grid lines */}
-                                {[0, 0.5, 1].map((ratio, idx) => {
+                                {/* Grid lines - exactly 5 lines */}
+                                {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
                                   const y = paddingTop + ratio * chartH;
                                   return (
-                                    <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.03)" strokeWidth="1" strokeDasharray="3 3" />
+                                    <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.025)" strokeWidth="1" />
                                   );
                                 })}
 
-                                {/* Glow area & Line */}
-                                {areaPath && <path d={areaPath} fill="url(#arr-green-2)" />}
-                                {splinePath && <path d={splinePath} fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" />}
+                                {allZeroOrEqual ? (
+                                  <>
+                                    <line x1={paddingLeft} y1={paddingTop + 0.5 * chartH} x2={width - paddingRight} y2={paddingTop + 0.5 * chartH} stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" strokeDasharray="4 4" />
+                                    <text x={width / 2} y={paddingTop + 0.5 * chartH - 6} fill="#94A3B8" fontSize="8" textAnchor="middle" className="font-sans font-medium">Không ghi nhận sản lượng phát sinh</text>
+                                  </>
+                                ) : (
+                                  <>
+                                    {/* Glow area & Line */}
+                                    {areaPath && <path d={areaPath} fill="url(#arr-green-2)" />}
+                                    {splinePath && <path d={splinePath} fill="none" stroke="#22C55E" strokeWidth="2.5" strokeLinecap="round" />}
 
-                                {/* Interactive hovering points */}
-                                {pts.map((p, i) => (
-                                  <circle key={i} cx={p.x} cy={p.y} r="1.5" fill="#22C55E" />
-                                ))}
+                                    {/* Interactive hovering points */}
+                                    {pts.map((p, i) => (
+                                      <circle key={i} cx={p.x} cy={p.y} r="3" fill="#22C55E" className="transition-all duration-150 hover:r-4 cursor-pointer" />
+                                    ))}
+                                  </>
+                                )}
 
                                 {/* X labels */}
                                 <text x={paddingLeft} y={height - 4} fill="#94A3B8" fontSize="8" className="font-mono text-left">00:00</text>
@@ -2232,10 +2268,17 @@ export default function App() {
                         })()}
                       </div>
 
-                      {/* Optional Footer */}
-                      <div className="pt-2 border-t border-white/[0.04] text-[11px] text-[#94A3B8] flex justify-between">
+                      {/* Optional Footer & Legend */}
+                      <div className="pt-2 border-t border-white/[0.04] text-[11px] text-slate-400/65 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />
+                            Sản lượng Arrival
+                          </span>
+                          <span>•</span>
+                          <span>Khung giờ: 24h</span>
+                        </div>
                         <span>Last updated: just now</span>
-                        <span>Interval: 24h</span>
                       </div>
                     </div>
                   </div>
@@ -2243,50 +2286,60 @@ export default function App() {
                   {/* Row 3: Operational Monitoring */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Top 10 Sending Stations */}
-                    <div className="bg-[#172132] border border-white/[0.06] rounded-2xl p-6 shadow-xl flex flex-col justify-between h-[25rem] group hover:border-[#4F8CFF]/20 transition-all duration-150">
+                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl flex flex-col justify-between h-[25rem] group hover:border-[#06B6D4]/30 transition-all duration-[180ms] ease-in-out hover:-translate-y-0.5 hover:shadow-2xl">
                       {/* Widget Header: Icon + Title + Description + Divider */}
-                      <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.06] mb-2">
-                        <div className="w-8 h-8 rounded-lg bg-[#4F8CFF]/10 text-[#4F8CFF] flex items-center justify-center shrink-0">
+                      <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04] mb-3.5">
+                        <div className="w-8 h-8 rounded-lg bg-[#06B6D4]/10 text-[#06B6D4] flex items-center justify-center shrink-0">
                           <ListOrdered size={16} strokeWidth={2} />
                         </div>
                         <div>
                           <h3 className="text-[15px] font-semibold text-white leading-tight">Top 10 sending stations</h3>
-                          <p className="text-xs text-[#94A3B8] mt-0.5">Top bưu cục gửi hàng nhiều nhất về HUB</p>
+                          <p className="text-xs text-slate-400/65 mt-0.5">Top bưu cục gửi hàng nhiều nhất về HUB</p>
                         </div>
                       </div>
                       
                       {/* Leaderboard content */}
-                      <div className="overflow-y-auto flex-1 pr-1 scrollbar-thin my-3">
+                      <div className="overflow-y-auto flex-1 pr-1 scrollbar-thin my-2">
                         {(() => {
                           const maxOrders = Math.max(...top10FCs.map(x => x.orders), 1);
                           return (
                             <table className="w-full text-left border-collapse text-xs">
                               <thead>
-                                <tr className="text-[#94A3B8] border-b border-white/[0.06] uppercase tracking-wider text-[9px] font-bold">
-                                  <th className="py-2 w-8">#</th>
-                                  <th className="py-2">FC</th>
-                                  <th className="py-2 text-right">Số xe</th>
-                                  <th className="py-2 text-right">Đơn</th>
-                                  <th className="py-2 text-right">Tải trọng</th>
+                                <tr className="text-slate-400/75 border-b border-white/[0.04] uppercase tracking-wider text-[9px] font-bold">
+                                  <th className="py-3 w-8">#</th>
+                                  <th className="py-3">FC</th>
+                                  <th className="py-3 text-right">Số xe</th>
+                                  <th className="py-3 text-right">Đơn</th>
+                                  <th className="py-3 text-right">Tải trọng</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {top10FCs.slice(0, 8).map((row, idx) => (
-                                  <tr key={row.fc} className="border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02] even:bg-white/[0.005] transition-colors">
-                                    <td className="py-2.5 font-bold font-mono text-[#94A3B8]">{idx + 1}</td>
-                                    <td className="py-2.5">
-                                      <div className="flex flex-col gap-1">
-                                        <span className="font-semibold text-white">{row.fc}</span>
-                                        <div className="w-20 h-1 bg-white/[0.04] rounded-full overflow-hidden">
-                                          <div className="h-full bg-[#4F8CFF] rounded-full" style={{ width: `${(row.orders / maxOrders) * 100}%` }} />
+                                {top10FCs.slice(0, 8).map((row, idx) => {
+                                  const rank = idx + 1;
+                                  const rankColorClass = rank === 1 
+                                    ? "text-[#06B6D4]" 
+                                    : rank === 2 
+                                      ? "text-[#38BDF8]" 
+                                      : rank === 3 
+                                        ? "text-slate-200" 
+                                        : "text-slate-400/65";
+                                  return (
+                                    <tr key={row.fc} className="border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02] even:bg-white/[0.005] transition-colors duration-150">
+                                      <td className={`py-3.5 font-bold font-mono ${rankColorClass}`}>{rank}</td>
+                                      <td className="py-3.5">
+                                        <div className="flex flex-col gap-1.5">
+                                          <span className="font-semibold text-white">{row.fc}</span>
+                                          <div className="w-20 h-1 bg-white/[0.04] rounded-full overflow-hidden">
+                                            <div className="h-full bg-[#06B6D4] rounded-full" style={{ width: `${(row.orders / maxOrders) * 100}%` }} />
+                                          </div>
                                         </div>
-                                      </div>
-                                    </td>
-                                    <td className="py-2.5 text-right font-mono text-[#94A3B8]">{row.vehicles}</td>
-                                    <td className="py-2.5 text-right font-mono text-[#94A3B8]">{row.orders.toLocaleString()}</td>
-                                    <td className="py-2.5 text-right font-mono font-semibold text-[#4F8CFF]">{row.weight.toLocaleString()} kg</td>
-                                  </tr>
-                                ))}
+                                      </td>
+                                      <td className="py-3.5 text-right font-mono text-slate-300">{row.vehicles}</td>
+                                      <td className="py-3.5 text-right font-mono text-slate-300">{row.orders.toLocaleString()}</td>
+                                      <td className="py-3.5 text-right font-mono font-semibold text-[#06B6D4]">{row.weight.toLocaleString()} kg</td>
+                                    </tr>
+                                  );
+                                })}
                               </tbody>
                             </table>
                           );
@@ -2294,40 +2347,40 @@ export default function App() {
                       </div>
 
                       {/* Footer */}
-                      <div className="pt-2 border-t border-white/[0.04] text-[11px] text-[#94A3B8] flex justify-between">
+                      <div className="pt-2 border-t border-white/[0.04] text-[11px] text-slate-400/65 flex justify-between">
                         <span>Ranked by order count</span>
                         <span>Top 8 stations</span>
                       </div>
                     </div>
 
                     {/* Vehicles in Transit */}
-                    <div className="bg-[#172132] border border-white/[0.06] rounded-2xl p-6 shadow-xl flex flex-col justify-between h-[25rem] group hover:border-[#4F8CFF]/20 transition-all duration-150">
+                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl flex flex-col justify-between h-[25rem] group hover:border-[#8B5CF6]/30 transition-all duration-[180ms] ease-in-out hover:-translate-y-0.5 hover:shadow-2xl">
                       {/* Widget Header: Icon + Title + Description + Divider */}
-                      <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.06] mb-2">
+                      <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04] mb-3.5">
                         <div className="w-8 h-8 rounded-lg bg-[#8B5CF6]/10 text-[#8B5CF6] flex items-center justify-center shrink-0">
                           <Truck size={16} strokeWidth={2} />
                         </div>
                         <div>
                           <h3 className="text-[15px] font-semibold text-white leading-tight">Vehicles in transit</h3>
-                          <p className="text-xs text-[#94A3B8] mt-0.5">Danh sách xe đang trên đường về HUB</p>
+                          <p className="text-xs text-slate-400/65 mt-0.5">Danh sách xe đang trên đường về HUB</p>
                         </div>
                       </div>
 
                       {/* Content Area */}
-                      <div className="overflow-y-auto flex-1 pr-1 scrollbar-thin my-3 space-y-2">
+                      <div className="overflow-y-auto flex-1 pr-1 scrollbar-thin my-2 space-y-2">
                         {incomingVehicles.length === 0 ? (
-                          <div className="h-full flex flex-col items-center justify-center text-center py-6 space-y-4">
-                            <div className="w-16 h-16 rounded-full bg-white/[0.02] border border-white/[0.04] flex items-center justify-center text-[#94A3B8] opacity-60">
-                              <Truck size={32} strokeWidth={1.5} />
+                          <div className="h-full flex flex-col items-center justify-center text-center py-4 space-y-3">
+                            <div className="w-12 h-12 rounded-full bg-white/[0.02] border border-white/[0.04] flex items-center justify-center text-[#8B5CF6] opacity-75">
+                              <Truck size={24} strokeWidth={1.5} />
                             </div>
                             <div className="space-y-1">
-                              <p className="text-sm font-semibold text-white">No vehicles travelling</p>
-                              <p className="text-xs text-[#94A3B8] max-w-[220px]">No vehicles are currently travelling to HUB.</p>
+                              <p className="text-sm font-semibold text-white">No active vehicles</p>
+                              <p className="text-xs text-slate-400/65 max-w-[200px] mx-auto">No vehicles are currently travelling to HUB.</p>
                               <p className="text-[10px] text-slate-500 font-mono mt-1">Checked at {new Date().toLocaleTimeString()}</p>
                             </div>
-                            <button onClick={fetchAndUpdateData} disabled={loading} className="px-3.5 py-1.5 bg-[#172132] hover:bg-[#1f2c41] text-[#94A3B8] hover:text-white border border-white/10 rounded-xl transition-all duration-150 text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50">
+                            <button onClick={fetchAndUpdateData} disabled={loading} className="px-3.5 py-1.5 bg-[#172132] hover:bg-[#1f2c41] text-[#94A3B8] hover:text-white border border-white/10 rounded-xl transition-all duration-[180ms] ease-in-out text-[11px] font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50">
                               <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
-                              Refresh action
+                              Refresh status
                             </button>
                           </div>
                         ) : (
@@ -2335,17 +2388,17 @@ export default function App() {
                             const timeMatch = row.sendTime.match(/\s+(\d{2}:\d{2})/);
                             const sendHour = timeMatch ? timeMatch[1] : row.sendTime;
                             return (
-                              <div key={`${row.taskCode}-${idx}`} className="flex items-center justify-between p-2.5 bg-white/[0.01] border border-white/[0.04] rounded-xl hover:border-[#4F8CFF]/30 hover:bg-white/[0.02] transition-all duration-150">
+                              <div key={`${row.taskCode}-${idx}`} className="flex items-center justify-between p-2.5 bg-white/[0.01] border border-white/[0.04] rounded-xl hover:border-[#8B5CF6]/30 hover:bg-white/[0.02] transition-all duration-[180ms] ease-in-out">
                                 <div className="space-y-1">
                                   <div className="flex items-center gap-1.5">
-                                    <span className="text-xs font-bold font-mono text-[#4F8CFF]">{row.taskCode}</span>
-                                    <span className="text-[9px] px-2 py-0.5 rounded-lg bg-[#4F8CFF]/10 text-[#4F8CFF] font-semibold">Gửi {sendHour}</span>
+                                    <span className="text-xs font-bold font-mono text-[#8B5CF6]">{row.taskCode}</span>
+                                    <span className="text-[9px] px-2 py-0.5 rounded-lg bg-[#8B5CF6]/10 text-[#8B5CF6] font-semibold">Gửi {sendHour}</span>
                                   </div>
-                                  <div className="text-xs text-[#94A3B8]">{row.senderFC}</div>
+                                  <div className="text-xs text-slate-400/65">{row.senderFC}</div>
                                 </div>
                                 <div className="text-right space-y-0.5">
                                   <div className="text-xs font-semibold text-white font-mono">{row.weight.toLocaleString()} kg</div>
-                                  <div className="text-[10px] text-[#94A3B8] font-mono">{row.orders.toLocaleString()} đơn</div>
+                                  <div className="text-[10px] text-slate-400/65 font-mono">{row.orders.toLocaleString()} đơn</div>
                                 </div>
                               </div>
                             );
@@ -2354,7 +2407,7 @@ export default function App() {
                       </div>
 
                       {/* Footer */}
-                      <div className="pt-2 border-t border-white/[0.04] text-[11px] text-[#94A3B8] flex justify-between">
+                      <div className="pt-2 border-t border-white/[0.04] text-[11px] text-slate-400/65 flex justify-between">
                         <span>Total: {incomingVehicles.length} trucks</span>
                         <span>Last sync: just now</span>
                       </div>
@@ -2364,15 +2417,15 @@ export default function App() {
                   {/* Row 4: Operational Summary */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Selection Status */}
-                    <div className="bg-[#172132] border border-white/[0.06] rounded-2xl p-6 shadow-xl flex flex-col justify-between h-[22rem] group hover:border-[#4F8CFF]/20 transition-all duration-150">
+                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl flex flex-col justify-between h-[22rem] group hover:border-[#8B5CF6]/30 transition-all duration-[180ms] ease-in-out hover:-translate-y-0.5 hover:shadow-2xl">
                       {/* Widget Header: Icon + Title + Description + Divider */}
-                      <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.06] mb-2">
+                      <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04] mb-3.5">
                         <div className="w-8 h-8 rounded-lg bg-[#8B5CF6]/10 text-[#8B5CF6] flex items-center justify-center shrink-0">
                           <Activity size={16} strokeWidth={2} />
                         </div>
                         <div>
                           <h3 className="text-[15px] font-semibold text-white leading-tight">Selection status</h3>
-                          <p className="text-xs text-[#94A3B8] mt-0.5">Tỷ lệ phân bổ trạng thái hàng nhập HUB</p>
+                          <p className="text-xs text-slate-400/65 mt-0.5">Tỷ lệ phân bổ trạng thái hàng nhập HUB</p>
                         </div>
                       </div>
 
@@ -2421,8 +2474,8 @@ export default function App() {
                                 />
                               </svg>
                               <div className="absolute flex flex-col items-center justify-center text-center">
-                                <span className="text-[28px] font-bold text-white tracking-tight leading-none">{total.toLocaleString()}</span>
-                                <span className="text-[9px] text-[#94A3B8] font-semibold uppercase mt-1 tracking-wider">Total Orders</span>
+                                <span className="text-[28px] font-bold text-white tracking-tight leading-none font-mono">{total.toLocaleString()}</span>
+                                <span className="text-[9px] text-slate-400/75 font-semibold uppercase mt-1 tracking-wider">Total Orders</span>
                               </div>
                             </div>
                           );
@@ -2430,9 +2483,9 @@ export default function App() {
                       </div>
 
                       {/* Legend / Status values */}
-                      <div className="grid grid-cols-2 gap-3 text-xs pt-3 border-t border-white/[0.06]">
+                      <div className="grid grid-cols-2 gap-3 text-xs pt-3 border-t border-white/[0.04]">
                         <div className="text-center">
-                          <span className="text-[11px] text-[#94A3B8] uppercase font-bold flex items-center justify-center gap-1.5">
+                          <span className="text-[11px] text-slate-400/75 uppercase font-bold flex items-center justify-center gap-1.5">
                             <i className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />
                             Đã Nhập HUB
                           </span>
@@ -2441,7 +2494,7 @@ export default function App() {
                           </span>
                         </div>
                         <div className="text-center">
-                          <span className="text-[11px] text-[#94A3B8] uppercase font-bold flex items-center justify-center gap-1.5">
+                          <span className="text-[11px] text-slate-400/75 uppercase font-bold flex items-center justify-center gap-1.5">
                             <i className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6]" />
                             Chưa về HUB
                           </span>
@@ -2453,26 +2506,35 @@ export default function App() {
                     </div>
 
                     {/* Inbound Pending Trend */}
-                    <div className="bg-[#172132] border border-white/[0.06] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#4F8CFF]/20 transition-all duration-150 flex flex-col justify-between h-[22rem]">
+                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#8B5CF6]/30 transition-all duration-[180ms] ease-in-out flex flex-col justify-between h-[22rem] hover:-translate-y-0.5 hover:shadow-2xl">
                       {/* Widget Header: Icon + Title + Description + Divider */}
-                      <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.06] mb-2">
+                      <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04] mb-3.5">
                         <div className="w-8 h-8 rounded-lg bg-[#8B5CF6]/10 text-[#8B5CF6] flex items-center justify-center shrink-0">
                           <Activity size={16} strokeWidth={2} />
                         </div>
                         <div>
                           <h3 className="text-[15px] font-semibold text-white leading-tight">Inbound pending trend</h3>
-                          <p className="text-xs text-[#94A3B8] mt-0.5">Theo dõi lượng hàng còn chờ nhập HUB</p>
+                          <p className="text-xs text-slate-400/65 mt-0.5">Theo dõi lượng hàng còn chờ nhập HUB</p>
                         </div>
                         <div className="ml-auto text-right">
-                          <span className="text-[24px] font-bold text-white tracking-tight leading-none block">{stages['Chưa về Hub'].orders.toLocaleString()}</span>
-                          <span className="text-[10px] text-[#94A3B8] font-medium uppercase mt-0.5 block">Đơn chờ dỡ</span>
+                          <span className="text-[24px] font-bold text-white tracking-tight leading-none block font-mono">{stages['Chưa về Hub'].orders.toLocaleString()}</span>
+                          <span className="text-[10px] text-slate-400/75 uppercase mt-1 block">Đơn chờ dỡ</span>
                         </div>
                       </div>
 
                       {/* Content Area: Chart viewport (70~80% height) */}
                       <div className="flex-grow flex items-center justify-center mt-3">
                         {(() => {
-                          const maxVal = Math.max(...pendingTimelineData.map(x => x.orders), 1);
+                          const vals = pendingTimelineData.map(x => x.orders);
+                          const maxValReal = Math.max(...vals, 0);
+                          const minValReal = Math.min(...vals, 0);
+                          const valRange = maxValReal - minValReal;
+                          const yPad = valRange === 0 ? (maxValReal === 0 ? 10 : maxValReal * 0.15) : valRange * 0.15;
+                          const maxVal = maxValReal + yPad;
+                          const minVal = Math.max(0, minValReal - yPad);
+                          const effectiveRange = maxVal - minVal || 1;
+                          const allZeroOrEqual = vals.every(v => v === vals[0]);
+
                           const width = 500;
                           const height = 180;
                           const paddingLeft = 30;
@@ -2486,7 +2548,7 @@ export default function App() {
 
                           const pts = pendingTimelineData.map((d, i) => ({
                             x: paddingLeft + i * dx,
-                            y: height - paddingBottom - (d.orders / maxVal) * chartH
+                            y: height - paddingBottom - ((d.orders - minVal) / effectiveRange) * chartH
                           }));
 
                           let splinePath = '';
@@ -2512,27 +2574,36 @@ export default function App() {
                               <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
                                 <defs>
                                   <linearGradient id="err-purple-2" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.2" />
+                                    <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.15" />
                                     <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
                                   </linearGradient>
                                 </defs>
 
-                                {/* Grid lines */}
-                                {[0, 0.5, 1].map((ratio, idx) => {
+                                {/* Grid lines - exactly 5 lines */}
+                                {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
                                   const y = paddingTop + ratio * chartH;
                                   return (
-                                    <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.03)" strokeWidth="1" strokeDasharray="3 3" />
+                                    <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.025)" strokeWidth="1" />
                                   );
                                 })}
 
-                                {/* Glow area & Line */}
-                                {areaPath && <path d={areaPath} fill="url(#err-purple-2)" />}
-                                {splinePath && <path d={splinePath} fill="none" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" />}
+                                {allZeroOrEqual ? (
+                                  <>
+                                    <line x1={paddingLeft} y1={paddingTop + 0.5 * chartH} x2={width - paddingRight} y2={paddingTop + 0.5 * chartH} stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" strokeDasharray="4 4" />
+                                    <text x={width / 2} y={paddingTop + 0.5 * chartH - 6} fill="#94A3B8" fontSize="8" textAnchor="middle" className="font-sans font-medium">Không ghi nhận sản lượng phát sinh</text>
+                                  </>
+                                ) : (
+                                  <>
+                                    {/* Glow area & Line */}
+                                    {areaPath && <path d={areaPath} fill="url(#err-purple-2)" />}
+                                    {splinePath && <path d={splinePath} fill="none" stroke="#8B5CF6" strokeWidth="2.5" strokeLinecap="round" />}
 
-                                {/* Hover dots */}
-                                {pts.map((p, i) => (
-                                  <circle key={i} cx={p.x} cy={p.y} r="1.5" fill="#8B5CF6" />
-                                ))}
+                                    {/* Hover dots */}
+                                    {pts.map((p, i) => (
+                                      <circle key={i} cx={p.x} cy={p.y} r="3" fill="#8B5CF6" className="transition-all duration-150 hover:r-4 cursor-pointer" />
+                                    ))}
+                                  </>
+                                )}
 
                                 {/* X labels */}
                                 <text x={paddingLeft} y={height - 4} fill="#94A3B8" fontSize="8" className="font-mono text-left">00:00</text>
@@ -2543,10 +2614,17 @@ export default function App() {
                         })()}
                       </div>
 
-                      {/* Optional Footer */}
-                      <div className="pt-2 border-t border-white/[0.04] text-[11px] text-[#94A3B8] flex justify-between">
+                      {/* Optional Footer & Legend */}
+                      <div className="pt-2 border-t border-white/[0.04] text-[11px] text-slate-400/65 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6]" />
+                            Sản lượng chờ dỡ
+                          </span>
+                          <span>•</span>
+                          <span>Khung giờ: 24h</span>
+                        </div>
                         <span>Last updated: just now</span>
-                        <span>Interval: 24h</span>
                       </div>
                     </div>
                   </div>
