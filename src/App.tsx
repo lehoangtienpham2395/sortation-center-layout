@@ -2037,10 +2037,10 @@ export default function App() {
                     })}
                   </div>
 
-                  {/* Row 2: Primary Operational Analytics */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Inbound trending hourly Chart */}
-                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-visible group hover:border-[#8B5CF6]/30 transition-all duration-[180ms] ease-in-out flex flex-col justify-between min-h-[22rem] hover:-translate-y-0.5 hover:shadow-2xl">
+                  {/* Row 2: Primary Operational Analytics (Responsive Grid) */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Inbound trending hourly Chart (Chiếm 2/3 bề ngang) */}
+                    <div className="lg:col-span-2 bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-visible group hover:border-[#8B5CF6]/30 transition-all duration-[180ms] ease-in-out flex flex-col justify-between min-h-[22rem] hover:-translate-y-0.5 hover:shadow-2xl">
                       {/* Card Header & Description */}
                       <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04]">
                         <div className="w-8 h-8 rounded-lg bg-[#8B5CF6]/10 text-[#8B5CF6] flex items-center justify-center shrink-0">
@@ -2223,8 +2223,8 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Selection Status */}
-                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl flex flex-col justify-between h-[22rem] group hover:border-[#8B5CF6]/30 transition-all duration-[180ms] ease-in-out hover:-translate-y-0.5 hover:shadow-2xl">
+                    {/* Selection Status (Chiếm 1/3 bề ngang còn lại) */}
+                    <div className="lg:col-span-1 bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl flex flex-col justify-between h-[22rem] group hover:border-[#8B5CF6]/30 transition-all duration-[180ms] ease-in-out hover:-translate-y-0.5 hover:shadow-2xl">
                       {/* Widget Header: Icon + Title + Description + Divider */}
                       <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04] mb-3.5">
                         <div className="w-8 h-8 rounded-lg bg-[#8B5CF6]/10 text-[#8B5CF6] flex items-center justify-center shrink-0">
