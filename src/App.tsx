@@ -1583,160 +1583,196 @@ export default function App() {
           )}
 
           {/* Right Column: Control Center & Top 10 Racks (w-90) */}
-          {currentView === 'master' && (
+          {(currentView === 'master' || currentView === 'inbound') && (
             <div className="absolute z-20 top-16 right-6 w-90 flex flex-col gap-4 max-h-[calc(100vh-210px)] overflow-y-auto pr-2 pb-6 scrollbar-thin">
               {/* A. Control Center Panel */}
               {showControls && (
                 <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
-              <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[var(--accent)]">CONTROL CENTER</h3>
-              
-              <div className="space-y-4">
-                {/* 1. LOẠI (Type Selector) - Segmented Control */}
-                <div className="space-y-2">
-                  <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">LOẠI DỮ LIỆU</div>
-                  <div className="flex bg-[#0a0e14]/90 border border-white/10 rounded-full p-1 w-full">
-                    {(['Outbound', 'Backlog', 'Inventory'] as const).map(type => {
-                      const isActive = selectedType === type;
-                      const labelMap = { Outbound: 'Outbound', Backlog: 'Backlog', Inventory: 'Volume' };
-                      return (
-                        <button
-                          key={type}
-                          onClick={() => setSelectedType(type)}
-                          className={`flex-1 text-center py-1.5 rounded-full text-[11px] font-bold transition-all duration-300 relative z-10 ${
-                            isActive
-                              ? 'text-white bg-[var(--accent)] shadow-[0_2px_8px_rgba(255,106,43,0.3)]'
-                              : 'text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          {labelMap[type]}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {currentView === 'master' ? (
+                    <>
+                      <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[var(--accent)]">CONTROL CENTER</h3>
+                      <div className="space-y-4">
+                        {/* 1. LOẠI (Type Selector) - Segmented Control */}
+                        <div className="space-y-2">
+                          <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">LOẠI DỮ LIỆU</div>
+                          <div className="flex bg-[#0a0e14]/90 border border-white/10 rounded-full p-1 w-full">
+                            {(['Outbound', 'Backlog', 'Inventory'] as const).map(type => {
+                              const isActive = selectedType === type;
+                              const labelMap = { Outbound: 'Outbound', Backlog: 'Backlog', Inventory: 'Volume' };
+                              return (
+                                <button
+                                  key={type}
+                                  onClick={() => setSelectedType(type)}
+                                  className={`flex-1 text-center py-1.5 rounded-full text-[11px] font-bold transition-all duration-300 relative z-10 ${
+                                    isActive
+                                      ? 'text-white bg-[var(--accent)] shadow-[0_2px_8px_rgba(255,106,43,0.3)]'
+                                      : 'text-slate-400 hover:text-slate-200'
+                                  }`}
+                                >
+                                  {labelMap[type]}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 2. NGÀY (Date Selector) - Scrollable Pill Group */}
+                        <div className="space-y-2">
+                          <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">NGÀY BÁO CÁO</div>
+                          <div className="flex gap-1.5 overflow-x-auto py-1 scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                            {availableDates.slice(0, 7).map(d => {
+                              const isActive = selectedDate === d;
+                              return (
+                                <button
+                                  key={d}
+                                  onClick={() => setSelectedDate(d)}
+                                  className={`px-3 py-1.5 rounded-full text-[10.5px] font-bold border transition-all duration-250 shrink-0 ${
+                                    isActive
+                                      ? 'bg-[#1e2942]/60 border-[var(--cyan)] text-[var(--cyan)] shadow-[0_0_8px_rgba(34,211,238,0.15)]'
+                                      : 'bg-[#101622]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-200'
+                                  }`}
+                                >
+                                  {d}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* 3. TRẠNG THÁI (Status Selector) - Modern Toggle Buttons */}
+                        <div className={`space-y-2 transition-all duration-300 ${
+                          selectedType !== 'Inventory' ? 'opacity-30 pointer-events-none select-none filter blur-[0.4px]' : 'opacity-100'
+                        }`}>
+                          <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">TRẠNG THÁI (VOLUME)</div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={toggleAllStatuses}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[11px] font-medium transition-all duration-200 ${
+                                selectedStatuses.length === INVENTORY_STATUSES.length
+                                  ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
+                                  : 'bg-[#101622]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-300'
+                              }`}
+                            >
+                              <span className={`w-2 h-2 rounded-full ${
+                                selectedStatuses.length === INVENTORY_STATUSES.length ? 'bg-yellow-400 animate-pulse' : 'bg-slate-600'
+                              }`} />
+                              Tất cả
+                            </button>
+                            {INVENTORY_STATUSES.map(status => {
+                              const isChecked = selectedStatuses.includes(status);
+                              return (
+                                <button
+                                  key={status}
+                                  onClick={() => toggleStatus(status)}
+                                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[10.5px] font-medium transition-all duration-200 ${
+                                    isChecked
+                                      ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
+                                      : 'bg-[#101622]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-300'
+                                  }`}
+                                >
+                                  <span className={`w-2 h-2 rounded-full ${
+                                    isChecked ? 'bg-yellow-400 animate-pulse' : 'bg-slate-600'
+                                  }`} />
+                                  {status}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[#8B5CF6]">INBOUND CONTROL</h3>
+                      <div className="space-y-4">
+                        {/* Operating Date Selector for Inbound */}
+                        <div className="space-y-2">
+                          <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">NGÀY VẬN HÀNH</div>
+                          <div className="flex gap-1.5 overflow-x-auto py-1 scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                            {(() => {
+                              const inboundDates = Array.from(new Set(inboundData.map(d => d['Ngày vận hành']).filter(Boolean))) as string[];
+                              inboundDates.sort((a, b) => b.localeCompare(a));
+                              const activeDate = selectedInboundDate || inboundDates[0] || '';
+                              return inboundDates.slice(0, 7).map(d => {
+                                const isActive = activeDate === d;
+                                return (
+                                  <button
+                                    key={d}
+                                    onClick={() => setSelectedInboundDate(d)}
+                                    className={`px-3 py-1.5 rounded-full text-[10.5px] font-bold border transition-all duration-250 shrink-0 ${
+                                      isActive
+                                        ? 'bg-[#2d2440]/60 border-[#8B5CF6] text-[#c084fc] shadow-[0_0_8px_rgba(139,92,246,0.15)]'
+                                        : 'bg-[#101622]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-200'
+                                    }`}
+                                  >
+                                    {d}
+                                  </button>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
+              )}
 
-                {/* 2. NGÀY (Date Selector) - Scrollable Pill Group */}
-                <div className="space-y-2">
-                  <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">NGÀY BÁO CÁO</div>
-                  <div className="flex gap-1.5 overflow-x-auto py-1 scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    {availableDates.slice(0, 7).map(d => {
-                      const isActive = selectedDate === d;
-                      return (
-                        <button
-                          key={d}
-                          onClick={() => setSelectedDate(d)}
-                          className={`px-3 py-1.5 rounded-full text-[10.5px] font-bold border transition-all duration-250 shrink-0 ${
-                            isActive
-                              ? 'bg-[#1e2942]/60 border-[var(--cyan)] text-[var(--cyan)] shadow-[0_0_8px_rgba(34,211,238,0.15)]'
-                              : 'bg-[#101622]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-200'
-                          }`}
-                        >
-                          {d}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* 3. TRẠNG THÁI (Status Selector) - Modern Toggle Buttons */}
-                <div className={`space-y-2 transition-all duration-300 ${
-                  selectedType !== 'Inventory' ? 'opacity-30 pointer-events-none select-none filter blur-[0.4px]' : 'opacity-100'
-                }`}>
-                  <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">TRẠNG THÁI (VOLUME)</div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={toggleAllStatuses}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[11px] font-medium transition-all duration-200 ${
-                        selectedStatuses.length === INVENTORY_STATUSES.length
-                          ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
-                          : 'bg-[#101622]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-300'
-                      }`}
-                    >
-                      <span className={`w-2 h-2 rounded-full ${
-                        selectedStatuses.length === INVENTORY_STATUSES.length ? 'bg-yellow-400 animate-pulse' : 'bg-slate-600'
-                      }`} />
-                      Tất cả
-                    </button>
-                    {INVENTORY_STATUSES.map(status => {
-                      const isChecked = selectedStatuses.includes(status);
-                      return (
-                        <button
-                          key={status}
-                          onClick={() => toggleStatus(status)}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[10.5px] font-medium transition-all duration-200 ${
-                            isChecked
-                              ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
-                              : 'bg-[#101622]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-300'
-                          }`}
-                        >
-                          <span className={`w-2 h-2 rounded-full ${
-                            isChecked ? 'bg-yellow-400 animate-pulse' : 'bg-slate-600'
-                          }`} />
-                          {status}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-            )}
-
-            {/* B. TOP 10 RACKS (with weight!) */}
-            {showTop10 && (
-              <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
-              <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">
-                {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-[var(--line)] text-[10px] text-[var(--muted)] uppercase mono font-bold">
-                      <th className="py-1 w-6">#</th>
-                      <th className="py-1 w-10">Mã</th>
-                      <th className="py-1">Bưu Cục</th>
-                      <th className="py-1 text-right w-14">{selectedType === 'Outbound' ? 'Xuất' : 'Tồn'}</th>
-                      <th className="py-1 text-right w-16">T.lượng</th>
-                      <th className="py-1 text-right w-10">{displayUtilizationLabelLc}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {getTop10Chutes().map((chute, index) => {
-                      const colors: Record<string, string> = {
-                        green: 'var(--green)',
-                        yellow: 'var(--yellow)',
-                        orange: 'var(--orange)',
-                        red: 'var(--red)',
-                        darkred: 'var(--red)'
-                      };
-                      const col = colors[chute.bucket] || '#fff';
-
-                      return (
-                        <tr key={chute.areaId} className="border-b border-[#1e2942]/20 last:border-0 hover:bg-white/5 transition-colors cursor-pointer text-[11px]"
-                            onMouseEnter={() => {
-                              const d = data[chute.areaId];
-                              setHoveredRack({ areaId: chute.areaId, name: chute.name, ...d });
-                              if (chute.zone) setHoveredZone(chute.zone);
-                            }}
-                            onMouseLeave={() => {
-                              setHoveredRack(null);
-                              setHoveredZone(null);
-                            }}>
-                          <td className="py-1 text-[var(--muted)] mono">{index + 1}</td>
-                          <td className="py-1 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
-                          <td className="py-1 truncate max-w-[80px] font-medium text-white/95" title={chute.name}>
-                            {chute.name}
-                          </td>
-                          <td className="py-1 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
-                          <td className="py-1 text-right mono text-slate-300">{chute.weight.toLocaleString()} kg</td>
-                          <td className="py-1 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
+              {/* B. TOP 10 RACKS */}
+              {currentView === 'master' && showTop10 && (
+                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
+                  <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">
+                    {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-[var(--line)] text-[10px] text-[var(--muted)] uppercase mono font-bold">
+                          <th className="py-1 w-6">#</th>
+                          <th className="py-1 w-10">Mã</th>
+                          <th className="py-1">Bưu Cục</th>
+                          <th className="py-1 text-right w-14">{selectedType === 'Outbound' ? 'Xuất' : 'Tồn'}</th>
+                          <th className="py-1 text-right w-16">T.lượng</th>
+                          <th className="py-1 text-right w-10">{displayUtilizationLabelLc}</th>
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                      </thead>
+                      <tbody>
+                        {getTop10Chutes().map((chute, index) => {
+                          const colors: Record<string, string> = {
+                            green: 'var(--green)',
+                            yellow: 'var(--yellow)',
+                            orange: 'var(--orange)',
+                            red: 'var(--red)',
+                            darkred: 'var(--red)'
+                          };
+                          const col = colors[chute.bucket] || '#fff';
+
+                          return (
+                            <tr key={chute.areaId} className="border-b border-[#1e2942]/20 last:border-0 hover:bg-white/5 transition-colors cursor-pointer text-[11px]"
+                                onMouseEnter={() => {
+                                  const d = data[chute.areaId];
+                                  setHoveredRack({ areaId: chute.areaId, name: chute.name, ...d });
+                                  if (chute.zone) setHoveredZone(chute.zone);
+                                }}
+                                onMouseLeave={() => {
+                                  setHoveredRack(null);
+                                  setHoveredZone(null);
+                                }}>
+                              <td className="py-1 text-[var(--muted)] mono">{index + 1}</td>
+                              <td className="py-1 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
+                              <td className="py-1 truncate max-w-[80px] font-medium text-white/95" title={chute.name}>
+                                {chute.name}
+                              </td>
+                              <td className="py-1 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
+                              <td className="py-1 text-right mono text-slate-300">{chute.weight.toLocaleString()} kg</td>
+                              <td className="py-1 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -1755,12 +1791,18 @@ export default function App() {
           )}
 
           {/* Aligned bottom right buttons */}
-          {currentView === 'master' && (
+          {(currentView === 'master' || currentView === 'inbound') && (
             <div className="absolute bottom-16 right-6 z-20 flex gap-3 w-90 justify-between">
-              <button onClick={handleResetZoom}
-                      className="flex-1 font-sans font-bold text-[10.5px] uppercase py-2.5 px-4 rounded-md border border-white/20 bg-[var(--panel)] text-[var(--muted)] cursor-pointer hover:bg-white/10 hover:text-white transition-all shadow-lg text-center">
-                THU NHỎ / RESET
-              </button>
+              {currentView === 'master' ? (
+                <button onClick={handleResetZoom}
+                        className="flex-1 font-sans font-bold text-[10.5px] uppercase py-2.5 px-4 rounded-md border border-white/20 bg-[var(--panel)] text-[var(--muted)] cursor-pointer hover:bg-white/10 hover:text-white transition-all shadow-lg text-center">
+                  THU NHỎ / RESET
+                </button>
+              ) : (
+                <div className="flex-1 p-2 border border-white/5 rounded-md bg-[#101622]/30 text-center flex items-center justify-center">
+                  <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Inbound Panel</span>
+                </div>
+              )}
               <button onClick={fetchAndUpdateData} onMouseMove={handleGoogleBtnMouseMove} disabled={loading}
                       className="flex-1 google-sync-btn justify-center">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
@@ -1793,7 +1835,9 @@ export default function App() {
               // Filter datasets by active date
               const filteredInbound = inboundData.filter(d => d['Ngày vận hành'] === activeDate);
               
-              const getLinehaulOperatingDate = (timeStr: string) => {
+              const getLinehaulOperatingDate = (row: any) => {
+                if (row['Ngày vận hành']) return row['Ngày vận hành'];
+                const timeStr = row['unloadingStartTime'] || row['unloadingEndTime'] || row['sendTime'] || '';
                 if (!timeStr) return '';
                 const match = timeStr.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
                 if (match) {
@@ -1808,7 +1852,7 @@ export default function App() {
                 }
                 return '';
               };
-              const filteredLinehaul = linehaulData.filter(d => getLinehaulOperatingDate(d['sendTime']) === activeDate);
+              const filteredLinehaul = linehaulData.filter(d => getLinehaulOperatingDate(d) === activeDate);
 
               // 1. Aggregate status counts directly from aggregated Inbound sheet (filtered)
               const stages = {
@@ -1853,27 +1897,6 @@ export default function App() {
                 }
               });
               const timelineData = Object.values(hourlyData);
-
-              // 2.2. Hourly pickup timeline distribution from Inbound sheet (based on Pickup Time)
-              const hourlyPickupData: Record<string, { hour: string; orders: number; weight: number }> = {};
-              for (let i = 0; i < 24; i++) {
-                const hStr = `${String(i).padStart(2, '0')}:00`;
-                hourlyPickupData[hStr] = { hour: hStr, orders: 0, weight: 0 };
-              }
-              filteredInbound.forEach(d => {
-                const pkTime = d['Pickup Time'];
-                if (pkTime !== undefined && pkTime !== null && pkTime !== '') {
-                  const hrVal = parseInt(String(pkTime), 10);
-                  if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
-                    const hour = `${String(hrVal).padStart(2, '0')}:00`;
-                    if (hourlyPickupData[hour]) {
-                      hourlyPickupData[hour].orders += parseInt(d['Volume'], 10) || 0;
-                      hourlyPickupData[hour].weight += parseFloat(d['Weight']) || 0;
-                    }
-                  }
-                }
-              });
-              const pickupTimelineData = Object.values(hourlyPickupData);
 
               // 2.3. Hourly pending timeline distribution (based on Pickup Time of "Chưa về Hub" status)
               const hourlyPendingData: Record<string, { hour: string; orders: number; weight: number }> = {};
@@ -1962,53 +1985,6 @@ export default function App() {
                       <p className="text-xs text-slate-400/65 font-normal">Operational overview of today's inbound activities</p>
                     </div>
                     
-                    {/* Grouped Operational Metadata Panel */}
-                    <div className="flex flex-wrap items-center gap-4 bg-[#172132]/40 border border-white/[0.04] p-2.5 rounded-2xl text-xs text-slate-300">
-                      {/* Operating Date Dropdown */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-[#94A3B8] font-bold uppercase tracking-wider">Ngày vận hành:</span>
-                        <select 
-                          value={activeDate} 
-                          onChange={e => setSelectedInboundDate(e.target.value)} 
-                          className="bg-[#172132] text-white text-xs font-semibold py-1.5 px-3 rounded-xl border border-white/10 outline-none cursor-pointer transition-colors hover:border-white/20"
-                        >
-                          {inboundDates.length > 0 ? (
-                            inboundDates.map(d => (
-                              <option key={d} value={d}>{d}</option>
-                            ))
-                          ) : (
-                            <option value="">Chưa có dữ liệu</option>
-                          )}
-                        </select>
-                      </div>
-
-                      <span className="text-xs font-mono text-white/10">|</span>
-
-                      {/* System Status */}
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#172132] border border-white/10 rounded-xl">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
-                        <span className="text-slate-300 font-semibold">SYS: ONLINE</span>
-                      </div>
-
-                      <span className="text-xs font-mono text-white/10">|</span>
-                      
-                      {/* Last Synchronization */}
-                      <span className="text-xs text-slate-300 font-normal">
-                        Last Sync: <span className="font-mono text-white">{new Date().toLocaleTimeString()}</span>
-                      </span>
-
-                      <span className="text-xs font-mono text-white/10">|</span>
-
-                      {/* Sync Button */}
-                      <button 
-                        onClick={fetchAndUpdateData}
-                        disabled={loading}
-                        className="px-3.5 py-1.5 bg-[#172132] hover:bg-[#1f2c41] text-[#94A3B8] hover:text-white border border-white/10 rounded-xl transition-all duration-[180ms] ease-in-out text-xs font-semibold flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-                        {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
-                      </button>
-                    </div>
                   </div>
 
                   {/* Row 1: Operational Summary (KPI Cards) */}
@@ -2045,27 +2021,27 @@ export default function App() {
 
                   {/* Row 2: Primary Operational Analytics */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Pickup Volume Chart */}
-                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#4F8CFF]/20 transition-all duration-[180ms] ease-in-out flex flex-col justify-between min-h-[22rem]">
+                    {/* Inbound trending hourly Chart (formerly Pickup Volume, now showing pending trend) */}
+                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#8B5CF6]/30 transition-all duration-[180ms] ease-in-out flex flex-col justify-between min-h-[22rem] hover:-translate-y-0.5 hover:shadow-2xl">
                       {/* Card Header & Description */}
                       <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04]">
-                        <div className="w-8 h-8 rounded-lg bg-[#4F8CFF]/10 text-[#4F8CFF] flex items-center justify-center shrink-0">
-                          <Sliders size={16} strokeWidth={2} />
+                        <div className="w-8 h-8 rounded-lg bg-[#8B5CF6]/10 text-[#8B5CF6] flex items-center justify-center shrink-0">
+                          <Activity size={16} strokeWidth={2} />
                         </div>
                         <div>
-                          <h3 className="text-[15px] font-semibold text-white leading-tight">Pickup volume</h3>
-                          <p className="text-xs text-slate-400/65 mt-0.5">Theo dõi sản lượng Pickup của bưu cục</p>
+                          <h3 className="text-[15px] font-semibold text-white leading-tight">Inbound trend hourly</h3>
+                          <p className="text-xs text-slate-400/65 mt-0.5">Theo dõi lượng hàng còn chờ nhập HUB</p>
                         </div>
                         <div className="ml-auto text-right">
-                          <span className="text-[24px] font-bold text-white tracking-tight leading-none block font-mono">{totalOrders.toLocaleString()}</span>
-                          <span className="text-[10px] text-slate-400/75 uppercase mt-1 block">Tổng đơn gom</span>
+                          <span className="text-[24px] font-bold text-white tracking-tight leading-none block font-mono">{stages['Chưa về Hub'].orders.toLocaleString()}</span>
+                          <span className="text-[10px] text-slate-400/75 uppercase mt-1 block">Đơn chờ dỡ</span>
                         </div>
                       </div>
 
                       {/* Content Area: Chart viewport (70~80% height) */}
                       <div className="flex-grow flex items-center justify-center mt-3">
                         {(() => {
-                          const vals = pickupTimelineData.map(x => x.orders);
+                          const vals = pendingTimelineData.map(x => x.orders);
                           const maxValReal = Math.max(...vals, 0);
                           const minValReal = Math.min(...vals, 0);
                           const valRange = maxValReal - minValReal;
@@ -2086,7 +2062,7 @@ export default function App() {
                           const chartH = height - paddingTop - paddingBottom;
                           const dx = chartW / 23;
 
-                          const pts = pickupTimelineData.map((d, i) => ({
+                          const pts = pendingTimelineData.map((d, i) => ({
                             x: paddingLeft + i * dx,
                             y: height - paddingBottom - ((d.orders - minVal) / effectiveRange) * chartH
                           }));
@@ -2113,9 +2089,9 @@ export default function App() {
                             <div className="w-full">
                               <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
                                 <defs>
-                                  <linearGradient id="pk-blue-2" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#4F8CFF" stopOpacity="0.15" />
-                                    <stop offset="100%" stopColor="#4F8CFF" stopOpacity="0" />
+                                  <linearGradient id="err-purple-2" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.15" />
+                                    <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
                                   </linearGradient>
                                 </defs>
 
@@ -2135,29 +2111,52 @@ export default function App() {
                                 ) : (
                                   <>
                                     {/* Glow area & Line */}
-                                    {areaPath && <path d={areaPath} fill="url(#pk-blue-2)" />}
-                                    {splinePath && <path d={splinePath} fill="none" stroke="#4F8CFF" strokeWidth="2.5" strokeLinecap="round" />}
+                                    {areaPath && <path d={areaPath} fill="url(#err-purple-2)" />}
+                                    {splinePath && <path d={splinePath} fill="none" stroke="#8B5CF6" strokeWidth="2.5" strokeLinecap="round" />}
 
-                                    {/* Interactive hovering points */}
+                                    {/* Hover dots */}
                                     {pts.map((p, i) => (
-                                      <circle key={i} cx={p.x} cy={p.y} r="3" fill="#4F8CFF" className="transition-all duration-150 hover:r-4 cursor-pointer" />
+                                      <circle key={i} cx={p.x} cy={p.y} r="3" fill="#8B5CF6" className="transition-all duration-150 hover:r-4 cursor-pointer" />
                                     ))}
                                   </>
                                 )}
 
                                 {/* X labels */}
-                                <text x={paddingLeft} y={height - 4} fill="#94A3B8" fontSize="8" className="font-mono text-left">00:00</text>
-                                <text x={width - paddingRight} y={height - 4} fill="#94A3B8" fontSize="8" textAnchor="end" className="font-mono">23:00</text>
+                                {Array.from({ length: 24 }).map((_, idx) => {
+                                  const xPos = paddingLeft + (idx * chartW) / 23;
+                                  const label = `${idx.toString().padStart(2, '0')}`;
+                                  return (
+                                    <text
+                                      key={idx}
+                                      x={xPos}
+                                      y={height - 4}
+                                      fill="#94A3B8"
+                                      fontSize="11"
+                                      fontWeight="bold"
+                                      className="font-mono"
+                                      textAnchor="middle"
+                                    >
+                                      {label}
+                                    </text>
+                                  );
+                                })}
                               </svg>
                             </div>
                           );
                         })()}
                       </div>
                       
-                      {/* Optional Footer */}
-                      <div className="pt-2 border-t border-white/[0.04] text-[11px] text-[#94A3B8] flex justify-between">
+                      {/* Optional Footer & Legend */}
+                      <div className="pt-2 border-t border-white/[0.04] text-[11px] text-slate-400/65 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6]" />
+                            Sản lượng chờ dỡ
+                          </span>
+                          <span>•</span>
+                          <span>Khung giờ: 24h</span>
+                        </div>
                         <span>Last updated: just now</span>
-                        <span>Interval: 24h</span>
                       </div>
                     </div>
 
@@ -2507,128 +2506,6 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Inbound Pending Trend */}
-                    <div className="bg-[#172132] border border-white/[0.04] rounded-2xl p-6 shadow-xl relative overflow-hidden group hover:border-[#8B5CF6]/30 transition-all duration-[180ms] ease-in-out flex flex-col justify-between h-[22rem] hover:-translate-y-0.5 hover:shadow-2xl">
-                      {/* Widget Header: Icon + Title + Description + Divider */}
-                      <div className="flex items-start gap-3 pb-3.5 border-b border-white/[0.04] mb-3.5">
-                        <div className="w-8 h-8 rounded-lg bg-[#8B5CF6]/10 text-[#8B5CF6] flex items-center justify-center shrink-0">
-                          <Activity size={16} strokeWidth={2} />
-                        </div>
-                        <div>
-                          <h3 className="text-[15px] font-semibold text-white leading-tight">Inbound pending trend</h3>
-                          <p className="text-xs text-slate-400/65 mt-0.5">Theo dõi lượng hàng còn chờ nhập HUB</p>
-                        </div>
-                        <div className="ml-auto text-right">
-                          <span className="text-[24px] font-bold text-white tracking-tight leading-none block font-mono">{stages['Chưa về Hub'].orders.toLocaleString()}</span>
-                          <span className="text-[10px] text-slate-400/75 uppercase mt-1 block">Đơn chờ dỡ</span>
-                        </div>
-                      </div>
-
-                      {/* Content Area: Chart viewport (70~80% height) */}
-                      <div className="flex-grow flex items-center justify-center mt-3">
-                        {(() => {
-                          const vals = pendingTimelineData.map(x => x.orders);
-                          const maxValReal = Math.max(...vals, 0);
-                          const minValReal = Math.min(...vals, 0);
-                          const valRange = maxValReal - minValReal;
-                          const yPad = valRange === 0 ? (maxValReal === 0 ? 10 : maxValReal * 0.15) : valRange * 0.15;
-                          const maxVal = maxValReal + yPad;
-                          const minVal = Math.max(0, minValReal - yPad);
-                          const effectiveRange = maxVal - minVal || 1;
-                          const allZeroOrEqual = vals.every(v => v === vals[0]);
-
-                          const width = 500;
-                          const height = 180;
-                          const paddingLeft = 30;
-                          const paddingRight = 10;
-                          const paddingTop = 10;
-                          const paddingBottom = 20;
-
-                          const chartW = width - paddingLeft - paddingRight;
-                          const chartH = height - paddingTop - paddingBottom;
-                          const dx = chartW / 23;
-
-                          const pts = pendingTimelineData.map((d, i) => ({
-                            x: paddingLeft + i * dx,
-                            y: height - paddingBottom - ((d.orders - minVal) / effectiveRange) * chartH
-                          }));
-
-                          let splinePath = '';
-                          if (pts.length > 0) {
-                            splinePath = `M ${pts[0].x} ${pts[0].y}`;
-                            for (let i = 0; i < pts.length - 1; i++) {
-                              const p0 = pts[i];
-                              const p1 = pts[i + 1];
-                              const cpX1 = p0.x + (p1.x - p0.x) / 3;
-                              const cpY1 = p0.y;
-                              const cpX2 = p0.x + 2 * (p1.x - p0.x) / 3;
-                              const cpY2 = p1.y;
-                              splinePath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
-                            }
-                          }
-
-                          const areaPath = splinePath 
-                            ? `${splinePath} L ${pts[pts.length - 1].x} ${height - paddingBottom} L ${pts[0].x} ${height - paddingBottom} Z` 
-                            : '';
-
-                          return (
-                            <div className="w-full">
-                              <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
-                                <defs>
-                                  <linearGradient id="err-purple-2" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#8B5CF6" stopOpacity="0.15" />
-                                    <stop offset="100%" stopColor="#8B5CF6" stopOpacity="0" />
-                                  </linearGradient>
-                                </defs>
-
-                                {/* Grid lines - exactly 5 lines */}
-                                {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
-                                  const y = paddingTop + ratio * chartH;
-                                  return (
-                                    <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.025)" strokeWidth="1" />
-                                  );
-                                })}
-
-                                {allZeroOrEqual ? (
-                                  <>
-                                    <line x1={paddingLeft} y1={paddingTop + 0.5 * chartH} x2={width - paddingRight} y2={paddingTop + 0.5 * chartH} stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" strokeDasharray="4 4" />
-                                    <text x={width / 2} y={paddingTop + 0.5 * chartH - 6} fill="#94A3B8" fontSize="8" textAnchor="middle" className="font-sans font-medium">Không ghi nhận sản lượng phát sinh</text>
-                                  </>
-                                ) : (
-                                  <>
-                                    {/* Glow area & Line */}
-                                    {areaPath && <path d={areaPath} fill="url(#err-purple-2)" />}
-                                    {splinePath && <path d={splinePath} fill="none" stroke="#8B5CF6" strokeWidth="2.5" strokeLinecap="round" />}
-
-                                    {/* Hover dots */}
-                                    {pts.map((p, i) => (
-                                      <circle key={i} cx={p.x} cy={p.y} r="3" fill="#8B5CF6" className="transition-all duration-150 hover:r-4 cursor-pointer" />
-                                    ))}
-                                  </>
-                                )}
-
-                                {/* X labels */}
-                                <text x={paddingLeft} y={height - 4} fill="#94A3B8" fontSize="8" className="font-mono text-left">00:00</text>
-                                <text x={width - paddingRight} y={height - 4} fill="#94A3B8" fontSize="8" textAnchor="end" className="font-mono">23:00</text>
-                              </svg>
-                            </div>
-                          );
-                        })()}
-                      </div>
-
-                      {/* Optional Footer & Legend */}
-                      <div className="pt-2 border-t border-white/[0.04] text-[11px] text-slate-400/65 flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                          <span className="flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6]" />
-                            Sản lượng chờ dỡ
-                          </span>
-                          <span>•</span>
-                          <span>Khung giờ: 24h</span>
-                        </div>
-                        <span>Last updated: just now</span>
-                      </div>
-                    </div>
                   </div>
                 </div>
               );
