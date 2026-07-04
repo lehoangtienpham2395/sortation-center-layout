@@ -1869,9 +1869,7 @@ export default function App() {
 
           {/* Center Content: Switch between Layout Master and Inbound */}
           <div className={currentView === 'master'
-            ? `absolute inset-0 flex items-center justify-center pt-10 pb-20 transition-all duration-300 ${
-                isMobile ? 'pl-6 pr-6' : 'pl-[384px] pr-[384px]'
-              }`
+            ? 'absolute left-[368px] right-[384px] top-16 bottom-20 flex items-center justify-center transition-all duration-300'
             : `absolute inset-0 pt-16 pb-6 overflow-y-auto scrollbar-thin transition-all duration-300 flex flex-col items-center ${
                 isMobile 
                   ? 'px-6' 
