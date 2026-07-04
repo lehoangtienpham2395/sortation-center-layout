@@ -623,7 +623,7 @@ export default function InboundDashboard({
           style={{ width: 'auto', padding: '10px 24px' }}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" style={{ marginRight: '8px' }} />
-          {loading ? 'Đang đồng bộ...' : 'Đồng bộ Google Sheets'}
+          {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
         </button>
       </div>
     </div>
