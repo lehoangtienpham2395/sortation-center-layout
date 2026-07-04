@@ -1794,8 +1794,8 @@ export default function App() {
           )}
 
           {/* Aligned bottom right buttons */}
-          {(currentView === 'master' || currentView === 'inbound') && (
-            <div className="absolute bottom-16 right-6 z-20 flex gap-3 w-90 justify-between">
+          {currentView === 'master' && (
+            <div className="absolute bottom-16 right-6 z-20 flex gap-3 w-90 justify-between" >
               {currentView === 'master' ? (
                 <button onClick={handleResetZoom}
                         className="flex-1 font-sans font-bold text-[10.5px] uppercase py-2.5 px-4 rounded-md border border-white/20 bg-[var(--panel)] text-[var(--muted)] cursor-pointer hover:bg-white/10 hover:text-white transition-all shadow-lg text-center">
