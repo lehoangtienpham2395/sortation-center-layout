@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 interface InboundDashboardProps {
   inboundData: any[];
   linehaulData: any[];
+  arrivalData: any[];
   selectedInboundDate: string;
   setSelectedInboundDate: (date: string) => void;
   loading: boolean;
@@ -12,6 +13,7 @@ interface InboundDashboardProps {
 export default function InboundDashboard({
   inboundData,
   linehaulData,
+  arrivalData,
   selectedInboundDate,
   setSelectedInboundDate,
   loading,
@@ -72,7 +74,42 @@ export default function InboundDashboard({
   const totalOrders = stages['Đã về Hub'].orders;
   const totalWeight = stages['Đã về Hub'].weight;
   const totalForecast = stages['Đã về Hub'].orders + stages['Chưa về Hub'].orders;
-  const totalVehicles = new Set(filteredLinehaul.map(d => d['Phiếu nhiệm vụ']).filter(Boolean)).size;
+
+  // --- Arrival data (from the new Arrival Google Sheet) ---
+  // Filter by active date
+  const filteredArrival = arrivalData.filter(d => d['Ngày vận hành'] === activeDate);
+
+  // KPI: số bưu cục đang trên đường (distinct Pickup_station với Chưa đến Hub > 0)
+  const totalVehicles = new Set(
+    filteredArrival
+      .filter(d => (parseInt(d['Chưa đến Hub'], 10) || 0) > 0)
+      .map(d => d['Pickup_station'])
+      .filter(Boolean)
+  ).size;
+
+  // Orders status: tổng đơn chưa đến Hub = "Đang trên đường"
+  const totalInTransitOrders = filteredArrival.reduce(
+    (sum, d) => sum + (parseInt(d['Chưa đến Hub'], 10) || 0), 0
+  );
+
+  // Trucking in transit table: top 10 bưu cục Chưa đến Hub nhiều nhất
+  const stationMap: Record<string, { station: string; chuaDenHub: number; tongDon: number; lastTime: string }> = {};
+  filteredArrival.forEach(d => {
+    const key = (d['Pickup_station'] || '').trim();
+    if (!key) return;
+    if (!stationMap[key]) {
+      stationMap[key] = { station: key, chuaDenHub: 0, tongDon: 0, lastTime: '' };
+    }
+    stationMap[key].chuaDenHub += parseInt(d['Chưa đến Hub'], 10) || 0;
+    stationMap[key].tongDon   += parseInt(d['Tổng số đơn'], 10) || 0;
+    const lt = d['Last time'] || '';
+    if (lt > stationMap[key].lastTime) stationMap[key].lastTime = lt;
+  });
+
+  const incomingVehicles = Object.values(stationMap)
+    .filter(s => s.chuaDenHub > 0)
+    .sort((a, b) => b.chuaDenHub - a.chuaDenHub)
+    .slice(0, 10);
 
   // 4. Hourly timelines
   const hours24 = [];
@@ -87,8 +124,24 @@ export default function InboundDashboard({
     hourlyPickup[l] = 0;
   });
 
+  // Gom (Pickup) hourly: từ Arrival sheet, sum Tổng số đơn theo Scan Hour
+  filteredArrival.forEach(d => {
+    const hr = d['Scan Hour'] !== undefined && d['Scan Hour'] !== null && d['Scan Hour'] !== ''
+      ? d['Scan Hour']
+      : (d['Last time'] ? d['Last time'].split(' ')[1]?.split(':')[0] : undefined);
+    if (hr !== undefined && hr !== null && hr !== '') {
+      const hrVal = parseInt(String(hr), 10);
+      if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
+        const hour = `${String(hrVal).padStart(2, '0')}:00`;
+        if (hourlyPickup[hour] !== undefined) {
+          hourlyPickup[hour] += parseInt(d['Tổng số đơn'], 10) || 0;
+        }
+      }
+    }
+  });
+
   filteredInbound.forEach(d => {
-    // Inbound
+    // Inbound hourly (Nhập)
     if (d['Trạng thái'] === 'Đã về Hub' || d['Trạng thái'] === 'Đã nhập hàng') {
       const ibTime = d['Inbound Hour'] !== undefined && d['Inbound Hour'] !== null && d['Inbound Hour'] !== '' 
         ? d['Inbound Hour'] 
@@ -103,44 +156,15 @@ export default function InboundDashboard({
         }
       }
     }
-    // Pickup
-    const pkTime = d['Pickup Time'];
-    if (pkTime !== undefined && pkTime !== null && pkTime !== '') {
-      const hrVal = parseInt(String(pkTime), 10);
-      if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
-        const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyPickup[hour] !== undefined) {
-          hourlyPickup[hour] += parseInt(d['Volume'], 10) || 0;
-        }
-      }
-    }
   });
 
   const inboundTrendData = labels.map(l => hourlyInbound[l]);
   const pickupTrendData = labels.map(l => hourlyPickup[l]);
   const forecastTrendData = labels.map(l => Math.round(hourlyPickup[l] * 1.05)); // Expected plan is slightly higher
 
-  // Donut chart status calculations
-  const incomingVehicles = filteredLinehaul
-    .filter(d => !d['unloadingStartTime'] && !d['unloadingEndTime'] && d['nextNetworkName'])
-    .map(d => {
-      const uOrders = parseInt(d['unloadingBillPiece'], 10) || 0;
-      const uWeight = parseFloat(d['unloadingWeight']) || 0;
-      const sOrders = parseInt(d['billPiece'], 10) || 0;
-      const sWeight = parseFloat(d['weight']) || 0;
-      return {
-        taskCode: d['Phiếu nhiệm vụ'] || '',
-        subTaskCode: d['Phiếu nhiệm vụ con'] || '',
-        senderFC: d['nextNetworkName'] || '',
-        sendTime: d['sendTime'] || '',
-        orders: uOrders > 0 ? uOrders : sOrders,
-        weight: uWeight > 0 ? uWeight : sWeight
-      };
-    })
-    .sort((a, b) => b.sendTime.localeCompare(a.sendTime));
 
-  const totalInTransitOrders = incomingVehicles.reduce((sum, v) => sum + v.orders, 0);
   const pendingOrders = Math.max(0, totalForecast - totalOrders - totalInTransitOrders);
+
 
   // Top 10 Stations Grouping
   const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
@@ -586,26 +610,24 @@ export default function InboundDashboard({
             <table>
               <thead>
                 <tr>
-                  <th>Mã phiếu</th>
-                  <th>BC đi</th>
-                  <th style={{ textAlign: 'right' }}>Hàng (Đơn)</th>
-                  <th style={{ textAlign: 'right' }}>Trọng Lượng (kg)</th>
-                  <th style={{ textAlign: 'center' }}>Khởi hành</th>
+                  <th>Bưu cục</th>
+                  <th style={{ textAlign: 'right' }}>Chưa đến Hub</th>
+                  <th style={{ textAlign: 'right' }}>Tổng đơn</th>
+                  <th style={{ textAlign: 'center' }}>Cập nhật lúc</th>
                 </tr>
               </thead>
               <tbody>
                 {incomingVehicles.map(v => (
-                  <tr key={v.subTaskCode || v.taskCode}>
-                    <td className="highlight-val" title={v.subTaskCode}>{v.taskCode}</td>
-                    <td className="highlight-val">{v.senderFC}</td>
-                    <td className="highlight-green" style={{ textAlign: 'right' }}>{v.orders.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right' }}>{v.weight.toLocaleString()}</td>
-                    <td style={{ textAlign: 'center' }}>{v.sendTime ? v.sendTime.split(' ')[1] : '--:--'}</td>
+                  <tr key={v.station}>
+                    <td className="highlight-val">{v.station}</td>
+                    <td className="highlight-green" style={{ textAlign: 'right' }}>{v.chuaDenHub.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right' }}>{v.tongDon.toLocaleString()}</td>
+                    <td style={{ textAlign: 'center' }}>{v.lastTime ? v.lastTime.split(' ')[1] : '--:--'}</td>
                   </tr>
                 ))}
                 {incomingVehicles.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', color: '#5a6578', padding: '20px' }}>Không có xe đang di chuyển</td>
+                    <td colSpan={4} style={{ textAlign: 'center', color: '#5a6578', padding: '20px' }}>Không có xe đang di chuyển</td>
                   </tr>
                 )}
               </tbody>

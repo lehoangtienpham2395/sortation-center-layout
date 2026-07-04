@@ -138,7 +138,7 @@ const SHEET_GIDS: Record<string, string> = {
   'Inventory':        '1359945051',
 };
 
-async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul'): Promise<any[] | null> {
+async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival'): Promise<any[] | null> {
   try {
     const url = `https://docs.google.com/spreadsheets/d/1GMgvwa1MIEg0P102MDBcvwJPd-0wAeZh3hewmz_LBQI/gviz/tq?tqx=out:csv&sheet=${sheetType}`;
     const response = await fetch(url);
@@ -338,6 +338,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState<'master' | 'inbound'>('master');
   const [inboundData, setInboundData] = useState<any[]>([]);
   const [linehaulData, setLinehaulData] = useState<any[]>([]);
+  const [arrivalData, setArrivalData] = useState<any[]>([]);
   const [selectedInboundDate, setSelectedInboundDate] = useState<string>('');
   const [showMonitor, setShowMonitor] = useState(true);
   const [showTelemetry, setShowTelemetry] = useState(true);
@@ -421,17 +422,19 @@ export default function App() {
     setLoading(true);
     const [
       outboundRows, backlogRows, inventoryRows,
-      ibRows, lhRows
+      ibRows, lhRows, arrivalRows
     ] = await Promise.all([
       fetchSheetData('Outbound'),
       fetchSheetData('Backlog'),
       fetchSheetData('Inventory'),
       fetchInboundSheetData('Inbound'),
       fetchInboundSheetData('Linehaul'),
+      fetchInboundSheetData('Arrival'),
     ]);
 
     setInboundData(ibRows ?? []);
     setLinehaulData(lhRows ?? []);
+    setArrivalData(arrivalRows ?? []);
 
     if (ibRows && ibRows.length > 0) {
       const ibDates = Array.from(new Set(ibRows.map(r => r['Ngày vận hành']).filter(Boolean))) as string[];
@@ -1833,6 +1836,7 @@ export default function App() {
               <InboundDashboard
                 inboundData={inboundData}
                 linehaulData={linehaulData}
+                arrivalData={arrivalData}
                 selectedInboundDate={selectedInboundDate}
                 setSelectedInboundDate={setSelectedInboundDate}
                 loading={loading}
@@ -2059,6 +2063,7 @@ export default function App() {
                 <InboundDashboard
                   inboundData={inboundData}
                   linehaulData={linehaulData}
+                  arrivalData={arrivalData}
                   selectedInboundDate={selectedInboundDate}
                   setSelectedInboundDate={setSelectedInboundDate}
                   loading={loading}
