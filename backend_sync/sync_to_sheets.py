@@ -248,6 +248,123 @@ def pull_pages_sequential(fetch_page, page_size, label,
     return all_data
 
 
+
+# ================================================================
+# ARRIVAL PULLER (Giám sát phát hàng từ JFS – gom theo bưu cục)
+# ================================================================
+URL_ARRIVAL_SELECT  = 'https://gw.jtcargo.com.vn/basicdata/network/select'
+URL_ARRIVAL_SCAN    = 'https://gw.jtcargo.com.vn/jfs-report-leader/report/dynamicReport/findByPagination'
+ARRIVAL_PARAMS      = {'sqlCode': 'realtime_sca_sen_mon_dtl', 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693'}
+
+
+def _arrival_station_info(session, token_mgr, headers, station_name):
+    """Tra cứu code/id/typeId của một bưu cục qua API Select."""
+    parts = station_name.strip().split(' ', 1)
+    search_name = parts[1] if len(parts) > 1 else station_name
+    params = {'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693', 'name': search_name,
+              'networkId': '11888', 'queryLevel': '3', 'current': 1, 'size': 20}
+    try:
+        r = session.get(URL_ARRIVAL_SELECT, params=params,
+                        headers={**headers, 'authToken': token_mgr.get_token()},
+                        timeout=REQUEST_TIMEOUT)
+        r.raise_for_status()
+        res = r.json()
+        if res.get('succ') or res.get('code') == 1:
+            for rec in res.get('data', {}).get('records', []):
+                rec_name = rec.get('name', '').upper()
+                if station_name.upper() in rec_name or search_name.upper() in rec_name:
+                    return {'code': rec.get('code') or rec.get('networkCode'),
+                            'id': rec.get('id'), 'name': rec.get('name'),
+                            'typeId': rec.get('typeId') or rec.get('networkTypeId')}
+    except Exception as e:
+        print(f'   ⚠️ Arrival select {station_name}: {e}')
+    return None
+
+
+def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end):
+    """
+    Kéo dữ liệu giám sát phát hàng gửi về HCM HUB từ tất cả bưu cục HCM.
+    Trả về list[dict] – mỗi phần tử là 1 đơn với các trường JFS gốc
+    cộng thêm 'Ngày vận hành', 'Scan Hour', 'Pickup_station'.
+    """
+    # Đọc danh sách bưu cục từ valid.csv
+    station_names = []
+    try:
+        df_v = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
+        df_v.columns = df_v.columns.str.strip()
+        name_col = 'Bưu cục final' if 'Bưu cục final' in df_v.columns else ('Bưu cục' if 'Bưu cục' in df_v.columns else None)
+        if name_col:
+            station_names = df_v[name_col].dropna().unique().tolist()
+    except Exception as e:
+        print(f'   ⚠️ Không đọc được valid.csv cho Arrival: {e}')
+
+    if not station_names:
+        print('   ⚠️ Arrival: không có bưu cục để kéo (valid.csv trống hoặc thiếu cột).')
+        return []
+
+    print(f'   🔍 Arrival: tra cứu {len(station_names)} bưu cục...')
+    valid_stations = []
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        futs = {ex.submit(_arrival_station_info, session, token_mgr, base_headers, n): n for n in station_names}
+        for f in as_completed(futs):
+            info = f.result()
+            if info:
+                valid_stations.append(info)
+    print(f'   ✅ Arrival: tìm thấy {len(valid_stations)}/{len(station_names)} mã JFS.')
+
+    all_records = []
+    lock = threading.Lock()
+
+    def fetch_one(station):
+        payload = {
+            'beginDate': date_start, 'endDate': date_end,
+            'nextStationCode': 'HCM004H', 'nextStationCodeId': 11888,
+            'nextStationCodeName': 'HCM HUB', 'nextStationCodeTypeId': 335,
+            'countryId': '1', 'size': 1000, 'sqlCode': 'realtime_sca_sen_mon_dtl',
+            'wayType': '1',
+            'scanSiteCode': station['code'], 'scanSiteCodeId': station['id'],
+            'scanSiteCodeName': station['name'], 'scanSiteCodeTypeId': station['typeId'],
+        }
+        try:
+            r_cnt = auth_post(session, URL_ARRIVAL_SCAN, token_mgr, base_headers,
+                              params=ARRIVAL_PARAMS,
+                              json_body={**payload, 'paginationSearchType': 'count', 'size': 1, 'current': 1},
+                              label=f'Arrival count {station["name"]}')
+            total = (r_cnt.json().get('data') or {}).get('total', 0) or 0
+            if not total:
+                return
+            n_pages = math.ceil(total / 1000)
+            for p in range(1, n_pages + 1):
+                r_list = auth_post(session, URL_ARRIVAL_SCAN, token_mgr, base_headers,
+                                   params=ARRIVAL_PARAMS,
+                                   json_body={**payload, 'paginationSearchType': 'list', 'current': p},
+                                   label=f'Arrival {station["name"]} p{p}')
+                recs = (r_list.json().get('data') or {}).get('records', [])
+                if recs:
+                    with lock:
+                        all_records.extend(recs)
+        except Exception as e:
+            print(f'   ❌ Arrival {station["name"]}: {e}')
+
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        list(ex.map(fetch_one, valid_stations))
+
+    if not all_records:
+        print('   ⚠️ Arrival: không có dữ liệu từ JFS.')
+        return []
+
+    df = pd.DataFrame(all_records)
+    # Tính Ngày vận hành (cycle 6h–6h)
+    df['scantime_dt'] = pd.to_datetime(df.get('scantime'), errors='coerce')
+    df['Ngày vận hành'] = (df['scantime_dt'] - pd.Timedelta(hours=6)).dt.strftime('%Y-%m-%d')
+    df['Scan Hour']     = df['scantime_dt'].dt.hour.fillna(-1).astype(int)
+    if 'scansitename' in df.columns:
+        df = df.rename(columns={'scansitename': 'Pickup_station'})
+    df = df.drop(columns=['scantime_dt'], errors='ignore')
+    print(f'   ✅ Arrival raw: {len(df):,} dòng từ {len(valid_stations)} bưu cục.')
+    return df.to_dict(orient='records')
+
+
 # ================================================================
 # PULLERS
 # ================================================================
@@ -839,6 +956,90 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
 
     write_sheet("Linehaul", df_lh, ["Phiếu nhiệm vụ", "Phiếu nhiệm vụ con", "sendTime", "loadingEndTime", "nextNetworkName", "unloadingStartTime", "unloadingEndTime", "unloadingBillPiece", "unloadingWeight", "billPiece", "weight", "Ngày vận hành"])
 
+    # 5. Arrival sheet (giám sát phát hàng – tích lũy theo ngày, trạm, giờ)
+    arrival_raw = results.get('arrival', [])
+    if arrival_raw:
+        print("\n📋 Xử lý sheet Arrival...")
+        df_arr = pd.DataFrame(arrival_raw)
+        # Mapping "Đã đến Hub" / "Chưa đến Hub" bằng cách đối chiếu billcode vs billNo Inbound
+        df_in_raw = pd.DataFrame(results.get('inbound', []))
+        inbound_billnos = set()
+        if not df_in_raw.empty:
+            bn_col = 'billNo' if 'billNo' in df_in_raw.columns else ('waybillNo' if 'waybillNo' in df_in_raw.columns else None)
+            if bn_col:
+                inbound_billnos = set(df_in_raw[bn_col].dropna().astype(str).str.strip())
+        bc_col = 'billcode' if 'billcode' in df_arr.columns else ('billNo' if 'billNo' in df_arr.columns else None)
+        if bc_col and inbound_billnos:
+            df_arr['Đã đến Hub']   = df_arr[bc_col].astype(str).str.strip().isin(inbound_billnos).astype(int)
+            df_arr['Chưa đến Hub'] = 1 - df_arr['Đã đến Hub']
+        else:
+            df_arr['Đã đến Hub']   = 0
+            df_arr['Chưa đến Hub'] = 1
+
+        # Pivot: group by Ngày vận hành + Pickup_station + Scan Hour
+        try:
+            df_arr['scantime_dt'] = pd.to_datetime(df_arr.get('scantime'), errors='coerce')
+            bill_col_agg = bc_col if bc_col else 'Đã đến Hub'
+            df_pivot = df_arr.groupby(['Ngày vận hành', 'Pickup_station', 'Scan Hour']).agg(
+                **{
+                    'Tổng số đơn':  (bill_col_agg, 'size'),
+                    'Đã đến Hub':   ('Đã đến Hub', 'sum'),
+                    'Chưa đến Hub': ('Chưa đến Hub', 'sum'),
+                    'Last_time_dt': ('scantime_dt', 'max'),
+                }
+            ).reset_index()
+            df_pivot['Last time'] = df_pivot['Last_time_dt'].dt.strftime('%Y-%m-%d %H:%M:%S')
+            df_pivot = df_pivot.drop(columns=['Last_time_dt'])
+        except Exception as e_piv:
+            print(f'   ⚠️ Arrival pivot lỗi: {e_piv}')
+            df_pivot = pd.DataFrame()
+
+        if not df_pivot.empty:
+            # Đọc dữ liệu Arrival cũ từ Google Sheets để upsert tích lũy
+            arrival_cols = ['Ngày vận hành', 'Pickup_station', 'Scan Hour',
+                            'Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub', 'Last time']
+            try:
+                arr_sheet = gc.open_by_key(SHEET_ID).worksheet('Arrival')
+            except Exception:
+                try:
+                    ss = gc.open_by_key(SHEET_ID)
+                    arr_sheet = ss.add_worksheet('Arrival', rows=5000, cols=len(arrival_cols))
+                except Exception as e_cr:
+                    print(f'   ❌ Không thể tạo sheet Arrival: {e_cr}')
+                    arr_sheet = None
+
+            if arr_sheet:
+                try:
+                    old_vals = arr_sheet.get_all_values()
+                    if len(old_vals) > 1:
+                        df_old = pd.DataFrame(old_vals[1:], columns=old_vals[0])
+                        for col in ['Scan Hour', 'Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub']:
+                            if col in df_old.columns:
+                                df_old[col] = pd.to_numeric(df_old[col], errors='coerce').fillna(0).astype(int)
+                        # Xóa dữ liệu cùng ngày để upsert với dữ liệu mới nhất
+                        today_dates = set(df_pivot['Ngày vận hành'].unique())
+                        df_old = df_old[~df_old['Ngày vận hành'].isin(today_dates)]
+                        df_final = pd.concat([df_old, df_pivot[arrival_cols]], ignore_index=True)
+                    else:
+                        df_final = df_pivot[arrival_cols].copy()
+                    # Sắp xếp: ngày mới nhất lên đầu
+                    df_final = df_final.sort_values(
+                        by=['Ngày vận hành', 'Pickup_station', 'Scan Hour'],
+                        ascending=[False, True, True]
+                    )
+                    # Giới hạn 7 ngày gần nhất
+                    all_dates = sorted(df_final['Ngày vận hành'].unique(), reverse=True)
+                    df_final = df_final[df_final['Ngày vận hành'].isin(all_dates[:7])]
+                    # Ghi lên Google Sheets
+                    rows_to_write = [arrival_cols] + df_final[arrival_cols].fillna('').values.tolist()
+                    arr_sheet.clear()
+                    arr_sheet.update(range_name='A1', values=rows_to_write)
+                    print(f'   ✅ Sheet Arrival: {len(rows_to_write)-1} dòng (lịch sử 7 ngày).')
+                except Exception as e_write:
+                    print(f'   ❌ Lỗi ghi sheet Arrival: {e_write}')
+    else:
+        print('   ⚠️ Không có dữ liệu Arrival để ghi sheet.')
+
 
 def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, current_date_str, results=None, d_buucuc=None):
     print(f"\n📊 Bắt đầu cập nhật dữ liệu Google Sheets...")
@@ -947,7 +1148,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
                 ).to_dict(orient='index')
             update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_str)
             
-        # 4. Update Inbound Sheets (aggregated Inbound + raw Linehaul)
+        # 4. Update Inbound Sheets (aggregated Inbound + raw Linehaul + Arrival)
         if results:
             update_inbound_sheets(gc, results, master_chutes, d_buucuc)
             
@@ -1066,6 +1267,7 @@ def run_once(session, token_mgr, rebuild_days=None):
             ex.submit(pull_scan, session, token_mgr, URL_SCAN, bh, b_params, bp, 'Backlog'): 'backlog',
             ex.submit(pull_dispatch, session, token_mgr, dh, dp_cfg): 'dispatch',
             ex.submit(pull_scan, session, token_mgr, URL_LINEHAUL, lh_h, lh_params, lh_p, 'Linehaul'): 'linehaul',
+            ex.submit(pull_arrival_from_jfs, session, token_mgr, ih, DATE_START, DATE_END): 'arrival',
         }
         if run_outbound:
             futures[ex.submit(pull_scan, session, token_mgr, URL_SCAN, oh, o_params, op, 'Outbound')] = 'outbound'
