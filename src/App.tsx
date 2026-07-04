@@ -3128,28 +3128,183 @@ export default function App() {
                     { label: 'Sending Stations', val: String(stationCount), sub: 'Bưu cục gửi về', color: '#22D3EE', Icon: Sliders },
                     { label: 'Vehicles', val: String(vehicleCount), sub: 'Phiếu nhiệm vụ', color: '#8B5CF6', Icon: Activity },
                   ];
+
+                  // Hourly timeline distribution from Inbound sheet (based on Inbound Hour/Time of "Đã về Hub" status)
+                  const hourlyData: Record<string, { hour: string; orders: number; weight: number }> = {};
+                  for (let i = 0; i < 24; i++) {
+                    const hStr = `${String(i).padStart(2, '0')}:00`;
+                    hourlyData[hStr] = { hour: hStr, orders: 0, weight: 0 };
+                  }
+                  filteredIb.forEach(d => {
+                    if (d['Trạng thái'] === 'Đã về Hub' || d['Trạng thái'] === 'Đã nhập hàng') {
+                      const ibTime = d['Inbound Hour'] !== undefined && d['Inbound Hour'] !== null && d['Inbound Hour'] !== '' 
+                        ? d['Inbound Hour'] 
+                        : d['Inbound Time'];
+                      if (ibTime !== undefined && ibTime !== null && ibTime !== '') {
+                        const hrVal = parseInt(String(ibTime), 10);
+                        if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
+                          const hour = `${String(hrVal).padStart(2, '0')}:00`;
+                          if (hourlyData[hour]) {
+                            hourlyData[hour].orders += parseInt(d['Volume'], 10) || 0;
+                            hourlyData[hour].weight += parseFloat(d['Weight']) || 0;
+                          }
+                        }
+                      }
+                    }
+                  });
+                  const timelineData = Object.values(hourlyData);
+
+                  // Hourly pickup timeline distribution from Inbound sheet (based on Pickup Time)
+                  const hourlyPickupData: Record<string, { hour: string; orders: number; weight: number }> = {};
+                  for (let i = 0; i < 24; i++) {
+                    const hStr = `${String(i).padStart(2, '0')}:00`;
+                    hourlyPickupData[hStr] = { hour: hStr, orders: 0, weight: 0 };
+                  }
+                  filteredIb.forEach(d => {
+                    const pkTime = d['Pickup Time'];
+                    if (pkTime !== undefined && pkTime !== null && pkTime !== '') {
+                      const hrVal = parseInt(String(pkTime), 10);
+                      if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
+                        const hour = `${String(hrVal).padStart(2, '0')}:00`;
+                        if (hourlyPickupData[hour]) {
+                          hourlyPickupData[hour].orders += parseInt(d['Volume'], 10) || 0;
+                          hourlyPickupData[hour].weight += parseFloat(d['Weight']) || 0;
+                        }
+                      }
+                    }
+                  });
+                  const pickupTimelineData = Object.values(hourlyPickupData);
+
+                  const renderMobileChart = (chartData: any[], strokeColor: string, fillColorId: string) => {
+                    const width = 340;
+                    const height = 110;
+                    const paddingLeft = 20;
+                    const paddingRight = 10;
+                    const paddingTop = 10;
+                    const paddingBottom = 15;
+                    const chartW = width - paddingLeft - paddingRight;
+                    const chartH = height - paddingTop - paddingBottom;
+
+                    const maxVal = Math.max(...chartData.map(d => d.orders), 10);
+                    const minVal = 0;
+                    const effectiveRange = maxVal - minVal || 1;
+                    const allZero = chartData.every(d => d.orders === 0);
+                    const dx = chartW / 23;
+
+                    const pts = chartData.map((d, i) => ({
+                      x: paddingLeft + i * dx,
+                      y: height - paddingBottom - ((d.orders - minVal) / effectiveRange) * chartH,
+                      hour: d.hour,
+                      orders: d.orders
+                    }));
+
+                    let splinePath = '';
+                    if (pts.length > 0) {
+                      splinePath = `M ${pts[0].x} ${pts[0].y}`;
+                      for (let i = 0; i < pts.length - 1; i++) {
+                        const p0 = pts[i];
+                        const p1 = pts[i + 1];
+                        const cpX1 = p0.x + (p1.x - p0.x) / 3;
+                        const cpY1 = p0.y;
+                        const cpX2 = p0.x + 2 * (p1.x - p0.x) / 3;
+                        const cpY2 = p1.y;
+                        splinePath += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${p1.x} ${p1.y}`;
+                      }
+                    }
+
+                    const areaPath = splinePath 
+                      ? `${splinePath} L ${pts[pts.length - 1].x} ${height - paddingBottom} L ${pts[0].x} ${height - paddingBottom} Z` 
+                      : '';
+
+                    return (
+                      <div className="w-full relative bg-[#101622]/40 rounded-lg p-2 border border-white/5">
+                        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
+                          <defs>
+                            <linearGradient id={fillColorId} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={strokeColor} stopOpacity="0.15" />
+                              <stop offset="100%" stopColor={strokeColor} stopOpacity="0" />
+                            </linearGradient>
+                          </defs>
+
+                          {/* Grid lines */}
+                          {[0, 0.5, 1].map((ratio, idx) => {
+                            const y = paddingTop + ratio * chartH;
+                            return (
+                              <line key={idx} x1={paddingLeft} y1={y} x2={width - paddingRight} y2={y} stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+                            );
+                          })}
+
+                          {allZero ? (
+                            <>
+                              <line x1={paddingLeft} y1={paddingTop + 0.5 * chartH} x2={width - paddingRight} y2={paddingTop + 0.5 * chartH} stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" strokeDasharray="3 3" />
+                              <text x={width / 2} y={paddingTop + 0.5 * chartH - 4} fill="#94A3B8" fontSize="8" textAnchor="middle" className="font-sans font-medium">Không ghi nhận sản lượng phát sinh</text>
+                            </>
+                          ) : (
+                            <>
+                              {areaPath && <path d={areaPath} fill={`url(#${fillColorId})`} />}
+                              {splinePath && <path d={splinePath} fill="none" stroke={strokeColor} strokeWidth="2" strokeLinecap="round" />}
+                              
+                              {/* Draw small dots for non-zero peaks */}
+                              {pts.filter((p, i) => i % 2 === 0 || p.orders > 0).map((p, i) => (
+                                <circle key={i} cx={p.x} cy={p.y} r="1.5" fill={strokeColor} />
+                              ))}
+                            </>
+                          )}
+
+                          {/* Simplified X axis labels (every 4 hours) */}
+                          {[0, 4, 8, 12, 16, 20, 23].map(hIdx => {
+                            const xPos = paddingLeft + (hIdx * chartW) / 23;
+                            return (
+                              <text key={hIdx} x={xPos} y={height - 2} fill="#64748B" fontSize="8" fontWeight="bold" className="font-mono" textAnchor="middle">
+                                {String(hIdx).padStart(2, '0')}
+                              </text>
+                            );
+                          })}
+                        </svg>
+                      </div>
+                    );
+                  };
+
                   return (
-                    <div className="grid grid-cols-2 gap-3">
-                      {cards.map(card => (
-                        <div key={card.label} className="bg-[#172132] border border-white/5 rounded-xl p-3 flex flex-col justify-between min-h-[5.5rem]">
-                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold uppercase">
-                            <card.Icon size={11} />
-                            <span>{card.label}</span>
+                    <div className="space-y-4">
+                      {/* Grid cards */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {cards.map(card => (
+                          <div key={card.label} className="bg-[#172132] border border-white/5 rounded-xl p-3 flex flex-col justify-between min-h-[5.5rem]">
+                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-semibold uppercase">
+                              <card.Icon size={11} />
+                              <span>{card.label}</span>
+                            </div>
+                            <div className="text-xl font-bold text-white font-mono mt-1">{card.val}</div>
+                            <div className="text-[9px] mt-1 flex items-center gap-1" style={{ color: card.color }}>
+                              <span className="w-1 h-1 rounded-full animate-pulse" style={{ backgroundColor: card.color }} />
+                              {card.sub}
+                            </div>
                           </div>
-                          <div className="text-xl font-bold text-white font-mono mt-1">{card.val}</div>
-                          <div className="text-[9px] mt-1 flex items-center gap-1" style={{ color: card.color }}>
-                            <span className="w-1 h-1 rounded-full animate-pulse" style={{ backgroundColor: card.color }} />
-                            {card.sub}
-                          </div>
+                        ))}
+                      </div>
+
+                      {/* Inbound trend hourly Chart */}
+                      <div className="bg-[#172132] border border-white/5 rounded-xl p-3.5 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] font-bold text-white uppercase tracking-wider">Inbound trend hourly</span>
+                          <span className="text-[10px] text-slate-400 font-mono">Đơn đã dỡ</span>
                         </div>
-                      ))}
+                        {renderMobileChart(timelineData, '#8B5CF6', 'mobile-chart-ib')}
+                      </div>
+
+                      {/* Pickup Volume Chart */}
+                      <div className="bg-[#172132] border border-white/5 rounded-xl p-3.5 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[11px] font-bold text-white uppercase tracking-wider">Pickup Volume</span>
+                          <span className="text-[10px] text-slate-400 font-mono">Đơn gom</span>
+                        </div>
+                        {renderMobileChart(pickupTimelineData, '#F97316', 'mobile-chart-pk')}
+                      </div>
                     </div>
                   );
                 })()}
 
-                <div className="text-center text-[10px] text-slate-500 py-2 bg-white/[0.01] border border-white/5 rounded-lg">
-                  💡 Mở trên máy tính để xem biểu đồ theo giờ với đầy đủ tính năng hover!
-                </div>
               </div>
             )}
 
