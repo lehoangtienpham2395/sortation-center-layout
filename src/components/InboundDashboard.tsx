@@ -375,7 +375,7 @@ export default function InboundDashboard({
           </div>
           <div className="date-control-wrapper">
             <span className="control-label">INBOUND CONTROL</span>
-            <div className="custom-datepicker">
+            <div className={`custom-datepicker ${dateDropdownOpen ? 'open' : ''}`}>
               <button className="datepicker-trigger" onClick={toggleDropdown}>
                 <i className="fa-regular fa-calendar-days icon-cal" style={{ marginRight: '6px' }}></i>
                 <span>{activeDate || 'Chọn ngày'}</span>

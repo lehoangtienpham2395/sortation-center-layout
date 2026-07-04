@@ -1792,7 +1792,7 @@ export default function App() {
           )}
 
           {/* Aligned bottom right buttons */}
-          {(currentView === 'master' || currentView === 'inbound') && (
+          {currentView === 'master' && (
             <div className="absolute bottom-16 right-6 z-20 flex gap-3 w-90 justify-between">
               {currentView === 'master' ? (
                 <button onClick={handleResetZoom}
