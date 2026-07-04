@@ -1584,7 +1584,7 @@ export default function App() {
           )}
 
           {/* Right Column: Control Center & Top 10 Racks (w-90) */}
-          {(currentView === 'master' || currentView === 'inbound') && (
+          {currentView === 'master' && (
             <div className="absolute z-20 top-16 right-6 w-90 flex flex-col gap-4 max-h-[calc(100vh-210px)] overflow-y-auto pr-2 pb-6 scrollbar-thin">
               {/* A. Control Center Panel */}
               {showControls && (

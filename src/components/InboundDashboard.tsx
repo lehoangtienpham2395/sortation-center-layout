@@ -356,7 +356,7 @@ export default function InboundDashboard({
   };
 
   return (
-    <div className="inbound-dashboard-root w-full max-w-7xl mx-auto space-y-6 pb-12 text-slate-100 font-sans">
+    <div className="inbound-dashboard w-full max-w-7xl mx-auto space-y-6 pb-12 text-slate-100 font-sans">
       {/* 1. Header Control Block */}
       <header className="dashboard-header">
         <div className="header-left">
