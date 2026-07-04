@@ -531,7 +531,7 @@ export default function InboundDashboard({
                 <span className="number">
                   {totalForecast > 0 ? ((totalOrders / totalForecast) * 100).toFixed(0) : 0}%
                 </span>
-                <span className="label">Arrived</span>
+                <span className="label">Inbound</span>
               </div>
             </div>
             {/* Legend stacked vertically */}
