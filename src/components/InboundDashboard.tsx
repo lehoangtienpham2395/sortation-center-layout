@@ -118,13 +118,15 @@ export default function InboundDashboard({
   const labels = hours24.map(h => `${String(h).padStart(2, '0')}:00`);
 
   const hourlyInbound: Record<string, number> = {};
-  const hourlyPickup: Record<string, number> = {};
+  const hourlyArrived: Record<string, number> = {};
+  const hourlyForecast: Record<string, number> = {};
   labels.forEach(l => {
     hourlyInbound[l] = 0;
-    hourlyPickup[l] = 0;
+    hourlyArrived[l] = 0;
+    hourlyForecast[l] = 0;
   });
 
-  // Gom (Pickup) hourly: từ Arrival sheet, sum Tổng số đơn theo Scan Hour
+  // Trên đường về (Arrived) hourly: từ Arrival sheet, sum Tổng số đơn theo Scan Hour
   filteredArrival.forEach(d => {
     const hr = d['Scan Hour'] !== undefined && d['Scan Hour'] !== null && d['Scan Hour'] !== ''
       ? d['Scan Hour']
@@ -133,8 +135,24 @@ export default function InboundDashboard({
       const hrVal = parseInt(String(hr), 10);
       if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyPickup[hour] !== undefined) {
-          hourlyPickup[hour] += parseInt(d['Tổng số đơn'], 10) || 0;
+        if (hourlyArrived[hour] !== undefined) {
+          hourlyArrived[hour] += parseInt(d['Tổng số đơn'], 10) || 0;
+        }
+      }
+    }
+  });
+
+  // Forecast hourly: từ sheet Inbound, lấy Volume theo cột "Pickup Time"
+  filteredInbound.forEach(d => {
+    const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
+      ? d['Pickup Time']
+      : undefined;
+    if (pkTime !== undefined) {
+      const hrVal = parseInt(String(pkTime), 10);
+      if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
+        const hour = `${String(hrVal).padStart(2, '0')}:00`;
+        if (hourlyForecast[hour] !== undefined) {
+          hourlyForecast[hour] += parseInt(d['Volume'], 10) || 0;
         }
       }
     }
@@ -158,9 +176,9 @@ export default function InboundDashboard({
     }
   });
 
-  const inboundTrendData = labels.map(l => hourlyInbound[l]);
-  const pickupTrendData = labels.map(l => hourlyPickup[l]);
-  const forecastTrendData = labels.map(l => Math.round(hourlyPickup[l] * 1.05)); // Expected plan is slightly higher
+  const inboundTrendData  = labels.map(l => hourlyInbound[l]);
+  const pickupTrendData   = labels.map(l => hourlyArrived[l]);
+  const forecastTrendData = labels.map(l => hourlyForecast[l]);
 
 
   const pendingOrders = Math.max(0, totalForecast - totalOrders - totalInTransitOrders);
@@ -256,7 +274,7 @@ export default function InboundDashboard({
                 pointHoverBorderWidth: 3
               },
               {
-                label: 'Gom (Pickup)',
+                label: 'Trên đường về (Arrived)',
                 data: pickupTrendData,
                 borderColor: '#0d8346',
                 backgroundColor: pickupGrad,
@@ -509,7 +527,7 @@ export default function InboundDashboard({
             <h2>Forecast/Arrived/Inbound trend hourly</h2>
             <div className="chart-legend-custom">
               <span className="legend-item"><span className="dot orange"></span>Dự báo (Forecast)</span>
-              <span className="legend-item"><span className="dot purple"></span>Gom (Pickup)</span>
+              <span className="legend-item"><span className="dot purple"></span>Trên đường về (Arrived)</span>
               <span className="legend-item"><span className="dot green"></span>Nhập (Inbound)</span>
             </div>
           </div>
