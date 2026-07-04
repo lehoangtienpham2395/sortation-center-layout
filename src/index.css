@@ -3,21 +3,21 @@
 
 
 :root {
-  --void: #09111C;
-  --panel: #172132;
-  --line: rgba(255,255,255,0.06);
-  --ink: #FFFFFF;
-  --muted: #94A3B8;
-  --accent: #4F8CFF;
-  --cyan: #22D3EE;
-  --green: #22C55E;
-  --yellow: #F59E0B;
-  --orange: #F59E0B;
-  --red: #EF4444;
-  --purple: #8B5CF6;
+  --void: #05030a;
+  --panel: #120f22;
+  --line: rgba(139, 92, 246, 0.16);
+  --ink: #f8fafc;
+  --muted: #a0aec0;
+  --accent: #0d8346;
+  --cyan: #00e5ff;
+  --green: #0d8346;
+  --yellow: #f97316;
+  --orange: #f97316;
+  --red: #ef4444;
+  --purple: #a78bfa;
   --darkred: #7f1d1d;
   --gate: #9aa7c2;
-  --inbound: #4F8CFF;
+  --inbound: #00e5ff;
 }
 
 * {
@@ -1099,12 +1099,42 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.inbound-dashboard td {
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  color: #cbd5e1;
-  font-weight: 500;
+.inbound-dashboard .table-container-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.05);
+  transition: var(--transition);
+}
+
+.inbound-dashboard .table-container-card:hover {
+  border-color: var(--panel-border-hover);
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.12);
+}
+
+.inbound-dashboard table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
   font-size: 0.85rem;
+}
+
+.inbound-dashboard th {
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.74rem;
+  letter-spacing: 0.8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.inbound-dashboard td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.08);
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .inbound-dashboard tr:last-child td {
@@ -1116,30 +1146,33 @@ body {
 }
 
 .inbound-dashboard tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(139, 92, 246, 0.04);
 }
 
 .inbound-dashboard tbody tr:hover td {
-  color: #f1f5f9;
+  color: var(--text-primary);
 }
 
 /* Highlight styles in table */
 .highlight-val {
-  color: #f1f5f9;
+  color: var(--text-primary);
   font-weight: 700;
   font-size: 0.88rem;
+  text-shadow: 0 0 10px rgba(248, 250, 252, 0.15);
 }
 
 .highlight-green {
-  color: #34d399;
+  color: var(--accent-green);
   font-weight: 700;
   font-size: 0.88rem;
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.25);
 }
 
 .highlight-purple {
-  color: #a78bfa;
+  color: var(--accent-orange);
   font-weight: 700;
   font-size: 0.88rem;
+  text-shadow: 0 0 10px rgba(249, 115, 22, 0.25);
 }
 
 /* ==========================================

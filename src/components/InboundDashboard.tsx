@@ -241,15 +241,15 @@ export default function InboundDashboard({
         if (chartInstanceRef.current) chartInstanceRef.current.destroy();
 
         const forecastGrad = ctx.createLinearGradient(0, 0, 0, 220);
-        forecastGrad.addColorStop(0, 'rgba(249, 115, 22, 0.22)');
+        forecastGrad.addColorStop(0, 'rgba(249, 115, 22, 0.25)');
         forecastGrad.addColorStop(1, 'rgba(249, 115, 22, 0)');
 
         const pickupGrad = ctx.createLinearGradient(0, 0, 0, 220);
-        pickupGrad.addColorStop(0, 'rgba(13, 131, 70, 0.22)');
+        pickupGrad.addColorStop(0, 'rgba(13, 131, 70, 0.25)');
         pickupGrad.addColorStop(1, 'rgba(13, 131, 70, 0)');
 
         const inboundGrad = ctx.createLinearGradient(0, 0, 0, 220);
-        inboundGrad.addColorStop(0, 'rgba(0, 229, 255, 0.22)');
+        inboundGrad.addColorStop(0, 'rgba(0, 229, 255, 0.25)');
         inboundGrad.addColorStop(1, 'rgba(0, 229, 255, 0)');
 
         chartInstanceRef.current = new ChartClass(ctx, {
@@ -265,12 +265,12 @@ export default function InboundDashboard({
                 borderWidth: 3,
                 tension: 0.4,
                 fill: true,
-                pointBackgroundColor: '#ffffff',
+                pointBackgroundColor: '#05030a',
                 pointBorderColor: '#f97316',
                 pointBorderWidth: 2,
                 pointHoverRadius: 8,
                 pointRadius: 4,
-                pointHoverBackgroundColor: '#ffffff',
+                pointHoverBackgroundColor: '#f97316',
                 pointHoverBorderWidth: 3
               },
               {
@@ -281,12 +281,12 @@ export default function InboundDashboard({
                 borderWidth: 3,
                 tension: 0.4,
                 fill: true,
-                pointBackgroundColor: '#ffffff',
+                pointBackgroundColor: '#05030a',
                 pointBorderColor: '#0d8346',
                 pointBorderWidth: 2,
                 pointHoverRadius: 8,
                 pointRadius: 4,
-                pointHoverBackgroundColor: '#ffffff',
+                pointHoverBackgroundColor: '#0d8346',
                 pointHoverBorderWidth: 3
               },
               {
@@ -297,12 +297,12 @@ export default function InboundDashboard({
                 borderWidth: 3,
                 tension: 0.4,
                 fill: true,
-                pointBackgroundColor: '#ffffff',
+                pointBackgroundColor: '#05030a',
                 pointBorderColor: '#00e5ff',
                 pointBorderWidth: 2,
                 pointHoverRadius: 8,
                 pointRadius: 4,
-                pointHoverBackgroundColor: '#ffffff',
+                pointHoverBackgroundColor: '#00e5ff',
                 pointHoverBorderWidth: 3
               }
             ]
@@ -329,11 +329,11 @@ export default function InboundDashboard({
             },
             scales: {
               x: {
-                grid: { color: 'rgba(255, 255, 255, 0.03)' },
+                grid: { color: 'rgba(139, 92, 246, 0.05)' },
                 ticks: { color: '#a0aec0', font: { size: 9 } }
               },
               y: {
-                grid: { color: 'rgba(255, 255, 255, 0.03)' },
+                grid: { color: 'rgba(139, 92, 246, 0.05)' },
                 ticks: { color: '#a0aec0', font: { size: 9 } }
               }
             }
@@ -354,7 +354,7 @@ export default function InboundDashboard({
             datasets: [
               {
                 data: [totalOrders, totalInTransitOrders, pendingOrders],
-                backgroundColor: ['#00e5ff', '#0d8346', '#334155'],
+                backgroundColor: ['#00e5ff', '#0d8346', '#1e1b2e'],
                 borderWidth: 0,
                 hoverOffset: 4
               }
