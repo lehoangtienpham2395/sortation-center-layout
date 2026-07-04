@@ -1523,7 +1523,7 @@ export default function App() {
                       >
                         <div className="flex justify-between items-start mb-1">
                           <span className="font-bold text-[10px] tracking-wide max-w-[170px]" style={{ color: zone.color }}>
-                            {zone.name} <span className="text-[9px] font-semibold text-slate-500 ml-1">({(stats as any).totalShare}%)</span>
+                            {zone.name} <span className="text-[9px] font-bold text-slate-400 ml-1">({(stats as any).totalShare}%)</span>
                           </span>
                           <span className="mono text-[11px] font-bold text-white flex flex-col items-end shrink-0">
                             <span>{stats.current.toLocaleString()} đơn</span>
