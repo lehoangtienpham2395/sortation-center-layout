@@ -789,14 +789,15 @@ body {
 }
 
 .kpi-title {
-  font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.3px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
   text-transform: capitalize;
+  opacity: 0.92;
 }
 
 .kpi-icon {
-  font-size: 1.1rem;
+  font-size: 1.15rem;
 }
 
 .kpi-card-body {
@@ -805,16 +806,17 @@ body {
 }
 
 .kpi-value {
-  font-size: 1.95rem;
+  font-size: 2.05rem;
   font-weight: 800;
   letter-spacing: -0.5px;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .kpi-sub {
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  font-weight: 400;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-weight: 500;
+  letter-spacing: 0.1px;
 }
 
 /* Neon Glow effects for KPI Cards */
@@ -939,11 +941,12 @@ body {
 /* Donut box style */
 .donut-chart-box {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   flex: 1;
-  gap: 16px;
+  gap: 20px;
+  padding: 4px 8px;
 }
 
 .donut-canvas-container {
@@ -980,33 +983,31 @@ body {
 }
 
 .donut-legend {
-  width: 100%;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
 }
 
 .donut-legend-item {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
 }
 
 .donut-legend-header {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 500;
 }
 
 .donut-legend-dot {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 
 .donut-legend-header .label-text {
@@ -1014,13 +1015,14 @@ body {
 }
 
 .donut-legend-value {
-  font-size: 0.85rem;
+  font-size: 1.05rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: #e2e8f0;
+  margin-left: auto;
 }
 
 .donut-legend-pct {
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
 }
 
@@ -1051,10 +1053,10 @@ body {
 }
 
 .table-header h2 {
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 700;
-  letter-spacing: 0.3px;
-  color: var(--text-primary);
+  letter-spacing: 0.2px;
+  color: #e2e8f0;
 }
 
 .badge {
@@ -1084,14 +1086,14 @@ body {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
 }
 
 .inbound-dashboard th {
-  color: var(--text-muted);
+  color: #94a3b8;
   font-weight: 600;
   text-transform: uppercase;
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   letter-spacing: 0.5px;
   padding: 10px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -1099,9 +1101,10 @@ body {
 
 .inbound-dashboard td {
   padding: 10px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  color: var(--text-secondary);
-  font-weight: 400;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+  font-weight: 500;
+  font-size: 0.85rem;
 }
 
 .inbound-dashboard tr:last-child td {
@@ -1113,27 +1116,30 @@ body {
 }
 
 .inbound-dashboard tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .inbound-dashboard tbody tr:hover td {
-  color: var(--text-primary);
+  color: #f1f5f9;
 }
 
 /* Highlight styles in table */
 .highlight-val {
-  color: var(--text-primary);
-  font-weight: 600;
+  color: #f1f5f9;
+  font-weight: 700;
+  font-size: 0.88rem;
 }
 
 .highlight-green {
-  color: var(--accent-green);
-  font-weight: 600;
+  color: #34d399;
+  font-weight: 700;
+  font-size: 0.88rem;
 }
 
 .highlight-purple {
-  color: var(--accent-purple);
-  font-weight: 600;
+  color: #a78bfa;
+  font-weight: 700;
+  font-size: 0.88rem;
 }
 
 /* ==========================================

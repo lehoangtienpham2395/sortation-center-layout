@@ -165,6 +165,11 @@ export default function InboundDashboard({
 
   const pendingOrders = Math.max(0, totalForecast - totalOrders - totalInTransitOrders);
 
+  // Gom (Pickup): tổng đơn từ sheet Arrival (toàn bộ ngày đang chọn)
+  const totalPickup = filteredArrival.reduce(
+    (sum, d) => sum + (parseInt(d['Tổng số đơn'], 10) || 0), 0
+  );
+
 
   // Top 10 Stations Grouping
   const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
@@ -487,15 +492,15 @@ export default function InboundDashboard({
           <div className="kpi-glow"></div>
         </div>
 
-        {/* KPI 4: Forecast */}
+        {/* KPI 4: Gom (Pickup) */}
         <div className="kpi-card accent-orange">
           <div className="kpi-card-header">
-            <span className="kpi-title">Forecast</span>
-            <i className="fa-solid fa-chart-line kpi-icon"></i>
+            <span className="kpi-title">Gom (Pickup)</span>
+            <i className="fa-solid fa-boxes-stacked kpi-icon"></i>
           </div>
           <div className="kpi-card-body">
-            <span className="kpi-value">{totalForecast.toLocaleString()}</span>
-            <span className="kpi-sub">Dự báo sản lượng sắp về HUB</span>
+            <span className="kpi-value">{totalPickup.toLocaleString()}</span>
+            <span className="kpi-sub">Tổng đơn đã gom từ bưu cục</span>
           </div>
           <div className="kpi-glow"></div>
         </div>
@@ -524,38 +529,37 @@ export default function InboundDashboard({
             <h2>Orders status</h2>
           </div>
           <div className="donut-chart-box">
-            <div style={{ position: 'relative', width: '130px', height: '130px' }}>
-              <canvas ref={donutRef}></canvas>
-              <div className="donut-center-label" style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                textAlign: 'center',
-                pointerEvents: 'none'
-              }}>
-                <span className="donut-center-val" style={{ display: 'block', fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>
+            {/* Canvas + centre label */}
+            <div className="donut-canvas-container">
+              <canvas ref={donutRef} style={{ width: '100%', height: '100%' }}></canvas>
+              <div className="donut-center-text">
+                <span className="number">
                   {totalForecast > 0 ? ((totalOrders / totalForecast) * 100).toFixed(0) : 0}%
                 </span>
-                <span className="donut-center-text" style={{ fontSize: '0.62rem', color: '#a0aec0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Arrived
-                </span>
+                <span className="label">Arrived</span>
               </div>
             </div>
+            {/* Legend stacked vertically */}
             <div className="donut-legend">
               <div className="donut-legend-item">
-                <span className="dot green"></span>
-                <span className="donut-legend-label">Đã nhập kho</span>
+                <div className="donut-legend-dot" style={{ background: '#00e5ff' }}></div>
+                <div className="donut-legend-header">
+                  <span className="label-text">Đã nhập kho</span>
+                </div>
                 <span className="donut-legend-value">{totalOrders.toLocaleString()}</span>
               </div>
               <div className="donut-legend-item">
-                <span className="dot purple"></span>
-                <span className="donut-legend-label">Đang trên đường</span>
+                <div className="donut-legend-dot" style={{ background: '#0d8346' }}></div>
+                <div className="donut-legend-header">
+                  <span className="label-text">Đang trên đường</span>
+                </div>
                 <span className="donut-legend-value">{totalInTransitOrders.toLocaleString()}</span>
               </div>
               <div className="donut-legend-item">
-                <span className="dot dark"></span>
-                <span className="donut-legend-label">Chờ xử lý</span>
+                <div className="donut-legend-dot" style={{ background: '#334155' }}></div>
+                <div className="donut-legend-header">
+                  <span className="label-text">Chờ xử lý</span>
+                </div>
                 <span className="donut-legend-value">{pendingOrders.toLocaleString()}</span>
               </div>
             </div>
