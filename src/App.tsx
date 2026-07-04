@@ -1228,7 +1228,8 @@ export default function App() {
 
   return (
     <div className="w-full h-full relative font-sans text-white bg-[#09111C]">
-      <div className={`absolute top-0 right-0 h-12 flex items-center justify-between px-6 z-20 transition-all duration-300 ${
+      {(!isMobile ? currentView === 'master' : activeTab === 'layout') && (
+        <div className={`absolute top-0 right-0 h-12 flex items-center justify-between px-6 z-20 transition-all duration-300 ${
         isMobile ? 'left-0' : 'left-16'
       }`}
            style={{background:'linear-gradient(180deg,rgba(9,17,28,.95),rgba(9,17,28,0))'}}>
@@ -1263,6 +1264,7 @@ export default function App() {
           </div>
         ) : null}
       </div>
+      )}
 
       {!isMobile ? (
         /* ── DESKTOP LAYOUT ── */
@@ -1792,7 +1794,7 @@ export default function App() {
           )}
 
           {/* Aligned bottom right buttons */}
-          {currentView === 'master' && (
+          {(currentView === 'master' || currentView === 'inbound') && (
             <div className="absolute bottom-16 right-6 z-20 flex gap-3 w-90 justify-between">
               {currentView === 'master' ? (
                 <button onClick={handleResetZoom}
