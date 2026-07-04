@@ -1599,7 +1599,7 @@ export default function App() {
 
           {/* Right Column: Control Center & Top 10 Racks (w-90) */}
           {currentView === 'master' && (
-            <div className="absolute z-20 top-16 right-6 w-90 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2 pb-6 scrollbar-thin">
+            <div className="absolute z-20 top-16 right-6 w-90 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-visible pr-2 pb-6">
               {/* A. Control Center Panel */}
               {showControls && (
                 <div className="bg-[var(--panel)] border border-[var(--panel-border)] border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 transition-all duration-300 hover:border-[var(--panel-border-hover)] hover:shadow-[0_0_30px_rgba(139,92,246,0.12)]">
