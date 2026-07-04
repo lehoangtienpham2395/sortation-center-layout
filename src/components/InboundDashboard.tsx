@@ -165,11 +165,6 @@ export default function InboundDashboard({
 
   const pendingOrders = Math.max(0, totalForecast - totalOrders - totalInTransitOrders);
 
-  // Gom (Pickup): tổng đơn từ sheet Arrival (toàn bộ ngày đang chọn)
-  const totalPickup = filteredArrival.reduce(
-    (sum, d) => sum + (parseInt(d['Tổng số đơn'], 10) || 0), 0
-  );
-
 
   // Top 10 Stations Grouping
   const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
@@ -492,15 +487,15 @@ export default function InboundDashboard({
           <div className="kpi-glow"></div>
         </div>
 
-        {/* KPI 4: Gom (Pickup) */}
+        {/* KPI 4: Forecast */}
         <div className="kpi-card accent-orange">
           <div className="kpi-card-header">
-            <span className="kpi-title">Gom (Pickup)</span>
-            <i className="fa-solid fa-boxes-stacked kpi-icon"></i>
+            <span className="kpi-title">Forecast</span>
+            <i className="fa-solid fa-chart-line kpi-icon"></i>
           </div>
           <div className="kpi-card-body">
-            <span className="kpi-value">{totalPickup.toLocaleString()}</span>
-            <span className="kpi-sub">Tổng đơn đã gom từ bưu cục</span>
+            <span className="kpi-value">{totalForecast.toLocaleString()}</span>
+            <span className="kpi-sub">Dự báo sản lượng sắp về HUB</span>
           </div>
           <div className="kpi-glow"></div>
         </div>
