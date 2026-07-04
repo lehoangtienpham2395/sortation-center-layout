@@ -3175,6 +3175,50 @@ export default function App() {
                   });
                   const pickupTimelineData = Object.values(hourlyPickupData);
 
+                  // Top 10 Sending Stations (tính từ filteredIb & filteredLh)
+                  const fcMets: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
+                  filteredIb.forEach((d: any) => {
+                    const st = d['Trạng thái'];
+                    if (st === 'Đã về Hub' || st === 'Đã nhập hàng') {
+                      const n = String(d['Bưu cục'] || '').trim().toUpperCase();
+                      if (n) {
+                        if (!fcMets[n]) fcMets[n] = { fc: String(d['Bưu cục']).trim(), vehicles: new Set(), orders: 0, weight: 0 };
+                        fcMets[n].orders += parseInt(d['Volume'], 10) || 0;
+                        fcMets[n].weight += parseFloat(d['Weight']) || 0;
+                      }
+                    }
+                  });
+                  filteredLh.forEach((d: any) => {
+                    const fcName = String(d['nextNetworkName'] || '').trim().toUpperCase();
+                    if (fcName && d['Phiếu nhiệm vụ']) {
+                      if (!fcMets[fcName]) fcMets[fcName] = { fc: String(d['nextNetworkName']).trim(), vehicles: new Set(), orders: 0, weight: 0 };
+                      fcMets[fcName].vehicles.add(d['Phiếu nhiệm vụ']);
+                    }
+                  });
+                  const mobileTop10 = Object.values(fcMets)
+                    .map(item => ({ fc: item.fc, vehicles: item.vehicles.size, orders: item.orders, weight: item.weight }))
+                    .filter(item => item.orders > 0 || item.vehicles > 0)
+                    .sort((a, b) => b.orders - a.orders || b.weight - a.weight)
+                    .slice(0, 10);
+
+                  // Vehicles in Transit
+                  const mobileIncoming = filteredLh
+                    .filter((d: any) => !d['unloadingStartTime'] && !d['unloadingEndTime'] && d['nextNetworkName'])
+                    .map((d: any) => {
+                      const uOrders = parseInt(d['unloadingBillPiece'], 10) || 0;
+                      const uWeight = parseFloat(d['unloadingWeight']) || 0;
+                      const sOrders = parseInt(d['billPiece'], 10) || 0;
+                      const sWeight = parseFloat(d['weight']) || 0;
+                      return {
+                        taskCode: d['Phiếu nhiệm vụ'] || '',
+                        senderFC: d['nextNetworkName'] || '',
+                        sendTime: d['sendTime'] || '',
+                        orders: uOrders > 0 ? uOrders : sOrders,
+                        weight: uWeight > 0 ? uWeight : sWeight
+                      };
+                    })
+                    .sort((a: any, b: any) => b.sendTime.localeCompare(a.sendTime));
+
                   const renderMobileChart = (chartData: any[], strokeColor: string, fillColorId: string) => {
                     const width = 340;
                     const height = 110;
@@ -3301,6 +3345,93 @@ export default function App() {
                         </div>
                         {renderMobileChart(pickupTimelineData, '#F97316', 'mobile-chart-pk')}
                       </div>
+
+                      {/* Top 10 Sending Stations */}
+                      <div className="bg-[#172132] border border-white/5 rounded-xl p-3.5">
+                        <div className="flex items-center gap-2 pb-2.5 mb-2.5 border-b border-white/[0.04]">
+                          <div className="w-6 h-6 rounded-md bg-[#06B6D4]/10 text-[#06B6D4] flex items-center justify-center shrink-0">
+                            <Sliders size={12} />
+                          </div>
+                          <div>
+                            <div className="text-[11px] font-bold text-white">Top 10 Sending Stations</div>
+                            <div className="text-[9px] text-slate-400">Bưu cục gửi nhiều nhất về HUB</div>
+                          </div>
+                          <span className="ml-auto text-[9px] text-slate-500 font-mono">Top 8</span>
+                        </div>
+                        {mobileTop10.length === 0 ? (
+                          <div className="text-center py-4 text-[10px] text-slate-500">Chưa có dữ liệu</div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {(() => {
+                              const maxOrders = Math.max(...mobileTop10.map(x => x.orders), 1);
+                              return mobileTop10.slice(0, 8).map((row, idx) => {
+                                const rank = idx + 1;
+                                const rankColor = rank === 1 ? '#06B6D4' : rank === 2 ? '#38BDF8' : rank === 3 ? '#e2e8f0' : '#64748B';
+                                const pct = (row.orders / maxOrders) * 100;
+                                return (
+                                  <div key={row.fc} className="flex items-center gap-2 py-1.5 border-b border-white/[0.03] last:border-0">
+                                    <span className="text-[10px] font-bold font-mono w-4 shrink-0" style={{ color: rankColor }}>{rank}</span>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="text-[10px] font-semibold text-white truncate">{row.fc}</div>
+                                      <div className="w-full h-1 bg-white/[0.04] rounded-full mt-1 overflow-hidden">
+                                        <div className="h-full bg-[#06B6D4] rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                                      </div>
+                                    </div>
+                                    <div className="text-right shrink-0">
+                                      <div className="text-[10px] font-bold text-white font-mono">{row.orders.toLocaleString()}</div>
+                                      <div className="text-[8.5px] text-slate-400 font-mono">{row.vehicles} xe</div>
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            })()}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Vehicles in Transit */}
+                      <div className="bg-[#172132] border border-white/5 rounded-xl p-3.5">
+                        <div className="flex items-center gap-2 pb-2.5 mb-2.5 border-b border-white/[0.04]">
+                          <div className="w-6 h-6 rounded-md bg-[#8B5CF6]/10 text-[#8B5CF6] flex items-center justify-center shrink-0">
+                            <Activity size={12} />
+                          </div>
+                          <div>
+                            <div className="text-[11px] font-bold text-white">Vehicles in Transit</div>
+                            <div className="text-[9px] text-slate-400">Xe đang trên đường về HUB</div>
+                          </div>
+                          <span className="ml-auto text-[9px] font-bold font-mono text-[#8B5CF6]">{mobileIncoming.length} xe</span>
+                        </div>
+                        {mobileIncoming.length === 0 ? (
+                          <div className="flex flex-col items-center py-5 gap-2 text-center">
+                            <Activity size={24} className="text-[#8B5CF6]/50" />
+                            <p className="text-[11px] font-semibold text-white">No active vehicles</p>
+                            <p className="text-[10px] text-slate-400">Không có xe nào đang di chuyển</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {mobileIncoming.slice(0, 10).map((row: any, idx: number) => {
+                              const timeMatch = row.sendTime.match(/\s+(\d{2}:\d{2})/);
+                              const sendHour = timeMatch ? timeMatch[1] : row.sendTime;
+                              return (
+                                <div key={`${row.taskCode}-${idx}`} className="flex items-center justify-between p-2 bg-white/[0.01] border border-white/[0.04] rounded-lg">
+                                  <div className="space-y-0.5 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-[10px] font-bold font-mono text-[#8B5CF6]">{row.taskCode}</span>
+                                      <span className="text-[8.5px] px-1.5 py-0.5 rounded-md bg-[#8B5CF6]/10 text-[#c084fc] font-semibold shrink-0">Gửi {sendHour}</span>
+                                    </div>
+                                    <div className="text-[9px] text-slate-400 truncate">{row.senderFC}</div>
+                                  </div>
+                                  <div className="text-right shrink-0 ml-2">
+                                    <div className="text-[10px] font-semibold text-white font-mono">{row.weight.toLocaleString()} kg</div>
+                                    <div className="text-[9px] text-slate-400 font-mono">{row.orders.toLocaleString()} đơn</div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
                     </div>
                   );
                 })()}
