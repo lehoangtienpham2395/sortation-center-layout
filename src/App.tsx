@@ -360,6 +360,7 @@ export default function App() {
   const [tickerText, setTickerText] = useState('HỆ THỐNG ỔN ĐỊNH — KHÔNG CÓ CẢNH BÁO');
   const [loading,    setLoading]    = useState(false);
   const [hoveredZone,setHoveredZone] = useState<number | null>(null);
+  const [masterDateDropdownOpen, setMasterDateDropdownOpen] = useState(false);
 
 
   // State variables for historic date/type filter
@@ -407,6 +408,7 @@ export default function App() {
     });
 
     const totalOrdersOfSelectedType = Object.values(data).reduce((acc, d: any) => acc + d.current, 0) as number;
+    const grandTotal = stats[1].current + stats[2].current + stats[3].current;
 
     [1, 2, 3].forEach(z => {
       const s = stats[z];
@@ -415,6 +417,7 @@ export default function App() {
       } else {
         s.fillRate = s.capacity > 0 ? Math.round((s.current / s.capacity) * 100) : 0;
       }
+      (s as any).totalShare = grandTotal > 0 ? ((s.current / grandTotal) * 100).toFixed(1) : '0.0';
     });
 
     return stats;
@@ -1472,7 +1475,7 @@ export default function App() {
 
           {/* Left Column: Stacked panels (w-80) */}
           {currentView === 'master' && (
-            <div className="absolute z-20 top-16 left-[80px] w-80 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-300">
+            <div className="absolute z-20 top-16 left-[80px] w-72 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-300">
               
               {/* 1. OPERATIONAL MONITOR & ZONE METRICS */}
               {showMonitor && (
@@ -1520,7 +1523,7 @@ export default function App() {
                       >
                         <div className="flex justify-between items-start mb-1">
                           <span className="font-bold text-[10px] tracking-wide max-w-[170px]" style={{ color: zone.color }}>
-                            {zone.name}
+                            {zone.name} <span className="text-[9px] font-semibold text-slate-500 ml-1">({(stats as any).totalShare}%)</span>
                           </span>
                           <span className="mono text-[11px] font-bold text-white flex flex-col items-end shrink-0">
                             <span>{stats.current.toLocaleString()} đơn</span>
@@ -1596,7 +1599,7 @@ export default function App() {
 
           {/* Right Column: Control Center & Top 10 Racks (w-90) */}
           {currentView === 'master' && (
-            <div className="absolute z-20 top-16 right-6 w-90 flex flex-col gap-4 max-h-[calc(100vh-210px)] overflow-y-auto pr-2 pb-6 scrollbar-thin">
+            <div className="absolute z-20 top-16 right-6 w-90 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2 pb-6 scrollbar-thin">
               {/* A. Control Center Panel */}
               {showControls && (
                 <div className="bg-[var(--panel)] border border-[var(--panel-border)] border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 transition-all duration-300 hover:border-[var(--panel-border-hover)] hover:shadow-[0_0_30px_rgba(139,92,246,0.12)]">
@@ -1628,26 +1631,67 @@ export default function App() {
                           </div>
                         </div>
 
-                        {/* 2. NGÀY (Date Selector) - Scrollable Pill Group */}
-                        <div className="space-y-2">
+                        {/* 2. NGÀY (Date Selector) - Custom Dropdown (100% giống INBOUND CONTROL) */}
+                        <div className="space-y-2 relative z-50">
                           <div className="mono text-[9px] font-semibold tracking-[0.08em] text-[var(--text-muted)]">NGÀY BÁO CÁO</div>
-                          <div className="flex gap-1.5 overflow-x-auto py-1 scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                            {availableDates.slice(0, 7).map(d => {
-                              const isActive = selectedDate === d;
-                              return (
-                                <button
-                                  key={d}
-                                  onClick={() => setSelectedDate(d)}
-                                  className={`px-3 py-1.5 rounded-full text-[10.5px] font-bold border transition-all duration-250 shrink-0 ${
-                                    isActive
-                                      ? 'bg-cyan-500/10 border-[var(--cyan)] text-[var(--cyan)] shadow-[0_0_10px_rgba(0,229,255,0.25)]'
-                                      : 'bg-[#05030a]/40 border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)] hover:text-[#f8fafc]'
-                                  }`}
-                                >
-                                  {d}
-                                </button>
-                              );
-                            })}
+                          <div className={`custom-datepicker ${masterDateDropdownOpen ? 'open' : ''} w-full`}>
+                            <button 
+                              className="datepicker-trigger w-full flex justify-between items-center bg-[#05030a] border border-[var(--panel-border)] hover:border-[var(--panel-border-hover)] rounded-md px-3 py-2 text-[11px] font-medium text-white transition-all duration-200"
+                              onClick={() => setMasterDateDropdownOpen(!masterDateDropdownOpen)}
+                            >
+                              <div className="flex items-center">
+                                <i className="fa-regular fa-calendar-days icon-cal text-[var(--accent)]" style={{ marginRight: '8px' }}></i>
+                                <span>{selectedDate || 'Chọn ngày'}</span>
+                              </div>
+                              <i className="fa-solid fa-chevron-down icon-arrow text-slate-500 text-[9px] transition-transform duration-200" style={{ transform: masterDateDropdownOpen ? 'rotate(180deg)' : 'none' }}></i>
+                            </button>
+                            {masterDateDropdownOpen && (
+                              <div className="datepicker-dropdown absolute left-0 right-0 mt-1 bg-[#120f22] border border-[var(--panel-border)] rounded-lg shadow-2xl p-3 z-[600]">
+                                <div className="datepicker-presets grid grid-cols-2 gap-2 mb-2">
+                                  <button 
+                                    className="preset-btn bg-[#05030a] border border-white/5 hover:border-[var(--panel-border-hover)] rounded-md py-1.5 text-[10.5px] text-[var(--text-secondary)] hover:text-white transition-all font-semibold"
+                                    onClick={() => {
+                                      if (availableDates.length > 0) {
+                                        setSelectedDate(availableDates[0]);
+                                        setMasterDateDropdownOpen(false);
+                                      }
+                                    }}
+                                  >
+                                    Hôm nay
+                                  </button>
+                                  <button 
+                                    className="preset-btn bg-[#05030a] border border-white/5 hover:border-[var(--panel-border-hover)] rounded-md py-1.5 text-[10.5px] text-[var(--text-secondary)] hover:text-white transition-all font-semibold"
+                                    onClick={() => {
+                                      if (availableDates.length > 1) {
+                                        setSelectedDate(availableDates[1]);
+                                        setMasterDateDropdownOpen(false);
+                                      }
+                                    }}
+                                  >
+                                    Hôm qua
+                                  </button>
+                                </div>
+                                <div className="datepicker-list-header text-[9.5px] text-[var(--text-muted)] font-semibold mb-2 select-none uppercase tracking-wider">Chọn ngày vận hành (30 ngày gần đây)</div>
+                                <div className="datepicker-list max-h-[160px] overflow-y-auto space-y-1 pr-1 scrollbar-thin">
+                                  {availableDates.map(d => (
+                                    <button
+                                      key={d}
+                                      className={`datepicker-list-item w-full text-left px-3 py-1.5 rounded text-[11px] transition-all ${
+                                        d === selectedDate 
+                                          ? 'bg-cyan-500/10 text-[var(--cyan)] font-bold border-l-2 border-[var(--cyan)]' 
+                                          : 'text-[var(--text-secondary)] hover:bg-white/5 hover:text-white'
+                                      }`}
+                                      onClick={() => {
+                                        setSelectedDate(d);
+                                        setMasterDateDropdownOpen(false);
+                                      }}
+                                    >
+                                      {d}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
 
