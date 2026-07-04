@@ -1080,14 +1080,14 @@ body {
   max-height: 380px;
 }
 
-table {
+.inbound-dashboard table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
   font-size: 0.8rem;
 }
 
-th {
+.inbound-dashboard th {
   color: var(--text-muted);
   font-weight: 600;
   text-transform: uppercase;
@@ -1097,26 +1097,26 @@ th {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-td {
+.inbound-dashboard td {
   padding: 10px 12px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   color: var(--text-secondary);
   font-weight: 400;
 }
 
-tr:last-child td {
+.inbound-dashboard tr:last-child td {
   border-bottom: none;
 }
 
-tbody tr {
+.inbound-dashboard tbody tr {
   transition: var(--transition);
 }
 
-tbody tr:hover {
+.inbound-dashboard tbody tr:hover {
   background: rgba(255, 255, 255, 0.02);
 }
 
-tbody tr:hover td {
+.inbound-dashboard tbody tr:hover td {
   color: var(--text-primary);
 }
 
