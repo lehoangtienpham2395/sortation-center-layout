@@ -57,11 +57,14 @@ const ZONE2_LIST = [
   { areaId: 'B15', name: 'SG TÂN HƯNG', zone: 2 },       { areaId: 'B16', name: 'SG ĐÔNG THẠNH', zone: 2 }
 ];
 
-const ZONE2_TRUCKS = Array.from({ length: 21 }, (_, i) => ({
-  areaId: `T2-${String(21 - i).padStart(2, '0')}`,
-  name: `TẢI Chờ 2-${String(21 - i).padStart(2, '0')}`,
-  zone: 2
-}));
+const ZONE2_TRUCKS = Array.from({ length: 21 }, (_, i) => {
+  const num = 21 - i;
+  return {
+    areaId: `T2-${String(num).padStart(2, '0')}`,
+    name: `TẢI Chờ 2-${String(num).padStart(2, '0')}`,
+    zone: num >= 17 ? 3 : 2
+  };
+});
 
 const ZONE1_LIST = [
   // 15 ô chutes bên trái vách ngăn (A05 -> A19, loại bỏ A03, A04 để tránh trùng lặp với Zone 2)
@@ -1017,9 +1020,12 @@ export default function App() {
             {/* Zone 2 Chutes Right border (bao quanh A00->A04, now Zone 3) */}
             <rect x={642} y={336} width={140} height={Z_H} rx="2"
                   {...getZoneBorderProps(3, '--green')}/>
-            {/* Zone 2 Trucks border (bao quanh T2-01->T2-21) */}
-            <rect x={194} y={280} width={588} height={Z_H} rx="2"
+            {/* Zone 2 Trucks border (bao quanh T2-01->T2-16) */}
+            <rect x={194} y={280} width={448} height={Z_H} rx="2"
                   {...getZoneBorderProps(2, '--yellow')}/>
+            {/* Zone 3 Trucks border extension (bao quanh T2-17->T2-21) */}
+            <rect x={642} y={280} width={140} height={Z_H} rx="2"
+                  {...getZoneBorderProps(3, '--green')}/>
           </g>
 
           <line x1={(A23_X + NS_X)/2} y1={EW_Y+EW_H/2} x2={(A23_X + NS_X)/2} y2={EW_Y+3}
@@ -1593,15 +1599,15 @@ export default function App() {
             <div className="absolute z-20 top-16 right-6 w-90 flex flex-col gap-4 max-h-[calc(100vh-210px)] overflow-y-auto pr-2 pb-6 scrollbar-thin">
               {/* A. Control Center Panel */}
               {showControls && (
-                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
+                <div className="bg-[var(--panel)] border border-[var(--panel-border)] border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 transition-all duration-300 hover:border-[var(--panel-border-hover)] hover:shadow-[0_0_30px_rgba(139,92,246,0.12)]">
                   {currentView === 'master' ? (
                     <>
-                      <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[var(--accent)]">CONTROL CENTER</h3>
+                      <h3 className="disp text-[11px] font-bold tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[var(--accent)]">CONTROL CENTER</h3>
                       <div className="space-y-4">
                         {/* 1. LOẠI (Type Selector) - Segmented Control */}
                         <div className="space-y-2">
-                          <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">LOẠI DỮ LIỆU</div>
-                          <div className="flex bg-[#0a0e14]/90 border border-white/10 rounded-full p-1 w-full">
+                          <div className="mono text-[9px] font-semibold tracking-[0.08em] text-[var(--text-muted)]">LOẠI DỮ LIỆU</div>
+                          <div className="flex bg-[#05030a] border border-[var(--panel-border)] rounded-full p-1 w-full">
                             {(['Outbound', 'Backlog', 'Inventory'] as const).map(type => {
                               const isActive = selectedType === type;
                               const labelMap = { Outbound: 'Outbound', Backlog: 'Backlog', Inventory: 'Volume' };
@@ -1611,8 +1617,8 @@ export default function App() {
                                   onClick={() => setSelectedType(type)}
                                   className={`flex-1 text-center py-1.5 rounded-full text-[11px] font-bold transition-all duration-300 relative z-10 ${
                                     isActive
-                                      ? 'text-white bg-[var(--accent)] shadow-[0_2px_8px_rgba(255,106,43,0.3)]'
-                                      : 'text-slate-400 hover:text-slate-200'
+                                      ? 'text-[#f8fafc] bg-[var(--accent)] shadow-[0_0_12px_rgba(13,131,70,0.4)]'
+                                      : 'text-[var(--text-secondary)] hover:text-[#f8fafc]'
                                   }`}
                                 >
                                   {labelMap[type]}
@@ -1624,7 +1630,7 @@ export default function App() {
 
                         {/* 2. NGÀY (Date Selector) - Scrollable Pill Group */}
                         <div className="space-y-2">
-                          <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">NGÀY BÁO CÁO</div>
+                          <div className="mono text-[9px] font-semibold tracking-[0.08em] text-[var(--text-muted)]">NGÀY BÁO CÁO</div>
                           <div className="flex gap-1.5 overflow-x-auto py-1 scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                             {availableDates.slice(0, 7).map(d => {
                               const isActive = selectedDate === d;
@@ -1634,8 +1640,8 @@ export default function App() {
                                   onClick={() => setSelectedDate(d)}
                                   className={`px-3 py-1.5 rounded-full text-[10.5px] font-bold border transition-all duration-250 shrink-0 ${
                                     isActive
-                                      ? 'bg-[#1e2942]/60 border-[var(--cyan)] text-[var(--cyan)] shadow-[0_0_8px_rgba(34,211,238,0.15)]'
-                                      : 'bg-[#101622]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-200'
+                                      ? 'bg-cyan-500/10 border-[var(--cyan)] text-[var(--cyan)] shadow-[0_0_10px_rgba(0,229,255,0.25)]'
+                                      : 'bg-[#05030a]/40 border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)] hover:text-[#f8fafc]'
                                   }`}
                                 >
                                   {d}
@@ -1649,18 +1655,18 @@ export default function App() {
                         <div className={`space-y-2 transition-all duration-300 ${
                           selectedType !== 'Inventory' ? 'opacity-30 pointer-events-none select-none filter blur-[0.4px]' : 'opacity-100'
                         }`}>
-                          <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">TRẠNG THÁI (VOLUME)</div>
+                          <div className="mono text-[9px] font-semibold tracking-[0.08em] text-[var(--text-muted)]">TRẠNG THÁI (VOLUME)</div>
                           <div className="grid grid-cols-2 gap-2">
                             <button
                               onClick={toggleAllStatuses}
                               className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[11px] font-medium transition-all duration-200 ${
                                 selectedStatuses.length === INVENTORY_STATUSES.length
-                                  ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
-                                  : 'bg-[#101622]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-300'
+                                  ? 'bg-yellow-500/10 border-[var(--yellow)] text-[var(--yellow)] font-bold shadow-[0_0_10px_rgba(234,179,8,0.2)]'
+                                  : 'bg-[#05030a]/40 border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)] hover:text-[#f8fafc]'
                               }`}
                             >
                               <span className={`w-2 h-2 rounded-full ${
-                                selectedStatuses.length === INVENTORY_STATUSES.length ? 'bg-yellow-400 animate-pulse' : 'bg-slate-600'
+                                selectedStatuses.length === INVENTORY_STATUSES.length ? 'bg-[var(--yellow)] animate-pulse' : 'bg-slate-600'
                               }`} />
                               Tất cả
                             </button>
@@ -1672,12 +1678,12 @@ export default function App() {
                                   onClick={() => toggleStatus(status)}
                                   className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[10.5px] font-medium transition-all duration-200 ${
                                     isChecked
-                                      ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
-                                      : 'bg-[#101622]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-300'
+                                      ? 'bg-yellow-500/10 border-[var(--yellow)] text-[var(--yellow)] font-bold shadow-[0_0_10px_rgba(234,179,8,0.2)]'
+                                      : 'bg-[#05030a]/40 border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)] hover:text-[#f8fafc]'
                                   }`}
                                 >
                                   <span className={`w-2 h-2 rounded-full ${
-                                    isChecked ? 'bg-yellow-400 animate-pulse' : 'bg-slate-600'
+                                    isChecked ? 'bg-[var(--yellow)] animate-pulse' : 'bg-slate-600'
                                   }`} />
                                   {status}
                                 </button>
@@ -1727,8 +1733,8 @@ export default function App() {
               {/* B. TOP 10 RACKS */}
               {currentView === 'master' && showTop10 && (
                 <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
-                  <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">
-                    {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
+                  <h3 className="disp text-[11px] font-bold tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)] uppercase">
+                    {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC NHIỀU HÀNG NHẤT'}
                   </h3>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
