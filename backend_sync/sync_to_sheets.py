@@ -1676,37 +1676,20 @@ def run_once(session, token_mgr, rebuild_days=None):
         return pd.notna(val) and str(val).strip() not in ('', 'nan', 'None')
 
     def build_status(row):
-        sys_status = str(row.get('status_order', '')).strip()
-        if sys_status == 'Lấy hàng thất bại':
-            sys_status = 'Đã điều phối nhân viên'
-
-        if sys_status in ['Đã điều phối nhân viên', 'Đã điều phối bưu cục']:
-            return sys_status
-
-        if row.get('data_source') == 'Dispatch' and sys_status and sys_status not in ('nan', 'None', ''):
-            return sys_status
-
-        if row.get('data_source') == 'Backlog':
-            if has_value(row.get('outbound_scanDate')):
-                return 'Đã rời HUB'
-            return 'Đang trên bãi'
-
+        # 1. Đã rời HUB
         if has_value(row.get('outbound_scanDate')):
             return 'Đã rời HUB'
 
+        # 2. Đang trên bãi (Đã quét nhập kho HUB)
         if has_value(row.get('inbound_scanDate')):
             return 'Đang trên bãi'
 
-        if has_value(row.get('dispatchNetworkTime')):
-            return 'Đã điều phối bưu cục'
-
-        if has_value(row.get('Pickup_time')):
+        # 3. Đã lấy hàng (Gộp Đã lấy hàng và các đơn chưa về HUB thuộc Forecast/Dispatch thô)
+        if has_value(row.get('Pickup_time')) or row.get('data_source') == 'Forecast':
             return 'Đã lấy hàng'
 
-        if sys_status and sys_status not in ('nan', 'None', ''):
-            return sys_status
-
-        return ''
+        # 4. Đã điều phối bưu cục (Mức ưu tiên thấp nhất)
+        return 'Đã điều phối bưu cục'
 
     df['status_order'] = df.apply(build_status, axis=1)
 
