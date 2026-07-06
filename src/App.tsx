@@ -1599,7 +1599,7 @@ export default function App() {
 
           {/* Right Column: Control Center & Top 10 Racks (w-90) */}
           {currentView === 'master' && (
-            <div className="absolute z-40 top-16 right-6 w-90 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-visible pr-2 pb-6">
+            <div className="absolute z-40 top-16 right-6 w-90 flex flex-col gap-8 max-h-[calc(100vh-100px)] overflow-visible pr-2 pb-6">
               {/* A. Control Center Panel */}
               {showControls && (
                 <div className="bg-[var(--panel)] border border-[var(--panel-border)] border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 transition-all duration-300 hover:border-[var(--panel-border-hover)] hover:shadow-[0_0_30px_rgba(139,92,246,0.12)]">
@@ -1776,7 +1776,7 @@ export default function App() {
 
               {/* B. TOP 10 RACKS */}
               {currentView === 'master' && showTop10 && (
-                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
+                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 mt-8">
                   <h3 className="disp text-[11px] font-bold tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)] uppercase">
                     {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC NHIỀU HÀNG NHẤT'}
                   </h3>
