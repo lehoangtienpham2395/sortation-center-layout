@@ -1510,6 +1510,35 @@ def run_once(session, token_mgr, rebuild_days=None):
     if not df_out.empty:
         df = df.merge(df_out, left_on='waybillNo', right_on='billNo', how='left').drop(columns=['billNo'], errors='ignore')
 
+    # Exclude Forecast rows that were already Outbound in a previous operating ca (outbound scan date before 6:00 AM of today, or operating date of outbound is prior to today)
+    if 'outbound_scanDate' in df.columns:
+        def is_prior_outbound(row):
+            if row.get('data_source') != 'Forecast':
+                return False
+            out_val = row.get('outbound_scanDate')
+            if not out_val or pd.isna(out_val) or str(out_val).strip() in ('', 'nan', 'None'):
+                return False
+            try:
+                # Parse outbound scan date and get its operating date
+                dt_out = pd.to_datetime(out_val)
+                op_date_out = get_operating_date(dt_out)
+                
+                # Get the row's operating date from forecast reference time
+                t_ref = row.get('time_ref')
+                if t_ref:
+                    op_date_row = get_operating_date(t_ref)
+                else:
+                    op_date_row = get_operating_date(now)
+                
+                # If outbound happened in a prior operating date, exclude it
+                return op_date_out < op_date_row
+            except Exception:
+                return False
+
+        is_prior = df.apply(is_prior_outbound, axis=1)
+        print(f"   ℹ| Loại bỏ {is_prior.sum()} đơn Forecast đã Outbound từ ca vận hành trước.")
+        df = df[~is_prior].copy()
+
     if 'inbound_scanDate' in df.columns:
         is_backlog_empty_pick = (
             (df['data_source'] == 'Backlog') &
