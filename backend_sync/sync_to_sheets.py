@@ -899,7 +899,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         else:
             fc_hour = ""
             
-        key = (fc_name, status_clean, op_date, ib_hour, fc_hour, pk_hour)
+        key = (fc_name, status_clean, op_date, ib_hour, fc_hour, pk_hour, fc_time_str)
         if key not in grouped:
             grouped[key] = {'volume': 0, 'weight': 0.0}
         grouped[key]['volume'] += 1
@@ -908,7 +908,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
     # Convert grouped to DataFrame
     final_rows = []
     
-    for (fc_name, status, op_date, ib_hour, fc_hour, pk_hour), stats in grouped.items():
+    for (fc_name, status, op_date, ib_hour, fc_hour, pk_hour, raw_disp_time), stats in grouped.items():
         final_rows.append({
             'Bưu cục': fc_name,
             'Trạng thái': status,
@@ -917,11 +917,12 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             'Ngày vận hành': op_date,
             'Inbound Hour': ib_hour,
             'Forecast Time': fc_hour,
-            'Pickup Time': pk_hour
+            'Pickup Time': pk_hour,
+            'dispatchNetworkTime': raw_disp_time
         })
         
     df_inbound_aggregated = pd.DataFrame(final_rows)
-    write_sheet("Inbound", df_inbound_aggregated, ["Bưu cục", "Trạng thái", "Volume", "Weight", "Ngày vận hành", "Inbound Hour", "Forecast Time", "Pickup Time"])
+    write_sheet("Inbound", df_inbound_aggregated, ["Bưu cục", "Trạng thái", "Volume", "Weight", "Ngày vận hành", "Inbound Hour", "Forecast Time", "Pickup Time", "dispatchNetworkTime"])
 
     # 4. Linehaul (Gộp các dòng trùng Phiếu nhiệm vụ con để kết hợp thông tin gửi & dỡ)
     df_lh_raw = pd.DataFrame(results.get('linehaul', []))

@@ -76,22 +76,7 @@ export default function InboundDashboard({
       stages['Chưa về Hub'].weight += wt;
 
       // Phân tách đơn Forecast Chưa về Hub:
-      // - Nếu thời gian điều phối (Forecast Time / dispatchNetworkTime thô) trước 00:00 ngày hoạt động -> Rớt hôm trước
-      // - Nếu từ 00:00 trở đi -> Rớt hôm nay
-      // Trong file Inbound.csv, cột 'Forecast Time' (chính là dispatchNetworkTime) được đồng bộ từ backend
-      // Để chính xác, ta so sánh mốc datetime thô (nếu có lưu) hoặc thông tin thô của đơn.
-      // Vì Inbound sheet thô chỉ chứa 'Forecast Time' dạng giờ (hour index), nên ta cần check xem ngày tạo gốc thế nào.
-      // Tuy nhiên, backend đã map dispatchNetworkTime vào cột thô, nếu không parse được ngày, ta dựa vào trường hợp:
-      // Các đơn Forecast rớt ngày trước được lưu có 'Ngày vận hành' cũ hơn, nhưng vì đã được lọc 'filteredInbound' theo activeDate rồi,
-      // nên toàn bộ filteredInbound này có 'Ngày vận hành' là activeDate.
-      // Ta cần phân biệt bằng cột 'Forecast Time' (hour index) hoặc kiểm tra giá trị thô gốc nếu có.
-      // Khoan đã, nếu ngày vận hành đã được gán là ngày hoạt động (do >=06:00 ngày hôm trước đến 06:00 hôm nay),
-      // thì đơn có dispatchNetworkTime trước 00:00 ngày hôm nay (tức là từ 06:00 đến 23:59 hôm qua) chính là 'Rớt hôm trước'
-      // còn đơn từ 00:00 hôm nay trở đi là 'Rớt hôm nay'.
-      // Ta sẽ kiểm tra giá trị gốc của dispatchNetworkTime nếu có trong dữ liệu thô, hoặc tạm thời dùng trường 'Pickup Time' / 'Inbound Hour'
-      // Để đơn giản và chính xác nhất, ta so sánh chuỗi thời gian điều phối thực tế của đơn hàng.
-      // Dữ liệu thô gửi lên client trong `inboundData` có chứa cột `dispatchNetworkTime` gốc (dạng datetime yyyy-MM-dd HH:mm:ss) hay không?
-      // Có! Bản ghi thô từ SQLite được ghi lên Google Sheets có cột `dispatchNetworkTime`.
+      // dispatchNetworkTime thô hiện tại đã được đồng bộ lên từ backend
       const dispTimeStr = d['dispatchNetworkTime'] || '';
       if (dispTimeStr && dispTimeStr.localeCompare(todayStartStr) < 0) {
         forecastRotHomTruoc += vol;
@@ -175,11 +160,11 @@ export default function InboundDashboard({
     }
   });
 
-  // 2. Forecast Time (Dự báo - Kế hoạch lấy): CHỈ HIỂN THỊ MỐC THỜI GIAN RỚT HÔM NAY (>= 00:00 hôm nay)
+  // 2. Forecast Time (Dự báo - Kế hoạch lấy): CHỈ HIỂN THỊ MỐC THỜI GIAN RỚT HÔM NAY (>= 06:00 hôm nay)
   filteredInbound.forEach(d => {
     const dispTimeStr = d['dispatchNetworkTime'] || '';
-    // Chỉ hiển thị mốc thời gian rớt hôm nay trên line chart Forecast
-    if (dispTimeStr && dispTimeStr.localeCompare(todayStartStr) >= 0) {
+    // Nếu không có hoặc có và >= 06:00 ngày hôm nay (tức là rớt hôm nay)
+    if (!dispTimeStr || dispTimeStr.localeCompare(todayStartStr) >= 0) {
       const fcTime = d['Forecast Time'] !== undefined && d['Forecast Time'] !== null && d['Forecast Time'] !== ''
         ? d['Forecast Time']
         : undefined;
@@ -192,7 +177,6 @@ export default function InboundDashboard({
           }
         }
       }
-    }
   });
 
   // 3. Pickup Time (Shipper đã lấy): lấy từ cột "Pickup Time" (deliveryTime)
