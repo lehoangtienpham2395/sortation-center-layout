@@ -317,8 +317,9 @@ def _arrival_station_info(session, token_mgr, headers, station_name):
     """Tra cứu code/id/typeId của một bưu cục qua API Select."""
     parts = station_name.strip().split(' ', 1)
     search_name = parts[1] if len(parts) > 1 else station_name
+    # Loại bỏ networkId lọc cứng để tìm kiếm bưu cục trên phạm vi toàn quốc (bao gồm vùng SE)
     params = {'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693', 'name': search_name,
-              'networkId': '11888', 'queryLevel': '3', 'current': 1, 'size': 20}
+              'current': 1, 'size': 50}
     try:
         r = session.get(URL_ARRIVAL_SELECT, params=params,
                         headers={**headers, 'authToken': token_mgr.get_token()},
