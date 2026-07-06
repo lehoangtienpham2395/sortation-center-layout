@@ -668,7 +668,12 @@ export default function InboundDashboard({
         {/* Table 2: Trucking in Transit */}
         <div className="table-container-card">
           <div className="table-header">
-            <h2>Trucking in transit</h2>
+            <h2>
+              Trucking in transit 
+              <span className="text-xs text-slate-400 font-normal ml-2">
+                (Tổng bưu cục: {incomingVehicles.length} | Chưa đến: {incomingVehicles.reduce((a, b) => a + b.chuaDenHub, 0).toLocaleString()} | Đã đến: {incomingVehicles.reduce((a, b) => a + (b.tongDon - b.chuaDenHub), 0).toLocaleString()} | Tổng đơn: {incomingVehicles.reduce((a, b) => a + b.tongDon, 0).toLocaleString()})
+              </span>
+            </h2>
           </div>
           <div className="table-wrapper">
             <table>
@@ -676,6 +681,7 @@ export default function InboundDashboard({
                 <tr>
                   <th>Bưu cục</th>
                   <th style={{ textAlign: 'right' }}>Chưa đến Hub</th>
+                  <th style={{ textAlign: 'right' }}>Đã đến Hub</th>
                   <th style={{ textAlign: 'right' }}>Tổng đơn</th>
                   <th style={{ textAlign: 'center' }}>Cập nhật lúc</th>
                 </tr>
@@ -685,13 +691,29 @@ export default function InboundDashboard({
                   <tr key={v.station}>
                     <td className="highlight-val">{v.station}</td>
                     <td className="highlight-green" style={{ textAlign: 'right' }}>{v.chuaDenHub.toLocaleString()}</td>
+                    <td className="highlight-purple" style={{ textAlign: 'right' }}>{(v.tongDon - v.chuaDenHub).toLocaleString()}</td>
                     <td style={{ textAlign: 'right' }}>{v.tongDon.toLocaleString()}</td>
                     <td style={{ textAlign: 'center' }}>{v.lastTime ? v.lastTime.split(' ')[1] : '--:--'}</td>
                   </tr>
                 ))}
+                {incomingVehicles.length > 0 && (
+                  <tr style={{ fontWeight: 'bold', borderTop: '2px solid #334155', background: 'rgba(51, 65, 85, 0.2)' }}>
+                    <td className="highlight-val">TỔNG CỘNG ({incomingVehicles.length})</td>
+                    <td className="highlight-green" style={{ textAlign: 'right' }}>
+                      {incomingVehicles.reduce((a, b) => a + b.chuaDenHub, 0).toLocaleString()}
+                    </td>
+                    <td className="highlight-purple" style={{ textAlign: 'right' }}>
+                      {incomingVehicles.reduce((a, b) => a + (b.tongDon - b.chuaDenHub), 0).toLocaleString()}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      {incomingVehicles.reduce((a, b) => a + b.tongDon, 0).toLocaleString()}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>-</td>
+                  </tr>
+                )}
                 {incomingVehicles.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', color: '#5a6578', padding: '20px' }}>Không có xe đang di chuyển</td>
+                    <td colSpan={5} style={{ textAlign: 'center', color: '#5a6578', padding: '20px' }}>Không có xe đang di chuyển</td>
                   </tr>
                 )}
               </tbody>

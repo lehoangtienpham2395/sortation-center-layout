@@ -1160,6 +1160,15 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             inventory_volumes = {}
             if 'status_order' in df.columns:
                 df_inv = df.copy()
+                
+                # Apply operating date filter to only group current operating day's inventory (e.g. today)
+                # This prevents historical dates fetched during rebuild from inflating today's totals.
+                if 'time_ref' in df_inv.columns:
+                    df_inv['row_op_date'] = df_inv['time_ref'].apply(
+                        lambda x: get_operating_date(x) if (x and str(x).strip() not in ('', 'nan', 'None')) else current_date_str
+                    )
+                    df_inv = df_inv[df_inv['row_op_date'] == current_date_str]
+                
                 df_inv['next_station_upper'] = df_inv['next_station'].astype(str).str.strip().str.upper()
                 df_inv['status_upper'] = df_inv['status_order'].astype(str).str.strip()
                 inventory_volumes = df_inv.groupby(['next_station_upper', 'status_upper']).agg(
@@ -1377,6 +1386,7 @@ def run_once(session, token_mgr, rebuild_days=None):
         df_fc['next_station'] = df_fc['dispatch_plan'].map(d_buucuc).fillna('')
         df_fc['dispatchNetworkTime'] = ''
         df_fc['updateTime']          = ''
+        df_fc['time_ref']            = df_fc['Pickup_time']
     print(f"   Forecast unique: {len(df_fc)}")
 
     # ================================================================
