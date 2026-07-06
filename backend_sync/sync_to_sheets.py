@@ -896,6 +896,17 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         else:
             pk_hour = ""
 
+        # Format forecast time to hour index 0-23
+        fc_time_str = r['forecast_time']
+        if fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None'):
+            try:
+                dt_fc = pd.to_datetime(fc_time_str)
+                fc_hour = int(dt_fc.hour)
+            except Exception:
+                fc_hour = ""
+        else:
+            fc_hour = ""
+
         # Xác định loại rớt cho các đơn Chưa về Hub
         loai_rot = ""
         if status_clean == 'Chưa về Hub':
@@ -914,17 +925,6 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             else:
                 loai_rot = "Rớt hôm nay"
 
-        # Format forecast time to hour index 0-23
-        fc_time_str = r['forecast_time']
-        if fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None'):
-            try:
-                dt_fc = pd.to_datetime(fc_time_str)
-                fc_hour = int(dt_fc.hour)
-            except Exception:
-                fc_hour = ""
-        else:
-            fc_hour = ""
-            
         key = (fc_name, status_clean, op_date, ib_hour, fc_hour, pk_hour, loai_rot)
         if key not in grouped:
             grouped[key] = {'volume': 0, 'weight': 0.0}
