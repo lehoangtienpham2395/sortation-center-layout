@@ -154,6 +154,14 @@ def init_db():
         os.makedirs(db_dir, exist_ok=True)
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
+    
+    # ⚡ TỐI ƯU HÓA HIỆU NĂNG GHI/ĐỌC SQLITE CỰC ĐẠI
+    c.execute("PRAGMA journal_mode = WAL")
+    c.execute("PRAGMA synchronous = OFF")
+    c.execute("PRAGMA cache_size = -64000")  # Cache RAM 64MB
+    c.execute("PRAGMA temp_store = MEMORY")
+    c.execute("PRAGMA count_changes = OFF")
+    
     # Tạo bảng inventory thô để gom nhóm lưu trữ
     c.execute("""
         CREATE TABLE IF NOT EXISTS inventory (
@@ -1720,6 +1728,12 @@ def run_once(session, token_mgr, rebuild_days=None):
     try:
         conn = sqlite3.connect(DB_FILE)
         c = conn.cursor()
+        
+        # ⚡ TỐI ƯU HÓA HIỆU NĂNG GHI CỰC ĐẠI
+        c.execute("PRAGMA journal_mode = WAL")
+        c.execute("PRAGMA synchronous = OFF")
+        c.execute("PRAGMA cache_size = -64000")
+        c.execute("PRAGMA temp_store = MEMORY")
         
         # Chuẩn bị dữ liệu để UPSERT
         # Đảm bảo time_ref có giá trị để tính operating date
