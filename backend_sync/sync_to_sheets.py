@@ -690,13 +690,13 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
 
     # Using module-level get_operating_date
 
-    # Build dictionary of waybill -> forecast_time (updateTime) from Dispatch/Forecast
+    # Build dictionary of waybill -> forecast_time (dispatchNetworkTime) from Dispatch
     wb_to_forecast = {}
     df_dp_raw = pd.DataFrame(results.get('dispatch', []))
     if not df_dp_raw.empty:
         for _, r in df_dp_raw.iterrows():
             wb = str(r.get('waybillNo') or r.get('waybillId', '')).strip()
-            pk = str(r.get('updateTime') or r.get('dispatchNetworkTime') or '').strip()
+            pk = str(r.get('dispatchNetworkTime') or r.get('updateTime') or '').strip()
             if wb and pk and pk.lower() not in ('nan', 'none'):
                 wb_to_forecast[wb] = pk
                 
@@ -729,7 +729,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
                     'weight': w,
                     'status': 'Forecast',
                     'ib_date': '',
-                    'forecast_time': '',
+                    'forecast_time': wb_to_forecast.get(waybill, ''),  # dispatchNetworkTime từ Dispatch lookup
                     'pickup_time': pick_time,
                     'time_ref': t_ref
                 })
@@ -1607,6 +1607,9 @@ def run_once(session, token_mgr, rebuild_days=None):
 
         if has_value(row.get('dispatchNetworkTime')):
             return 'Đã điều phối bưu cục'
+
+        if has_value(row.get('Pickup_time')):
+            return 'Đã lấy hàng'
 
         if sys_status and sys_status not in ('nan', 'None', ''):
             return sys_status
