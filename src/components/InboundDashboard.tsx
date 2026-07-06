@@ -430,7 +430,7 @@ export default function InboundDashboard({
         });
       }
     }
-  }, [activeDate, inboundData, linehaulData, totalOrders, totalInTransitOrders, pendingOrders]);
+  }, [activeDate, inboundData, linehaulData, totalOrders, totalInTransitOrders, pendingOrders, forecastTrendData, arrivedTrendData, pickupTrendData, inboundTrendData]);
 
   const toggleDropdown = () => setDateDropdownOpen(!dateDropdownOpen);
   const selectPreset = (preset: 'today' | 'yesterday') => {
@@ -459,7 +459,7 @@ export default function InboundDashboard({
         <div className="header-right">
           <div className="system-status">
             <span className="status-dot pulsing"></span>
-            <span className="status-text">SYS: ONLINE</span>
+            <span className="status-text">Update: {new Date().toLocaleString('vi-VN')}</span>
           </div>
           <div className="date-control-wrapper">
             <span className="control-label">INBOUND CONTROL</span>
