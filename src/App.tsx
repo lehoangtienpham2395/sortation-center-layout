@@ -368,7 +368,7 @@ export default function App() {
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Outbound');
-  const INVENTORY_STATUSES = ['\u0110ang tr\u00ean b\u00e3i', 'Ch\u01b0a v\u1ec1 HUB', '\u0110\u00e3 r\u1eddi HUB', '\u0110\u00e3 \u0111i\u1ec1u ph\u1ed1i nh\u00e2n vi\u00ean', '\u0110\u00e3 \u0111i\u1ec1u ph\u1ed1i b\u01b0u c\u1ee5c'];
+  const INVENTORY_STATUSES = ['\u0110ang tr\u00ean b\u00e3i', 'Ch\u01b0a v\u1ec1 HUB', '\u0110\u00e3 \u0111i\u1ec1u ph\u1ed1i nh\u00e2n vi\u00ean', '\u0110\u00e3 \u0111i\u1ec1u ph\u1ed1i b\u01b0u c\u1ee5c'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['\u0110ang tr\u00ean b\u00e3i']);
 
   const toggleStatus = (status: string) => {

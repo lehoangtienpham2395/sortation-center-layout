@@ -62,7 +62,7 @@ export default function InboundDashboard({
     const status = d['Trạng thái'];
     const vol = parseInt(d['Volume'], 10) || 0;
     const wt = parseFloat(d['Weight']) || 0;
-    if (status === 'Đã về Hub' || status === 'Đã nhập hàng') {
+    if (status !== 'Chưa về Hub') {
       stages['Đã về Hub'].orders += vol;
       stages['Đã về Hub'].weight += wt;
     } else {
