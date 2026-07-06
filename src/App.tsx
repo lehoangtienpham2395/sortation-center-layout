@@ -1646,7 +1646,7 @@ export default function App() {
                               <i className="fa-solid fa-chevron-down icon-arrow text-slate-500 text-[9px] transition-transform duration-200" style={{ transform: masterDateDropdownOpen ? 'rotate(180deg)' : 'none' }}></i>
                             </button>
                             {masterDateDropdownOpen && (
-                              <div className="datepicker-dropdown absolute left-0 right-0 mt-1 bg-[#120f22] border border-[var(--panel-border)] rounded-lg shadow-2xl p-3 z-[600]">
+                              <div className="datepicker-dropdown absolute left-0 right-0 mt-1 bg-[#120f22] border border-[var(--panel-border)] rounded-lg shadow-2xl p-3 z-[9999]">
                                 <div className="datepicker-presets grid grid-cols-2 gap-2 mb-2">
                                   <button 
                                     className="preset-btn bg-[#05030a] border border-white/5 hover:border-[var(--panel-border-hover)] rounded-md py-1.5 text-[10.5px] text-[var(--text-secondary)] hover:text-white transition-all font-semibold"
@@ -1776,7 +1776,10 @@ export default function App() {
 
               {/* B. TOP 10 RACKS */}
               {currentView === 'master' && showTop10 && (
-                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 mt-8">
+                <div 
+                  className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 mt-8 relative z-10"
+                  style={{ pointerEvents: masterDateDropdownOpen ? 'none' : 'auto' }}
+                >
                   <h3 className="disp text-[11px] font-bold tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)] uppercase">
                     {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC NHIỀU HÀNG NHẤT'}
                   </h3>
