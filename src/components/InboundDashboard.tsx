@@ -596,9 +596,15 @@ export default function InboundDashboard({
           </div>
           <div className="kpi-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span className="kpi-value">{totalForecast.toLocaleString()}</span>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '4px', marginTop: '2px' }}>
-              <span>Rớt hôm trước: <strong style={{ color: '#f97316' }}>{forecastRotHomTruoc.toLocaleString()}</strong></span>
-              <span>Rớt hôm nay: <strong style={{ color: '#fdba74' }}>{forecastRotHomNay.toLocaleString()}</strong></span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.95rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', marginTop: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Rớt hôm trước:</span>
+                <strong style={{ color: '#f97316', fontSize: '1.1rem' }}>{forecastRotHomTruoc.toLocaleString()}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Rớt hôm nay:</span>
+                <strong style={{ color: '#fdba74', fontSize: '1.1rem' }}>{forecastRotHomNay.toLocaleString()}</strong>
+              </div>
             </div>
           </div>
           <div className="kpi-glow"></div>
