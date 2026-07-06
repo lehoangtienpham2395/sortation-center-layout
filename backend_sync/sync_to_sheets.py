@@ -742,9 +742,9 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             waybill = str(r.get('waybillNo') or r.get('waybillId', '')).strip()
             w = float(r.get('packageChargeWeight') or 0.0)
             status = str(r.get('orderStatusName') or 'Dispatch').strip()
-            t_ref = r.get('updateTime') or r.get('dispatchNetworkTime')
-            # For Dispatch, Forecast Time is updateTime
-            fc_time = str(r.get('updateTime') or r.get('dispatchNetworkTime') or '').strip()
+            t_ref = r.get('dispatchNetworkTime') or r.get('updateTime')
+            # For Dispatch, use dispatchNetworkTime as the dispatch time reference
+            fc_time = str(r.get('dispatchNetworkTime') or r.get('updateTime') or '').strip()
             pick_time = wb_to_pickup.get(waybill, '')
             if fc_mapped and waybill:
                 rows_to_aggregate.append({
@@ -1384,8 +1384,7 @@ def run_once(session, token_mgr, rebuild_days=None):
         df_fc['data_source']  = 'Forecast'
         df_fc['status_order'] = ''
         df_fc['next_station'] = df_fc['dispatch_plan'].map(d_buucuc).fillna('')
-        df_fc['dispatchNetworkTime'] = ''
-        df_fc['updateTime']          = ''
+        df_fc['dispatchNetworkTime'] = df_fc['Pickup_time']  # dùng deliveryTime làm fallback cho Forecast
         df_fc['time_ref']            = df_fc['Pickup_time']
     print(f"   Forecast unique: {len(df_fc)}")
 
@@ -1606,11 +1605,8 @@ def run_once(session, token_mgr, rebuild_days=None):
         if has_value(row.get('inbound_scanDate')):
             return 'Đang trên bãi'
 
-        if has_value(row.get('updateTime')):
-            return 'Chưa về HUB'
-
         if has_value(row.get('dispatchNetworkTime')):
-            return 'Đã lấy hàng'
+            return 'Đã điều phối bưu cục'
 
         if sys_status and sys_status not in ('nan', 'None', ''):
             return sys_status
@@ -1626,7 +1622,7 @@ def run_once(session, token_mgr, rebuild_days=None):
         'waybillNo', 'data_source', 'weight',
         'pickNetworkName', 'dispatch_plan',
         'Pickup_time', 'pickup_label', 'Pickup_ontime',
-        'dispatchNetworkTime', 'updateTime',
+        'dispatchNetworkTime',
         'next_station', 'Tuyến', 'Rank',
         'inbound_network', 'inbound_scanDate',
         'outbound_scanDate', 'dispatch_actual',
