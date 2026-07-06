@@ -75,10 +75,9 @@ export default function InboundDashboard({
       stages['Chưa về Hub'].orders += vol;
       stages['Chưa về Hub'].weight += wt;
 
-      // Phân tách đơn Forecast Chưa về Hub:
-      // dispatchNetworkTime thô hiện tại đã được đồng bộ lên từ backend
-      const dispTimeStr = d['dispatchNetworkTime'] || '';
-      if (dispTimeStr && dispTimeStr.localeCompare(todayStartStr) < 0) {
+      // Phân tách đơn Forecast Chưa về Hub sử dụng cột Loại rớt từ backend
+      const loaiRot = d['Loại rớt'] || '';
+      if (loaiRot === 'Rớt hôm trước') {
         forecastRotHomTruoc += vol;
       } else {
         forecastRotHomNay += vol;
@@ -160,11 +159,11 @@ export default function InboundDashboard({
     }
   });
 
-  // 2. Forecast Time (Dự báo - Kế hoạch lấy): CHỈ HIỂN THỊ MỐC THỜI GIAN RỚT HÔM NAY (>= 06:00 hôm nay)
+  // 2. Forecast Time (Dự báo - Kế hoạch lấy): CHỈ HIỂN THỊ MỐC THỜI GIAN RỚT HÔM NAY (Loại rớt không phải Rớt hôm trước)
   filteredInbound.forEach(d => {
-    const dispTimeStr = d['dispatchNetworkTime'] || '';
-    // Nếu không có hoặc có và >= 06:00 ngày hôm nay (tức là rớt hôm nay)
-    if (!dispTimeStr || dispTimeStr.localeCompare(todayStartStr) >= 0) {
+    const loaiRot = d['Loại rớt'] || '';
+    // Chỉ hiển thị sản lượng rớt hôm nay trên line biểu đồ (Loại rớt rỗng - tức là Inbound/Arrival, hoặc Loại rớt === 'Rớt hôm nay')
+    if (loaiRot !== 'Rớt hôm trước') {
       const fcTime = d['Forecast Time'] !== undefined && d['Forecast Time'] !== null && d['Forecast Time'] !== ''
         ? d['Forecast Time']
         : undefined;
