@@ -676,13 +676,13 @@ export default function InboundDashboard({
               </thead>
               <tbody>
                 {allSendingFCs.length > 0 && (
-                  <tr style={{ fontWeight: 'bold', position: 'sticky', top: '35px', background: '#38bdf8', color: '#0f172a', zIndex: 9, borderBottom: '2px solid #0284c7' }}>
-                    <td style={{ color: '#0f172a' }}>-</td>
-                    <td style={{ color: '#0f172a' }}>TỔNG CỘNG ({allSendingFCs.length})</td>
-                    <td style={{ textAlign: 'right', color: '#0f172a' }}>{totalSendingVehicles} xe</td>
-                    <td style={{ textAlign: 'right', color: '#0f172a' }}>{totalSendingOrders.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right', color: '#0f172a' }}>{totalSendingWeight.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right', color: '#0f172a' }}>100%</td>
+                  <tr style={{ fontWeight: 'bold', position: 'sticky', top: '35px', background: '#38bdf8', color: '#ffffff', zIndex: 9, borderBottom: '2px solid #0284c7' }}>
+                    <td style={{ color: '#ffffff' }}>-</td>
+                    <td style={{ color: '#ffffff' }}>TỔNG CỘNG ({allSendingFCs.length})</td>
+                    <td style={{ textAlign: 'right', color: '#ffffff' }}>{totalSendingVehicles} xe</td>
+                    <td style={{ textAlign: 'right', color: '#ffffff' }}>{totalSendingOrders.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', color: '#ffffff' }}>{totalSendingWeight.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', color: '#ffffff' }}>100%</td>
                   </tr>
                 )}
                 {allSendingFCs.map((fc, idx) => (
@@ -716,6 +716,7 @@ export default function InboundDashboard({
             <table style={{ borderCollapse: 'collapse', width: '100%' }}>
               <thead style={{ position: 'sticky', top: 0, background: 'var(--panel-bg)', zIndex: 10 }}>
                 <tr>
+                  <th style={{ width: '40px', background: '#1e293b', color: '#94a3b8' }}>#</th>
                   <th style={{ background: '#1e293b', color: '#94a3b8' }}>Bưu cục</th>
                   <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Chưa đến Hub</th>
                   <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Đã đến Hub</th>
@@ -725,22 +726,24 @@ export default function InboundDashboard({
               </thead>
               <tbody>
                 {incomingVehicles.length > 0 && (
-                  <tr style={{ fontWeight: 'bold', position: 'sticky', top: '35px', background: '#38bdf8', color: '#0f172a', zIndex: 9, borderBottom: '2px solid #0284c7' }}>
-                    <td style={{ color: '#0f172a' }}>TỔNG CỘNG ({incomingVehicles.length})</td>
-                    <td style={{ textAlign: 'right', color: '#0f172a' }}>
+                  <tr style={{ fontWeight: 'bold', position: 'sticky', top: '35px', background: '#38bdf8', color: '#ffffff', zIndex: 9, borderBottom: '2px solid #0284c7' }}>
+                    <td style={{ color: '#ffffff' }}>-</td>
+                    <td style={{ color: '#ffffff' }}>TỔNG CỘNG ({incomingVehicles.length})</td>
+                    <td style={{ textAlign: 'right', color: '#ffffff' }}>
                       {incomingVehicles.reduce((a, b) => a + b.chuaDenHub, 0).toLocaleString()}
                     </td>
-                    <td style={{ textAlign: 'right', color: '#0f172a' }}>
+                    <td style={{ textAlign: 'right', color: '#ffffff' }}>
                       {incomingVehicles.reduce((a, b) => a + (b.tongDon - b.chuaDenHub), 0).toLocaleString()}
                     </td>
-                    <td style={{ textAlign: 'right', color: '#0f172a' }}>
+                    <td style={{ textAlign: 'right', color: '#ffffff' }}>
                       {incomingVehicles.reduce((a, b) => a + b.tongDon, 0).toLocaleString()}
                     </td>
-                    <td style={{ textAlign: 'center', color: '#0f172a' }}>-</td>
+                    <td style={{ textAlign: 'center', color: '#ffffff' }}>-</td>
                   </tr>
                 )}
-                {incomingVehicles.map(v => (
+                {incomingVehicles.map((v, idx) => (
                   <tr key={v.station}>
+                     <td className="highlight-val">{idx + 1}</td>
                      <td className="highlight-val">{v.station}</td>
                      <td className="highlight-green" style={{ textAlign: 'right' }}>{v.chuaDenHub.toLocaleString()}</td>
                      <td className="highlight-purple" style={{ textAlign: 'right' }}>{(v.tongDon - v.chuaDenHub).toLocaleString()}</td>
@@ -750,7 +753,7 @@ export default function InboundDashboard({
                 ))}
                 {incomingVehicles.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', color: '#5a6578', padding: '20px' }}>Không có xe đang di chuyển</td>
+                    <td colSpan={6} style={{ textAlign: 'center', color: '#5a6578', padding: '20px' }}>Không có xe đang di chuyển</td>
                   </tr>
                 )}
               </tbody>
