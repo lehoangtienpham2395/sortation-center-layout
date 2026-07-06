@@ -1268,7 +1268,7 @@ export default function App() {
           <div className="flex items-center gap-4">
             <div className="mono text-[10px] text-slate-400 flex items-center gap-1.5 bg-[#121824]/60 border border-white/5 rounded-full px-3 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-slow"></span>
-              SYS: <b className="text-emerald-400">ONLINE</b>
+              Update: <b className="text-emerald-400">{new Date().toLocaleString('vi-VN')}</b>
             </div>
             <div className="mono text-[10px] text-slate-400 bg-[#121824]/60 border border-white/5 rounded-full px-3 py-1">
               ZONE: LAT 10.823 • LONG 106.63

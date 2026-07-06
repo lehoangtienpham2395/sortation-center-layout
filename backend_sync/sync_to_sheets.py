@@ -690,23 +690,23 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
 
     # Using module-level get_operating_date
 
-    # Build dictionary of waybill -> forecast_time from Forecast sheet
+    # Build dictionary of waybill -> forecast_time (updateTime) from Dispatch/Forecast
     wb_to_forecast = {}
-    df_fc_raw = pd.DataFrame(results.get('forecast', []))
-    if not df_fc_raw.empty:
-        for _, r in df_fc_raw.iterrows():
-            wb = str(r.get('waybillNo', '')).strip()
-            pk = str(r.get('deliveryTime') or '').strip()
-            if wb and pk and pk.lower() not in ('nan', 'none'):
-                wb_to_forecast[wb] = pk
-                
-    # Build dictionary of waybill -> actual_pickup_time from Dispatch sheet
-    wb_to_pickup = {}
     df_dp_raw = pd.DataFrame(results.get('dispatch', []))
     if not df_dp_raw.empty:
         for _, r in df_dp_raw.iterrows():
             wb = str(r.get('waybillNo') or r.get('waybillId', '')).strip()
             pk = str(r.get('updateTime') or r.get('dispatchNetworkTime') or '').strip()
+            if wb and pk and pk.lower() not in ('nan', 'none'):
+                wb_to_forecast[wb] = pk
+                
+    # Build dictionary of waybill -> actual_pickup_time (deliveryTime) from Forecast sheet
+    wb_to_pickup = {}
+    df_fc_raw = pd.DataFrame(results.get('forecast', []))
+    if not df_fc_raw.empty:
+        for _, r in df_fc_raw.iterrows():
+            wb = str(r.get('waybillNo', '')).strip()
+            pk = str(r.get('deliveryTime') or '').strip()
             if wb and pk and pk.lower() not in ('nan', 'none'):
                 wb_to_pickup[wb] = pk
 
@@ -720,7 +720,8 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             waybill = str(r.get('waybillNo', '')).strip()
             w = float(r.get('loadWeight') or 0.0)
             t_ref = r.get('deliveryTime')
-            fc_time = str(r.get('deliveryTime') or '').strip()
+            # For Forecast, Actual Pickup Time is deliveryTime (from forecast)
+            pick_time = str(r.get('deliveryTime') or '').strip()
             if fc_mapped and waybill:
                 rows_to_aggregate.append({
                     'fc': fc_mapped,
@@ -728,8 +729,8 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
                     'weight': w,
                     'status': 'Forecast',
                     'ib_date': '',
-                    'forecast_time': fc_time,
-                    'pickup_time': '',
+                    'forecast_time': '',
+                    'pickup_time': pick_time,
                     'time_ref': t_ref
                 })
                 
@@ -742,8 +743,9 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             w = float(r.get('packageChargeWeight') or 0.0)
             status = str(r.get('orderStatusName') or 'Dispatch').strip()
             t_ref = r.get('updateTime') or r.get('dispatchNetworkTime')
-            pick_time = str(r.get('updateTime') or r.get('dispatchNetworkTime') or '').strip()
-            fc_time = wb_to_forecast.get(waybill, '')
+            # For Dispatch, Forecast Time is updateTime
+            fc_time = str(r.get('updateTime') or r.get('dispatchNetworkTime') or '').strip()
+            pick_time = wb_to_pickup.get(waybill, '')
             if fc_mapped and waybill:
                 rows_to_aggregate.append({
                     'fc': fc_mapped,

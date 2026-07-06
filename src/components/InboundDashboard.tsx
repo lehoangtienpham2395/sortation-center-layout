@@ -120,15 +120,32 @@ export default function InboundDashboard({
   const hourlyInbound: Record<string, number> = {};
   const hourlyArrived: Record<string, number> = {};
   const hourlyForecast: Record<string, number> = {};
+  const hourlyPickup: Record<string, number> = {};
+  
   labels.forEach(l => {
     hourlyInbound[l] = 0;
     hourlyArrived[l] = 0;
     hourlyForecast[l] = 0;
+    hourlyPickup[l] = 0;
   });
 
-  // Note: hourlyArrived is populated below from the Inbound sheet's 'Pickup Time' column representing actual Shipper pickup times.
+  // 1. Trên đường về (Arrived) hourly: từ Arrival sheet, sum Tổng số đơn theo Scan Hour
+  filteredArrival.forEach(d => {
+    const hr = d['Scan Hour'] !== undefined && d['Scan Hour'] !== null && d['Scan Hour'] !== ''
+      ? d['Scan Hour']
+      : (d['Last time'] ? d['Last time'].split(' ')[1]?.split(':')[0] : undefined);
+    if (hr !== undefined && hr !== null && hr !== '') {
+      const hrVal = parseInt(String(hr), 10);
+      if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
+        const hour = `${String(hrVal).padStart(2, '0')}:00`;
+        if (hourlyArrived[hour] !== undefined) {
+          hourlyArrived[hour] += parseInt(d['Tổng số đơn'], 10) || 0;
+        }
+      }
+    }
+  });
 
-  // Forecast hourly: từ sheet Inbound, lấy Volume theo cột "Forecast Time"
+  // 2. Forecast Time (Dự báo - Kế hoạch lấy): lấy từ cột "Forecast Time" (updateTime)
   filteredInbound.forEach(d => {
     const fcTime = d['Forecast Time'] !== undefined && d['Forecast Time'] !== null && d['Forecast Time'] !== ''
       ? d['Forecast Time']
@@ -144,7 +161,7 @@ export default function InboundDashboard({
     }
   });
 
-  // Pickup hourly (Thực tế Shipper đã lấy): từ sheet Inbound, lấy Volume theo cột "Pickup Time"
+  // 3. Pickup Time (Shipper đã lấy): lấy từ cột "Pickup Time" (deliveryTime)
   filteredInbound.forEach(d => {
     const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
       ? d['Pickup Time']
@@ -153,15 +170,15 @@ export default function InboundDashboard({
       const hrVal = parseInt(String(pkTime), 10);
       if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyArrived[hour] !== undefined) {
-          hourlyArrived[hour] += parseInt(d['Volume'], 10) || 0;
+        if (hourlyPickup[hour] !== undefined) {
+          hourlyPickup[hour] += parseInt(d['Volume'], 10) || 0;
         }
       }
     }
   });
 
+  // 4. Inbound (Nhập kho HUB)
   filteredInbound.forEach(d => {
-    // Inbound hourly (Nhập)
     if (d['Trạng thái'] === 'Đã về Hub' || d['Trạng thái'] === 'Đã nhập hàng') {
       const ibTime = d['Inbound Hour'] !== undefined && d['Inbound Hour'] !== null && d['Inbound Hour'] !== '' 
         ? d['Inbound Hour'] 
@@ -179,8 +196,9 @@ export default function InboundDashboard({
   });
 
   const inboundTrendData  = labels.map(l => hourlyInbound[l]);
-  const pickupTrendData   = labels.map(l => hourlyArrived[l]);
+  const arrivedTrendData  = labels.map(l => hourlyArrived[l]);
   const forecastTrendData = labels.map(l => hourlyForecast[l]);
+  const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
 
   const pendingOrders = Math.max(0, totalForecast - totalOrders - totalInTransitOrders);
@@ -247,8 +265,12 @@ export default function InboundDashboard({
         forecastGrad.addColorStop(1, 'rgba(249, 115, 22, 0)');
 
         const pickupGrad = ctx.createLinearGradient(0, 0, 0, 220);
-        pickupGrad.addColorStop(0, 'rgba(13, 131, 70, 0.25)');
-        pickupGrad.addColorStop(1, 'rgba(13, 131, 70, 0)');
+        pickupGrad.addColorStop(0, 'rgba(168, 85, 247, 0.25)');
+        pickupGrad.addColorStop(1, 'rgba(168, 85, 247, 0)');
+
+        const arrivedGrad = ctx.createLinearGradient(0, 0, 0, 220);
+        arrivedGrad.addColorStop(0, 'rgba(13, 131, 70, 0.25)');
+        arrivedGrad.addColorStop(1, 'rgba(13, 131, 70, 0)');
 
         const inboundGrad = ctx.createLinearGradient(0, 0, 0, 220);
         inboundGrad.addColorStop(0, 'rgba(0, 229, 255, 0.25)');
@@ -278,8 +300,24 @@ export default function InboundDashboard({
               {
                 label: 'Shipper đã lấy (Actual Pickup)',
                 data: pickupTrendData,
-                borderColor: '#0d8346',
+                borderColor: '#a855f7',
                 backgroundColor: pickupGrad,
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#05030a',
+                pointBorderColor: '#a855f7',
+                pointBorderWidth: 2,
+                pointHoverRadius: 8,
+                pointRadius: 4,
+                pointHoverBackgroundColor: '#a855f7',
+                pointHoverBorderWidth: 3
+              },
+              {
+                label: 'Trên đường về (Arrived)',
+                data: arrivedTrendData,
+                borderColor: '#0d8346',
+                backgroundColor: arrivedGrad,
                 borderWidth: 3,
                 tension: 0.4,
                 fill: true,
@@ -312,9 +350,15 @@ export default function InboundDashboard({
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+              mode: 'index',
+              intersect: false
+            },
             plugins: {
               legend: { display: false },
               tooltip: {
+                mode: 'index',
+                intersect: false,
                 backgroundColor: '#120f22',
                 titleColor: '#fff',
                 bodyColor: '#a0aec0',
@@ -526,11 +570,12 @@ export default function InboundDashboard({
         {/* Line Chart */}
         <div className="chart-container-card dual-line-wrapper">
           <div className="chart-header">
-            <h2>Kế hoạch & Thực tế lấy hàng theo giờ</h2>
+            <h2>Forecast/Arrived/Inbound trend hourly</h2>
             <div className="chart-legend-custom">
-              <span className="legend-item"><span className="dot orange"></span>Kế hoạch lấy (Forecast)</span>
+              <span className="legend-item"><span className="dot orange"></span>Dự báo (Forecast)</span>
               <span className="legend-item"><span className="dot purple"></span>Shipper đã lấy (Actual Pickup)</span>
-              <span className="legend-item"><span className="dot green"></span>Nhập kho HUB (Inbound)</span>
+              <span className="legend-item"><span className="dot green"></span>Trên đường về (Arrived)</span>
+              <span className="legend-item"><span className="dot cyan"></span>Nhập (Inbound)</span>
             </div>
           </div>
           <div className="chart-canvas-wrapper">

@@ -917,18 +917,23 @@ body {
 }
 
 .legend-item .dot.purple {
-  background-color: var(--accent-purple);
-  box-shadow: 0 0 6px var(--accent-purple);
+  background-color: #a855f7;
+  box-shadow: 0 0 6px #a855f7;
 }
 
 .legend-item .dot.green {
-  background-color: var(--accent-green);
-  box-shadow: 0 0 6px var(--accent-green);
+  background-color: #0d8346;
+  box-shadow: 0 0 6px #0d8346;
 }
 
 .legend-item .dot.orange {
-  background-color: var(--accent-orange);
-  box-shadow: 0 0 6px var(--accent-orange);
+  background-color: #f97316;
+  box-shadow: 0 0 6px #f97316;
+}
+
+.legend-item .dot.cyan {
+  background-color: #00e5ff;
+  box-shadow: 0 0 6px #00e5ff;
 }
 
 .chart-canvas-wrapper {
