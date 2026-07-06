@@ -53,8 +53,8 @@ export default function InboundDashboard({
   const filteredLinehaul = linehaulData.filter(d => getLinehaulOperatingDate(d) === activeDate);
 
   // 3. Aggregate operational statistics
-  // Định nghĩa ngày hôm nay và mốc 00:00 ngày hôm nay để phân tách đơn rớt hôm trước vs hôm nay
-  const todayStartStr = `${activeDate} 00:00:00`;
+  // Định nghĩa ngày hôm nay và mốc 06:00 ngày hôm nay để phân tách đơn rớt hôm trước vs hôm nay
+  const todayStartStr = `${activeDate} 06:00:00`;
 
   let forecastRotHomTruoc = 0;
   let forecastRotHomNay = 0;
