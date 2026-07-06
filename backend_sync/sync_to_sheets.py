@@ -912,13 +912,18 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         if fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None'):
             try:
                 dt_fc = pd.to_datetime(fc_time_str)
-                # Mốc 6:00 sáng của ngày vận hành hiện tại (op_date)
                 op_date_dt = pd.to_datetime(op_date)
-                threshold_dt = op_date_dt + timedelta(hours=6)
-                if dt_fc < threshold_dt:
+                
+                # 1. Nếu ngày điều phối nhỏ hơn ngày vận hành hiện tại -> Rớt hôm trước
+                if dt_fc.date() < op_date_dt.date():
                     loai_rot = "Rớt hôm trước"
+                # 2. Nếu cùng ngày vận hành, so sánh với mốc 06:00:00 sáng
                 else:
-                    loai_rot = "Rớt hôm nay"
+                    threshold_dt = op_date_dt + timedelta(hours=6)
+                    if dt_fc < threshold_dt:
+                        loai_rot = "Rớt hôm trước"
+                    else:
+                        loai_rot = "Rớt hôm nay"
             except Exception:
                 loai_rot = "Rớt hôm nay"
         else:
