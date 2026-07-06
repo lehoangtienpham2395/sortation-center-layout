@@ -126,23 +126,25 @@ export default function InboundDashboard({
     hourlyForecast[l] = 0;
   });
 
-  // Trên đường về (Arrived) hourly: từ Arrival sheet, sum Tổng số đơn theo Scan Hour
-  filteredArrival.forEach(d => {
-    const hr = d['Scan Hour'] !== undefined && d['Scan Hour'] !== null && d['Scan Hour'] !== ''
-      ? d['Scan Hour']
-      : (d['Last time'] ? d['Last time'].split(' ')[1]?.split(':')[0] : undefined);
-    if (hr !== undefined && hr !== null && hr !== '') {
-      const hrVal = parseInt(String(hr), 10);
+  // Note: hourlyArrived is populated below from the Inbound sheet's 'Pickup Time' column representing actual Shipper pickup times.
+
+  // Forecast hourly: từ sheet Inbound, lấy Volume theo cột "Forecast Time"
+  filteredInbound.forEach(d => {
+    const fcTime = d['Forecast Time'] !== undefined && d['Forecast Time'] !== null && d['Forecast Time'] !== ''
+      ? d['Forecast Time']
+      : undefined;
+    if (fcTime !== undefined) {
+      const hrVal = parseInt(String(fcTime), 10);
       if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyArrived[hour] !== undefined) {
-          hourlyArrived[hour] += parseInt(d['Tổng số đơn'], 10) || 0;
+        if (hourlyForecast[hour] !== undefined) {
+          hourlyForecast[hour] += parseInt(d['Volume'], 10) || 0;
         }
       }
     }
   });
 
-  // Forecast hourly: từ sheet Inbound, lấy Volume theo cột "Pickup Time"
+  // Pickup hourly (Thực tế Shipper đã lấy): từ sheet Inbound, lấy Volume theo cột "Pickup Time"
   filteredInbound.forEach(d => {
     const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
       ? d['Pickup Time']
@@ -151,8 +153,8 @@ export default function InboundDashboard({
       const hrVal = parseInt(String(pkTime), 10);
       if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyForecast[hour] !== undefined) {
-          hourlyForecast[hour] += parseInt(d['Volume'], 10) || 0;
+        if (hourlyArrived[hour] !== undefined) {
+          hourlyArrived[hour] += parseInt(d['Volume'], 10) || 0;
         }
       }
     }
@@ -524,11 +526,11 @@ export default function InboundDashboard({
         {/* Line Chart */}
         <div className="chart-container-card dual-line-wrapper">
           <div className="chart-header">
-            <h2>Forecast/Arrived/Inbound trend hourly</h2>
+            <h2>Kế hoạch & Thực tế lấy hàng theo giờ</h2>
             <div className="chart-legend-custom">
-              <span className="legend-item"><span className="dot orange"></span>Dự báo (Forecast)</span>
-              <span className="legend-item"><span className="dot purple"></span>Trên đường về (Arrived)</span>
-              <span className="legend-item"><span className="dot green"></span>Nhập (Inbound)</span>
+              <span className="legend-item"><span className="dot orange"></span>Kế hoạch lấy (Forecast)</span>
+              <span className="legend-item"><span className="dot purple"></span>Shipper đã lấy (Actual Pickup)</span>
+              <span className="legend-item"><span className="dot green"></span>Nhập kho HUB (Inbound)</span>
             </div>
           </div>
           <div className="chart-canvas-wrapper">

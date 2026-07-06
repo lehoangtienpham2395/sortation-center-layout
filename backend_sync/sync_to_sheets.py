@@ -690,17 +690,18 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
 
     # Using module-level get_operating_date
 
-    # Build dictionary of waybill -> pickup_time from Forecast & Dispatch first
-    wb_to_pickup = {}
-    
+    # Build dictionary of waybill -> forecast_time from Forecast sheet
+    wb_to_forecast = {}
     df_fc_raw = pd.DataFrame(results.get('forecast', []))
     if not df_fc_raw.empty:
         for _, r in df_fc_raw.iterrows():
             wb = str(r.get('waybillNo', '')).strip()
             pk = str(r.get('deliveryTime') or '').strip()
             if wb and pk and pk.lower() not in ('nan', 'none'):
-                wb_to_pickup[wb] = pk
+                wb_to_forecast[wb] = pk
                 
+    # Build dictionary of waybill -> actual_pickup_time from Dispatch sheet
+    wb_to_pickup = {}
     df_dp_raw = pd.DataFrame(results.get('dispatch', []))
     if not df_dp_raw.empty:
         for _, r in df_dp_raw.iterrows():
@@ -719,7 +720,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             waybill = str(r.get('waybillNo', '')).strip()
             w = float(r.get('loadWeight') or 0.0)
             t_ref = r.get('deliveryTime')
-            pick_time = str(r.get('deliveryTime') or '').strip()
+            fc_time = str(r.get('deliveryTime') or '').strip()
             if fc_mapped and waybill:
                 rows_to_aggregate.append({
                     'fc': fc_mapped,
@@ -727,7 +728,8 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
                     'weight': w,
                     'status': 'Forecast',
                     'ib_date': '',
-                    'pickup_time': pick_time,
+                    'forecast_time': fc_time,
+                    'pickup_time': '',
                     'time_ref': t_ref
                 })
                 
@@ -741,6 +743,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             status = str(r.get('orderStatusName') or 'Dispatch').strip()
             t_ref = r.get('updateTime') or r.get('dispatchNetworkTime')
             pick_time = str(r.get('updateTime') or r.get('dispatchNetworkTime') or '').strip()
+            fc_time = wb_to_forecast.get(waybill, '')
             if fc_mapped and waybill:
                 rows_to_aggregate.append({
                     'fc': fc_mapped,
@@ -748,6 +751,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
                     'weight': w,
                     'status': status if status != 'nan' else 'Dispatch',
                     'ib_date': '',
+                    'forecast_time': fc_time,
                     'pickup_time': pick_time,
                     'time_ref': t_ref
                 })
@@ -762,6 +766,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             w = float(r.get('weight') or 0.0)
             ib_date = str(r.get('scanDate', '')).strip()
             pick_time = wb_to_pickup.get(waybill, '')
+            fc_time = wb_to_forecast.get(waybill, '')
             if fc_mapped and waybill:
                 rows_to_aggregate.append({
                     'fc': fc_mapped,
@@ -769,6 +774,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
                     'weight': w,
                     'status': 'Arrival',
                     'ib_date': ib_date,
+                    'forecast_time': fc_time,
                     'pickup_time': pick_time,
                     'time_ref': ib_date
                 })
@@ -789,7 +795,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         if wb not in unique_waybills or priority > status_priority.get(unique_waybills[wb]['status'], 0):
             unique_waybills[wb] = r
             
-    # Group by fc, status, op_date, hourly ib_date, and hourly pickup_time
+    # Group by fc, status, op_date, hourly ib_date, hourly forecast_time, and hourly pickup_time
     grouped = {}
     now_vn = datetime.now(ZoneInfo('Asia/Ho_Chi_Minh'))
     
@@ -831,17 +837,28 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
                 pk_hour = ""
         else:
             pk_hour = ""
+
+        # Format forecast time to hour index 0-23
+        fc_time_str = r['forecast_time']
+        if fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None'):
+            try:
+                dt_fc = pd.to_datetime(fc_time_str)
+                fc_hour = int(dt_fc.hour)
+            except Exception:
+                fc_hour = ""
+        else:
+            fc_hour = ""
             
-        key = (fc_name, status_clean, op_date, ib_hour, pk_hour)
+        key = (fc_name, status_clean, op_date, ib_hour, fc_hour, pk_hour)
         if key not in grouped:
             grouped[key] = {'volume': 0, 'weight': 0.0}
         grouped[key]['volume'] += 1
         grouped[key]['weight'] += r['weight']
         
-    # Convert grouped to DataFrame without Zone, AreaID, capacity
+    # Convert grouped to DataFrame
     final_rows = []
     
-    for (fc_name, status, op_date, ib_hour, pk_hour), stats in grouped.items():
+    for (fc_name, status, op_date, ib_hour, fc_hour, pk_hour), stats in grouped.items():
         final_rows.append({
             'Bưu cục': fc_name,
             'Trạng thái': status,
@@ -849,11 +866,12 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             'Weight': int(stats['weight']),
             'Ngày vận hành': op_date,
             'Inbound Hour': ib_hour,
+            'Forecast Time': fc_hour,
             'Pickup Time': pk_hour
         })
         
     df_inbound_aggregated = pd.DataFrame(final_rows)
-    write_sheet("Inbound", df_inbound_aggregated, ["Bưu cục", "Trạng thái", "Volume", "Weight", "Ngày vận hành", "Inbound Hour", "Pickup Time"])
+    write_sheet("Inbound", df_inbound_aggregated, ["Bưu cục", "Trạng thái", "Volume", "Weight", "Ngày vận hành", "Inbound Hour", "Forecast Time", "Pickup Time"])
 
     # 4. Linehaul (Gộp các dòng trùng Phiếu nhiệm vụ con để kết hợp thông tin gửi & dỡ)
     df_lh_raw = pd.DataFrame(results.get('linehaul', []))
@@ -1455,11 +1473,8 @@ def run_once(session, token_mgr, rebuild_days=None):
             df_all['dispatchNetworkTime']
         )
 
-        missing_pick = df_all['Pickup_time'].isna() | (df_all['Pickup_time'].astype(str).str.strip() == '')
-        has_upd = df_all['_upd_time'].notna() & (df_all['_upd_time'].astype(str).str.strip() != '')
-        df_all['Pickup_time'] = df_all['_upd_time'].where(missing_pick & has_upd, df_all['Pickup_time'])
-
-        df_all['updateTime'] = df_all['_upd_time'].where(has_upd, df_all.get('Pickup_time', ''))
+        # Preserve forecast delivery time (Pickup_time) and actual pickup time (updateTime) separately
+        df_all['updateTime'] = df_all['_upd_time'].fillna('')
 
         has_status = df_all['status_order'].notna() & (df_all['status_order'].astype(str).str.strip() != '')
         df_all['status_order'] = df_all['status_order'].where(has_status, df_all['_dp_status'])
