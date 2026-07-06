@@ -14,6 +14,8 @@ import requests
 import pandas as pd
 from requests.adapters import HTTPAdapter
 
+import sqlite3
+
 # ============================================================
 # CONFIG ĐĂNG NHẬP (Đọc từ GitHub Secrets / Environment Variables)
 # ============================================================
@@ -31,6 +33,7 @@ SHEET_ID = "1GMgvwa1MIEg0P102MDBcvwJPd-0wAeZh3hewmz_LBQI"
 BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR   = os.path.join(BASE_DIR, "output")
 VALID_FILE   = os.path.join(BASE_DIR, "config", "valid.csv")
+DB_FILE      = os.path.join(BASE_DIR, "db", "state.db")
 
 # ============================================================
 # ENDPOINTS (GIỮ NGUYÊN)
@@ -143,6 +146,51 @@ def get_operating_date(dt_str):
             return dt.strftime('%Y-%m-%d')
     except Exception:
         return ""
+
+
+def init_db():
+    db_dir = os.path.dirname(DB_FILE)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    # Tạo bảng inventory thô để gom nhóm lưu trữ
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS inventory (
+            waybillNo TEXT PRIMARY KEY,
+            data_source TEXT,
+            weight REAL,
+            pickNetworkName TEXT,
+            dispatch_plan TEXT,
+            Pickup_time TEXT,
+            pickup_label TEXT,
+            Pickup_ontime TEXT,
+            dispatchNetworkTime TEXT,
+            next_station TEXT,
+            Tuyến TEXT,
+            Rank TEXT,
+            inbound_network TEXT,
+            inbound_scanDate TEXT,
+            outbound_scanDate TEXT,
+            dispatch_actual TEXT,
+            status_order TEXT,
+            time_ref TEXT,
+            last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    # Tạo index tối ưu hóa query filter & group by
+    c.execute("CREATE INDEX IF NOT EXISTS idx_inv_time_ref ON inventory(time_ref)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_inv_status ON inventory(status_order)")
+    
+    # Auto dọn dẹp các record cũ hơn 7 ngày để tối ưu hóa dung lượng DB
+    try:
+        limit_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
+        c.execute("DELETE FROM inventory WHERE datetime(last_updated) < datetime(?)", (limit_date,))
+        conn.commit()
+    except Exception as e_clean:
+        print(f"   ⚠️ Lỗi dọn dẹp database: {e_clean}")
+    
+    conn.close()
 
 
 def auth_post(session, url, token_mgr, base_headers, *,
@@ -1145,36 +1193,49 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
         # 2. Update Backlog Sheet (Realtime Pivot)
         if run_backlog_inv:
             backlog_volumes = {}
-            if 'status_order' in df.columns:
-                df_bl_real = df[df['status_order'] == 'Đang trên bãi'].copy()
-                if not df_bl_real.empty:
-                    df_bl_real['next_station_upper'] = df_bl_real['next_station'].astype(str).str.strip().str.upper()
-                    backlog_volumes = df_bl_real.groupby('next_station_upper').agg(
+            try:
+                conn = sqlite3.connect(DB_FILE)
+                # Đọc trực tiếp các đơn có status 'Đang trên bãi' từ SQLite
+                df_db_bl = pd.read_sql_query(
+                    "SELECT next_station, weight, waybillNo FROM inventory WHERE status_order = 'Đang trên bãi'", 
+                    conn
+                )
+                conn.close()
+                if not df_db_bl.empty:
+                    df_db_bl['next_station_upper'] = df_db_bl['next_station'].astype(str).str.strip().str.upper()
+                    backlog_volumes = df_db_bl.groupby('next_station_upper').agg(
                         volume=('waybillNo', 'size'),
                         weight=('weight', 'sum')
                     ).to_dict(orient='index')
+            except Exception as e_bl_db:
+                print(f"   ⚠️ Lỗi tính Backlog pivot từ SQLite: {e_bl_db}")
             update_backlog_sheet(gc, master_chutes, backlog_volumes, current_date_str)
             
         # 3. Update Inventory Sheet (Realtime Pivot)
         if run_backlog_inv:
             inventory_volumes = {}
-            if 'status_order' in df.columns:
-                df_inv = df.copy()
-                
-                # Apply operating date filter to only group current operating day's inventory (e.g. today)
-                # This prevents historical dates fetched during rebuild from inflating today's totals.
-                if 'time_ref' in df_inv.columns:
-                    df_inv['row_op_date'] = df_inv['time_ref'].apply(
+            try:
+                conn = sqlite3.connect(DB_FILE)
+                # Đọc toàn bộ inventory từ SQLite
+                df_db_inv = pd.read_sql_query(
+                    "SELECT next_station, status_order, weight, waybillNo, time_ref FROM inventory", 
+                    conn
+                )
+                conn.close()
+                if not df_db_inv.empty:
+                    df_db_inv['row_op_date'] = df_db_inv['time_ref'].apply(
                         lambda x: get_operating_date(x) if (x and str(x).strip() not in ('', 'nan', 'None')) else current_date_str
                     )
-                    df_inv = df_inv[df_inv['row_op_date'] == current_date_str]
-                
-                df_inv['next_station_upper'] = df_inv['next_station'].astype(str).str.strip().str.upper()
-                df_inv['status_upper'] = df_inv['status_order'].astype(str).str.strip()
-                inventory_volumes = df_inv.groupby(['next_station_upper', 'status_upper']).agg(
-                    volume=('waybillNo', 'size'),
-                    weight=('weight', 'sum')
-                ).to_dict(orient='index')
+                    df_db_inv = df_db_inv[df_db_inv['row_op_date'] == current_date_str]
+                    df_db_inv['next_station_upper'] = df_db_inv['next_station'].astype(str).str.strip().str.upper()
+                    df_db_inv['status_upper'] = df_db_inv['status_order'].astype(str).str.strip()
+                    
+                    inventory_volumes = df_db_inv.groupby(['next_station_upper', 'status_upper']).agg(
+                        volume=('waybillNo', 'size'),
+                        weight=('weight', 'sum')
+                    ).to_dict(orient='index')
+            except Exception as e_inv_db:
+                print(f"   ⚠️ Lỗi tính Inventory pivot từ SQLite: {e_inv_db}")
             update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_str)
             
         # 4. Update Inbound Sheets (aggregated Inbound + raw Linehaul + Arrival)
@@ -1633,13 +1694,57 @@ def run_once(session, token_mgr, rebuild_days=None):
     ]
     df = df[[c for c in col_order if c in df.columns]]
 
-    # Save to local CSV
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_file = os.path.join(OUTPUT_DIR, f"Inventory_HCMHUB_{now.strftime('%Y%m%d_%H%M')}.csv")
-    df.to_csv(output_file, index=False, encoding='utf-8-sig')
-    print(f"\n✅ Đã lưu CSV thô → '{output_file}'")
-
-    _cleanup_old_files(OUTPUT_DIR, keep_file=output_file)
+    # Khởi tạo SQLite DB và UPSERT dữ liệu thô
+    init_db()
+    
+    print("\n💾 Đang lưu dữ liệu thô vào SQLite Database cục bộ...")
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        
+        # Chuẩn bị dữ liệu để UPSERT
+        # Đảm bảo time_ref có giá trị để tính operating date
+        if 'time_ref' not in df.columns:
+            df['time_ref'] = df.get('Pickup_time', '')
+            
+        columns_to_db = [
+            'waybillNo', 'data_source', 'weight', 'pickNetworkName', 'dispatch_plan',
+            'Pickup_time', 'pickup_label', 'Pickup_ontime', 'dispatchNetworkTime',
+            'next_station', 'Tuyến', 'Rank', 'inbound_network', 'inbound_scanDate',
+            'outbound_scanDate', 'dispatch_actual', 'status_order', 'time_ref'
+        ]
+        
+        # Đảm bảo đầy đủ cột trong DataFrame
+        for col in columns_to_db:
+            if col not in df.columns:
+                df[col] = ''
+                
+        db_df = df[columns_to_db].copy()
+        
+        # Convert nan/None to empty string
+        for col in columns_to_db:
+            db_df[col] = db_df[col].fillna('').astype(str).str.strip()
+            
+        # Parse weight to float
+        db_df['weight'] = pd.to_numeric(db_df['weight'], errors='coerce').fillna(0.0).astype(float)
+        
+        # Thực hiện UPSERT (Nếu trùng waybillNo thì REPLACE để cập nhật trạng thái mới nhất)
+        records = db_df.values.tolist()
+        c.executemany("""
+            INSERT OR REPLACE INTO inventory (
+                waybillNo, data_source, weight, pickNetworkName, dispatch_plan,
+                Pickup_time, pickup_label, Pickup_ontime, dispatchNetworkTime,
+                next_station, Tuyến, Rank, inbound_network, inbound_scanDate,
+                outbound_scanDate, dispatch_actual, status_order, time_ref,
+                last_updated
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """, records)
+        
+        conn.commit()
+        print(f"   ✅ Đã UPSERT thành công {len(records)} đơn vào SQLite state store.")
+        conn.close()
+    except Exception as ex_db:
+        print(f"   ❌ Lỗi lưu dữ liệu vào SQLite state store: {ex_db}")
     
     # ── Tính toán sản lượng Outbound thực tế để ghi Sheets ──
     outbound_volumes_grouped = {}
