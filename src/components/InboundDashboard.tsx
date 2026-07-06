@@ -276,7 +276,7 @@ export default function InboundDashboard({
                 pointHoverBorderWidth: 3
               },
               {
-                label: 'Trên đường về (Arrived)',
+                label: 'Shipper đã lấy (Actual Pickup)',
                 data: pickupTrendData,
                 borderColor: '#0d8346',
                 backgroundColor: pickupGrad,
