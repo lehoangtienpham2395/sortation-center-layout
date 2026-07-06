@@ -53,6 +53,12 @@ export default function InboundDashboard({
   const filteredLinehaul = linehaulData.filter(d => getLinehaulOperatingDate(d) === activeDate);
 
   // 3. Aggregate operational statistics
+  // Định nghĩa ngày hôm nay và mốc 00:00 ngày hôm nay để phân tách đơn rớt hôm trước vs hôm nay
+  const todayStartStr = `${activeDate} 00:00:00`;
+
+  let forecastRotHomTruoc = 0;
+  let forecastRotHomNay = 0;
+
   const stages = {
     'Chưa về Hub': { orders: 0, weight: 0 },
     'Đã về Hub': { orders: 0, weight: 0 }
@@ -68,11 +74,36 @@ export default function InboundDashboard({
     } else {
       stages['Chưa về Hub'].orders += vol;
       stages['Chưa về Hub'].weight += wt;
+
+      // Phân tách đơn Forecast Chưa về Hub:
+      // - Nếu thời gian điều phối (Forecast Time / dispatchNetworkTime thô) trước 00:00 ngày hoạt động -> Rớt hôm trước
+      // - Nếu từ 00:00 trở đi -> Rớt hôm nay
+      // Trong file Inbound.csv, cột 'Forecast Time' (chính là dispatchNetworkTime) được đồng bộ từ backend
+      // Để chính xác, ta so sánh mốc datetime thô (nếu có lưu) hoặc thông tin thô của đơn.
+      // Vì Inbound sheet thô chỉ chứa 'Forecast Time' dạng giờ (hour index), nên ta cần check xem ngày tạo gốc thế nào.
+      // Tuy nhiên, backend đã map dispatchNetworkTime vào cột thô, nếu không parse được ngày, ta dựa vào trường hợp:
+      // Các đơn Forecast rớt ngày trước được lưu có 'Ngày vận hành' cũ hơn, nhưng vì đã được lọc 'filteredInbound' theo activeDate rồi,
+      // nên toàn bộ filteredInbound này có 'Ngày vận hành' là activeDate.
+      // Ta cần phân biệt bằng cột 'Forecast Time' (hour index) hoặc kiểm tra giá trị thô gốc nếu có.
+      // Khoan đã, nếu ngày vận hành đã được gán là ngày hoạt động (do >=06:00 ngày hôm trước đến 06:00 hôm nay),
+      // thì đơn có dispatchNetworkTime trước 00:00 ngày hôm nay (tức là từ 06:00 đến 23:59 hôm qua) chính là 'Rớt hôm trước'
+      // còn đơn từ 00:00 hôm nay trở đi là 'Rớt hôm nay'.
+      // Ta sẽ kiểm tra giá trị gốc của dispatchNetworkTime nếu có trong dữ liệu thô, hoặc tạm thời dùng trường 'Pickup Time' / 'Inbound Hour'
+      // Để đơn giản và chính xác nhất, ta so sánh chuỗi thời gian điều phối thực tế của đơn hàng.
+      // Dữ liệu thô gửi lên client trong `inboundData` có chứa cột `dispatchNetworkTime` gốc (dạng datetime yyyy-MM-dd HH:mm:ss) hay không?
+      // Có! Bản ghi thô từ SQLite được ghi lên Google Sheets có cột `dispatchNetworkTime`.
+      const dispTimeStr = d['dispatchNetworkTime'] || '';
+      if (dispTimeStr && dispTimeStr.localeCompare(todayStartStr) < 0) {
+        forecastRotHomTruoc += vol;
+      } else {
+        forecastRotHomNay += vol;
+      }
     }
   });
 
   const totalOrders = stages['Đã về Hub'].orders;
   const totalWeight = stages['Đã về Hub'].weight;
+  // Tổng Forecast gồm Đã về Hub + Chưa về Hub (cả cũ và mới)
   const totalForecast = stages['Đã về Hub'].orders + stages['Chưa về Hub'].orders;
 
   // --- Arrival data (from the new Arrival Google Sheet) ---
@@ -144,17 +175,21 @@ export default function InboundDashboard({
     }
   });
 
-  // 2. Forecast Time (Dự báo - Kế hoạch lấy): lấy từ cột "Forecast Time" (updateTime)
+  // 2. Forecast Time (Dự báo - Kế hoạch lấy): CHỈ HIỂN THỊ MỐC THỜI GIAN RỚT HÔM NAY (>= 00:00 hôm nay)
   filteredInbound.forEach(d => {
-    const fcTime = d['Forecast Time'] !== undefined && d['Forecast Time'] !== null && d['Forecast Time'] !== ''
-      ? d['Forecast Time']
-      : undefined;
-    if (fcTime !== undefined) {
-      const hrVal = parseInt(String(fcTime), 10);
-      if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
-        const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyForecast[hour] !== undefined) {
-          hourlyForecast[hour] += parseInt(d['Volume'], 10) || 0;
+    const dispTimeStr = d['dispatchNetworkTime'] || '';
+    // Chỉ hiển thị mốc thời gian rớt hôm nay trên line chart Forecast
+    if (dispTimeStr && dispTimeStr.localeCompare(todayStartStr) >= 0) {
+      const fcTime = d['Forecast Time'] !== undefined && d['Forecast Time'] !== null && d['Forecast Time'] !== ''
+        ? d['Forecast Time']
+        : undefined;
+      if (fcTime !== undefined) {
+        const hrVal = parseInt(String(fcTime), 10);
+        if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
+          const hour = `${String(hrVal).padStart(2, '0')}:00`;
+          if (hourlyForecast[hour] !== undefined) {
+            hourlyForecast[hour] += parseInt(d['Volume'], 10) || 0;
+          }
         }
       }
     }
@@ -199,11 +234,9 @@ export default function InboundDashboard({
   const forecastTrendData = labels.map(l => hourlyForecast[l]);
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
-
   const pendingOrders = Math.max(0, totalForecast - totalOrders - totalInTransitOrders);
 
-
-  // Top 10 Stations Grouping
+  // MỞ RỘNG METRICS BƯU CỤC GỬI (Đầy đủ bưu cục, tính tổng xe, tổng đơn, tổng trọng lượng, tỉ lệ %)
   const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
   const getFC = (name: any) => {
     if (!name) return null;
@@ -235,7 +268,8 @@ export default function InboundDashboard({
     }
   });
 
-  const top10FCs = Object.values(fcMetrics)
+  // Hiển thị đầy đủ bưu cục (bỏ slice(0,10))
+  const allSendingFCs = Object.values(fcMetrics)
     .map(item => ({
       fc: item.fc,
       vehicles: item.vehicles.size,
@@ -243,8 +277,12 @@ export default function InboundDashboard({
       weight: item.weight
     }))
     .filter(item => item.orders > 0 || item.vehicles > 0)
-    .sort((a, b) => b.orders - a.orders || b.weight - a.weight)
-    .slice(0, 10);
+    .sort((a, b) => b.orders - a.orders || b.weight - a.weight);
+
+  // Tính tổng số lượng để tính tỉ lệ % của từng bưu cục
+  const totalSendingVehicles = allSendingFCs.reduce((sum, item) => sum + item.vehicles, 0);
+  const totalSendingOrders = allSendingFCs.reduce((sum, item) => sum + item.orders, 0);
+  const totalSendingWeight = allSendingFCs.reduce((sum, item) => sum + item.weight, 0);
 
   // Donut chart canvas rendering
   const donutRef = useRef<HTMLCanvasElement | null>(null);
@@ -556,9 +594,12 @@ export default function InboundDashboard({
             <span className="kpi-title">Forecast</span>
             <i className="fa-solid fa-chart-line kpi-icon"></i>
           </div>
-          <div className="kpi-card-body">
+          <div className="kpi-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span className="kpi-value">{totalForecast.toLocaleString()}</span>
-            <span className="kpi-sub">Dự báo sản lượng sắp về HUB</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '4px', marginTop: '2px' }}>
+              <span>Rớt hôm trước: <strong style={{ color: '#f97316' }}>{forecastRotHomTruoc.toLocaleString()}</strong></span>
+              <span>Rớt hôm nay: <strong style={{ color: '#fdba74' }}>{forecastRotHomNay.toLocaleString()}</strong></span>
+            </div>
           </div>
           <div className="kpi-glow"></div>
         </div>
@@ -628,35 +669,49 @@ export default function InboundDashboard({
 
       {/* Row 3: Tables */}
       <section className="tables-grid">
-        {/* Table 1: Top 10 sending stations */}
+        {/* Table 1: Sending stations */}
         <div className="table-container-card">
           <div className="table-header">
-            <h2>Top 10 sending stations</h2>
+            <h2>Sending stations ({allSendingFCs.length})</h2>
           </div>
-          <div className="table-wrapper">
-            <table>
-              <thead>
+          <div className="table-wrapper" style={{ overflowY: 'auto', maxHeight: '400px', position: 'relative' }}>
+            <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+              <thead style={{ position: 'sticky', top: 0, background: 'var(--panel-bg)', zIndex: 10 }}>
                 <tr>
-                  <th style={{ width: '40px' }}>#</th>
-                  <th>Bưu cục gửi</th>
-                  <th style={{ textAlign: 'right' }}>Số xe</th>
-                  <th style={{ textAlign: 'right' }}>Tổng đơn đã nhập kho</th>
-                  <th style={{ textAlign: 'right' }}>Trọng lượng (kg)</th>
+                  <th style={{ width: '40px', background: '#1e293b', color: '#94a3b8' }}>#</th>
+                  <th style={{ background: '#1e293b', color: '#94a3b8' }}>Bưu cục gửi</th>
+                  <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Số xe</th>
+                  <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Số lượng Inbound</th>
+                  <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Trọng lượng (kg)</th>
+                  <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Tỉ lệ (%)</th>
                 </tr>
               </thead>
               <tbody>
-                {top10FCs.map((fc, idx) => (
+                {allSendingFCs.length > 0 && (
+                  <tr style={{ fontWeight: 'bold', position: 'sticky', top: '35px', background: '#38bdf8', color: '#0f172a', zIndex: 9, borderBottom: '2px solid #0284c7' }}>
+                    <td style={{ color: '#0f172a' }}>-</td>
+                    <td style={{ color: '#0f172a' }}>TỔNG CỘNG ({allSendingFCs.length})</td>
+                    <td style={{ textAlign: 'right', color: '#0f172a' }}>{totalSendingVehicles} xe</td>
+                    <td style={{ textAlign: 'right', color: '#0f172a' }}>{totalSendingOrders.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', color: '#0f172a' }}>{totalSendingWeight.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', color: '#0f172a' }}>100%</td>
+                  </tr>
+                )}
+                {allSendingFCs.map((fc, idx) => (
                   <tr key={fc.fc}>
                     <td className="highlight-val">{idx + 1}</td>
                     <td className="highlight-val">{fc.fc}</td>
                     <td className="highlight-purple" style={{ textAlign: 'right' }}>{fc.vehicles} xe</td>
                     <td className="highlight-green" style={{ textAlign: 'right' }}>{fc.orders.toLocaleString()}</td>
                     <td style={{ textAlign: 'right' }}>{fc.weight.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontWeight: '600' }}>
+                      {totalSendingOrders > 0 ? ((fc.orders / totalSendingOrders) * 100).toFixed(1) : '0.0'}%
+                    </td>
                   </tr>
                 ))}
-                {top10FCs.length === 0 && (
+                {allSendingFCs.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', color: '#5a6578', padding: '20px' }}>Không có dữ liệu</td>
+                    <td colSpan={6} style={{ textAlign: 'center', color: '#5a6578', padding: '20px' }}>Không có dữ liệu</td>
                   </tr>
                 )}
               </tbody>
@@ -667,35 +722,33 @@ export default function InboundDashboard({
         {/* Table 2: Trucking in Transit */}
         <div className="table-container-card">
           <div className="table-header">
-            <h2>
-              Trucking in transit 
-            </h2>
+            <h2>Trucking in transit ({incomingVehicles.length})</h2>
           </div>
-          <div className="table-wrapper">
-            <table>
-              <thead>
+          <div className="table-wrapper" style={{ overflowY: 'auto', maxHeight: '400px', position: 'relative' }}>
+            <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+              <thead style={{ position: 'sticky', top: 0, background: 'var(--panel-bg)', zIndex: 10 }}>
                 <tr>
-                  <th>Bưu cục</th>
-                  <th style={{ textAlign: 'right' }}>Chưa đến Hub</th>
-                  <th style={{ textAlign: 'right' }}>Đã đến Hub</th>
-                  <th style={{ textAlign: 'right' }}>Tổng đơn</th>
-                  <th style={{ textAlign: 'center' }}>Cập nhật lúc</th>
+                  <th style={{ background: '#1e293b', color: '#94a3b8' }}>Bưu cục</th>
+                  <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Chưa đến Hub</th>
+                  <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Đã đến Hub</th>
+                  <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Tổng đơn</th>
+                  <th style={{ textAlign: 'center', background: '#1e293b', color: '#94a3b8' }}>Cập nhật lúc</th>
                 </tr>
               </thead>
               <tbody>
                 {incomingVehicles.length > 0 && (
-                  <tr style={{ fontWeight: 'bold', borderBottom: '2px solid #334155', background: 'rgba(51, 65, 85, 0.3)' }}>
-                    <td className="highlight-val">TỔNG CỘNG ({incomingVehicles.length})</td>
-                    <td className="highlight-green" style={{ textAlign: 'right' }}>
+                  <tr style={{ fontWeight: 'bold', position: 'sticky', top: '35px', background: '#38bdf8', color: '#0f172a', zIndex: 9, borderBottom: '2px solid #0284c7' }}>
+                    <td style={{ color: '#0f172a' }}>TỔNG CỘNG ({incomingVehicles.length})</td>
+                    <td style={{ textAlign: 'right', color: '#0f172a' }}>
                       {incomingVehicles.reduce((a, b) => a + b.chuaDenHub, 0).toLocaleString()}
                     </td>
-                    <td className="highlight-purple" style={{ textAlign: 'right' }}>
+                    <td style={{ textAlign: 'right', color: '#0f172a' }}>
                       {incomingVehicles.reduce((a, b) => a + (b.tongDon - b.chuaDenHub), 0).toLocaleString()}
                     </td>
-                    <td style={{ textAlign: 'right' }}>
+                    <td style={{ textAlign: 'right', color: '#0f172a' }}>
                       {incomingVehicles.reduce((a, b) => a + b.tongDon, 0).toLocaleString()}
                     </td>
-                    <td style={{ textAlign: 'center' }}>-</td>
+                    <td style={{ textAlign: 'center', color: '#0f172a' }}>-</td>
                   </tr>
                 )}
                 {incomingVehicles.map(v => (
