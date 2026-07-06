@@ -108,8 +108,7 @@ export default function InboundDashboard({
 
   const incomingVehicles = Object.values(stationMap)
     .filter(s => s.chuaDenHub > 0)
-    .sort((a, b) => b.chuaDenHub - a.chuaDenHub)
-    .slice(0, 10);
+    .sort((a, b) => b.chuaDenHub - a.chuaDenHub);
 
   // 4. Hourly timelines
   const hours24 = [];
@@ -670,9 +669,6 @@ export default function InboundDashboard({
           <div className="table-header">
             <h2>
               Trucking in transit 
-              <span className="text-xs text-slate-400 font-normal ml-2">
-                (Tổng bưu cục: {incomingVehicles.length} | Chưa đến: {incomingVehicles.reduce((a, b) => a + b.chuaDenHub, 0).toLocaleString()} | Đã đến: {incomingVehicles.reduce((a, b) => a + (b.tongDon - b.chuaDenHub), 0).toLocaleString()} | Tổng đơn: {incomingVehicles.reduce((a, b) => a + b.tongDon, 0).toLocaleString()})
-              </span>
             </h2>
           </div>
           <div className="table-wrapper">
@@ -687,17 +683,8 @@ export default function InboundDashboard({
                 </tr>
               </thead>
               <tbody>
-                {incomingVehicles.map(v => (
-                  <tr key={v.station}>
-                    <td className="highlight-val">{v.station}</td>
-                    <td className="highlight-green" style={{ textAlign: 'right' }}>{v.chuaDenHub.toLocaleString()}</td>
-                    <td className="highlight-purple" style={{ textAlign: 'right' }}>{(v.tongDon - v.chuaDenHub).toLocaleString()}</td>
-                    <td style={{ textAlign: 'right' }}>{v.tongDon.toLocaleString()}</td>
-                    <td style={{ textAlign: 'center' }}>{v.lastTime ? v.lastTime.split(' ')[1] : '--:--'}</td>
-                  </tr>
-                ))}
                 {incomingVehicles.length > 0 && (
-                  <tr style={{ fontWeight: 'bold', borderTop: '2px solid #334155', background: 'rgba(51, 65, 85, 0.2)' }}>
+                  <tr style={{ fontWeight: 'bold', borderBottom: '2px solid #334155', background: 'rgba(51, 65, 85, 0.3)' }}>
                     <td className="highlight-val">TỔNG CỘNG ({incomingVehicles.length})</td>
                     <td className="highlight-green" style={{ textAlign: 'right' }}>
                       {incomingVehicles.reduce((a, b) => a + b.chuaDenHub, 0).toLocaleString()}
@@ -711,6 +698,15 @@ export default function InboundDashboard({
                     <td style={{ textAlign: 'center' }}>-</td>
                   </tr>
                 )}
+                {incomingVehicles.map(v => (
+                  <tr key={v.station}>
+                     <td className="highlight-val">{v.station}</td>
+                     <td className="highlight-green" style={{ textAlign: 'right' }}>{v.chuaDenHub.toLocaleString()}</td>
+                     <td className="highlight-purple" style={{ textAlign: 'right' }}>{(v.tongDon - v.chuaDenHub).toLocaleString()}</td>
+                     <td style={{ textAlign: 'right' }}>{v.tongDon.toLocaleString()}</td>
+                     <td style={{ textAlign: 'center' }}>{v.lastTime ? v.lastTime.split(' ')[1] : '--:--'}</td>
+                  </tr>
+                ))}
                 {incomingVehicles.length === 0 && (
                   <tr>
                     <td colSpan={5} style={{ textAlign: 'center', color: '#5a6578', padding: '20px' }}>Không có xe đang di chuyển</td>
