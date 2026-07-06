@@ -907,23 +907,22 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         else:
             fc_hour = ""
 
-        # Xác định loại rớt cho các đơn Chưa về Hub
+        # Xác định loại rớt cho tất cả các đơn Forecast (Cả Chưa về Hub và Đã về Hub)
         loai_rot = ""
-        if status_clean == 'Chưa về Hub':
-            if fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None'):
-                try:
-                    dt_fc = pd.to_datetime(fc_time_str)
-                    # Mốc 6:00 sáng của ngày vận hành hiện tại (op_date)
-                    op_date_dt = pd.to_datetime(op_date)
-                    threshold_dt = op_date_dt + timedelta(hours=6)
-                    if dt_fc < threshold_dt:
-                        loai_rot = "Rớt hôm trước"
-                    else:
-                        loai_rot = "Rớt hôm nay"
-                except Exception:
+        if fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None'):
+            try:
+                dt_fc = pd.to_datetime(fc_time_str)
+                # Mốc 6:00 sáng của ngày vận hành hiện tại (op_date)
+                op_date_dt = pd.to_datetime(op_date)
+                threshold_dt = op_date_dt + timedelta(hours=6)
+                if dt_fc < threshold_dt:
+                    loai_rot = "Rớt hôm trước"
+                else:
                     loai_rot = "Rớt hôm nay"
-            else:
+            except Exception:
                 loai_rot = "Rớt hôm nay"
+        else:
+            loai_rot = "Rớt hôm nay"
 
         key = (fc_name, status_clean, op_date, ib_hour, fc_hour, pk_hour, loai_rot)
         if key not in grouped:

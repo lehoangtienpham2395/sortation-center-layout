@@ -72,14 +72,14 @@ export default function InboundDashboard({
     } else {
       stages['Chưa về Hub'].orders += vol;
       stages['Chưa về Hub'].weight += wt;
+    }
 
-      // Phân tách đơn Forecast Chưa về Hub sử dụng cột Loại rớt từ backend
-      const loaiRot = d['Loại rớt'] || '';
-      if (loaiRot === 'Rớt hôm trước') {
-        forecastRotHomTruoc += vol;
-      } else {
-        forecastRotHomNay += vol;
-      }
+    // Phân tách đơn Forecast cho toàn bộ đơn (bao gồm cả đã về và chưa về Hub) sử dụng cột Loại rớt từ backend
+    const loaiRot = d['Loại rớt'] || '';
+    if (loaiRot === 'Rớt hôm trước') {
+      forecastRotHomTruoc += vol;
+    } else if (loaiRot === 'Rớt hôm nay') {
+      forecastRotHomNay += vol;
     }
   });
 
