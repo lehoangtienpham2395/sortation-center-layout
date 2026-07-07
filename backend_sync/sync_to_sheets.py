@@ -318,21 +318,24 @@ def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end
     Kéo dữ liệu giám sát phát hàng gửi về HCM HUB từ tất cả bưu cục HCM/SE (Miền Nam).
     Sử dụng giải pháp Code-Only, bỏ qua API Select để tránh lỗi phân quyền/401 và tăng tốc độ.
     """
-    # 1. Đọc danh sách bưu cục Miền Nam (HCM/SE) từ stations_master.csv ở thư mục Desktop
+    # 1. Đọc danh sách bưu cục Miền Nam (HCM/SE) + BN HUB từ stations_master.csv ở thư mục Desktop
     station_names = []
     master_path = r"C:\Users\lehoa\OneDrive\Desktop\testing\stations_master.csv"
     if os.path.exists(master_path):
         try:
             df_m = pd.read_csv(master_path)
-            # Chỉ lấy các trạm thuộc HCM và SE (Đông Nam)
-            df_south = df_m[df_m['master_area'].str.contains('HCM|SE', na=False, case=False)].copy()
-            station_names = df_south['station_name'].dropna().unique().tolist()
-            print(f"   📂 Load thành công {len(station_names)} bưu cục Miền Nam từ stations_master.csv.")
+            # Lấy các trạm thuộc HCM và SE (Đông Nam) và bổ sung BN HUB
+            df_filtered = df_m[
+                df_m['master_area'].str.contains('HCM|SE', na=False, case=False) |
+                df_m['station_name'].str.contains('BN HUB', na=False, case=False)
+            ].copy()
+            station_names = df_filtered['station_name'].dropna().unique().tolist()
+            print(f"   📂 Load thành công {len(station_names)} bưu cục (bao gồm BN HUB) từ stations_master.csv.")
         except Exception as e_sm:
             print(f"   ⚠️ Lỗi đọc stations_master.csv: {e_sm}")
             
     if not station_names:
-        print('   ⚠️ Arrival: không có bưu cục Miền Nam để kéo.')
+        print('   ⚠️ Arrival: không có bưu cục để kéo.')
         return []
 
     # 2. Đọc mapping sortcode từ valid.csv cục bộ
@@ -341,7 +344,8 @@ def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end
         if os.path.exists(VALID_FILE):
             df_v = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
             df_v.columns = df_v.columns.str.strip()
-            name_col = 'Bưu cục final' if 'Bưu cục final' in df_v.columns else ('Bưu cục' if 'Bưu cục' in df_v.columns else None)
+            # Ưu tiên cột 'Bưu cục' (cột 1) để BN HUB map đúng sortcode BNI001H gốc của nó
+            name_col = 'Bưu cục' if 'Bưu cục' in df_v.columns else ('Bưu cục final' if 'Bưu cục final' in df_v.columns else None)
             if name_col and 'sortcode' in df_v.columns:
                 df_filtered_v = df_v[[name_col, 'sortcode']].dropna()
                 d_sortcode = {
@@ -430,11 +434,18 @@ def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end
     df = pd.DataFrame(all_records)
     # Tính Ngày vận hành (cycle 6h–6h)
     df['scantime_dt'] = pd.to_datetime(df.get('scantime'), errors='coerce')
+    
+    # Logic đặc biệt cho BN HUB: cộng thêm 1 ngày (24h) vào thời gian xuất phát
+    # để khi trừ đi 6h (cycle vận hành) sẽ ra đúng Ngày vận hành mà đơn hàng cập bến tại HCM HUB.
+    if 'scansitename' in df.columns:
+        is_bn_hub = df['scansitename'].astype(str).str.strip().str.upper() == 'BN HUB'
+        df.loc[is_bn_hub, 'scantime_dt'] = df.loc[is_bn_hub, 'scantime_dt'] + pd.Timedelta(days=1)
+        df = df.rename(columns={'scansitename': 'Pickup_station'})
+        
     df['Ngày vận hành'] = (df['scantime_dt'] - pd.Timedelta(hours=6)).dt.strftime('%Y-%m-%d')
     df['Scan Hour']     = df['scantime_dt'].dt.hour.fillna(-1).astype(int)
-    if 'scansitename' in df.columns:
-        df = df.rename(columns={'scansitename': 'Pickup_station'})
     df = df.drop(columns=['scantime_dt'], errors='ignore')
+    
     print(f'   ✅ Arrival raw: {len(df):,} dòng từ {len(stations)} bưu cục.')
     return df.to_dict(orient='records')
 
