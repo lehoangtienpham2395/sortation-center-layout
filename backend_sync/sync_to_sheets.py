@@ -878,12 +878,8 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             status_clean = 'Chưa về Hub'
             ib_hour = ""
             
-            # Get op_date from time_ref
-            t_ref = r['time_ref']
-            if t_ref:
-                op_date = get_operating_date(t_ref)
-            else:
-                op_date = get_operating_date(now_vn)
+            # Đối với đơn Chưa về Hub (lũy kế tồn đọng), ta luôn gán ngày vận hành hiện tại
+            op_date = get_operating_date(now_vn)
                 
         # Format pickup time to hour index 0-23
         pk_time_str = r['pickup_time']
@@ -1147,8 +1143,19 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
     print(f"\n📊 Bắt đầu cập nhật dữ liệu Google Sheets...")
     
     creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    local_creds_path = r"C:\Users\lehoa\OneDrive\Desktop\testing\addressproject.json"
+    
+    # Sử dụng local json nếu không có biến môi trường
+    if not creds_json and os.path.exists(local_creds_path):
+        try:
+            with open(local_creds_path, 'r', encoding='utf-8') as f:
+                creds_json = f.read()
+            print("   🔑 Đã tự động nạp Google Service Account từ file local addressproject.json trên Desktop.")
+        except Exception as e_ld:
+            print(f"   ⚠️ Lỗi đọc file addressproject.json: {e_ld}")
+
     if not creds_json:
-        print("❌ Không tìm thấy biến môi trường GOOGLE_SERVICE_ACCOUNT_JSON. Bỏ qua ghi Sheet.")
+        print("❌ Không tìm thấy biến môi trường GOOGLE_SERVICE_ACCOUNT_JSON hoặc file credentials local. Bỏ qua ghi Sheet.")
         return
         
     try:
@@ -1257,10 +1264,17 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
                 )
                 conn.close()
                 if not df_db_inv.empty:
-                    df_db_inv['row_op_date'] = df_db_inv['time_ref'].apply(
-                        lambda x: get_operating_date(x) if (x and str(x).strip() not in ('', 'nan', 'None')) else current_date_str
-                    )
-                    df_db_inv = df_db_inv[df_db_inv['row_op_date'] == current_date_str]
+                    # Chỉ lọc ngày vận hành hiện tại đối với đơn 'Đã rời HUB'. 
+                    # Các đơn chưa xuất kho (Đang trên bãi, Đã lấy hàng, Đã điều phối) thì giữ lại toàn bộ để tính tồn đọng thực tế.
+                    def filter_inventory_dates(row):
+                        status = str(row['status_order']).strip()
+                        if status == 'Đã rời HUB':
+                            t_ref = row['time_ref']
+                            row_op = get_operating_date(t_ref) if (t_ref and str(t_ref).strip() not in ('', 'nan', 'None')) else current_date_str
+                            return row_op == current_date_str
+                        return True
+                        
+                    df_db_inv = df_db_inv[df_db_inv.apply(filter_inventory_dates, axis=1)]
                     df_db_inv['next_station_upper'] = df_db_inv['next_station'].astype(str).str.strip().str.upper()
                     df_db_inv['status_upper'] = df_db_inv['status_order'].astype(str).str.strip()
                     
