@@ -1595,7 +1595,7 @@ def run_once(session, token_mgr, rebuild_days=None):
     # ================================================================
     df_fc = pd.DataFrame(results.get('forecast', []))
     if not df_fc.empty:
-        fc_cols = ['waybillNo', 'dispatchNetworkName', 'pickNetworkName', 'loadWeight', 'deliveryTime']
+        fc_cols = ['waybillNo', 'dispatchNetworkName', 'pickNetworkName', 'loadWeight', 'deliveryTime', 'pickFinanceName', 'pickFinanceCode']
         fc_cols = [c for c in fc_cols if c in df_fc.columns]
         df_fc = df_fc[fc_cols].copy()
         df_fc.rename(columns={
@@ -1604,11 +1604,40 @@ def run_once(session, token_mgr, rebuild_days=None):
             'deliveryTime':        'Pickup_time'
         }, inplace=True)
 
+        # Lọc Trung tâm tài chính gửi hàng thuộc Khu vực Miền Nam (SR0001) & Khu vực Đông Nam (DNA001)
+        # Hỗ trợ cả lọc theo Tên hoặc Mã tài chính
+        valid_finances = {'SR0001', 'DNA001', 'KHU VỰC MIỀN NAM', 'KHU VỰC ĐÔNG NAM'}
+        if 'pickFinanceName' in df_fc.columns:
+            df_fc['pick_fin_name_upper'] = df_fc['pickFinanceName'].astype(str).str.strip().str.upper()
+        else:
+            df_fc['pick_fin_name_upper'] = ''
+            
+        if 'pickFinanceCode' in df_fc.columns:
+            df_fc['pick_fin_code_upper'] = df_fc['pickFinanceCode'].astype(str).str.strip().str.upper()
+        else:
+            df_fc['pick_fin_code_upper'] = ''
+            
+        before_fc_fin = len(df_fc)
+        df_fc = df_fc[
+            df_fc['pick_fin_name_upper'].isin(valid_finances) | 
+            df_fc['pick_fin_code_upper'].isin(valid_finances)
+        ].copy()
+        df_fc.drop(columns=['pick_fin_name_upper', 'pick_fin_code_upper'], errors='ignore', inplace=True)
+        print(f"   ⚡ Lọc Trung tâm tài chính gửi (Miền Nam & Đông Nam) cho Forecast: {before_fc_fin} -> {len(df_fc)} dòng")
+
         # Lọc trạm gửi Miền Nam (HCM/SE) cho Forecast
         if south_stations and 'pickNetworkName' in df_fc.columns:
             before_fc_len = len(df_fc)
             df_fc = df_fc[df_fc['pickNetworkName'].astype(str).str.strip().str.upper().isin(south_stations)].copy()
             print(f"   ⚡ Lọc Miền Nam (HCM/SE) cho Forecast: {before_fc_len} -> {len(df_fc)} dòng")
+
+        # Lọc bưu cục nhận (dispatch_plan) cũng phải thuộc cụm Miền Nam của chúng ta (có trong d_buucuc)
+        if 'dispatch_plan' in df_fc.columns and d_buucuc:
+            before_fc_dest = len(df_fc)
+            df_fc['dispatch_plan_upper'] = df_fc['dispatch_plan'].astype(str).str.strip().str.upper()
+            df_fc = df_fc[df_fc['dispatch_plan_upper'].isin(d_buucuc.keys()) | df_fc['dispatch_plan_upper'].isin(d_buucuc.values())].copy()
+            df_fc.drop(columns=['dispatch_plan_upper'], errors='ignore', inplace=True)
+            print(f"   ⚡ Lọc bưu cục đích Miền Nam cho Forecast: {before_fc_dest} -> {len(df_fc)} dòng")
 
         df_fc.drop_duplicates(subset='waybillNo', keep='last', inplace=True)
         df_fc['data_source']  = 'Forecast'
