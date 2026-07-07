@@ -687,7 +687,7 @@ def update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_st
         sheet = ss.add_worksheet("Inventory", rows=1000, cols=8)
         
     headers = ["Zone", "AreaID", "Bưu cục", "Trạng thái", "Volume", "Weight", "Sức chứa", "Ngày"]
-    statuses = ["Đã điều phối nhân viên", "Chưa về HUB", "Đang trên bãi", "Đã điều phối bưu cục"]
+    statuses = ['Đang trên bãi', 'Đã lấy hàng', 'Đã điều phối bưu cục', 'Đã rời HUB']
     
     new_rows = [headers]
     for (zone, area_id), info in master_chutes.items():
