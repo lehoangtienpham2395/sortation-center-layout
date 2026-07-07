@@ -1365,7 +1365,9 @@ def run_once(session, token_mgr, rebuild_days=None):
 
     fh = load_json(os.path.join(BASE_DIR, "config", "forecastheaders.json"))
     fp = load_json(os.path.join(BASE_DIR, "config", "forecastpayload.json"))
-    for k in ['timeStart', 'inputTimeStart']: fp[k] = DATE_START
+    # Giới hạn Forecast chỉ lấy từ ngày hiện hành (now_vn) giống local để tránh cộng dồn đơn cũ
+    DATE_START_FC = now.strftime('%Y-%m-%d') + ' 00:00:00'
+    for k in ['timeStart', 'inputTimeStart']: fp[k] = DATE_START_FC
     for k in ['timeEnd', 'inputTimeEnd']:     fp[k] = DATE_END
 
     ih = load_json(os.path.join(BASE_DIR, "config", "inboundheaders.json"))
