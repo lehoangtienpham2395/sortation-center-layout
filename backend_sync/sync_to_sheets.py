@@ -435,11 +435,11 @@ def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end
     # Tính Ngày vận hành (cycle 6h–6h)
     df['scantime_dt'] = pd.to_datetime(df.get('scantime'), errors='coerce')
     
-    # Logic đặc biệt cho BN HUB: cộng thêm 1 ngày (24h) vào thời gian xuất phát
-    # để khi trừ đi 6h (cycle vận hành) sẽ ra đúng Ngày vận hành mà đơn hàng cập bến tại HCM HUB.
+    # Logic đặc biệt cho BN HUB: cộng thêm 36 giờ vào thời gian xuất phát
+    # để khớp chính xác với chu kỳ di chuyển Bắc-Nam (~34-36 tiếng).
     if 'scansitename' in df.columns:
         is_bn_hub = df['scansitename'].astype(str).str.strip().str.upper() == 'BN HUB'
-        df.loc[is_bn_hub, 'scantime_dt'] = df.loc[is_bn_hub, 'scantime_dt'] + pd.Timedelta(days=1)
+        df.loc[is_bn_hub, 'scantime_dt'] = df.loc[is_bn_hub, 'scantime_dt'] + pd.Timedelta(hours=36)
         df = df.rename(columns={'scansitename': 'Pickup_station'})
         
     df['Ngày vận hành'] = (df['scantime_dt'] - pd.Timedelta(hours=6)).dt.strftime('%Y-%m-%d')
