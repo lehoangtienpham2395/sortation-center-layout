@@ -317,9 +317,8 @@ def _arrival_station_info(session, token_mgr, headers, station_name):
     """Tra cứu code/id/typeId của một bưu cục qua API Select."""
     parts = station_name.strip().split(' ', 1)
     search_name = parts[1] if len(parts) > 1 else station_name
-    # Loại bỏ networkId lọc cứng để tìm kiếm bưu cục trên phạm vi toàn quốc (bao gồm vùng SE)
     params = {'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693', 'name': search_name,
-              'current': 1, 'size': 50}
+              'networkId': '11888', 'queryLevel': '3', 'current': 1, 'size': 20}
     try:
         r = session.get(URL_ARRIVAL_SELECT, params=params,
                         headers={**headers, 'authToken': token_mgr.get_token()},
@@ -340,50 +339,47 @@ def _arrival_station_info(session, token_mgr, headers, station_name):
 
 def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end):
     """
-    Kéo dữ liệu giám sát phát hàng gửi về HCM HUB từ tất cả bưu cục trong valid.csv.
-    Sử dụng trực tiếp mã sortcode làm scanSiteCode (cơ chế Code-Only) để bypass giới hạn API Select.
+    Kéo dữ liệu giám sát phát hàng gửi về HCM HUB từ tất cả bưu cục HCM.
+    Trả về list[dict] – mỗi phần tử là 1 đơn với các trường JFS gốc
+    cộng thêm 'Ngày vận hành', 'Scan Hour', 'Pickup_station'.
     """
-    stations = []
+    # Đọc danh sách bưu cục từ valid.csv
+    station_names = []
     try:
         df_v = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
         df_v.columns = df_v.columns.str.strip()
-        
-        # Lấy các dòng có đầy đủ Bưu cục final và sortcode
         name_col = 'Bưu cục final' if 'Bưu cục final' in df_v.columns else ('Bưu cục' if 'Bưu cục' in df_v.columns else None)
-        if name_col and 'sortcode' in df_v.columns:
-            df_filtered = df_v[[name_col, 'sortcode']].dropna()
-            # Lọc bỏ các bưu cục offline / không có sortcode hợp lệ
-            df_filtered = df_filtered[df_filtered['sortcode'].str.strip() != '']
-            df_filtered = df_filtered[~df_filtered['sortcode'].str.contains('offline|nan|None', case=False)]
-            
-            for _, row in df_filtered.iterrows():
-                stations.append({
-                    'name': str(row[name_col]).strip(),
-                    'code': str(row['sortcode']).strip()
-                })
+        if name_col:
+            station_names = df_v[name_col].dropna().unique().tolist()
     except Exception as e:
         print(f'   ⚠️ Không đọc được valid.csv cho Arrival: {e}')
 
-    if not stations:
-        print('   ⚠️ Arrival: không có bưu cục hợp lệ có sortcode để kéo.')
+    if not station_names:
+        print('   ⚠️ Arrival: không có bưu cục để kéo (valid.csv trống hoặc thiếu cột).')
         return []
 
-    print(f'   🔍 Arrival: Bắt đầu kéo dữ liệu Arrival cho {len(stations)} bưu cục (bao gồm cả bưu cục SE)...')
+    print(f'   🔍 Arrival: tra cứu {len(station_names)} bưu cục...')
+    valid_stations = []
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        futs = {ex.submit(_arrival_station_info, session, token_mgr, base_headers, n): n for n in station_names}
+        for f in as_completed(futs):
+            info = f.result()
+            if info:
+                valid_stations.append(info)
+    print(f'   ✅ Arrival: tìm thấy {len(valid_stations)}/{len(station_names)} mã JFS.')
+
     all_records = []
     lock = threading.Lock()
 
     def fetch_one(station):
-        # Sử dụng cơ chế Code-Only (scanSiteCodeId và scanSiteCodeTypeId để trống)
         payload = {
             'beginDate': date_start, 'endDate': date_end,
             'nextStationCode': 'HCM004H', 'nextStationCodeId': 11888,
             'nextStationCodeName': 'HCM HUB', 'nextStationCodeTypeId': 335,
             'countryId': '1', 'size': 1000, 'sqlCode': 'realtime_sca_sen_mon_dtl',
             'wayType': '1',
-            'scanSiteCode': station['code'],
-            'scanSiteCodeId': '',
-            'scanSiteCodeName': station['name'],
-            'scanSiteCodeTypeId': '',
+            'scanSiteCode': station['code'], 'scanSiteCodeId': station['id'],
+            'scanSiteCodeName': station['name'], 'scanSiteCodeTypeId': station['typeId'],
         }
         try:
             r_cnt = auth_post(session, URL_ARRIVAL_SCAN, token_mgr, base_headers,
@@ -406,8 +402,8 @@ def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end
         except Exception as e:
             print(f'   ❌ Arrival {station["name"]}: {e}')
 
-    with ThreadPoolExecutor(max_workers=6) as ex:
-        list(ex.map(fetch_one, stations))
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        list(ex.map(fetch_one, valid_stations))
 
     if not all_records:
         print('   ⚠️ Arrival: không có dữ liệu từ JFS.')
@@ -913,9 +909,12 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
 
         # Xác định loại rớt cho tất cả các đơn Forecast (Cả Chưa về Hub và Đã về Hub)
         loai_rot = ""
-        if fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None'):
+        # Fallback sử dụng time_ref (deliveryTime của Forecast) nếu forecast_time bị rỗng
+        ref_time_to_use = fc_time_str if (fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None')) else r['time_ref']
+        
+        if ref_time_to_use and str(ref_time_to_use).strip() not in ('', 'nan', 'None'):
             try:
-                dt_fc = pd.to_datetime(fc_time_str)
+                dt_fc = pd.to_datetime(ref_time_to_use)
                 op_date_dt = pd.to_datetime(op_date)
                 
                 # 1. Nếu ngày điều phối nhỏ hơn ngày vận hành hiện tại -> Rớt hôm trước
