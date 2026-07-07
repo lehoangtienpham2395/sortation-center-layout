@@ -313,100 +313,118 @@ URL_ARRIVAL_SCAN    = 'https://gw.jtcargo.com.vn/jfs-report-leader/report/dynami
 ARRIVAL_PARAMS      = {'sqlCode': 'realtime_sca_sen_mon_dtl', 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693'}
 
 
-def _arrival_station_info(session, token_mgr, headers, station_name):
-    """Tra cứu code/id/typeId của một bưu cục qua API Select."""
-    parts = station_name.strip().split(' ', 1)
-    search_name = parts[1] if len(parts) > 1 else station_name
-    params = {'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693', 'name': search_name,
-              'networkId': '11888', 'queryLevel': '3', 'current': 1, 'size': 20}
-    try:
-        r = session.get(URL_ARRIVAL_SELECT, params=params,
-                        headers={**headers, 'authToken': token_mgr.get_token()},
-                        timeout=REQUEST_TIMEOUT)
-        r.raise_for_status()
-        res = r.json()
-        if res.get('succ') or res.get('code') == 1:
-            for rec in res.get('data', {}).get('records', []):
-                rec_name = rec.get('name', '').upper()
-                if station_name.upper() in rec_name or search_name.upper() in rec_name:
-                    return {'code': rec.get('code') or rec.get('networkCode'),
-                            'id': rec.get('id'), 'name': rec.get('name'),
-                            'typeId': rec.get('typeId') or rec.get('networkTypeId')}
-    except Exception as e:
-        print(f'   ⚠️ Arrival select {station_name}: {e}')
-    return None
-
-
 def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end):
     """
-    Kéo dữ liệu giám sát phát hàng gửi về HCM HUB từ tất cả bưu cục HCM.
-    Trả về list[dict] – mỗi phần tử là 1 đơn với các trường JFS gốc
-    cộng thêm 'Ngày vận hành', 'Scan Hour', 'Pickup_station'.
+    Kéo dữ liệu giám sát phát hàng gửi về HCM HUB từ tất cả bưu cục HCM/SE (Miền Nam).
+    Sử dụng giải pháp Code-Only, bỏ qua API Select để tránh lỗi phân quyền/401 và tăng tốc độ.
     """
-    # Đọc danh sách bưu cục từ valid.csv
+    # 1. Đọc danh sách bưu cục Miền Nam (HCM/SE) từ stations_master.csv ở thư mục Desktop
     station_names = []
-    try:
-        df_v = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
-        df_v.columns = df_v.columns.str.strip()
-        name_col = 'Bưu cục final' if 'Bưu cục final' in df_v.columns else ('Bưu cục' if 'Bưu cục' in df_v.columns else None)
-        if name_col:
-            station_names = df_v[name_col].dropna().unique().tolist()
-    except Exception as e:
-        print(f'   ⚠️ Không đọc được valid.csv cho Arrival: {e}')
-
+    master_path = r"C:\Users\lehoa\OneDrive\Desktop\testing\stations_master.csv"
+    if os.path.exists(master_path):
+        try:
+            df_m = pd.read_csv(master_path)
+            # Chỉ lấy các trạm thuộc HCM và SE (Đông Nam)
+            df_south = df_m[df_m['master_area'].str.contains('HCM|SE', na=False, case=False)].copy()
+            station_names = df_south['station_name'].dropna().unique().tolist()
+            print(f"   📂 Load thành công {len(station_names)} bưu cục Miền Nam từ stations_master.csv.")
+        except Exception as e_sm:
+            print(f"   ⚠️ Lỗi đọc stations_master.csv: {e_sm}")
+            
     if not station_names:
-        print('   ⚠️ Arrival: không có bưu cục để kéo (valid.csv trống hoặc thiếu cột).')
+        print('   ⚠️ Arrival: không có bưu cục Miền Nam để kéo.')
         return []
 
-    print(f'   🔍 Arrival: tra cứu {len(station_names)} bưu cục...')
-    valid_stations = []
-    with ThreadPoolExecutor(max_workers=4) as ex:
-        futs = {ex.submit(_arrival_station_info, session, token_mgr, base_headers, n): n for n in station_names}
-        for f in as_completed(futs):
-            info = f.result()
-            if info:
-                valid_stations.append(info)
-    print(f'   ✅ Arrival: tìm thấy {len(valid_stations)}/{len(station_names)} mã JFS.')
+    # 2. Đọc mapping sortcode từ valid.csv cục bộ
+    d_sortcode = {}
+    try:
+        if os.path.exists(VALID_FILE):
+            df_v = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
+            df_v.columns = df_v.columns.str.strip()
+            name_col = 'Bưu cục final' if 'Bưu cục final' in df_v.columns else ('Bưu cục' if 'Bưu cục' in df_v.columns else None)
+            if name_col and 'sortcode' in df_v.columns:
+                df_filtered_v = df_v[[name_col, 'sortcode']].dropna()
+                d_sortcode = {
+                    str(row[name_col]).strip().upper(): str(row['sortcode']).strip()
+                    for _, row in df_filtered_v.iterrows()
+                    if str(row['sortcode']).strip() != '' and not any(x in str(row['sortcode']).lower() for x in ('offline', 'nan', 'none'))
+                }
+                print(f"   ✅ Đã nạp mapping sortcode từ valid.csv: {len(d_sortcode)} bưu cục.")
+        else:
+            print(f"   ⚠️ Không tìm thấy valid.csv tại {VALID_FILE}.")
+    except Exception as ex_v:
+        print(f"   ⚠️ Lỗi nạp mapping valid.csv: {ex_v}")
+
+    # 3. Ánh xạ danh sách bưu cục sang sortcode tương ứng
+    stations = []
+    for name in station_names:
+        name_clean = str(name).strip().upper()
+        code = d_sortcode.get(name_clean)
+        if not code:
+            # Thử tìm tương đối (chứa tên)
+            for k, v in d_sortcode.items():
+                if name_clean in k or k in name_clean:
+                    code = v
+                    break
+        if code:
+            stations.append({
+                'name': name.strip(),
+                'code': code
+            })
+            
+    print(f"   ✅ Chuẩn bị {len(stations)} bưu cục có sortcode để kéo song song.")
 
     all_records = []
     lock = threading.Lock()
 
     def fetch_one(station):
+        # Payload JFS sử dụng cơ chế Code-Only (scanSiteCodeId và scanSiteCodeTypeId để trống)
         payload = {
             'beginDate': date_start, 'endDate': date_end,
+            'nextNetworkCode': 'HCM004H',
             'nextStationCode': 'HCM004H', 'nextStationCodeId': 11888,
             'nextStationCodeName': 'HCM HUB', 'nextStationCodeTypeId': 335,
             'countryId': '1', 'size': 1000, 'sqlCode': 'realtime_sca_sen_mon_dtl',
             'wayType': '1',
-            'scanSiteCode': station['code'], 'scanSiteCodeId': station['id'],
-            'scanSiteCodeName': station['name'], 'scanSiteCodeTypeId': station['typeId'],
+            'scanSiteCode': station['code'],
+            'scanSiteCodeId': '',
+            'scanSiteCodeName': station['name'],
+            'scanSiteCodeTypeId': '',
         }
         try:
-            r_cnt = auth_post(session, URL_ARRIVAL_SCAN, token_mgr, base_headers,
-                              params=ARRIVAL_PARAMS,
-                              json_body={**payload, 'paginationSearchType': 'count', 'size': 1, 'current': 1},
-                              label=f'Arrival count {station["name"]}')
-            total = (r_cnt.json().get('data') or {}).get('total', 0) or 0
-            if not total:
-                return
-            n_pages = math.ceil(total / 1000)
-            for p in range(1, n_pages + 1):
+            page = 1
+            while True:
+                list_payload = {**payload, 'paginationSearchType': 'list', 'current': page}
                 r_list = auth_post(session, URL_ARRIVAL_SCAN, token_mgr, base_headers,
                                    params=ARRIVAL_PARAMS,
-                                   json_body={**payload, 'paginationSearchType': 'list', 'current': p},
-                                   label=f'Arrival {station["name"]} p{p}')
-                recs = (r_list.json().get('data') or {}).get('records', [])
-                if recs:
-                    with lock:
-                        all_records.extend(recs)
+                                   json_body=list_payload,
+                                   label=f'Arrival {station["name"]} p{page}')
+                res_json = r_list.json()
+                data_node = res_json.get('data')
+                
+                records = []
+                if isinstance(data_node, dict):
+                    records = data_node.get('records', []) or []
+                elif isinstance(data_node, list):
+                    records = data_node
+                    
+                if not records:
+                    break
+                    
+                with lock:
+                    all_records.extend(records)
+                    
+                if len(records) < 1000:
+                    break
+                page += 1
         except Exception as e:
             print(f'   ❌ Arrival {station["name"]}: {e}')
 
-    with ThreadPoolExecutor(max_workers=4) as ex:
-        list(ex.map(fetch_one, valid_stations))
+    with ThreadPoolExecutor(max_workers=6) as ex:
+        list(ex.map(fetch_one, stations))
 
     if not all_records:
-        print('   ⚠️ Arrival: không có dữ liệu từ JFS.')
+        print('   ⚠️ Arrival JFS: không có dữ liệu.')
         return []
 
     df = pd.DataFrame(all_records)
@@ -417,7 +435,7 @@ def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end
     if 'scansitename' in df.columns:
         df = df.rename(columns={'scansitename': 'Pickup_station'})
     df = df.drop(columns=['scantime_dt'], errors='ignore')
-    print(f'   ✅ Arrival raw: {len(df):,} dòng từ {len(valid_stations)} bưu cục.')
+    print(f'   ✅ Arrival raw: {len(df):,} dòng từ {len(stations)} bưu cục.')
     return df.to_dict(orient='records')
 
 
@@ -1366,6 +1384,14 @@ def run_once(session, token_mgr, rebuild_days=None):
         print("❌ Không lấy được token.")
         return
 
+    # Khởi tạo token manager riêng biệt cho nguồn Arrival sử dụng tài khoản 660085
+    print("🔐 Khởi tạo TokenManager riêng biệt cho Arrival (User: 660085)...")
+    arrival_token_mgr = TokenManager(session, "660085", "246@Hoang", COUNTRY_ID)
+    try:
+        arrival_token_mgr.get_token()
+    except Exception as e_login_arr:
+        print(f"⚠️ Lỗi login tài khoản 660085 cho Arrival: {e_login_arr}. Sẽ tự động thử lại khi chạy.")
+
     fh = load_json(os.path.join(BASE_DIR, "config", "forecastheaders.json"))
     fp = load_json(os.path.join(BASE_DIR, "config", "forecastpayload.json"))
     for k in ['timeStart', 'inputTimeStart']: fp[k] = DATE_START
@@ -1405,7 +1431,7 @@ def run_once(session, token_mgr, rebuild_days=None):
             ex.submit(pull_scan, session, token_mgr, URL_SCAN, bh, b_params, bp, 'Backlog'): 'backlog',
             ex.submit(pull_dispatch, session, token_mgr, dh, dp_cfg): 'dispatch',
             ex.submit(pull_scan, session, token_mgr, URL_LINEHAUL, lh_h, lh_params, lh_p, 'Linehaul'): 'linehaul',
-            ex.submit(pull_arrival_from_jfs, session, token_mgr, ih, DATE_START, DATE_END): 'arrival',
+            ex.submit(pull_arrival_from_jfs, session, arrival_token_mgr, ih, DATE_START, DATE_END): 'arrival',
         }
         if run_outbound:
             futures[ex.submit(pull_scan, session, token_mgr, URL_SCAN, oh, o_params, op, 'Outbound')] = 'outbound'
