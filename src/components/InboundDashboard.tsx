@@ -664,10 +664,10 @@ export default function InboundDashboard({
 
       {/* Row 3: Tables */}
       <section className="tables-grid">
-        {/* Table 1: Sending stations */}
+        {/* Table 1: Origin Station Inbound */}
         <div className="table-container-card">
           <div className="table-header">
-            <h2>Sending stations ({allSendingFCs.length})</h2>
+            <h2>Origin Station Inbound ({allSendingFCs.length})</h2>
           </div>
           <div className="table-wrapper" style={{ overflowY: 'auto', maxHeight: '400px', position: 'relative' }}>
             <table style={{ borderCollapse: 'collapse', width: '100%' }}>
