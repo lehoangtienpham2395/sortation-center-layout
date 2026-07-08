@@ -270,7 +270,8 @@ def auth_get(session, url, token_mgr, base_headers, params=None, label=''):
         attempt += 1
         token   = token_mgr.get_token()
         headers = dict(base_headers)
-        # ✅ Dùng cùng key với auth_post — JFS API yêu cầu 'authToken' (camelCase)
+        # ✅ JFS API GET endpoints yêu cầu cả Authtoken (PascalCase) và authToken (camelCase) tùy thuộc gateway routing
+        headers['Authtoken'] = token
         headers['authToken'] = token
         try:
             r = session.get(url, params=params, headers=headers, timeout=REQUEST_TIMEOUT)
@@ -296,8 +297,7 @@ def auth_get(session, url, token_mgr, base_headers, params=None, label=''):
 def get_station_info(session, token_mgr, headers, station_name):
     """
     Tìm mã code, ID và TypeID của bưu cục dựa trên tên.
-    API basicdata/network/select xác thực qua dcr_key (query param),
-    KHÔNG dùng authToken header — gửi authToken gây 401.
+    API basicdata/network/select yêu cầu xác thực bằng cả token và dcr_key.
     """
     URL_SELECT = 'https://gw.jtcargo.com.vn/basicdata/network/select'
     parts = station_name.strip().split(' ', 1)
@@ -310,36 +310,22 @@ def get_station_info(session, token_mgr, headers, station_name):
         "current": 1,
         "size": 20
     }
-    # Plain GET — không gửi authToken để tránh 401
-    plain_headers = {
-        "Accept": "application/json, text/plain, */*",
-        "Origin": "https://jfs.jtcargo.com.vn",
-        "Referer": "https://jfs.jtcargo.com.vn/",
-    }
-    for attempt in range(1, 4):
-        try:
-            r = session.get(URL_SELECT, params=params, headers=plain_headers, timeout=REQUEST_TIMEOUT)
-            if r.status_code in RETRYABLE_STATUS:
-                time.sleep(BACKOFF_BASE * attempt)
-                continue
-            r.raise_for_status()
-            res = r.json()
-            if res.get('succ') or res.get('code') == 1:
-                records = res.get('data', {}).get('records', [])
-                for rec in records:
-                    rec_name = rec.get('name', '').upper()
-                    if station_name.upper() in rec_name or search_name.upper() in rec_name:
-                        return {
-                            "code":   rec.get('code') or rec.get('networkCode'),
-                            "id":     rec.get('id'),
-                            "name":   rec.get('name'),
-                            "typeId": rec.get('typeId') or rec.get('networkTypeId')
-                        }
-            return None  # Không tìm thấy — không retry
-        except Exception as e:
-            if attempt == 3:
-                print(f"      ⚠️ Lỗi tra cứu trạm {station_name}: {e}")
-            time.sleep(2 * attempt)
+    try:
+        r = auth_get(session, URL_SELECT, token_mgr, headers, params=params, label=f'Select {search_name}')
+        res = r.json()
+        if res.get('succ') or res.get('code') == 1:
+            records = res.get('data', {}).get('records', [])
+            for rec in records:
+                rec_name = rec.get('name', '').upper()
+                if station_name.upper() in rec_name or search_name.upper() in rec_name:
+                    return {
+                        "code":   rec.get('code') or rec.get('networkCode'),
+                        "id":     rec.get('id'),
+                        "name":   rec.get('name'),
+                        "typeId": rec.get('typeId') or rec.get('networkTypeId')
+                    }
+    except Exception as e:
+        print(f"      ⚠️ Lỗi lấy thông tin trạm {station_name}: {e}")
     return None
 
 
@@ -2141,9 +2127,7 @@ def run_giam_sat_phat_hang(session: requests.Session, token_mgr: 'TokenManager')
         "Content-Type": "application/json;charset=utf-8",
         "Origin": "https://jfs.jtcargo.com.vn",
         "Referer": "https://jfs.jtcargo.com.vn/",
-        "lang": "VN",
-        "langtype": "VN",
-        "routeName": "checkToken",
+        "Routename": "Bd-theme-1d2e14d9-6dcc-437e-afb2-0afc668d7d50|businessIndicatorIndex",
         "User-Agent": LOGIN_HEADERS["User-Agent"],
     }
 
@@ -2248,13 +2232,25 @@ def run_giam_sat_phat_hang(session: requests.Session, token_mgr: 'TokenManager')
 
     # — Bước 3: Xử lý DataFrame —
     df_gsh = pd.DataFrame(all_data)
-    df_gsh['scantime_dt']   = pd.to_datetime(df_gsh.get('scantime'), errors='coerce')
+
+    # Bug fix: DataFrame không có .get() — dùng [] với fallback
+    if 'scantime' not in df_gsh.columns:
+        print("   ⚠️ Không có cột 'scantime' trong dữ liệu. Bỏ qua.")
+        return
+
+    df_gsh['scantime_dt']   = pd.to_datetime(df_gsh['scantime'], errors='coerce')
     df_gsh['Ngày vận hành'] = (df_gsh['scantime_dt'] - pd.Timedelta(hours=6)).dt.strftime('%Y-%m-%d')
-    df_gsh['Scan Hour']     = df_gsh['scantime_dt'].dt.hour.fillna(-1).astype(int)
+    # Bug fix: Scan Hour phải là int nhất quán để upsert_arrival so sánh đúng
+    df_gsh['Scan Hour']     = df_gsh['scantime_dt'].dt.hour.fillna(0).astype(int)
+
+    # Bug fix: guard check cột Pickup_station
     if 'scansitename' in df_gsh.columns:
         df_gsh = df_gsh.rename(columns={'scansitename': 'Pickup_station'})
+    elif 'Pickup_station' not in df_gsh.columns:
+        print("   ⚠️ Không có cột 'scansitename'/'Pickup_station'. Bỏ qua.")
+        return
 
-    # — Bước 4: Mapping "Dã đến Hub" từ Sheet Inbound —
+    # — Bước 4: Mapping "Đã đến Hub" từ Sheet Inbound —
     try:
         url_ib = (f"https://docs.google.com/spreadsheets/d/{SHEET_ID}"
                   f"/gviz/tq?tqx=out:csv&sheet=Inbound")
@@ -2262,40 +2258,58 @@ def run_giam_sat_phat_hang(session: requests.Session, token_mgr: 'TokenManager')
         r_ib.raise_for_status()
         df_ib = pd.read_csv(io.StringIO(r_ib.text))
         df_ib.columns = [c.strip().strip('"') for c in df_ib.columns]
-        inbound_billnos = set(df_ib['billNo'].dropna().astype(str).str.strip()) if 'billNo' in df_ib.columns else set()
+        inbound_billnos = (set(df_ib['billNo'].dropna().astype(str).str.strip())
+                           if 'billNo' in df_ib.columns else set())
         print(f"   📡 Mapping {len(inbound_billnos):,} billNo inbound")
     except Exception as e:
         print(f"   ⚠️ Không đọc được Inbound sheet: {e}")
         inbound_billnos = set()
 
+    # Bug fix: typo 'Đã ến Hub' → 'Đã đến Hub'
     if inbound_billnos and 'billcode' in df_gsh.columns:
         df_gsh['Đã đến Hub']   = df_gsh['billcode'].astype(str).str.strip().isin(inbound_billnos).astype(int)
-        df_gsh['Chưa đến Hub'] = 1 - df_gsh['Đã ến Hub']
+        df_gsh['Chưa đến Hub'] = 1 - df_gsh['Đã đến Hub']
     else:
         df_gsh['Đã đến Hub']   = 0
         df_gsh['Chưa đến Hub'] = 1
 
     # — Bước 5: Pivot Arrival (tích lũy) —
     try:
+        # Bug fix: agg_dict an toàn — kiểm tra cột trước khi dùng
+        count_col = 'billcode' if 'billcode' in df_gsh.columns else 'Đã đến Hub'
         agg_dict = {
-            'Tổng số đơn': ('billcode', 'size') if 'billcode' in df_gsh.columns else ('Đã đến Hub', 'count'),
-            'Đã đến Hub':   ('Đã đến Hub', 'sum'),
+            'Tổng số đơn':  (count_col,         'size'),
+            'Đã đến Hub':   ('Đã đến Hub',   'sum'),
             'Chưa đến Hub': ('Chưa đến Hub', 'sum'),
-            'Last_time_dt': ('scantime_dt', 'max'),
+            'Last_time_dt': ('scantime_dt',  'max'),
         }
-        df_new_arr = df_gsh.groupby(['Ngày vận hành', 'Pickup_station', 'Scan Hour']).agg(**agg_dict).reset_index()
+        df_new_arr = (df_gsh
+                      .groupby(['Ngày vận hành', 'Pickup_station', 'Scan Hour'])
+                      .agg(**agg_dict)
+                      .reset_index())
         df_new_arr['Last time'] = df_new_arr['Last_time_dt'].dt.strftime('%Y-%m-%d %H:%M:%S')
         df_new_arr = df_new_arr.drop(columns=['Last_time_dt'])
+        # Bug fix: Scan Hour nhất quán int — để upsert_arrival so sánh đúng
+        df_new_arr['Scan Hour'] = df_new_arr['Scan Hour'].astype(int)
 
         # Ghi lên Google Sheet Arrival (upsert tích lũy)
         try:
             import gspread
             from google.oauth2.service_account import Credentials
-            SCOPES = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+            SCOPES = ['https://spreadsheets.google.com/feeds',
+                      'https://www.googleapis.com/auth/drive']
             sa_json = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON', '{}')
             sa_info = json.loads(sa_json)
-            gc = gspread.authorize(Credentials.from_service_account_info(sa_info, scopes=SCOPES))
-            arr_sheet = gc.open_by_key(SHEET_ID).worksheet('Arrival')
+            if not sa_info:
+                raise ValueError("GOOGLE_SERVICE_ACCOUNT_JSON trống")
+            # Bug fix: gspread.authorize() deprecated — vẫn hoạt động nhưng dùng đúng cách
+            creds = Credentials.from_service_account_info(sa_info, scopes=SCOPES)
+            gc = gspread.authorize(creds)
+            # Bug fix: tự tạo sheet Arrival nếu chưa tồn tại
+            try:
+                arr_sheet = gc.open_by_key(SHEET_ID).worksheet('Arrival')
+            except gspread.exceptions.WorksheetNotFound:
+                arr_sheet = gc.open_by_key(SHEET_ID).add_worksheet('Arrival', rows=5000, cols=10)
             old_vals = arr_sheet.get_all_values()
             if len(old_vals) > 1:
                 df_old_arr = pd.DataFrame(old_vals[1:], columns=old_vals[0])
