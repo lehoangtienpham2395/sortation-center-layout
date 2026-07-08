@@ -117,6 +117,7 @@ class TokenManager:
         self.password = password
         self.country_id = country_id
         self._token = None
+        self.network_id = None  # ✅ Lưu trữ networkId của tài khoản
         self._lock = threading.Lock()
 
     def _login(self) -> str:
@@ -133,6 +134,9 @@ class TokenManager:
             data = result.get('data', {})
             token = data.get('token') or data.get('authToken') or (data if isinstance(data, str) else None)
             if token:
+                # ✅ Lấy networkId động của user (HQ: 22, HCM Hub: 11888,...)
+                if isinstance(data, dict) and data.get('networkId'):
+                    self.network_id = data.get('networkId')
                 return token
             raise RuntimeError(f"Login OK nhưng không tìm thấy token. Response: {result}")
         raise RuntimeError(f"Login thất bại: {result.get('msg', result)}")
@@ -302,10 +306,15 @@ def get_station_info(session, token_mgr, headers, station_name):
     URL_SELECT = 'https://gw.jtcargo.com.vn/basicdata/network/select'
     parts = station_name.strip().split(' ', 1)
     search_name = parts[1] if len(parts) > 1 else station_name
+    
+    # ✅ Dùng networkId động của tài khoản đang đăng nhập (HQ/toàn quốc là 22, HCM Hub là 11888)
+    # Nếu không tìm thấy, fallback về HCM Hub (11888)
+    net_id = str(token_mgr.network_id) if (hasattr(token_mgr, 'network_id') and token_mgr.network_id) else "11888"
+    
     params = {
         "dcr_key": "57b048fb-bc8c-4d24-982b-a750b7ce8693",
         "name": search_name,
-        "networkId": "11888",
+        "networkId": net_id,
         "queryLevel": "3",
         "current": 1,
         "size": 20
