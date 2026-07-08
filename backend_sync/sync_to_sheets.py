@@ -919,8 +919,16 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             status_clean = 'Chưa về Hub'
             ib_hour = ""
             
-            # Đối với đơn Chưa về Hub (lũy kế tồn đọng), ta luôn gán ngày vận hành hiện tại
-            op_date = get_operating_date(now_vn)
+            # Đơn Chưa về Hub: gán ngày vận hành dựa trên thời gian lập kế hoạch gốc (time_ref)
+            t_ref = r['time_ref']
+            if t_ref and str(t_ref).strip() not in ('', 'nan', 'None'):
+                try:
+                    dt_ref = pd.to_datetime(t_ref)
+                    op_date = get_operating_date(dt_ref)
+                except Exception:
+                    op_date = get_operating_date(now_vn)
+            else:
+                op_date = get_operating_date(now_vn)
                 
         # Format pickup time to hour index 0-23
         pk_time_str = r['pickup_time']
@@ -1104,7 +1112,8 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         df_in_raw = pd.DataFrame(results.get('inbound', []))
         inbound_billnos = set()
         if not df_in_raw.empty:
-            bn_col = 'billNo' if 'billNo' in df_in_raw.columns else ('waybillNo' if 'waybillNo' in df_in_raw.columns else None)
+            # Ưu tiên lấy waybillNo hoặc waybillId (chứa mã vận đơn thực tế của Inbound thô) trước billNo (thường bị rỗng)
+            bn_col = 'waybillNo' if 'waybillNo' in df_in_raw.columns else ('waybillId' if 'waybillId' in df_in_raw.columns else ('billNo' if 'billNo' in df_in_raw.columns else None))
             if bn_col:
                 inbound_billnos = set(df_in_raw[bn_col].dropna().astype(str).str.strip())
         bc_col = 'billcode' if 'billcode' in df_arr.columns else ('billNo' if 'billNo' in df_arr.columns else None)
