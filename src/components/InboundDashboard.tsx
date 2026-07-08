@@ -182,15 +182,19 @@ export default function InboundDashboard({
 
   // 3. Pickup Time (Shipper đã lấy): lấy từ cột "Pickup Time" (deliveryTime)
   filteredInbound.forEach(d => {
-    const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
-      ? d['Pickup Time']
-      : undefined;
-    if (pkTime !== undefined) {
-      const hrVal = parseInt(String(pkTime), 10);
-      if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
-        const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyPickup[hour] !== undefined) {
-          hourlyPickup[hour] += parseInt(d['Volume'], 10) || 0;
+    const loaiRot = d['Loại rớt'] || '';
+    // Chỉ tính giờ shipper lấy cho các đơn phát sinh trong ngày hôm nay (không tính đơn rớt hôm trước gom dồn)
+    if (loaiRot !== 'Rớt hôm trước') {
+      const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
+        ? d['Pickup Time']
+        : undefined;
+      if (pkTime !== undefined) {
+        const hrVal = parseInt(String(pkTime), 10);
+        if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
+          const hour = `${String(hrVal).padStart(2, '0')}:00`;
+          if (hourlyPickup[hour] !== undefined) {
+            hourlyPickup[hour] += parseInt(d['Volume'], 10) || 0;
+          }
         }
       }
     }

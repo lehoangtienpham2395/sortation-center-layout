@@ -213,10 +213,15 @@ def init_db():
     c.execute("CREATE INDEX IF NOT EXISTS idx_inv_time_ref ON inventory(time_ref)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_inv_status ON inventory(status_order)")
     
-    # Auto dọn dẹp các record cũ hơn 7 ngày để tối ưu hóa dung lượng DB
+    # Auto dọn dẹp các record ĐÃ RỜI HUB cũ hơn 7 ngày để tối ưu hóa dung lượng DB.
+    # Các đơn CHƯA RỜI HUB (đang bám đuổi) sẽ được giữ lại vô thời hạn.
     try:
         limit_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
-        c.execute("DELETE FROM inventory WHERE datetime(last_updated) < datetime(?)", (limit_date,))
+        c.execute("""
+            DELETE FROM inventory 
+            WHERE status_order = 'Đã rời HUB' 
+              AND datetime(last_updated) < datetime(?)
+        """, (limit_date,))
         conn.commit()
     except Exception as e_clean:
         print(f"   ⚠️ Lỗi dọn dẹp database: {e_clean}")
