@@ -1001,8 +1001,8 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             waybill = str(r.get('waybillNo', '')).strip()
             w = float(r.get('loadWeight') or 0.0)
             t_ref = r.get('deliveryTime')
-            # For Forecast, Actual Pickup Time is deliveryTime (from forecast)
-            pick_time = str(r.get('deliveryTime') or '').strip()
+            # ✅ Đơn Forecast chưa được lấy thực tế, không có thời gian Actual Pickup
+            pick_time = ''
             if fc_mapped and waybill:
                 rows_to_aggregate.append({
                     'fc': fc_mapped,
@@ -1026,10 +1026,14 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             t_ref = r.get('dispatchNetworkTime') or r.get('updateTime')
             # For Dispatch, use dispatchNetworkTime as the dispatch time reference
             fc_time = str(r.get('dispatchNetworkTime') or r.get('updateTime') or '').strip()
-            pick_time = wb_to_pickup.get(waybill, '')
-            # Fallback nếu pick_time trống: dùng fc_time
-            if not pick_time or pick_time.lower() in ('nan', 'none'):
-                pick_time = fc_time
+            # ✅ Chỉ tính là Shipper đã lấy (Actual Pickup) nếu trạng thái là 'Lấy hàng thành công'
+            if status == 'Lấy hàng thành công':
+                pick_time = wb_to_pickup.get(waybill, '')
+                if not pick_time or pick_time.lower() in ('nan', 'none'):
+                    pick_time = fc_time
+            else:
+                pick_time = ''
+                
             if fc_mapped and waybill:
                 rows_to_aggregate.append({
                     'fc': fc_mapped,
@@ -1053,11 +1057,12 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             ib_date = str(r.get('scanDate', '')).strip()
             pick_time = wb_to_pickup.get(waybill, '')
             fc_time = wb_to_forecast.get(waybill, '')
-            # Fallback nếu rỗng:
-            if not fc_time or fc_time.lower() in ('nan', 'none'):
-                fc_time = ib_date
+            # ✅ Không lấy ib_date (thời gian quét nhập HUB lúc 1-2h sáng) làm pickup_time để tránh hiển thị sai lệch giờ lấy hàng thực tế của Shipper
             if not pick_time or pick_time.lower() in ('nan', 'none'):
-                pick_time = fc_time
+                if fc_time and fc_time.lower() not in ('nan', 'none'):
+                    pick_time = fc_time
+                else:
+                    pick_time = ''
             if fc_mapped and waybill:
                 rows_to_aggregate.append({
                     'fc': fc_mapped,
