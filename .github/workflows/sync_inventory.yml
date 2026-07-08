@@ -21,6 +21,14 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Cache SQLite database  # ⚡ Bảo toàn dữ liệu đơn tồn đọng & thời gian lấy hàng lịch sử giữa các lần chạy tự động
+      uses: actions/cache@v4
+      with:
+        path: backend_sync/db/
+        key: ${{ runner.os }}-sqlite-db-${{ github.run_id }}
+        restore-keys: |
+          ${{ runner.os }}-sqlite-db-
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
