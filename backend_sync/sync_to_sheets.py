@@ -260,7 +260,7 @@ def auth_post(session, url, token_mgr, base_headers, *,
 
 def auth_get(session, url, token_mgr, base_headers, params=None, label=''):
     """
-    Authenticated GET request với retry + token refresh (từ giam_sat_phat_hang).
+    Authenticated GET request với retry + token refresh.
     Dùng cho URL_SELECT khi cần lookup thông tin trạm.
     """
     last_exc  = None
@@ -270,14 +270,13 @@ def auth_get(session, url, token_mgr, base_headers, params=None, label=''):
         attempt += 1
         token   = token_mgr.get_token()
         headers = dict(base_headers)
-        headers['Authtoken'] = token
+        # ✅ Dùng cùng key với auth_post — JFS API yêu cầu 'authToken' (camelCase)
         headers['authToken'] = token
         try:
             r = session.get(url, params=params, headers=headers, timeout=REQUEST_TIMEOUT)
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
             last_exc = e
             wait = BACKOFF_BASE * attempt
-            print(f'   ⏱️ {label} lỗi mạng: {type(e).__name__}, chờ {wait}s...')
             time.sleep(wait)
             continue
         if r.status_code == 401 and not refreshed:
@@ -2104,22 +2103,6 @@ def run_once(session, token_mgr, rebuild_days=None):
     update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, now.strftime('%Y-%m-%d'), results, d_buucuc)
 
 
-def main():
-    parser = argparse.ArgumentParser(description="J&T Cargo HCM HUB Inventory & Outbound Sync")
-    parser.add_argument("--rebuild", type=int, help="Rebuild data for the last N operating days (bypasses hour check)")
-    args = parser.parse_args()
-
-    session = build_session()
-    token_mgr = TokenManager(session, ACCOUNT, PASSWORD, COUNTRY_ID)
-    try:
-        run_once(session, token_mgr, rebuild_days=args.rebuild)
-    except Exception as e:
-        print(f"\n❌ Lỗi thực thi: {e}")
-        import sys
-        sys.exit(1)
-
-
-
 # ================================================================
 # MERGED: GIAM SAT PHAT HANG — Chạy song song với run_once
 # (tích hợp toàn bộ từ scripts/giam_sat_phat_hang.py)
@@ -2174,9 +2157,10 @@ def run_giam_sat_phat_hang(session: requests.Session, token_mgr: 'TokenManager')
     print(f"   📅 Lọc ngày: {start_time} → {end_time}")
 
     # — Bước 1: Tra cứu mã bưu cục song song qua JFS Select API —
-    print("   🔍 Tra cứu mã JFS bưu cục (song song)...")
+    # workers=3 để tránh rate-limit 401 khi gọi nhiều request cùng lúc
+    print("   🔍 Tra cứu mã JFS bưu cục (song song, giới hạn 3 workers)...")
     valid_stations = []
-    with ThreadPoolExecutor(max_workers=8) as ex:
+    with ThreadPoolExecutor(max_workers=3) as ex:
         future_map = {ex.submit(get_station_info, session, token_mgr, gsh_headers, name): name
                       for name in station_names}
         for fut in as_completed(future_map):
