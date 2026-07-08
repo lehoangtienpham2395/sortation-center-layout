@@ -943,7 +943,7 @@ def update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_st
     print(f"   ✅ Đã cập nhật sheet 'Inventory' pivoted với {len(new_rows)-1} dòng.")
 
 
-def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
+def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, token_mgr=None, fh=None, fp=None):
     print("\n📥 Bắt đầu cập nhật dữ liệu Inbound gom nhóm theo trạng thái & khung giờ lên Google Sheets...")
     
     def write_sheet(sheet_name, df_data, headers):
@@ -1105,6 +1105,80 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
     # 3. Inbound
     df_in_raw = pd.DataFrame(results.get('inbound', []))
     if not df_in_raw.empty:
+        # --- BƯỚC BỔ SUNG TRUY VẤN ON-DEMAND JFS CHO CÁC ĐƠN THIẾU MỐC GIỜ ---
+        missing_wbs = []
+        for _, r in df_in_raw.iterrows():
+            waybill = str(r.get('billNo') or r.get('waybillNo', '')).strip()
+            if not waybill:
+                continue
+            pk_db, _ = db_waybill_times.get(waybill, ('', ''))
+            pick_time = pk_db if pk_db else wb_to_pickup.get(waybill, '')
+            if not pick_time or pick_time.lower() in ('nan', 'none'):
+                missing_wbs.append(waybill)
+                
+        missing_wbs = list(set(missing_wbs))
+        if missing_wbs and session and token_mgr and fh and fp:
+            print(f"   ℹ️ Phát hiện {len(missing_wbs)} đơn Inbound thiếu mốc giờ lấy hàng. Tiến hành truy vấn trực tiếp JFS...")
+            chunk_size = 80
+            resolved_count = 0
+            
+            headers = fh.copy()
+            headers['authToken'] = token_mgr.get_token()
+            headers['Authtoken'] = token_mgr.get_token()
+            
+            conn_db = None
+            c_db = None
+            try:
+                conn_db = sqlite3.connect(DB_FILE)
+                c_db = conn_db.cursor()
+            except Exception as e_db:
+                print(f"   ⚠️ Lỗi kết nối DB để lưu cache: {e_db}")
+                
+            for i in range(0, len(missing_wbs), chunk_size):
+                chunk = missing_wbs[i:i+chunk_size]
+                payload = fp.copy()
+                payload['waybillNos'] = ",".join(chunk)
+                
+                for k in ['timeStart', 'inputTimeStart', 'timeEnd', 'inputTimeEnd']:
+                    if k in payload:
+                        payload[k] = ""
+                        
+                try:
+                    r_fc = session.post(URL_FORECAST, headers=headers, data=payload, timeout=15)
+                    fc_res = r_fc.json().get('data', []) or []
+                    if isinstance(fc_res, dict):
+                        fc_res = fc_res.get('records', []) or []
+                    
+                    for item in fc_res:
+                        wb = str(item.get('waybillNo', '')).strip()
+                        pk = str(item.get('collectTime') or item.get('deliveryTime') or '').strip()
+                        disp = str(item.get('dispatchNetworkTime') or '').strip()
+                        
+                        if wb and pk and pk.lower() not in ('nan', 'none'):
+                            db_waybill_times[wb] = (pk, disp)
+                            wb_to_pickup[wb] = pk
+                            resolved_count += 1
+                            
+                            if c_db:
+                                try:
+                                    c_db.execute("""
+                                        UPDATE inventory 
+                                        SET Pickup_time = ?, dispatchNetworkTime = ?, time_ref = ?
+                                        WHERE waybillNo = ?
+                                    """, (pk, disp, pk, wb))
+                                except Exception:
+                                    pass
+                except Exception as e_q:
+                    print(f"   ⚠️ Lỗi truy vấn JFS cho chunk {i//chunk_size}: {e_q}")
+                    
+            if conn_db:
+                try:
+                    conn_db.commit()
+                    conn_db.close()
+                except Exception:
+                    pass
+            print(f"   ✅ Đã phân tích & bổ sung thành công {resolved_count} mốc thời gian từ JFS.")
+
         for _, r in df_in_raw.iterrows():
             fc = str(r.get('sendSite', '')).strip()
             fc_mapped = d_buucuc.get(fc, fc)
@@ -1481,7 +1555,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         print('   ⚠️ Không có dữ liệu Arrival để ghi sheet.')
 
 
-def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, current_date_str, results=None, d_buucuc=None):
+def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, current_date_str, results=None, d_buucuc=None, session=None, token_mgr=None, fh=None, fp=None):
     print(f"\n📊 Bắt đầu cập nhật dữ liệu Google Sheets...")
     
     creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
@@ -1630,7 +1704,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             
         # 4. Update Inbound Sheets (aggregated Inbound + raw Linehaul + Arrival)
         if results:
-            update_inbound_sheets(gc, results, master_chutes, d_buucuc)
+            update_inbound_sheets(gc, results, master_chutes, d_buucuc, session, token_mgr, fh, fp)
             
     except Exception as e:
         print(f"   ❌ Lỗi cập nhật Google Sheets: {e}")
@@ -2202,7 +2276,7 @@ def run_once(session, token_mgr, rebuild_days=None):
 
     # Cập nhật dữ liệu cấu hình lên Google Sheets (config sheets, Linehaul, Arrival, Outbound)
     # Data chính (100k rows) đã được push lên Github — không cần ghi vào Sheet nữa
-    update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, now.strftime('%Y-%m-%d'), results, d_buucuc)
+    update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, now.strftime('%Y-%m-%d'), results, d_buucuc, session, token_mgr, fh, fp)
 
 
 # ================================================================
