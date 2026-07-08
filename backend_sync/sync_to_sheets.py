@@ -976,6 +976,23 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
 
     # Using module-level get_operating_date
 
+    # Tải mốc thời gian lấy hàng lịch sử từ SQLite để mapping chính xác cho các đơn đã về HUB
+    db_waybill_times = {}
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute("SELECT waybillNo, Pickup_time, dispatchNetworkTime FROM inventory")
+        rows = c.fetchall()
+        for r in rows:
+            wb = r[0]
+            pk = r[1] if r[1] else ''
+            disp = r[2] if r[2] else ''
+            db_waybill_times[wb] = (pk, disp)
+        conn.close()
+        print(f"   ℹ| Load được {len(db_waybill_times):,} mốc thời gian từ SQLite để mapping.")
+    except Exception as e_db:
+        print(f"   ⚠️ Lỗi load mốc thời gian từ SQLite: {e_db}")
+
     # Build dictionary of waybill -> forecast_time (dispatchNetworkTime) from Dispatch
     wb_to_forecast = {}
     df_dp_raw = pd.DataFrame(results.get('dispatch', []))
@@ -1064,7 +1081,10 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             fc_time = str(r.get('dispatchNetworkTime') or r.get('updateTime') or '').strip()
             # ✅ Chỉ tính là Shipper đã lấy (Actual Pickup) nếu trạng thái là 'Đã lấy hàng'
             if status == 'Đã lấy hàng':
-                pick_time = wb_to_pickup.get(waybill, '')
+                # Ưu tiên lấy updateTime (thời gian lấy thực tế) trực tiếp từ Dispatch API
+                pick_time = str(r.get('updateTime') or '').strip()
+                if not pick_time or pick_time.lower() in ('nan', 'none'):
+                    pick_time = wb_to_pickup.get(waybill, '')
                 if not pick_time or pick_time.lower() in ('nan', 'none'):
                     pick_time = fc_time
             else:
@@ -1091,8 +1111,17 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             waybill = str(r.get('billNo') or r.get('waybillNo', '')).strip()
             w = float(r.get('weight') or 0.0)
             ib_date = str(r.get('scanDate', '')).strip()
-            pick_time = wb_to_pickup.get(waybill, '')
-            fc_time = wb_to_forecast.get(waybill, '')
+            # Lấy mốc thời gian lấy hàng lịch sử từ DB trước nếu có
+            pk_db, disp_db = db_waybill_times.get(waybill, ('', ''))
+            
+            pick_time = pk_db if pk_db else wb_to_pickup.get(waybill, '')
+            fc_time = disp_db if disp_db else wb_to_forecast.get(waybill, '')
+            
+            if not pick_time or pick_time.lower() in ('nan', 'none'):
+                pick_time = wb_to_pickup.get(waybill, '')
+            if not fc_time or fc_time.lower() in ('nan', 'none'):
+                fc_time = wb_to_forecast.get(waybill, '')
+
             # ✅ Không lấy ib_date (thời gian quét nhập HUB lúc 1-2h sáng) làm pickup_time để tránh hiển thị sai lệch giờ lấy hàng thực tế của Shipper
             if not pick_time or pick_time.lower() in ('nan', 'none'):
                 if fc_time and fc_time.lower() not in ('nan', 'none'):
@@ -1927,6 +1956,15 @@ def run_once(session, token_mgr, rebuild_days=None):
             df_all['updateTime'].str.strip() != '',
             df_all['Pickup_time'].fillna('')
         )
+
+    # ✅ Đồng bộ hóa actual pickup time (updateTime) vào Pickup_time (của các đơn Đã lấy hàng)
+    # để lưu đúng thời gian lấy hàng thực tế vào SQLite & Google Sheet
+    if 'updateTime' in df_all.columns:
+        df_all['updateTime'] = df_all['updateTime'].fillna('').astype(str).str.strip()
+        df_all['Pickup_time'] = df_all['Pickup_time'].fillna('').astype(str).str.strip()
+        
+        is_picked_up = (df_all['status_order'] == 'Đã lấy hàng') & (df_all['updateTime'] != '') & (df_all['updateTime'] != 'nan')
+        df_all.loc[is_picked_up, 'Pickup_time'] = df_all.loc[is_picked_up, 'updateTime']
 
     # ================================================================
     # INBOUND / OUTBOUND
