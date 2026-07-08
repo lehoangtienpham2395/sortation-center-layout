@@ -1062,8 +1062,8 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             t_ref = r.get('dispatchNetworkTime') or r.get('updateTime')
             # For Dispatch, use dispatchNetworkTime as the dispatch time reference
             fc_time = str(r.get('dispatchNetworkTime') or r.get('updateTime') or '').strip()
-            # ✅ Chỉ tính là Shipper đã lấy (Actual Pickup) nếu trạng thái là 'Lấy hàng thành công'
-            if status == 'Lấy hàng thành công':
+            # ✅ Chỉ tính là Shipper đã lấy (Actual Pickup) nếu trạng thái là 'Đã lấy hàng'
+            if status == 'Đã lấy hàng':
                 pick_time = wb_to_pickup.get(waybill, '')
                 if not pick_time or pick_time.lower() in ('nan', 'none'):
                     pick_time = fc_time
