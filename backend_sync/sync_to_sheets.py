@@ -992,6 +992,37 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
                 wb_to_pickup[wb] = pk
 
     rows_to_aggregate = []
+
+    # 0. Nạp các đơn Chưa về HUB lịch sử từ SQLite để bám đuổi sản lượng rớt cũ
+    db_outstanding = []
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute("""
+            SELECT waybillNo, data_source, weight, pickNetworkName, dispatch_plan, 
+                   Pickup_time, dispatchNetworkTime, time_ref 
+            FROM inventory 
+            WHERE (inbound_scanDate IS NULL OR inbound_scanDate = '' OR inbound_scanDate = 'nan') 
+              AND status_order != 'Đã rời HUB'
+        """)
+        rows = c.fetchall()
+        for r in rows:
+            db_outstanding.append({
+                'fc': d_buucuc.get(r[3], r[3]) if r[3] else '',
+                'waybill': r[0],
+                'weight': r[2] if r[2] else 0.0,
+                'status': r[1],
+                'ib_date': '',
+                'forecast_time': r[6] if r[6] else '',
+                'pickup_time': r[5] if r[5] else '',
+                'time_ref': r[7] if r[7] else ''
+            })
+        conn.close()
+        print(f"   ℹ| Load được {len(db_outstanding):,} đơn chưa về HUB từ SQLite state store.")
+    except Exception as e_db:
+        print(f"   ⚠️ Lỗi đọc đơn chưa về HUB từ SQLite: {e_db}")
+
+    rows_to_aggregate.extend(db_outstanding)
     
     # 1. Forecast
     if not df_fc_raw.empty:
