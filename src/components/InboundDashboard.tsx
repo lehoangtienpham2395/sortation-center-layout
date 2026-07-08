@@ -144,7 +144,7 @@ export default function InboundDashboard({
   // 1. Trên đường về (Arrived) hourly: từ Arrival sheet, sum Tổng số đơn theo Scan Hour (Loại bỏ BN HUB để tránh lệch giờ)
   filteredArrival.forEach(d => {
     const station = (d['Pickup_station'] || '').trim().toUpperCase();
-    if (station === 'BN HUB') return; // Không đưa BN HUB vào line Arrived của biểu đồ đường
+    if (station.includes('BN HUB') || station.includes('HCM004H')) return; // Không đưa BN HUB vào line Arrived của biểu đồ đường
 
     const hr = d['Scan Hour'] !== undefined && d['Scan Hour'] !== null && d['Scan Hour'] !== ''
       ? d['Scan Hour']

@@ -1097,30 +1097,49 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         # Simple Inbound status logic:
         # If ib_date exists -> "Đã về Hub"
         # Else -> "Chưa về Hub"
-        if r['ib_date'] and str(r['ib_date']).strip() not in ('', 'nan', 'None'):
+        # logic ngày vận hành: xác định theo 2 mốc chính:
+        # 1. Inbound Time (r['ib_date']) nếu đơn đã về Hub.
+        # 2. Dispatch Time (r['forecast_time'] đại diện cho dispatchNetworkTime) nếu đơn chưa về Hub.
+        # 3. Fallback: Forecast Time (r['pickup_time'] đại diện cho deliveryTime).
+        ib_date_str = r['ib_date']
+        fc_time_str = r['forecast_time']
+        pk_time_str = r['pickup_time']
+        
+        op_date = ""
+        ib_hour = ""
+        
+        if ib_date_str and str(ib_date_str).strip() not in ('', 'nan', 'None'):
             status_clean = 'Đã về Hub'
-            ib_date_str = r['ib_date']
             try:
                 dt_ib = pd.to_datetime(ib_date_str)
                 ib_hour = int(dt_ib.hour)
                 op_date = get_operating_date(dt_ib)
             except Exception:
-                ib_hour = ""
-                op_date = current_op_date
+                pass
         else:
             status_clean = 'Chưa về Hub'
-            ib_hour = ""
             
-            # Đơn Chưa về Hub: gán ngày vận hành dựa trên thời gian lập kế hoạch gốc (time_ref)
-            t_ref = r['time_ref']
-            if t_ref and str(t_ref).strip() not in ('', 'nan', 'None'):
+        # Nếu chưa xác định được op_date (chưa về Hub hoặc lỗi parse), dùng Dispatch Time
+        if not op_date:
+            if fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None'):
                 try:
-                    dt_ref = pd.to_datetime(t_ref)
-                    op_date = get_operating_date(dt_ref)
+                    dt_fc = pd.to_datetime(fc_time_str)
+                    op_date = get_operating_date(dt_fc)
                 except Exception:
-                    op_date = current_op_date
-            else:
-                op_date = current_op_date
+                    pass
+                    
+        # Fallback tiếp theo dùng Forecast Time
+        if not op_date:
+            if pk_time_str and str(pk_time_str).strip() not in ('', 'nan', 'None'):
+                try:
+                    dt_pk = pd.to_datetime(pk_time_str)
+                    op_date = get_operating_date(dt_pk)
+                except Exception:
+                    pass
+                    
+        # Fallback cuối cùng dùng ngày hiện tại
+        if not op_date:
+            op_date = current_op_date
                 
         # Format pickup time to hour index 0-23
         pk_time_str = r['pickup_time']
@@ -1918,14 +1937,8 @@ def run_once(session, token_mgr, rebuild_days=None):
         print(f"   ℹ| Loại bỏ {is_prior.sum()} đơn Forecast đã Outbound từ ca vận hành trước.")
         df = df[~is_prior].copy()
 
-    if 'inbound_scanDate' in df.columns:
-        is_backlog_empty_pick = (
-            (df['data_source'] == 'Backlog') &
-            (df['Pickup_time'].isna() | (df['Pickup_time'].astype(str).str.strip() == ''))
-        )
-        df.loc[is_backlog_empty_pick, 'Pickup_time'] = (
-            df.loc[is_backlog_empty_pick, 'inbound_scanDate'].astype(str).str.strip()
-        )
+    # ✅ Loại bỏ fallback dùng inbound_scanDate làm Pickup_time của Backlog để tránh hiển thị 1-2h sáng
+    # Đơn Backlog không có Pickup_time thực tế từ JFS sẽ được giữ trống.
 
     # ── pickup_label & Pickup_ontime ──
     def assign_pickup_labels(row):
