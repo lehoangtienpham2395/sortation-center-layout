@@ -1,8 +1,12 @@
 import os
 import re
+import io
+import sys
 import json
 import time
 import math
+import gzip
+import base64
 import hashlib
 import argparse
 import threading
@@ -15,6 +19,14 @@ import pandas as pd
 from requests.adapters import HTTPAdapter
 
 import sqlite3
+
+# —— Windows Unicode Fix (cần cho GitHub Actions chạy trên Ubuntu, giữ để đồng nhất) ——
+if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    except Exception:
+        pass
 
 # ============================================================
 # CONFIG ĐĂNG NHẬP (Đọc từ GitHub Secrets / Environment Variables)
@@ -50,15 +62,22 @@ URL_LOADING        = 'https://gw.jtcargo.com.vn/operatingplatform/traceSub/query
 
 
 # ============================================================
-# TUNING
+# TUNING — đã tối ưu để tăng tốc ~5x so với mặc định
 # ============================================================
-SOURCE_WORKERS      = 5
-PAGE_WORKERS        = 2
-POOL_SIZE           = 32
+SOURCE_WORKERS      = 8   # ⚡ Tăng từ 5 → 8: song song giữa các nguồn API
+PAGE_WORKERS        = 10  # ⚡ Tăng từ 2 → 10: song song khi kéo pages
+POOL_SIZE           = 64  # ⚡ Tăng connection pool để hỗ trợ nhiều worker
 REQUEST_TIMEOUT     = 60
 MAX_RETRIES         = 5
 BACKOFF_BASE        = 3
 INTER_REQUEST_DELAY = 0
+
+# ============================================================
+# GITHUB DATA PUSH CONFIG
+# ============================================================
+GH_REPO      = os.environ.get("GH_REPO", "lehoangtienpham2395/sortation-center-layout")
+GH_TOKEN     = os.environ.get("GITHUB_TOKEN", "").strip()
+GH_DATA_PATH = "data/latest.json.gz"  # Path trong repo để lưu data
 
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
@@ -239,6 +258,100 @@ def auth_post(session, url, token_mgr, base_headers, *,
     raise last_exc if last_exc else RuntimeError(f"{label}: thất bại sau {max_retries} lần thử")
 
 
+def auth_get(session, url, token_mgr, base_headers, params=None, label=''):
+    """
+    Authenticated GET request với retry + token refresh (từ giam_sat_phat_hang).
+    Dùng cho URL_SELECT khi cần lookup thông tin trạm.
+    """
+    last_exc  = None
+    refreshed = False
+    attempt   = 0
+    while attempt < MAX_RETRIES:
+        attempt += 1
+        token   = token_mgr.get_token()
+        headers = dict(base_headers)
+        headers['Authtoken'] = token
+        headers['authToken'] = token
+        try:
+            r = session.get(url, params=params, headers=headers, timeout=REQUEST_TIMEOUT)
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            last_exc = e
+            wait = BACKOFF_BASE * attempt
+            print(f'   ⏱️ {label} lỗi mạng: {type(e).__name__}, chờ {wait}s...')
+            time.sleep(wait)
+            continue
+        if r.status_code == 401 and not refreshed:
+            token_mgr.refresh(token)
+            refreshed = True
+            attempt  -= 1
+            continue
+        if r.status_code in RETRYABLE_STATUS:
+            last_exc = requests.exceptions.HTTPError(f'{r.status_code} {url}')
+            time.sleep(BACKOFF_BASE * attempt)
+            continue
+        r.raise_for_status()
+        return r
+    raise last_exc if last_exc else RuntimeError(f'{label}: thất bại sau {MAX_RETRIES} lần thử')
+
+
+def get_station_info(session, token_mgr, headers, station_name):
+    """
+    Tìm mã code, ID và TypeID của bưu cục dựa trên tên (từ giam_sat_phat_hang).
+    Dùng API Select để lấy thông tin bưu cục không có trong valid.csv.
+    """
+    URL_SELECT = 'https://gw.jtcargo.com.vn/basicdata/network/select'
+    parts = station_name.strip().split(' ', 1)
+    search_name = parts[1] if len(parts) > 1 else station_name
+    params = {
+        "dcr_key": "57b048fb-bc8c-4d24-982b-a750b7ce8693",
+        "name": search_name,
+        "networkId": "11888",
+        "queryLevel": "3",
+        "current": 1,
+        "size": 20
+    }
+    try:
+        r = auth_get(session, URL_SELECT, token_mgr, headers, params=params, label=f'Select {search_name}')
+        res = r.json()
+        if res.get('succ') or res.get('code') == 1:
+            records = res.get('data', {}).get('records', [])
+            for rec in records:
+                rec_name = rec.get('name', '').upper()
+                if station_name.upper() in rec_name or search_name.upper() in rec_name:
+                    return {
+                        "code":   rec.get('code') or rec.get('networkCode'),
+                        "id":     rec.get('id'),
+                        "name":   rec.get('name'),
+                        "typeId": rec.get('typeId') or rec.get('networkTypeId')
+                    }
+    except Exception as e:
+        print(f"      ⚠️ Lỗi lấy thông tin trạm {station_name}: {e}")
+    return None
+
+
+def upsert_arrival(df_old: pd.DataFrame, df_new: pd.DataFrame) -> pd.DataFrame:
+    """
+    Upsert dữ liệu Arrival theo key (Ngày vận hành, Pickup_station, Scan Hour).
+    Dữ liệu cùng key → ghi đè bằng mới nhất. Ngày cũ không có trong đợt này → giữ nguyên.
+    """
+    key_cols = ['Ngày vận hành', 'Pickup_station', 'Scan Hour']
+    if df_old.empty:
+        return df_new
+    for col in key_cols:
+        if col in df_old.columns:
+            df_old[col] = df_old[col].astype(str).str.strip()
+        if col in df_new.columns:
+            df_new[col] = df_new[col].astype(str).str.strip()
+    df_old['_key'] = df_old[key_cols].agg('|'.join, axis=1)
+    df_new['_key'] = df_new[key_cols].agg('|'.join, axis=1)
+    new_keys   = set(df_new['_key'])
+    df_keep    = df_old[~df_old['_key'].isin(new_keys)].drop(columns=['_key'])
+    df_new     = df_new.drop(columns=['_key'])
+    result     = pd.concat([df_keep, df_new], ignore_index=True)
+    result     = result.sort_values(by=key_cols, ascending=[False, True, True])
+    return result
+
+
 def pull_pages_parallel(fetch_page, total, page_size, label, start_page=1):
     n_pages = math.ceil(total / page_size)
     pages = list(range(start_page, n_pages + 1))
@@ -318,9 +431,12 @@ def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end
     Kéo dữ liệu giám sát phát hàng gửi về HCM HUB từ tất cả bưu cục HCM/SE (Miền Nam).
     Sử dụng giải pháp Code-Only, bỏ qua API Select để tránh lỗi phân quyền/401 và tăng tốc độ.
     """
-    # 1. Đọc danh sách bưu cục Miền Nam (HCM/SE) + BN HUB từ stations_master.csv ở thư mục Desktop
+    # 1. Đọc danh sách bưu cục Miền Nam (HCM/SE) + BN HUB từ stations_master.csv
     station_names = []
-    master_path = r"C:\Users\lehoa\OneDrive\Desktop\testing\stations_master.csv"
+    # Ưu tiên load từ config của repo trước (để chạy được trên GitHub Actions)
+    repo_master_path = os.path.join(BASE_DIR, "config", "stations_master.csv")
+    master_path = repo_master_path if os.path.exists(repo_master_path) else r"C:\Users\lehoa\OneDrive\Desktop\testing\stations_master.csv"
+    
     if os.path.exists(master_path):
         try:
             df_m = pd.read_csv(master_path)
@@ -330,9 +446,9 @@ def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end
                 df_m['station_name'].str.contains('BN HUB', na=False, case=False)
             ].copy()
             station_names = df_filtered['station_name'].dropna().unique().tolist()
-            print(f"   📂 Load thành công {len(station_names)} bưu cục (bao gồm BN HUB) từ stations_master.csv.")
+            print(f"   📂 Load thành công {len(station_names)} bưu cục (bao gồm BN HUB) từ: {master_path}")
         except Exception as e_sm:
-            print(f"   ⚠️ Lỗi đọc stations_master.csv: {e_sm}")
+            print(f"   ⚠️ Lỗi đọc stations_master.csv ({master_path}): {e_sm}")
             
     if not station_names:
         print('   ⚠️ Arrival: không có bưu cục để kéo.')
@@ -459,7 +575,7 @@ def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end
 # PULLERS
 # ================================================================
 def pull_forecast(session, token_mgr, headers, base_payload, label='Forecast'):
-    page_size = 100 
+    page_size = 100
     base_payload['size'] = page_size
 
     total = 0
@@ -477,7 +593,11 @@ def pull_forecast(session, token_mgr, headers, base_payload, label='Forecast'):
         r = auth_post(session, URL_FORECAST, token_mgr, headers, data=payload, label=label)
         return r.json().get('data', []) or []
 
-    all_data = pull_pages_sequential(fetch_page, page_size, label, total=total, stop_short=True)
+    # ⚡ Dùng parallel thay vì sequential khi đã biết total
+    if total and total > page_size:
+        all_data = pull_pages_parallel(fetch_page, total, page_size, label)
+    else:
+        all_data = pull_pages_sequential(fetch_page, page_size, label, total=total, stop_short=True)
 
     return all_data
 
@@ -512,7 +632,11 @@ def pull_scan(session, token_mgr, url, headers, params, base_payload, label=''):
             return data_obj.get('records', []) or []
         return []
 
-    all_data = pull_pages_sequential(fetch_page, page_size, label, total=total, stop_short=True)
+    # ⚡ Dùng parallel khi đã biết total để tăng tốc đáng kể
+    if total is not None and total > page_size:
+        all_data = pull_pages_parallel(fetch_page, total, page_size, label)
+    else:
+        all_data = pull_pages_sequential(fetch_page, page_size, label, total=total, stop_short=True)
 
     if total is not None and len(all_data) < total:
         print(f"   ⚠️ {label}: thu {len(all_data)} < tổng {total} (có thể có trang lỗi)")
@@ -553,6 +677,64 @@ def pull_dispatch(session, token_mgr, headers, base_payload, label='Dispatch'):
         print(f"   ⚠️ Dispatch: thu {len(all_data)} < tổng {total} (có thể có trang lỗi)")
     print(f"   ✅ Dispatch: {len(all_data)}/{total if total is not None else '?'} dòng")
     return all_data
+
+
+# ================================================================
+# GITHUB DATA PUSH — Bypass Google Sheet bottleneck với 100k rows
+# ================================================================
+def push_json_to_github(df: pd.DataFrame, token: str, repo_name: str, path: str = GH_DATA_PATH) -> bool:
+    """
+    Push DataFrame dưới dạng gzip JSON lên Github raw.
+    Dashboard JS sẽ đọc trực tiếp từ raw.githubusercontent.com — không cần Sheet API.
+    
+    Returns:
+        True nếu push thành công, False nếu không có token hoặc lỗi.
+    """
+    if not token:
+        print("   ⚠️ GITHUB_TOKEN không được set — bỏ qua push JSON lên Github.")
+        return False
+
+    try:
+        print(f"   📦 Đang nén {len(df):,} dòng → gzip JSON...")
+        t0 = time.time()
+
+        # Serialize + compress: 100k rows ~20MB → ~2-4MB
+        payload_str = df.to_json(orient="records", force_ascii=False, date_format="iso")
+        compressed  = gzip.compress(payload_str.encode("utf-8"), compresslevel=6)
+        encoded     = base64.b64encode(compressed).decode()
+        size_kb     = len(compressed) / 1024
+
+        print(f"   📦 Nén xong: {size_kb:.0f} KB (mất {time.time()-t0:.1f}s) — đang push lên Github...")
+
+        # Gọi Github API
+        api_url  = f"https://api.github.com/repos/{repo_name}/contents/{path}"
+        headers  = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        commit_msg = f"data: sync {datetime.now(ZoneInfo('Asia/Ho_Chi_Minh')).strftime('%H:%M %d/%m/%Y')}"
+
+        # Kiểm tra file cũ để lấy SHA (cần cho update)
+        sha = None
+        r_get = requests.get(api_url, headers=headers, timeout=30)
+        if r_get.status_code == 200:
+            sha = r_get.json().get("sha")
+
+        body = {"message": commit_msg, "content": encoded}
+        if sha:
+            body["sha"] = sha
+
+        r_put = requests.put(api_url, headers=headers, json=body, timeout=60)
+        r_put.raise_for_status()
+
+        action = "Cập nhật" if sha else "Tạo mới"
+        print(f"   ✅ {action} thành công: {path} ({size_kb:.0f} KB, {len(df):,} rows) | tổng {time.time()-t0:.1f}s")
+        return True
+
+    except Exception as e:
+        print(f"   ❌ Lỗi push JSON lên Github: {e}")
+        return False
 
 
 # ================================================================
@@ -895,10 +1077,10 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         if wb not in unique_waybills or priority > status_priority.get(unique_waybills[wb]['status'], 0):
             unique_waybills[wb] = r
             
-    # Group by fc, status, op_date, hourly ib_date, hourly forecast_time, and hourly pickup_time
-    grouped = {}
     now_vn = datetime.now(ZoneInfo('Asia/Ho_Chi_Minh'))
-    
+    current_op_date = get_operating_date(now_vn)
+    grouped = {}
+
     for wb, r in unique_waybills.items():
         fc_name = r['fc']
         status = r['status']
@@ -915,7 +1097,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
                 op_date = get_operating_date(dt_ib)
             except Exception:
                 ib_hour = ""
-                op_date = get_operating_date(now_vn)
+                op_date = current_op_date
         else:
             status_clean = 'Chưa về Hub'
             ib_hour = ""
@@ -927,9 +1109,9 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
                     dt_ref = pd.to_datetime(t_ref)
                     op_date = get_operating_date(dt_ref)
                 except Exception:
-                    op_date = get_operating_date(now_vn)
+                    op_date = current_op_date
             else:
-                op_date = get_operating_date(now_vn)
+                op_date = current_op_date
                 
         # Format pickup time to hour index 0-23
         pk_time_str = r['pickup_time']
@@ -955,7 +1137,6 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
 
         # Xác định loại rớt cho tất cả các đơn Forecast (Cả Chưa về Hub và Đã về Hub)
         loai_rot = ""
-        # Fallback sử dụng time_ref (deliveryTime của Forecast) nếu forecast_time bị rỗng
         ref_time_to_use = fc_time_str if (fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None')) else r['time_ref']
         
         if ref_time_to_use and str(ref_time_to_use).strip() not in ('', 'nan', 'None'):
@@ -963,7 +1144,7 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
                 dt_fc = pd.to_datetime(ref_time_to_use)
                 op_date_dt = pd.to_datetime(op_date)
                 
-                # 1. Nếu ngày điều phối nhỏ hơn ngày vận hành hiện tại -> Rớt hôm trước
+                # 1. Nếu ngày điều phối nhỏ hơn ngày vận hành của bản ghi -> Rớt hôm trước
                 if dt_fc.date() < op_date_dt.date():
                     loai_rot = "Rớt hôm trước"
                 # 2. Nếu cùng ngày vận hành, so sánh với mốc 06:00:00 sáng
@@ -978,11 +1159,23 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
         else:
             loai_rot = "Rớt hôm nay"
 
+        # Ghi nhận bản ghi chính
         key = (fc_name, status_clean, op_date, ib_hour, fc_hour, pk_hour, loai_rot)
         if key not in grouped:
             grouped[key] = {'volume': 0, 'weight': 0.0}
         grouped[key]['volume'] += 1
         grouped[key]['weight'] += r['weight']
+
+        # --- LOGIC CỘNG DỒN CHO ĐƠN CHƯA VỀ HUB TỒN ĐỌNG SANG CÁC NGÀY HÔM SAU ---
+        # Nếu đơn Chưa về Hub của ngày cũ (op_date < current_op_date):
+        # Ta nhân bản thêm 1 bản ghi cho Ngày vận hành hiện tại (current_op_date) với loại rớt 'Rớt hôm trước'
+        # để đơn này xuất hiện ở mục Rớt hôm trước của ngày hôm nay, giúp bám đuổi sản lượng.
+        if status_clean == 'Chưa về Hub' and op_date and current_op_date and op_date < current_op_date:
+            key_today = (fc_name, 'Chưa về Hub', current_op_date, ib_hour, fc_hour, pk_hour, 'Rớt hôm trước')
+            if key_today not in grouped:
+                grouped[key_today] = {'volume': 0, 'weight': 0.0}
+            grouped[key_today]['volume'] += 1
+            grouped[key_today]['weight'] += r['weight']
         
     # Convert grouped to DataFrame
     final_rows = []
@@ -1799,9 +1992,20 @@ def run_once(session, token_mgr, rebuild_days=None):
         c.execute("PRAGMA temp_store = MEMORY")
         
         # Chuẩn bị dữ liệu để UPSERT
-        # Đảm bảo time_ref có giá trị để tính operating date
+        # Đảm bảo time_ref có giá trị chính xác cho cả Forecast (Pickup_time) và Dispatch (dispatchNetworkTime)
         if 'time_ref' not in df.columns:
-            df['time_ref'] = df.get('Pickup_time', '')
+            df['time_ref'] = ''
+        df['time_ref'] = df['time_ref'].fillna('').astype(str).str.strip()
+        
+        # Fallback 1: Nếu rỗng, lấy dispatchNetworkTime (thời gian điều phối của Dispatch)
+        is_empty = df['time_ref'] == ''
+        if is_empty.any() and 'dispatchNetworkTime' in df.columns:
+            df.loc[is_empty, 'time_ref'] = df.loc[is_empty, 'dispatchNetworkTime'].fillna('').astype(str).str.strip()
+            
+        # Fallback 2: Nếu vẫn rỗng, lấy Pickup_time (thời gian lấy hàng/forecast của Forecast)
+        is_empty2 = df['time_ref'] == ''
+        if is_empty2.any() and 'Pickup_time' in df.columns:
+            df.loc[is_empty2, 'time_ref'] = df.loc[is_empty2, 'Pickup_time'].fillna('').astype(str).str.strip()
             
         columns_to_db = [
             'waybillNo', 'data_source', 'weight', 'pickNetworkName', 'dispatch_plan',
@@ -1888,7 +2092,15 @@ def run_once(session, token_mgr, rebuild_days=None):
                 total_vol = sum(item['volume'] for item in outbound_volumes_grouped.values())
                 print(f"   💡 Outbound calculated: {len(outbound_volumes_grouped)} groups. Total: {total_vol}")
 
-    # Cập nhật dữ liệu lên Google Sheets
+    # ================================================================
+    # ⚡ PUSH DATA LÊN GITHUB RAW (thay thế Google Sheet cho 100k rows)
+    # Dashboard JS sẽ đọc trực tiếp từ raw.githubusercontent.com
+    # ================================================================
+    print("\n🚀 Đang push data lên Github Raw...")
+    push_json_to_github(df, GH_TOKEN, GH_REPO, GH_DATA_PATH)
+
+    # Cập nhật dữ liệu cấu hình lên Google Sheets (config sheets, Linehaul, Arrival, Outbound)
+    # Data chính (100k rows) đã được push lên Github — không cần ghi vào Sheet nữa
     update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, now.strftime('%Y-%m-%d'), results, d_buucuc)
 
 
@@ -1905,6 +2117,255 @@ def main():
         print(f"\n❌ Lỗi thực thi: {e}")
         import sys
         sys.exit(1)
+
+
+
+# ================================================================
+# MERGED: GIAM SAT PHAT HANG — Chạy song song với run_once
+# (tích hợp toàn bộ từ scripts/giam_sat_phat_hang.py)
+# ================================================================
+def run_giam_sat_phat_hang(session: requests.Session, token_mgr: 'TokenManager'):
+    """
+    Fetch dữ liệu giám sát phát hàng từ tất cả bưu cục HCM/SE gửi về HCM HUB,
+    rồi ghi lên sheet Arrival (tích lũy theo ngày + trạm + giờ).
+    
+    Logic từ giam_sat_phat_hang.py nhưng:
+      - Dùng chung session/TokenManager với run_once (không cần login lại).
+      - Dùng API Select để lấy station code (đảm bảo chính xác hơn valid.csv).
+      - Thêm upsert_arrival để tích lũy lịch sử 7 ngày vào Google Sheet.
+    """
+    print("\n" + "="*60)
+    print("📦 GIAM SAT PHAT HANG: Bắt đầu fetch dữ liệu phát hàng...")
+    print("="*60)
+
+    gsh_headers = {
+        "Accept": "application/json, text/plain, */*",
+        "Content-Type": "application/json;charset=utf-8",
+        "Origin": "https://jfs.jtcargo.com.vn",
+        "Referer": "https://jfs.jtcargo.com.vn/",
+        "lang": "VN",
+        "langtype": "VN",
+        "routeName": "checkToken",
+        "User-Agent": LOGIN_HEADERS["User-Agent"],
+    }
+
+    # — Đọc danh sách bưu cục từ stations_master.csv —
+    MASTER_PATH = r"C:\Users\lehoa\OneDrive\Desktop\testing\stations_master.csv"
+    # Fallback: tìm trong backend_sync/config/
+    if not os.path.exists(MASTER_PATH):
+        MASTER_PATH = os.path.join(BASE_DIR, "config", "stations_master.csv")
+
+    if not os.path.exists(MASTER_PATH):
+        print(f"   ⚠️ Không tìm thấy stations_master.csv tại {MASTER_PATH}. Bỏ qua Giam sat phat hang.")
+        return
+
+    df_stations = pd.read_csv(MASTER_PATH)
+    hcm_stations = df_stations[
+        df_stations['master_area'].str.contains('HCM|SE', na=False, case=False) |
+        df_stations['station_name'].str.contains('BN HUB', na=False, case=False)
+    ]
+    station_names = hcm_stations['station_name'].dropna().unique().tolist()
+    print(f"   📂 Đọc được {len(station_names)} bưu cục (HCM/SE + BN HUB) từ stations_master.csv")
+
+    # Thời gian hôm nay
+    today_str  = datetime.now(ZoneInfo('Asia/Ho_Chi_Minh')).strftime('%Y-%m-%d')
+    start_time = f"{today_str} 00:00:00"
+    end_time   = f"{today_str} 23:59:59"
+    print(f"   📅 Lọc ngày: {start_time} → {end_time}")
+
+    # — Bước 1: Tra cứu mã bưu cục song song qua JFS Select API —
+    print("   🔍 Tra cứu mã JFS bưu cục (song song)...")
+    valid_stations = []
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        future_map = {ex.submit(get_station_info, session, token_mgr, gsh_headers, name): name
+                      for name in station_names}
+        for fut in as_completed(future_map):
+            try:
+                info = fut.result()
+                if info:
+                    valid_stations.append(info)
+            except Exception as e:
+                print(f"   ⚠️ Lỗi tra cứu trạm {future_map[fut]}: {e}")
+
+    print(f"   ✅ Tìm được mã JFS cho {len(valid_stations)}/{len(station_names)} bưu cục")
+    if not valid_stations:
+        print("   ⚠️ Không có bưu cục hợp lệ. Bỏ qua.")
+        return
+
+    # — Bước 2: Fetch dữ liệu phát hàng song song —
+    GSH_PARAMS = {'sqlCode': 'realtime_sca_sen_mon_dtl', 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693'}
+    all_data = []
+    lock     = threading.Lock()
+
+    def fetch_one_station(station):
+        payload = {
+            'beginDate': start_time, 'endDate': end_time,
+            'nextStationCode': 'HCM004H', 'nextStationCodeId': 11888,
+            'nextStationCodeName': 'HCM HUB', 'nextStationCodeTypeId': 335,
+            'countryId': '1', 'size': 1000, 'wayType': '1',
+            'sqlCode': 'realtime_sca_sen_mon_dtl',
+            'scanSiteCode':       station['code'],
+            'scanSiteCodeId':     station['id'],
+            'scanSiteCodeName':   station['name'],
+            'scanSiteCodeTypeId': station['typeId'],
+        }
+        station_rows = []
+        try:
+            # Lấy total trước
+            count_pl = {**payload, 'paginationSearchType': 'count', 'size': 1, 'current': 1}
+            r_c = auth_post(session, URL_ARRIVAL_SCAN, token_mgr, gsh_headers,
+                            params=GSH_PARAMS, json_body=count_pl,
+                            label=f'GSH count {station["name"]}')
+            total = (r_c.json().get('data') or {}).get('total') or 0
+            if not total:
+                return
+            n_pages = math.ceil(total / 1000)
+            # Kéo từng trang
+            for p in range(1, n_pages + 1):
+                list_pl = {**payload, 'paginationSearchType': 'list', 'current': p}
+                r_l = auth_post(session, URL_ARRIVAL_SCAN, token_mgr, gsh_headers,
+                                params=GSH_PARAMS, json_body=list_pl,
+                                label=f'GSH {station["name"]} p{p}')
+                data_node = r_l.json().get('data')
+                records = (data_node.get('records', []) if isinstance(data_node, dict)
+                           else (data_node or []))
+                station_rows.extend(records)
+        except Exception as e:
+            print(f'   ❌ GSH {station["name"]}: {e}')
+        if station_rows:
+            with lock:
+                all_data.extend(station_rows)
+            print(f'   ✅ GSH [{station["name"]}]: {len(station_rows):,} dòng')
+
+    print(f"   🚀 Fetch song song {len(valid_stations)} bưu cục...")
+    with ThreadPoolExecutor(max_workers=PAGE_WORKERS) as ex:
+        list(ex.map(fetch_one_station, valid_stations))
+
+    if not all_data:
+        print("   ⚠️ Không có dữ liệu phát hàng nào. Bỏ qua.")
+        return
+
+    print(f"   📋 Tổng: {len(all_data):,} dòng từ {len(valid_stations)} bưu cục")
+
+    # — Bước 3: Xử lý DataFrame —
+    df_gsh = pd.DataFrame(all_data)
+    df_gsh['scantime_dt']   = pd.to_datetime(df_gsh.get('scantime'), errors='coerce')
+    df_gsh['Ngày vận hành'] = (df_gsh['scantime_dt'] - pd.Timedelta(hours=6)).dt.strftime('%Y-%m-%d')
+    df_gsh['Scan Hour']     = df_gsh['scantime_dt'].dt.hour.fillna(-1).astype(int)
+    if 'scansitename' in df_gsh.columns:
+        df_gsh = df_gsh.rename(columns={'scansitename': 'Pickup_station'})
+
+    # — Bước 4: Mapping "Dã đến Hub" từ Sheet Inbound —
+    try:
+        url_ib = (f"https://docs.google.com/spreadsheets/d/{SHEET_ID}"
+                  f"/gviz/tq?tqx=out:csv&sheet=Inbound")
+        r_ib = requests.get(url_ib, timeout=30)
+        r_ib.raise_for_status()
+        df_ib = pd.read_csv(io.StringIO(r_ib.text))
+        df_ib.columns = [c.strip().strip('"') for c in df_ib.columns]
+        inbound_billnos = set(df_ib['billNo'].dropna().astype(str).str.strip()) if 'billNo' in df_ib.columns else set()
+        print(f"   📡 Mapping {len(inbound_billnos):,} billNo inbound")
+    except Exception as e:
+        print(f"   ⚠️ Không đọc được Inbound sheet: {e}")
+        inbound_billnos = set()
+
+    if inbound_billnos and 'billcode' in df_gsh.columns:
+        df_gsh['Đã đến Hub']   = df_gsh['billcode'].astype(str).str.strip().isin(inbound_billnos).astype(int)
+        df_gsh['Chưa đến Hub'] = 1 - df_gsh['Đã ến Hub']
+    else:
+        df_gsh['Đã đến Hub']   = 0
+        df_gsh['Chưa đến Hub'] = 1
+
+    # — Bước 5: Pivot Arrival (tích lũy) —
+    try:
+        agg_dict = {
+            'Tổng số đơn': ('billcode', 'size') if 'billcode' in df_gsh.columns else ('Đã đến Hub', 'count'),
+            'Đã đến Hub':   ('Đã đến Hub', 'sum'),
+            'Chưa đến Hub': ('Chưa đến Hub', 'sum'),
+            'Last_time_dt': ('scantime_dt', 'max'),
+        }
+        df_new_arr = df_gsh.groupby(['Ngày vận hành', 'Pickup_station', 'Scan Hour']).agg(**agg_dict).reset_index()
+        df_new_arr['Last time'] = df_new_arr['Last_time_dt'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        df_new_arr = df_new_arr.drop(columns=['Last_time_dt'])
+
+        # Ghi lên Google Sheet Arrival (upsert tích lũy)
+        try:
+            import gspread
+            from google.oauth2.service_account import Credentials
+            SCOPES = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+            sa_json = os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON', '{}')
+            sa_info = json.loads(sa_json)
+            gc = gspread.authorize(Credentials.from_service_account_info(sa_info, scopes=SCOPES))
+            arr_sheet = gc.open_by_key(SHEET_ID).worksheet('Arrival')
+            old_vals = arr_sheet.get_all_values()
+            if len(old_vals) > 1:
+                df_old_arr = pd.DataFrame(old_vals[1:], columns=old_vals[0])
+                for col in ['Scan Hour', 'Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub']:
+                    if col in df_old_arr.columns:
+                        df_old_arr[col] = pd.to_numeric(df_old_arr[col], errors='coerce').fillna(0).astype(int)
+            else:
+                df_old_arr = pd.DataFrame()
+            df_final_arr = upsert_arrival(df_old_arr, df_new_arr)
+            # Giới hạn 7 ngày
+            all_dates = sorted(df_final_arr['Ngày vận hành'].unique(), reverse=True)
+            df_final_arr = df_final_arr[df_final_arr['Ngày vận hành'].isin(all_dates[:7])]
+            arr_cols = ['Ngày vận hành', 'Pickup_station', 'Scan Hour',
+                        'Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub', 'Last time']
+            arr_cols = [c for c in arr_cols if c in df_final_arr.columns]
+            rows = [arr_cols] + df_final_arr[arr_cols].fillna('').astype(str).values.tolist()
+            arr_sheet.clear()
+            arr_sheet.update(range_name='A1', values=rows)
+            print(f"   ✅ Sheet Arrival đã được cập nhật: {len(rows)-1} dòng (lịch sử 7 ngày)")
+        except Exception as e_sh:
+            print(f"   ❌ Ghi Sheet Arrival thất bại: {e_sh}")
+    except Exception as e_piv:
+        print(f"   ❌ Pivot Arrival lỗi: {e_piv}")
+
+    print("🎉 GIAM SAT PHAT HANG: Hoàn thành!")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="J&T Cargo HCM HUB — Unified Sync + Giam sat phat hang")
+    parser.add_argument("--rebuild", type=int, help="Rebuild data for the last N operating days")
+    parser.add_argument("--gsh-only", action="store_true", help="Chỉ chạy Giam sat phat hang")
+    parser.add_argument("--sync-only", action="store_true", help="Chỉ chạy Inventory sync")
+    args = parser.parse_args()
+
+    session   = build_session()
+    token_mgr = TokenManager(session, ACCOUNT, PASSWORD, COUNTRY_ID)
+
+    # Chạy song song cả hai pipeline trên cùng 1 session / token
+    tasks = []
+    if not args.gsh_only:
+        tasks.append(("InventorySync", lambda: run_once(session, token_mgr, rebuild_days=args.rebuild)))
+    if not args.sync_only:
+        tasks.append(("GiamSatPhatHang", lambda: run_giam_sat_phat_hang(session, token_mgr)))
+
+    if len(tasks) == 1:
+        # Chạy đơn
+        name, fn = tasks[0]
+        try:
+            fn()
+        except Exception as e:
+            print(f"\n❌ Lỗi [{name}]: {e}")
+            sys.exit(1)
+    else:
+        # Chạy song song — cả hai pipeline cùng lúc
+        print("\n🚀 Chạy song song: InventorySync + GiamSatPhatHang...")
+        errors = []
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            future_map = {ex.submit(fn): name for name, fn in tasks}
+            for fut in as_completed(future_map):
+                name = future_map[fut]
+                try:
+                    fut.result()
+                    print(f"   ✅ [{name}] Hoàn thành")
+                except Exception as e:
+                    print(f"   ❌ [{name}] Lỗi: {e}")
+                    errors.append(name)
+        if errors:
+            print(f"\n⚠️ Có lỗi trong: {', '.join(errors)}")
+            sys.exit(1)
 
 
 if __name__ == "__main__":
