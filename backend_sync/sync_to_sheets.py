@@ -1307,29 +1307,34 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
         else:
             fc_hour = ""
 
-        # Xác định loại rớt cho tất cả các đơn Forecast (Cả Chưa về Hub và Đã về Hub)
+        # Xác định loại rớt
         loai_rot = ""
-        ref_time_to_use = fc_time_str if (fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None')) else r['time_ref']
         
-        if ref_time_to_use and str(ref_time_to_use).strip() not in ('', 'nan', 'None'):
-            try:
-                dt_fc = pd.to_datetime(ref_time_to_use)
-                op_date_dt = pd.to_datetime(op_date)
-                
-                # 1. Nếu ngày điều phối nhỏ hơn ngày vận hành của bản ghi -> Rớt hôm trước
-                if dt_fc.date() < op_date_dt.date():
-                    loai_rot = "Rớt hôm trước"
-                # 2. Nếu cùng ngày vận hành, so sánh với mốc 06:00:00 sáng
-                else:
-                    threshold_dt = op_date_dt + timedelta(hours=6)
-                    if dt_fc < threshold_dt:
+        # ✅ Đơn Đã về Hub: LUÔN gán 'Rớt hôm nay' vì đây là sản lượng thực tế của ngày vận hành đó.
+        # Không để Dispatch Time cũ làm loai_rot = 'Rớt hôm trước' → khiến Pickup Time bị ẩn khỏi biểu đồ.
+        if status_clean == 'Đã về Hub':
+            loai_rot = "Rớt hôm nay"
+        else:
+            # Chỉ áp dụng logic 'Rớt hôm trước' cho đơn Chưa về Hub
+            ref_time_to_use = fc_time_str if (fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None')) else r['time_ref']
+            
+            if ref_time_to_use and str(ref_time_to_use).strip() not in ('', 'nan', 'None'):
+                try:
+                    dt_fc = pd.to_datetime(ref_time_to_use)
+                    op_date_dt = pd.to_datetime(op_date)
+                    
+                    if dt_fc.date() < op_date_dt.date():
                         loai_rot = "Rớt hôm trước"
                     else:
-                        loai_rot = "Rớt hôm nay"
-            except Exception:
+                        threshold_dt = op_date_dt + timedelta(hours=6)
+                        if dt_fc < threshold_dt:
+                            loai_rot = "Rớt hôm trước"
+                        else:
+                            loai_rot = "Rớt hôm nay"
+                except Exception:
+                    loai_rot = "Rớt hôm nay"
+            else:
                 loai_rot = "Rớt hôm nay"
-        else:
-            loai_rot = "Rớt hôm nay"
 
         # Ghi nhận bản ghi chính
         key = (fc_name, status_clean, op_date, ib_hour, fc_hour, pk_hour, loai_rot)
