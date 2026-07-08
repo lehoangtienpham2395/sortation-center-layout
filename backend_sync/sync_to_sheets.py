@@ -2208,16 +2208,57 @@ def run_once(session, token_mgr, rebuild_days=None):
         # Parse weight to float
         db_df['weight'] = pd.to_numeric(db_df['weight'], errors='coerce').fillna(0.0).astype(float)
         
-        # Thực hiện UPSERT (Nếu trùng waybillNo thì REPLACE để cập nhật trạng thái mới nhất)
+        # Thực hiện UPSERT an toàn: CHỈ cập nhật Pickup_time nếu giá trị mới KHÔNG rỗng.
+        # Tránh việc INSERT OR REPLACE xóa mất Pickup_time đã lưu khi đơn chuyển sang trạng thái Đang trên bãi.
         records = db_df.values.tolist()
         c.executemany("""
-            INSERT OR REPLACE INTO inventory (
+            INSERT INTO inventory (
                 waybillNo, data_source, weight, pickNetworkName, dispatch_plan,
                 Pickup_time, pickup_label, Pickup_ontime, dispatchNetworkTime,
                 next_station, Tuyến, Rank, inbound_network, inbound_scanDate,
                 outbound_scanDate, dispatch_actual, status_order, time_ref,
                 last_updated
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(waybillNo) DO UPDATE SET
+                data_source        = excluded.data_source,
+                weight             = excluded.weight,
+                pickNetworkName    = excluded.pickNetworkName,
+                dispatch_plan      = excluded.dispatch_plan,
+                Pickup_time        = CASE
+                                        WHEN excluded.Pickup_time != '' THEN excluded.Pickup_time
+                                        ELSE inventory.Pickup_time
+                                     END,
+                pickup_label       = CASE
+                                        WHEN excluded.pickup_label != '' THEN excluded.pickup_label
+                                        ELSE inventory.pickup_label
+                                     END,
+                Pickup_ontime      = CASE
+                                        WHEN excluded.Pickup_ontime != '' THEN excluded.Pickup_ontime
+                                        ELSE inventory.Pickup_ontime
+                                     END,
+                dispatchNetworkTime= CASE
+                                        WHEN excluded.dispatchNetworkTime != '' THEN excluded.dispatchNetworkTime
+                                        ELSE inventory.dispatchNetworkTime
+                                     END,
+                next_station       = excluded.next_station,
+                Tuyến              = excluded.Tuyến,
+                Rank               = excluded.Rank,
+                inbound_network    = excluded.inbound_network,
+                inbound_scanDate   = CASE
+                                        WHEN excluded.inbound_scanDate != '' THEN excluded.inbound_scanDate
+                                        ELSE inventory.inbound_scanDate
+                                     END,
+                outbound_scanDate  = CASE
+                                        WHEN excluded.outbound_scanDate != '' THEN excluded.outbound_scanDate
+                                        ELSE inventory.outbound_scanDate
+                                     END,
+                dispatch_actual    = excluded.dispatch_actual,
+                status_order       = excluded.status_order,
+                time_ref           = CASE
+                                        WHEN excluded.time_ref != '' THEN excluded.time_ref
+                                        ELSE inventory.time_ref
+                                     END,
+                last_updated       = CURRENT_TIMESTAMP
         """, records)
         
         conn.commit()
