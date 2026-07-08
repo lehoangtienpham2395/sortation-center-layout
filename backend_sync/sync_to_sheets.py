@@ -295,8 +295,9 @@ def auth_get(session, url, token_mgr, base_headers, params=None, label=''):
 
 def get_station_info(session, token_mgr, headers, station_name):
     """
-    Tìm mã code, ID và TypeID của bưu cục dựa trên tên (từ giam_sat_phat_hang).
-    Dùng API Select để lấy thông tin bưu cục không có trong valid.csv.
+    Tìm mã code, ID và TypeID của bưu cục dựa trên tên.
+    API basicdata/network/select xác thực qua dcr_key (query param),
+    KHÔNG dùng authToken header — gửi authToken gây 401.
     """
     URL_SELECT = 'https://gw.jtcargo.com.vn/basicdata/network/select'
     parts = station_name.strip().split(' ', 1)
@@ -309,22 +310,36 @@ def get_station_info(session, token_mgr, headers, station_name):
         "current": 1,
         "size": 20
     }
-    try:
-        r = auth_get(session, URL_SELECT, token_mgr, headers, params=params, label=f'Select {search_name}')
-        res = r.json()
-        if res.get('succ') or res.get('code') == 1:
-            records = res.get('data', {}).get('records', [])
-            for rec in records:
-                rec_name = rec.get('name', '').upper()
-                if station_name.upper() in rec_name or search_name.upper() in rec_name:
-                    return {
-                        "code":   rec.get('code') or rec.get('networkCode'),
-                        "id":     rec.get('id'),
-                        "name":   rec.get('name'),
-                        "typeId": rec.get('typeId') or rec.get('networkTypeId')
-                    }
-    except Exception as e:
-        print(f"      ⚠️ Lỗi lấy thông tin trạm {station_name}: {e}")
+    # Plain GET — không gửi authToken để tránh 401
+    plain_headers = {
+        "Accept": "application/json, text/plain, */*",
+        "Origin": "https://jfs.jtcargo.com.vn",
+        "Referer": "https://jfs.jtcargo.com.vn/",
+    }
+    for attempt in range(1, 4):
+        try:
+            r = session.get(URL_SELECT, params=params, headers=plain_headers, timeout=REQUEST_TIMEOUT)
+            if r.status_code in RETRYABLE_STATUS:
+                time.sleep(BACKOFF_BASE * attempt)
+                continue
+            r.raise_for_status()
+            res = r.json()
+            if res.get('succ') or res.get('code') == 1:
+                records = res.get('data', {}).get('records', [])
+                for rec in records:
+                    rec_name = rec.get('name', '').upper()
+                    if station_name.upper() in rec_name or search_name.upper() in rec_name:
+                        return {
+                            "code":   rec.get('code') or rec.get('networkCode'),
+                            "id":     rec.get('id'),
+                            "name":   rec.get('name'),
+                            "typeId": rec.get('typeId') or rec.get('networkTypeId')
+                        }
+            return None  # Không tìm thấy — không retry
+        except Exception as e:
+            if attempt == 3:
+                print(f"      ⚠️ Lỗi tra cứu trạm {station_name}: {e}")
+            time.sleep(2 * attempt)
     return None
 
 
