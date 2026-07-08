@@ -437,14 +437,15 @@ def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end
     df['Scan Hour']     = df['scantime_dt'].dt.hour.fillna(-1).astype(int)
 
     # Logic đặc biệt cho BN HUB:
-    # 1. Ngày vận hành = Ngày xuất phát thực tế + 1 ngày (để khớp ngày cập bến HCM HUB).
+    # 1. Ngày vận hành = Ngày xuất phát gốc + 36 tiếng (chu kỳ Bắc-Nam thực tế).
+    #    Lấy trực tiếp ngày dương lịch cập bến làm Ngày vận hành (không trừ 6h cycle vận hành của bưu cục).
     # 2. Scan Hour giữ nguyên giờ quét gốc của bưu cục phát.
     if 'scansitename' in df.columns:
         df = df.rename(columns={'scansitename': 'Pickup_station'})
         is_bn_hub = df['Pickup_station'].astype(str).str.strip().str.upper() == 'BN HUB'
         if is_bn_hub.any():
-            # Ngày vận hành mới = Ngày xuất phát gốc + 1 ngày
-            df.loc[is_bn_hub, 'Ngày vận hành'] = (df.loc[is_bn_hub, 'scantime_dt'] + pd.Timedelta(days=1)).dt.strftime('%Y-%m-%d')
+            # Ngày vận hành mới = Ngày xuất phát gốc + 36 tiếng
+            df.loc[is_bn_hub, 'Ngày vận hành'] = (df.loc[is_bn_hub, 'scantime_dt'] + pd.Timedelta(hours=36)).dt.strftime('%Y-%m-%d')
             # Scan Hour giữ nguyên giờ quét gốc
             df.loc[is_bn_hub, 'Scan Hour'] = df.loc[is_bn_hub, 'scantime_dt'].dt.hour.fillna(-1).astype(int)
 
