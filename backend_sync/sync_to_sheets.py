@@ -432,18 +432,22 @@ def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end
         return []
 
     df = pd.DataFrame(all_records)
-    # Tính Ngày vận hành (cycle 6h–6h)
     df['scantime_dt'] = pd.to_datetime(df.get('scantime'), errors='coerce')
-    
-    # Logic đặc biệt cho BN HUB: cộng thêm 36 giờ vào thời gian xuất phát
-    # để khớp chính xác với chu kỳ di chuyển Bắc-Nam (~34-36 tiếng).
-    if 'scansitename' in df.columns:
-        is_bn_hub = df['scansitename'].astype(str).str.strip().str.upper() == 'BN HUB'
-        df.loc[is_bn_hub, 'scantime_dt'] = df.loc[is_bn_hub, 'scantime_dt'] + pd.Timedelta(hours=36)
-        df = df.rename(columns={'scansitename': 'Pickup_station'})
-        
     df['Ngày vận hành'] = (df['scantime_dt'] - pd.Timedelta(hours=6)).dt.strftime('%Y-%m-%d')
     df['Scan Hour']     = df['scantime_dt'].dt.hour.fillna(-1).astype(int)
+
+    # Logic đặc biệt cho BN HUB:
+    # 1. Ngày vận hành = Ngày xuất phát thực tế + 1 ngày (để khớp ngày cập bến HCM HUB).
+    # 2. Scan Hour giữ nguyên giờ quét gốc của bưu cục phát.
+    if 'scansitename' in df.columns:
+        df = df.rename(columns={'scansitename': 'Pickup_station'})
+        is_bn_hub = df['Pickup_station'].astype(str).str.strip().str.upper() == 'BN HUB'
+        if is_bn_hub.any():
+            # Ngày vận hành mới = Ngày xuất phát gốc + 1 ngày
+            df.loc[is_bn_hub, 'Ngày vận hành'] = (df.loc[is_bn_hub, 'scantime_dt'] + pd.Timedelta(days=1)).dt.strftime('%Y-%m-%d')
+            # Scan Hour giữ nguyên giờ quét gốc
+            df.loc[is_bn_hub, 'Scan Hour'] = df.loc[is_bn_hub, 'scantime_dt'].dt.hour.fillna(-1).astype(int)
+
     df = df.drop(columns=['scantime_dt'], errors='ignore')
     
     print(f'   ✅ Arrival raw: {len(df):,} dòng từ {len(stations)} bưu cục.')
@@ -831,6 +835,9 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             # For Dispatch, use dispatchNetworkTime as the dispatch time reference
             fc_time = str(r.get('dispatchNetworkTime') or r.get('updateTime') or '').strip()
             pick_time = wb_to_pickup.get(waybill, '')
+            # Fallback nếu pick_time trống: dùng fc_time
+            if not pick_time or pick_time.lower() in ('nan', 'none'):
+                pick_time = fc_time
             if fc_mapped and waybill:
                 rows_to_aggregate.append({
                     'fc': fc_mapped,
@@ -854,6 +861,11 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc):
             ib_date = str(r.get('scanDate', '')).strip()
             pick_time = wb_to_pickup.get(waybill, '')
             fc_time = wb_to_forecast.get(waybill, '')
+            # Fallback nếu rỗng:
+            if not fc_time or fc_time.lower() in ('nan', 'none'):
+                fc_time = ib_date
+            if not pick_time or pick_time.lower() in ('nan', 'none'):
+                pick_time = fc_time
             if fc_mapped and waybill:
                 rows_to_aggregate.append({
                     'fc': fc_mapped,
