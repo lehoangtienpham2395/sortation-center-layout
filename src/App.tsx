@@ -338,7 +338,7 @@ function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, onEnter, onLeave
 export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [sidebarHovered, setSidebarHovered] = useState(false);
-  const [currentView, setCurrentView] = useState<'master' | 'inbound'>('master');
+  const [currentView, setCurrentView] = useState<'master' | 'inbound'>('inbound');
   const [inboundData, setInboundData] = useState<any[]>([]);
   const [linehaulData, setLinehaulData] = useState<any[]>([]);
   const [arrivalData, setArrivalData] = useState<any[]>([]);
@@ -347,7 +347,7 @@ export default function App() {
   const [showTelemetry, setShowTelemetry] = useState(true);
   const [showControls, setShowControls] = useState(true);
   const [showTop10, setShowTop10] = useState(true);
-  const [activeTab, setActiveTab] = useState<'layout' | 'inbound' | 'top10' | 'stats'>('layout');
+  const [activeTab, setActiveTab] = useState<'layout' | 'inbound' | 'top10' | 'stats'>('inbound');
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
   const [data,       setData]       = useState<any>(generateMockData());
   const [utilTotal,  setUtilTotal]  = useState('0.0');
