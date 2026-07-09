@@ -1359,23 +1359,23 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
             op_date_pk = get_operating_date(pk_time)
             
         # 3. Drop Type (Loại rớt)
-        if status == "Đã về Hub":
-            loai_rot = "Rớt hôm nay"
-        else:
-            if op_date_fc:
-                if op_date_pk:
-                    if op_date_fc == op_date_pk:
-                        loai_rot = "Rớt hôm nay"
-                    else:
-                        loai_rot = "Rớt hôm trước"
+        # Fix: áp dụng logic phân loại đúng cho mọi status (kể cả "Đã về Hub")
+        # "Rớt hôm nay"  = Forecast = Pickup (đơn được lấy đúng ngày kế hoạch)
+        # "Rớt hôm trước" = Forecast ≠ Pickup hoặc Forecast cũ hơn ngày hiện tại
+        if op_date_fc:
+            if op_date_pk:
+                if op_date_fc == op_date_pk:
+                    loai_rot = "Rớt hôm nay"
                 else:
-                    if op_date_fc < current_op_date:
-                        loai_rot = "Rớt hôm trước"
-                    else:
-                        loai_rot = "Rớt hôm nay"
+                    loai_rot = "Rớt hôm trước"
             else:
-                loai_rot = "Rớt hôm nay"
-                
+                if op_date_fc < current_op_date:
+                    loai_rot = "Rớt hôm trước"
+                else:
+                    loai_rot = "Rớt hôm nay"
+        else:
+            loai_rot = "Rớt hôm nay"
+            
         # 4. Format Hours
         ib_hour = ""
         if ib_time:
