@@ -1180,6 +1180,9 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
                 missing_wbs.append(wb)
                 
         missing_wbs = list(set(missing_wbs))
+        # Limit to max 160 waybills per run to prevent excessive JFS direct queries
+        missing_wbs = missing_wbs[:160]
+        
         if missing_wbs and session and token_mgr and fh and fp:
             print(f"   ℹ️ Phát hiện {len(missing_wbs)} đơn Inbound thiếu mốc giờ lấy hàng. Tiến hành truy vấn trực tiếp JFS...")
             chunk_size = 80
@@ -1220,6 +1223,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
                     if isinstance(fc_res, dict):
                         fc_res = fc_res.get('records', []) or []
                         
+                    resolved_wbs = set()
                     for item in fc_res:
                         if not isinstance(item, dict):
                             continue
@@ -1230,6 +1234,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
                         if wb and pk and pk.lower() not in ('nan', 'none'):
                             db_waybill_times[wb] = (pk, disp)
                             resolved_count += 1
+                            resolved_wbs.add(wb)
                             
                             # Cache in SQLite
                             if c_db:
@@ -1241,6 +1246,21 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
                                     """, (pk, disp, pk, wb))
                                 except Exception:
                                     pass
+                                    
+                    # Mark unresolved ones as 'N/A' to avoid querying again
+                    for wb in chunk:
+                        if wb not in resolved_wbs:
+                            db_waybill_times[wb] = ('N/A', '')
+                            if c_db:
+                                try:
+                                    c_db.execute("""
+                                        UPDATE inventory 
+                                        SET Pickup_time = 'N/A'
+                                        WHERE waybillNo = ?
+                                    """, (wb,))
+                                except Exception:
+                                    pass
+                                    
                 except Exception as e_q:
                     print(f"   ⚠️ Lỗi truy vấn JFS cho chunk {i//chunk_size}: {e_q}")
                     
@@ -1250,7 +1270,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
                     conn_db.close()
                 except Exception:
                     pass
-            print(f"   ✅ Đã phân tích & bổ sung thành công {resolved_count} mốc thời gian từ JFS.")
+            print(f"   ✅ Đã phân tích & bổ sung thành công {resolved_count} mốc thời gian từ JFS (giới hạn 160 đơn).")
 
         # B. Map Inbound scanDate to awb_records
         for _, r in df_in_raw.iterrows():

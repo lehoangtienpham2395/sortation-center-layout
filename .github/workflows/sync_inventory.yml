@@ -70,6 +70,7 @@ jobs:
         SYSTEM_PASSWORD: ${{ secrets.SYSTEM_PASSWORD }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_REPO: ${{ github.repository }}
+        PYTHONUNBUFFERED: "1"
       run: |
         python backend_sync/sync_to_sheets.py
 
