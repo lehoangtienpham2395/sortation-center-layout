@@ -438,7 +438,7 @@ export default function App() {
 
     rawSheetRows.forEach(row => {
       if (row.date === selectedDate) {
-        const key = `${row.zone}_${row.areaId}`;
+        const key = row.areaId; // Fix: dùng areaId làm key (unique) thay vì zone_areaId để tránh mismatch khi Zone là chữ ("A") vs số (1)
         if (row.type === selectedType && selectedType !== 'Inventory') {
           selectedMap[key] = row;
         }
@@ -461,7 +461,7 @@ export default function App() {
     // Update static lists (prefer inventoryMap > selectedMap > backlogMap for names)
     const updateListName = (list: any[]) => {
       list.forEach(item => {
-        const key = `${item.zone}_${item.areaId}`;
+        const key = item.areaId; // Fix: dùng areaId làm key (unique)
         const invEntry = inventoryMap[key];
         const activeItem = selectedMap[key] || backlogMap[key];
         const name = invEntry?.buuCuc || activeItem?.buuCuc;
@@ -486,7 +486,7 @@ export default function App() {
       let backlogCurrent = 0;
 
       const isTruck = curr.areaId.startsWith('T');
-      const key = curr.zone ? `${curr.zone}_${curr.areaId}` : null;
+      const key = curr.areaId || null; // Fix: dùng areaId làm key (unique)
 
       if (key) {
         const item = selectedType === 'Inventory' ? null : selectedMap[key];
