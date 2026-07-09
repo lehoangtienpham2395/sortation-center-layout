@@ -19,12 +19,19 @@ function parseHourAndCheckDate(val: any, activeDate: string, loaiRot: string): n
     const datePart = parts[0];
     const timePart = parts[1] || '';
     
-    if (datePart !== activeDate) {
-      return -1;
-    }
-    
     const hour = parseInt(timePart.split(':')[0], 10);
     if (!isNaN(hour) && hour >= 0 && hour < 24) {
+      // Calculate operating date: if hour < 6, it belongs to the previous day
+      let opDate = datePart;
+      if (hour < 6) {
+        const d = new Date(datePart);
+        d.setDate(d.getDate() - 1);
+        opDate = d.toISOString().split('T')[0];
+      }
+      
+      if (opDate !== activeDate) {
+        return -1;
+      }
       return hour;
     }
   }

@@ -1299,9 +1299,9 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
                 pass
                 
         fc_hour = ""
-        if fc_time:
+        if fc_time_temp:
             try:
-                fc_hour = pd.to_datetime(fc_time).strftime('%Y-%m-%d %H:00')
+                fc_hour = pd.to_datetime(fc_time_temp).strftime('%Y-%m-%d %H:00')
             except Exception:
                 pass
                 
