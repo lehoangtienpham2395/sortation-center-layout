@@ -1042,128 +1042,91 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
     except Exception as e_db:
         print(f"   ⚠️ Lỗi load mốc thời gian từ SQLite: {e_db}")
 
-    # Build dictionary of waybill -> forecast_time (dispatchNetworkTime) from Dispatch
-    wb_to_forecast = {}
+    awb_records = {}
+
     df_dp_raw = pd.DataFrame(results.get('dispatch', []))
+    df_fc_raw = pd.DataFrame(results.get('forecast', []))
+    df_in_raw = pd.DataFrame(results.get('inbound', []))
+
+    # --- Step 1 & 2: Unified AWB Mapping & Deduplication ---
+    
+    # 1. Process Dispatch first (primary dataset)
     if not df_dp_raw.empty:
         for _, r in df_dp_raw.iterrows():
             wb = str(r.get('waybillNo') or r.get('waybillId', '')).strip()
-            pk = str(r.get('dispatchNetworkTime') or r.get('updateTime') or '').strip()
-            if wb and pk and pk.lower() not in ('nan', 'none'):
-                wb_to_forecast[wb] = pk
+            if not wb or wb.lower() in ('nan', 'none', ''):
+                continue
+            
+            fc = str(r.get('pickNetworkName', '')).strip()
+            fc_mapped = d_buucuc.get(fc, fc)
+            weight = float(r.get('packageChargeWeight') or r.get('weight') or 0.0)
+            
+            # Map raw dispatch values
+            dispatch_time = str(r.get('dispatchNetworkTime') or '').strip()
+            status_dp = str(r.get('orderStatusName') or '').strip()
+            update_time = str(r.get('updateTime') or '').strip()
+            
+            # Pickup Time is updateTime if status is 'Đã lấy hàng'
+            pickup_time = ''
+            if status_dp == 'Đã lấy hàng' and update_time and update_time.lower() not in ('nan', 'none'):
+                pickup_time = update_time
                 
-    # Build dictionary of waybill -> actual_pickup_time (deliveryTime) from Forecast sheet
-    wb_to_pickup = {}
-    df_fc_raw = pd.DataFrame(results.get('forecast', []))
+            awb_records[wb] = {
+                'waybill': wb,
+                'fc': fc_mapped,
+                'weight': weight,
+                'forecast_time': dispatch_time if (dispatch_time and dispatch_time.lower() not in ('nan', 'none')) else '',
+                'pickup_time': pickup_time,
+                'inbound_time': '',
+                'source': 'Dispatch'
+            }
+
+    # 2. Process Forecast (map/merge into Dispatch, or create new record if missing)
     if not df_fc_raw.empty:
         for _, r in df_fc_raw.iterrows():
             wb = str(r.get('waybillNo', '')).strip()
-            pk = str(r.get('deliveryTime') or '').strip()
-            if wb and pk and pk.lower() not in ('nan', 'none'):
-                wb_to_pickup[wb] = pk
-
-    rows_to_aggregate = []
-
-    # 0. Nạp các đơn Chưa về HUB lịch sử từ SQLite để bám đuổi sản lượng rớt cũ
-    db_outstanding = []
-    try:
-        conn = sqlite3.connect(DB_FILE)
-        c = conn.cursor()
-        c.execute("""
-            SELECT waybillNo, data_source, weight, pickNetworkName, dispatch_plan, 
-                   Pickup_time, dispatchNetworkTime, time_ref 
-            FROM inventory 
-            WHERE (inbound_scanDate IS NULL OR inbound_scanDate = '' OR inbound_scanDate = 'nan') 
-              AND status_order != 'Đã rời HUB'
-        """)
-        rows = c.fetchall()
-        for r in rows:
-            db_outstanding.append({
-                'fc': d_buucuc.get(r[3], r[3]) if r[3] else '',
-                'waybill': r[0],
-                'weight': r[2] if r[2] else 0.0,
-                'status': r[1],
-                'ib_date': '',
-                'forecast_time': r[6] if r[6] else '',
-                'pickup_time': r[5] if r[5] else '',
-                'time_ref': r[7] if r[7] else ''
-            })
-        conn.close()
-        print(f"   ℹ| Load được {len(db_outstanding):,} đơn chưa về HUB từ SQLite state store.")
-    except Exception as e_db:
-        print(f"   ⚠️ Lỗi đọc đơn chưa về HUB từ SQLite: {e_db}")
-
-    rows_to_aggregate.extend(db_outstanding)
-    
-    # 1. Forecast
-    if not df_fc_raw.empty:
-        for _, r in df_fc_raw.iterrows():
-            fc = str(r.get('pickNetworkName', '')).strip()
-            fc_mapped = d_buucuc.get(fc, fc)
-            waybill = str(r.get('waybillNo', '')).strip()
-            w = float(r.get('loadWeight') or 0.0)
-            t_ref = r.get('deliveryTime')
-            # ✅ Đơn Forecast chưa được lấy thực tế, không có thời gian Actual Pickup
-            pick_time = ''
-            if fc_mapped and waybill:
-                rows_to_aggregate.append({
-                    'fc': fc_mapped,
-                    'waybill': waybill,
-                    'weight': w,
-                    'status': 'Forecast',
-                    'ib_date': '',
-                    'forecast_time': wb_to_forecast.get(waybill, ''),  # dispatchNetworkTime từ Dispatch lookup
-                    'pickup_time': pick_time,
-                    'time_ref': t_ref
-                })
+            if not wb or wb.lower() in ('nan', 'none', ''):
+                continue
+            
+            delivery_time = str(r.get('deliveryTime') or '').strip()
+            if delivery_time.lower() in ('nan', 'none'):
+                delivery_time = ''
                 
-    # 2. Dispatch
-    if not df_dp_raw.empty:
-        for _, r in df_dp_raw.iterrows():
             fc = str(r.get('pickNetworkName', '')).strip()
             fc_mapped = d_buucuc.get(fc, fc)
-            waybill = str(r.get('waybillNo') or r.get('waybillId', '')).strip()
-            w = float(r.get('packageChargeWeight') or 0.0)
-            status = str(r.get('orderStatusName') or 'Dispatch').strip()
-            t_ref = r.get('dispatchNetworkTime') or r.get('updateTime')
-            # For Dispatch, use dispatchNetworkTime as the dispatch time reference
-            fc_time = str(r.get('dispatchNetworkTime') or r.get('updateTime') or '').strip()
-            # ✅ Chỉ tính là Shipper đã lấy (Actual Pickup) nếu trạng thái là 'Đã lấy hàng'
-            if status == 'Đã lấy hàng':
-                # Ưu tiên lấy updateTime (thời gian lấy thực tế) trực tiếp từ Dispatch API
-                pick_time = str(r.get('updateTime') or '').strip()
-                if not pick_time or pick_time.lower() in ('nan', 'none'):
-                    pick_time = wb_to_pickup.get(waybill, '')
-                if not pick_time or pick_time.lower() in ('nan', 'none'):
-                    pick_time = fc_time
+            weight = float(r.get('loadWeight') or 0.0)
+            
+            if wb in awb_records:
+                # Merge: if pickup_time is empty, use delivery_time as fallback
+                if not awb_records[wb]['pickup_time'] and delivery_time:
+                    awb_records[wb]['pickup_time'] = delivery_time
             else:
-                pick_time = ''
-                
-            if fc_mapped and waybill:
-                rows_to_aggregate.append({
+                # Create new record
+                awb_records[wb] = {
+                    'waybill': wb,
                     'fc': fc_mapped,
-                    'waybill': waybill,
-                    'weight': w,
-                    'status': status if status != 'nan' else 'Dispatch',
-                    'ib_date': '',
-                    'forecast_time': fc_time,
-                    'pickup_time': pick_time,
-                    'time_ref': t_ref
-                })
+                    'weight': weight,
+                    'forecast_time': '',
+                    'pickup_time': delivery_time,
+                    'inbound_time': '',
+                    'source': 'Forecast'
+                }
 
-    # 3. Inbound
-    df_in_raw = pd.DataFrame(results.get('inbound', []))
+    # 3. Process Inbound (map scanDate into each record)
     if not df_in_raw.empty:
-        # --- BƯỚC BỔ SUNG TRUY VẤN ON-DEMAND JFS CHO CÁC ĐƠN THIẾU MỐC GIỜ ---
+        # A. On-Demand JFS query to fetch missing pickup/dispatch times for inbound bills
         missing_wbs = []
         for _, r in df_in_raw.iterrows():
-            waybill = str(r.get('billNo') or r.get('waybillNo', '')).strip()
-            if not waybill:
+            wb = str(r.get('billNo') or r.get('waybillNo', '')).strip()
+            if not wb or wb.lower() in ('nan', 'none', ''):
                 continue
-            pk_db, _ = db_waybill_times.get(waybill, ('', ''))
-            pick_time = pk_db if pk_db else wb_to_pickup.get(waybill, '')
-            if not pick_time or pick_time.lower() in ('nan', 'none'):
-                missing_wbs.append(waybill)
+            
+            # Check if this waybill has missing pickup_time in our in-memory map or SQLite
+            pk_db, _ = db_waybill_times.get(wb, ('', ''))
+            pk_mem = awb_records.get(wb, {}).get('pickup_time', '')
+            
+            if not pk_db and not pk_mem:
+                missing_wbs.append(wb)
                 
         missing_wbs = list(set(missing_wbs))
         if missing_wbs and session and token_mgr and fh and fp:
@@ -1187,13 +1150,11 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
                 chunk = missing_wbs[i:i+chunk_size]
                 payload = fp.copy()
                 payload['waybillNos'] = ",".join(chunk)
-                
                 for k in ['timeStart', 'inputTimeStart', 'timeEnd', 'inputTimeEnd']:
                     if k in payload:
                         payload[k] = ""
                         
                 try:
-                    # Refresh token trước mỗi chunk để tránh lỗi token hết hạn
                     new_token = token_mgr.get_token()
                     headers['authToken'] = new_token
                     headers['Authtoken'] = new_token
@@ -1201,15 +1162,13 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
                     r_fc = session.post(URL_FORECAST, headers=headers, data=payload, timeout=15)
                     raw_json = r_fc.json()
                     
-                    # ✅ Handle: API có thể trả string thay vì dict khi token hết hạn
                     if not isinstance(raw_json, dict):
-                        print(f"   ⚠️ Chunk {i//chunk_size}: API trả về non-dict ({type(raw_json).__name__}), bỏ qua.")
                         continue
                         
                     fc_res = raw_json.get('data', []) or []
                     if isinstance(fc_res, dict):
                         fc_res = fc_res.get('records', []) or []
-                    
+                        
                     for item in fc_res:
                         if not isinstance(item, dict):
                             continue
@@ -1219,9 +1178,9 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
                         
                         if wb and pk and pk.lower() not in ('nan', 'none'):
                             db_waybill_times[wb] = (pk, disp)
-                            wb_to_pickup[wb] = pk
                             resolved_count += 1
                             
+                            # Cache in SQLite
                             if c_db:
                                 try:
                                     c_db.execute("""
@@ -1242,184 +1201,144 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
                     pass
             print(f"   ✅ Đã phân tích & bổ sung thành công {resolved_count} mốc thời gian từ JFS.")
 
+        # B. Map Inbound scanDate to awb_records
         for _, r in df_in_raw.iterrows():
+            wb = str(r.get('billNo') or r.get('waybillNo', '')).strip()
+            if not wb or wb.lower() in ('nan', 'none', ''):
+                continue
+                
+            ib_time = str(r.get('scanDate', '')).strip()
+            if ib_time.lower() in ('nan', 'none'):
+                ib_time = ''
+                
+            weight = float(r.get('weight') or 0.0)
             fc = str(r.get('sendSite', '')).strip()
             fc_mapped = d_buucuc.get(fc, fc)
-            waybill = str(r.get('billNo') or r.get('waybillNo', '')).strip()
-            w = float(r.get('weight') or 0.0)
-            ib_date = str(r.get('scanDate', '')).strip()
-            # Lấy mốc thời gian lấy hàng lịch sử từ DB trước nếu có
-            pk_db, disp_db = db_waybill_times.get(waybill, ('', ''))
             
-            pick_time = pk_db if pk_db else wb_to_pickup.get(waybill, '')
-            fc_time = disp_db if disp_db else wb_to_forecast.get(waybill, '')
-            
-            if not pick_time or pick_time.lower() in ('nan', 'none'):
-                pick_time = wb_to_pickup.get(waybill, '')
-            if not fc_time or fc_time.lower() in ('nan', 'none'):
-                fc_time = wb_to_forecast.get(waybill, '')
-
-            # ✅ Không lấy ib_date (thời gian quét nhập HUB lúc 1-2h sáng) làm pickup_time để tránh hiển thị sai lệch giờ lấy hàng thực tế của Shipper
-            if not pick_time or pick_time.lower() in ('nan', 'none'):
-                if fc_time and fc_time.lower() not in ('nan', 'none'):
-                    pick_time = fc_time
-                else:
-                    pick_time = ''
-            if fc_mapped and waybill:
-                rows_to_aggregate.append({
+            if wb in awb_records:
+                awb_records[wb]['inbound_time'] = ib_time
+                if weight > 0:
+                    awb_records[wb]['weight'] = weight
+            else:
+                # Orphan Inbound: Create new record
+                awb_records[wb] = {
+                    'waybill': wb,
                     'fc': fc_mapped,
-                    'waybill': waybill,
-                    'weight': w,
-                    'status': 'Arrival',
-                    'ib_date': ib_date,
-                    'forecast_time': fc_time,
-                    'pickup_time': pick_time,
-                    'time_ref': ib_date
-                })
+                    'weight': weight,
+                    'forecast_time': '',
+                    'pickup_time': '',
+                    'inbound_time': ib_time,
+                    'source': 'Inbound'
+                }
 
-    # Merge / Deduplicate by waybill (highest status: Arrival > Dispatch > Forecast)
-    status_priority = {'Arrival': 3, 'Inbound': 2.5, 'Dispatch': 2, 'Forecast': 1}
-    
-    unique_waybills = {}
-    for r in rows_to_aggregate:
-        wb = r['waybill']
-        stat = r['status']
-        priority = status_priority.get(stat, 0)
+    # 4. Integrate SQLite Cached Times (Fallback for Inbound/Dispatch/Forecast)
+    for wb, rec in awb_records.items():
+        pk_db, disp_db = db_waybill_times.get(wb, ('', ''))
         
-        if 'arrival' in stat.lower() or 'đến' in stat.lower():
-            stat = 'Arrival'
-            priority = 3
-            
-        if wb not in unique_waybills or priority > status_priority.get(unique_waybills[wb]['status'], 0):
-            unique_waybills[wb] = r
-            
+        # If SQLite has Pickup Time and memory record is missing it
+        if pk_db and not rec['pickup_time']:
+            rec['pickup_time'] = pk_db
+        # If SQLite has Dispatch Time and memory record is missing it
+        if disp_db and not rec['forecast_time']:
+            rec['forecast_time'] = disp_db
+
+    # --- Step 4 & 5: Centralized Timestamp Priority & Column Generation ---
+    from zoneinfo import ZoneInfo
     now_vn = datetime.now(ZoneInfo('Asia/Ho_Chi_Minh'))
     current_op_date = get_operating_date(now_vn)
-    grouped = {}
-
-    for wb, r in unique_waybills.items():
-        fc_name = r['fc']
-        status = r['status']
+    
+    unique_rows = []
+    
+    for wb, rec in awb_records.items():
+        ib_time = rec['inbound_time']
+        pk_time = rec['pickup_time']
+        fc_time = rec['forecast_time']
         
-        # Simple Inbound status logic:
-        # If ib_date exists -> "Đã về Hub"
-        # Else -> "Chưa về Hub"
-        # logic ngày vận hành: xác định theo 2 mốc chính:
-        # 1. Inbound Time (r['ib_date']) nếu đơn đã về Hub.
-        # 2. Dispatch Time (r['forecast_time'] đại diện cho dispatchNetworkTime) nếu đơn chưa về Hub.
-        # 3. Fallback: Forecast Time (r['pickup_time'] đại diện cho deliveryTime).
-        ib_date_str = r['ib_date']
-        fc_time_str = r['forecast_time']
-        pk_time_str = r['pickup_time']
-        
-        op_date = ""
-        ib_hour = ""
-        
-        if ib_date_str and str(ib_date_str).strip() not in ('', 'nan', 'None'):
-            status_clean = 'Đã về Hub'
-            try:
-                dt_ib = pd.to_datetime(ib_date_str)
-                ib_hour = dt_ib.strftime('%Y-%m-%d %H:00')
-                op_date = get_operating_date(dt_ib)
-            except Exception:
-                ib_hour = ""
+        # 1. Shipment Status Priority Engine
+        if ib_time:
+            status = "Đã về Hub"
+        elif pk_time:
+            status = "Lấy hàng thành công"
+        elif fc_time:
+            status = "Điều phối bưu cục"
         else:
-            status_clean = 'Chưa về Hub'
+            status = "Forecast"
             
-        # Nếu chưa xác định được op_date (chưa về Hub hoặc lỗi parse), dùng Dispatch Time
+        # 2. Operation Date (Ngày vận hành)
+        op_date = get_operating_date(fc_time)
         if not op_date:
-            if fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None'):
-                try:
-                    dt_fc = pd.to_datetime(fc_time_str)
-                    op_date = get_operating_date(dt_fc)
-                except Exception:
-                    pass
-                    
-        # Fallback tiếp theo dùng Forecast Time
-        if not op_date:
-            if pk_time_str and str(pk_time_str).strip() not in ('', 'nan', 'None'):
-                try:
-                    dt_pk = pd.to_datetime(pk_time_str)
-                    op_date = get_operating_date(dt_pk)
-                except Exception:
-                    pass
-                    
-        # Fallback cuối cùng dùng ngày hiện tại
+            op_date = get_operating_date(pk_time)
         if not op_date:
             op_date = current_op_date
-                
-        # Format pickup time to 'YYYY-MM-DD HH:00'
-        pk_time_str = r['pickup_time']
-        if pk_time_str and str(pk_time_str).strip() not in ('', 'nan', 'None'):
-            try:
-                dt_pk = pd.to_datetime(pk_time_str)
-                pk_hour = dt_pk.strftime('%Y-%m-%d %H:00')
-            except Exception:
-                pk_hour = ""
-        else:
-            pk_hour = ""
-
-        # Format forecast time to 'YYYY-MM-DD HH:00'
-        fc_time_str = r['forecast_time']
-        if fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None'):
-            try:
-                dt_fc = pd.to_datetime(fc_time_str)
-                fc_hour = dt_fc.strftime('%Y-%m-%d %H:00')
-            except Exception:
-                fc_hour = ""
-        else:
-            fc_hour = ""
-
-        # Xác định loại rớt
-        loai_rot = ""
-        
-        # ✅ Đơn Đã về Hub: LUÔN gán 'Rớt hôm nay' vì đây là sản lượng thực tế của ngày vận hành đó.
-        # Không để Dispatch Time cũ làm loai_rot = 'Rớt hôm trước' → khiến Pickup Time bị ẩn khỏi biểu đồ.
-        if status_clean == 'Đã về Hub':
+            
+        # 3. Drop Type (Loại rớt)
+        if status == "Đã về Hub":
             loai_rot = "Rớt hôm nay"
         else:
-            # Chỉ áp dụng logic 'Rớt hôm trước' cho đơn Chưa về Hub
-            ref_time_to_use = fc_time_str if (fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None')) else r['time_ref']
-            
-            if ref_time_to_use and str(ref_time_to_use).strip() not in ('', 'nan', 'None'):
-                try:
-                    dt_fc = pd.to_datetime(ref_time_to_use)
-                    op_date_dt = pd.to_datetime(op_date)
-                    
-                    if dt_fc.date() < op_date_dt.date():
-                        loai_rot = "Rớt hôm trước"
-                    else:
-                        threshold_dt = op_date_dt + timedelta(hours=6)
-                        if dt_fc < threshold_dt:
-                            loai_rot = "Rớt hôm trước"
-                        else:
-                            loai_rot = "Rớt hôm nay"
-                except Exception:
+            if fc_time:
+                dispatch_date = get_operating_date(fc_time)
+                if dispatch_date == op_date:
                     loai_rot = "Rớt hôm nay"
+                else:
+                    loai_rot = "Rớt hôm trước"
             else:
                 loai_rot = "Rớt hôm nay"
+                
+        # 4. Format Hours
+        ib_hour = ""
+        if ib_time:
+            try:
+                ib_hour = pd.to_datetime(ib_time).strftime('%Y-%m-%d %H:00')
+            except Exception:
+                pass
+                
+        fc_hour = ""
+        if fc_time:
+            try:
+                fc_hour = pd.to_datetime(fc_time).strftime('%Y-%m-%d %H:00')
+            except Exception:
+                pass
+                
+        pk_hour = ""
+        if pk_time:
+            try:
+                pk_hour = pd.to_datetime(pk_time).strftime('%Y-%m-%d %H:00')
+            except Exception:
+                pass
+                
+        unique_rows.append({
+            'Bưu cục': rec['fc'],
+            'Trạng thái': status,
+            'weight': rec['weight'],
+            'Ngày vận hành': op_date,
+            'Inbound Hour': ib_hour,
+            'Forecast Time': fc_hour, # mapped to Forecast Time column
+            'Pickup Time': pk_hour,     # mapped to Pickup Time column
+            'Loại rớt': loai_rot,
+            'waybill': wb
+        })
 
-        # Ghi nhận bản ghi chính
-        key = (fc_name, status_clean, op_date, ib_hour, fc_hour, pk_hour, loai_rot)
+    # --- Step 6: Backlog Carryover Projection ---
+    projected_rows = []
+    for r in unique_rows:
+        projected_rows.append(r)
+        # Carry over un-inbounded records from past operating dates to today's date
+        if r['Trạng thái'] != 'Đã về Hub' and r['Ngày vận hành'] < current_op_date:
+            dup = r.copy()
+            dup['Ngày vận hành'] = current_op_date
+            dup['Loại rớt'] = 'Rớt hôm trước'
+            projected_rows.append(dup)
+
+    # --- Step 7: Grouping & Aggregation ---
+    grouped = {}
+    for r in projected_rows:
+        key = (r['Bưu cục'], r['Trạng thái'], r['Ngày vận hành'], r['Inbound Hour'], r['Forecast Time'], r['Pickup Time'], r['Loại rớt'])
         if key not in grouped:
             grouped[key] = {'volume': 0, 'weight': 0.0}
         grouped[key]['volume'] += 1
         grouped[key]['weight'] += r['weight']
-
-        # --- LOGIC CỘNG DỒN CHO ĐƠN CHƯA VỀ HUB TỒN ĐỌNG SANG CÁC NGÀY HÔM SAU ---
-        # Nếu đơn Chưa về Hub của ngày cũ (op_date < current_op_date):
-        # Ta nhân bản thêm 1 bản ghi cho Ngày vận hành hiện tại (current_op_date) với loại rớt 'Rớt hôm trước'
-        # để đơn này xuất hiện ở mục Rớt hôm trước của ngày hôm nay, giúp bám đuổi sản lượng.
-        if status_clean == 'Chưa về Hub' and op_date and current_op_date and op_date < current_op_date:
-            key_today = (fc_name, 'Chưa về Hub', current_op_date, ib_hour, fc_hour, pk_hour, 'Rớt hôm trước')
-            if key_today not in grouped:
-                grouped[key_today] = {'volume': 0, 'weight': 0.0}
-            grouped[key_today]['volume'] += 1
-            grouped[key_today]['weight'] += r['weight']
         
-    # Convert grouped to DataFrame
     final_rows = []
-    
     for (fc_name, status, op_date, ib_hour, fc_hour, pk_hour, loai_rot), stats in grouped.items():
         final_rows.append({
             'Bưu cục': fc_name,
@@ -1816,18 +1735,26 @@ def run_once(session, token_mgr, rebuild_days=None):
 
     is_rebuild = rebuild_days is not None
     
-    if is_rebuild:
-        print(f"🔄 ĐANG CHẠY CHẾ ĐỘ REBUILD: {rebuild_days} ngày")
-        DATE_START = (now - timedelta(days=rebuild_days)).strftime('%Y-%m-%d') + ' 06:00:00'
-        DATE_END   = now.strftime('%Y-%m-%d %H:%M:%S')  # Query up to current second
-        run_outbound = True
-        run_backlog_inv = True
-    else:
-        # Chạy 24/7 để đảm bảo dữ liệu luôn được đồng bộ khi có kích hoạt hoặc chạy định kỳ
-        DATE_START = (now - timedelta(days=2)).strftime('%Y-%m-%d') + ' 06:00:00'
-        DATE_END   = now.strftime('%Y-%m-%d %H:%M:%S')  # Query up to current second
-        run_outbound = True
-        run_backlog_inv = True
+    last_run_file = os.path.join(BASE_DIR, "db", "last_run.txt")
+    last_run_dt = None
+    if not is_rebuild and os.path.exists(last_run_file):
+        try:
+            with open(last_run_file, "r") as f:
+                val = f.read().strip()
+                if val:
+                    last_run_dt = datetime.strptime(val, '%Y-%m-%d %H:%M:%S').replace(tzinfo=tz_vn)
+        except Exception:
+            pass
+
+    if not last_run_dt:
+        last_run_dt = now - timedelta(days=4)
+
+    DATE_START_STANDARD = (now - timedelta(days=4)).strftime('%Y-%m-%d') + ' 06:00:00'
+    DATE_START_DISPATCH = (last_run_dt - timedelta(minutes=30)).strftime('%Y-%m-%d %H:%M:%S')
+    DATE_END   = now.strftime('%Y-%m-%d %H:%M:%S')
+
+    run_outbound = True
+    run_backlog_inv = True
 
     # Sync valid config sheet if possible
     creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
@@ -1844,7 +1771,7 @@ def run_once(session, token_mgr, rebuild_days=None):
 
     print("\n" + "=" * 60)
     print(f"🕐 Bắt đầu : {now.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"📅 Range   : {DATE_START} → {DATE_END}")
+    print(f"📅 Range (Standard): {DATE_START_STANDARD} → {DATE_END}\n📅 Range (Dispatch): {DATE_START_DISPATCH} → {DATE_END}")
     print("=" * 60)
 
     # Copy external valid.csv if exists
@@ -1859,6 +1786,28 @@ def run_once(session, token_mgr, rebuild_days=None):
 
     print("\n📋 Load valid.csv...")
     d_sortcode, d_buucuc, d_tuyen, d_rank = load_valid(VALID_FILE)
+
+    print("\n📋 Load Thong_tin_co_ban.csv...")
+    d_thong_tin = {}
+    tt_file = r"C:\Users\lehoa\.gemini\antigravity\dulieu\Thong_tin_co_ban.csv"
+    if not os.path.exists(tt_file):
+        tt_file = os.path.join(BASE_DIR, "config", "Thong_tin_co_ban.csv")
+    if os.path.exists(tt_file):
+        try:
+            df_tt = pd.read_csv(tt_file, encoding='utf-8-sig')
+            df_tt.columns = df_tt.columns.str.strip()
+            for _, row in df_tt.iterrows():
+                code = str(row.get('Mã điểm tiếp theo') or '').strip().upper()
+                if code:
+                    d_thong_tin[code] = {
+                        'ten_gd': str(row.get('Tên điểm GD') or '').strip(),
+                        'ten_tiep_theo': str(row.get('Tên điểm tiếp theo') or '').strip()
+                    }
+            print(f"   ✅ Đã nạp {len(d_thong_tin)} mã phân loại từ Thong_tin_co_ban.csv")
+        except Exception as ex_tt:
+            print(f"   ⚠️ Lỗi nạp Thong_tin_co_ban.csv: {ex_tt}")
+    else:
+        print(f"   ⚠️ Không tìm thấy Thong_tin_co_ban.csv tại {tt_file}")
 
     print("\n🔐 Kiểm tra token (in-memory)...")
     if not token_mgr.get_token():
@@ -1875,17 +1824,17 @@ def run_once(session, token_mgr, rebuild_days=None):
 
     fh = load_json(os.path.join(BASE_DIR, "config", "forecastheaders.json"))
     fp = load_json(os.path.join(BASE_DIR, "config", "forecastpayload.json"))
-    for k in ['timeStart', 'inputTimeStart']: fp[k] = DATE_START
+    for k in ['timeStart', 'inputTimeStart']: fp[k] = DATE_START_STANDARD
     for k in ['timeEnd', 'inputTimeEnd']:     fp[k] = DATE_END
 
     ih = load_json(os.path.join(BASE_DIR, "config", "inboundheaders.json"))
     ip = load_json(os.path.join(BASE_DIR, "config", "inboundpayload.json"))
-    ip['beginDate'] = DATE_START; ip['endDate'] = DATE_END
+    ip['beginDate'] = DATE_START_STANDARD; ip['endDate'] = DATE_END
     i_params = {'sqlCode': ip.get('sqlCode', ''), 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693', 'routeName': ih.get('routeName', '')}
 
     oh = load_json(os.path.join(BASE_DIR, "config", "outboundheaders.json"))
     op = load_json(os.path.join(BASE_DIR, "config", "outboundpayload.json"))
-    op['beginDate'] = DATE_START; op['endDate'] = DATE_END
+    op['beginDate'] = DATE_START_STANDARD; op['endDate'] = DATE_END
     o_params = {'sqlCode': op.get('sqlCode', ''), 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693', 'routeName': oh.get('routeName', '')}
 
     bh = load_json(os.path.join(BASE_DIR, "config", "backlogheaders.json"))
@@ -1895,11 +1844,11 @@ def run_once(session, token_mgr, rebuild_days=None):
 
     dh = load_json(os.path.join(BASE_DIR, "config", "dispatchheaders.json"))
     dp_cfg = load_json(os.path.join(BASE_DIR, "config", "dispatchpayload.json"))
-    dp_cfg['startInputTime'] = DATE_START; dp_cfg['endInputTime'] = DATE_END
+    dp_cfg['startInputTime'] = DATE_START_DISPATCH; dp_cfg['endInputTime'] = DATE_END
 
     lh_h = load_json(os.path.join(BASE_DIR, "config", "linehaulheaders.json"))
     lh_p = load_json(os.path.join(BASE_DIR, "config", "linehaulpayload.json"))
-    lh_p['startScanTime'] = DATE_START
+    lh_p['startScanTime'] = DATE_START_STANDARD
     lh_p['endScanTime'] = DATE_END
     lh_params = {'sqlCode': lh_p.get('sqlCode', ''), 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693', 'routeName': lh_h.get('routeName', '')}
 
@@ -1912,7 +1861,7 @@ def run_once(session, token_mgr, rebuild_days=None):
             ex.submit(pull_scan, session, token_mgr, URL_SCAN, bh, b_params, bp, 'Backlog'): 'backlog',
             ex.submit(pull_dispatch, session, token_mgr, dh, dp_cfg): 'dispatch',
             ex.submit(pull_scan, session, token_mgr, URL_LINEHAUL, lh_h, lh_params, lh_p, 'Linehaul'): 'linehaul',
-            ex.submit(pull_arrival_from_jfs, session, arrival_token_mgr, ih, DATE_START, DATE_END): 'arrival',
+            ex.submit(pull_arrival_from_jfs, session, arrival_token_mgr, ih, DATE_START_STANDARD, DATE_END): 'arrival',
         }
         if run_outbound:
             futures[ex.submit(pull_scan, session, token_mgr, URL_SCAN, oh, o_params, op, 'Outbound')] = 'outbound'
@@ -2138,240 +2087,549 @@ def run_once(session, token_mgr, rebuild_days=None):
         df_out = df_out.sort_values('scanDate').groupby('billNo', as_index=False).last()[['billNo', 'scanDate', 'upOrNextStation']]
         df_out.rename(columns={'scanDate': 'outbound_scanDate', 'upOrNextStation': 'dispatch_actual'}, inplace=True)
 
-    df = df_all.copy()
-    if not df_in.empty:
-        df = df.merge(df_in,  left_on='waybillNo', right_on='billNo', how='left').drop(columns=['billNo'], errors='ignore')
-    if not df_out.empty:
-        df = df.merge(df_out, left_on='waybillNo', right_on='billNo', how='left').drop(columns=['billNo'], errors='ignore')
-
-    # Exclude Forecast rows that were already Outbound in a previous operating ca (outbound scan date before 6:00 AM of today, or operating date of outbound is prior to today)
-    if 'outbound_scanDate' in df.columns:
-        def is_prior_outbound(row):
-            if row.get('data_source') != 'Forecast':
-                return False
-            out_val = row.get('outbound_scanDate')
-            if not out_val or pd.isna(out_val) or str(out_val).strip() in ('', 'nan', 'None'):
-                return False
-            try:
-                # Parse outbound scan date and get its operating date
-                dt_out = pd.to_datetime(out_val)
-                op_date_out = get_operating_date(dt_out)
-                
-                # Get the row's operating date from forecast reference time
-                t_ref = row.get('time_ref')
-                if t_ref:
-                    op_date_row = get_operating_date(t_ref)
-                else:
-                    op_date_row = get_operating_date(now)
-                
-                # If outbound happened in a prior operating date, exclude it
-                return op_date_out < op_date_row
-            except Exception:
-                return False
-
-        is_prior = df.apply(is_prior_outbound, axis=1)
-        print(f"   ℹ| Loại bỏ {is_prior.sum()} đơn Forecast đã Outbound từ ca vận hành trước.")
-        df = df[~is_prior].copy()
-
-    # ✅ Loại bỏ fallback dùng inbound_scanDate làm Pickup_time của Backlog để tránh hiển thị 1-2h sáng
-    # Đơn Backlog không có Pickup_time thực tế từ JFS sẽ được giữ trống.
-
-    # ── pickup_label & Pickup_ontime ──
-    def assign_pickup_labels(row):
-        disp = str(row.get('dispatchNetworkTime', '')).strip()
-        pick = str(row.get('Pickup_time', '')).strip()
-        if not disp or disp == 'nan' or not pick or pick == 'nan':
-            return '', ''
-        try:
-            d_disp = disp[:10]
-            d_pick = pick[:10]
-            if d_disp == d_pick:
-                return 'Lấy trong ngày', 'YES'
-            elif d_disp < d_pick:
-                return 'Lấy ngày hôm sau', 'NO'
-            else:
-                return '', 'NO'
-        except Exception:
-            return '', ''
-
-    df[['pickup_label', 'Pickup_ontime']] = df.apply(
-        assign_pickup_labels, axis=1, result_type='expand'
-    )
-
-    # ── build_status ──
-    def has_value(val):
-        return pd.notna(val) and str(val).strip() not in ('', 'nan', 'None')
-
-    def build_status(row):
-        # 1. Đã rời HUB
-        if has_value(row.get('outbound_scanDate')):
-            return 'Đã rời HUB'
-
-        # 2. Đang trên bãi (Đã quét nhập kho HUB)
-        if has_value(row.get('inbound_scanDate')):
-            return 'Đang trên bãi'
-
-        # 3. Đã lấy hàng (Gộp Đã lấy hàng và các đơn chưa về HUB thuộc Forecast/Dispatch thô)
-        if has_value(row.get('Pickup_time')) or row.get('data_source') == 'Forecast':
-            return 'Đã lấy hàng'
-
-        # 4. Đã điều phối bưu cục (Mức ưu tiên thấp nhất)
-        return 'Đã điều phối bưu cục'
-
-    df['status_order'] = df.apply(build_status, axis=1)
-
-    df['Tuyến'] = df['next_station'].map(d_tuyen).fillna('')
-    df['Rank']  = df['next_station'].map(d_rank).fillna('')
-
-    col_order = [
-        'waybillNo', 'data_source', 'weight',
-        'pickNetworkName', 'dispatch_plan',
-        'Pickup_time', 'pickup_label', 'Pickup_ontime',
-        'dispatchNetworkTime',
-        'next_station', 'Tuyến', 'Rank',
-        'inbound_network', 'inbound_scanDate',
-        'outbound_scanDate', 'dispatch_actual',
-        'status_order'
-    ]
-    df = df[[c for c in col_order if c in df.columns]]
-
-    # Khởi tạo SQLite DB và UPSERT dữ liệu thô
-    init_db()
-    
-    print("\n💾 Đang lưu dữ liệu thô vào SQLite Database cục bộ...")
+    # --- Step 3: Load historical SQLite state.db inventory table ---
+    db_records = {}
     try:
         conn = sqlite3.connect(DB_FILE)
         c = conn.cursor()
-        
-        # ⚡ TỐI ƯU HÓA HIỆU NĂNG GHI CỰC ĐẠI
-        c.execute("PRAGMA journal_mode = WAL")
-        c.execute("PRAGMA synchronous = OFF")
-        c.execute("PRAGMA cache_size = -64000")
-        c.execute("PRAGMA temp_store = MEMORY")
-        
-        # Chuẩn bị dữ liệu để UPSERT
-        # Đảm bảo time_ref có giá trị chính xác cho cả Forecast (Pickup_time) và Dispatch (dispatchNetworkTime)
-        if 'time_ref' not in df.columns:
-            df['time_ref'] = ''
-        df['time_ref'] = df['time_ref'].fillna('').astype(str).str.strip()
-        
-        # Fallback 1: Nếu rỗng, lấy dispatchNetworkTime (thời gian điều phối của Dispatch)
-        is_empty = df['time_ref'] == ''
-        if is_empty.any() and 'dispatchNetworkTime' in df.columns:
-            df.loc[is_empty, 'time_ref'] = df.loc[is_empty, 'dispatchNetworkTime'].fillna('').astype(str).str.strip()
-            
-        # Fallback 2: Nếu vẫn rỗng, lấy Pickup_time (thời gian lấy hàng/forecast của Forecast)
-        is_empty2 = df['time_ref'] == ''
-        if is_empty2.any() and 'Pickup_time' in df.columns:
-            df.loc[is_empty2, 'time_ref'] = df.loc[is_empty2, 'Pickup_time'].fillna('').astype(str).str.strip()
-            
-        columns_to_db = [
-            'waybillNo', 'data_source', 'weight', 'pickNetworkName', 'dispatch_plan',
-            'Pickup_time', 'pickup_label', 'Pickup_ontime', 'dispatchNetworkTime',
-            'next_station', 'Tuyến', 'Rank', 'inbound_network', 'inbound_scanDate',
-            'outbound_scanDate', 'dispatch_actual', 'status_order', 'time_ref'
-        ]
-        
-        # Đảm bảo đầy đủ cột trong DataFrame
-        for col in columns_to_db:
-            if col not in df.columns:
-                df[col] = ''
-                
-        db_df = df[columns_to_db].copy()
-        
-        # Convert nan/None to empty string
-        for col in columns_to_db:
-            db_df[col] = db_df[col].fillna('').astype(str).str.strip()
-            
-        # Parse weight to float
-        db_df['weight'] = pd.to_numeric(db_df['weight'], errors='coerce').fillna(0.0).astype(float)
-        
-        # Thực hiện UPSERT an toàn: CHỈ cập nhật Pickup_time nếu giá trị mới KHÔNG rỗng.
-        # Tránh việc INSERT OR REPLACE xóa mất Pickup_time đã lưu khi đơn chuyển sang trạng thái Đang trên bãi.
-        records = db_df.values.tolist()
-        c.executemany("""
-            INSERT INTO inventory (
-                waybillNo, data_source, weight, pickNetworkName, dispatch_plan,
-                Pickup_time, pickup_label, Pickup_ontime, dispatchNetworkTime,
-                next_station, Tuyến, Rank, inbound_network, inbound_scanDate,
-                outbound_scanDate, dispatch_actual, status_order, time_ref,
-                last_updated
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(waybillNo) DO UPDATE SET
-                data_source        = excluded.data_source,
-                weight             = excluded.weight,
-                pickNetworkName    = excluded.pickNetworkName,
-                dispatch_plan      = excluded.dispatch_plan,
-                Pickup_time        = CASE
-                                        WHEN excluded.Pickup_time != '' THEN excluded.Pickup_time
-                                        ELSE inventory.Pickup_time
-                                     END,
-                pickup_label       = CASE
-                                        WHEN excluded.pickup_label != '' THEN excluded.pickup_label
-                                        ELSE inventory.pickup_label
-                                     END,
-                Pickup_ontime      = CASE
-                                        WHEN excluded.Pickup_ontime != '' THEN excluded.Pickup_ontime
-                                        ELSE inventory.Pickup_ontime
-                                     END,
-                dispatchNetworkTime= CASE
-                                        WHEN excluded.dispatchNetworkTime != '' THEN excluded.dispatchNetworkTime
-                                        ELSE inventory.dispatchNetworkTime
-                                     END,
-                next_station       = excluded.next_station,
-                Tuyến              = excluded.Tuyến,
-                Rank               = excluded.Rank,
-                inbound_network    = excluded.inbound_network,
-                inbound_scanDate   = CASE
-                                        WHEN excluded.inbound_scanDate != '' THEN excluded.inbound_scanDate
-                                        ELSE inventory.inbound_scanDate
-                                     END,
-                outbound_scanDate  = CASE
-                                        WHEN excluded.outbound_scanDate != '' THEN excluded.outbound_scanDate
-                                        ELSE inventory.outbound_scanDate
-                                     END,
-                dispatch_actual    = excluded.dispatch_actual,
-                status_order       = excluded.status_order,
-                time_ref           = CASE
-                                        WHEN excluded.time_ref != '' THEN excluded.time_ref
-                                        ELSE inventory.time_ref
-                                     END,
-                last_updated       = CURRENT_TIMESTAMP
-        """, records)
-        
-        conn.commit()
-        print(f"   ✅ Đã UPSERT thành công {len(records)} đơn vào SQLite state store.")
-        
-        # ✅ CLEANUP: Đổi status 'Đang trên bãi' cho các đơn không còn trong Backlog API mới nhất
-        # Tránh tích lũy stale records làm lệch số liệu Backlog sheet
-        try:
-            raw_bl_cleanup = results.get('backlog', [])
-            if raw_bl_cleanup:
-                df_bl_cleanup = pd.DataFrame(raw_bl_cleanup)
-                if 'operate_site_type' in df_bl_cleanup.columns:
-                    df_bl_cleanup = df_bl_cleanup[df_bl_cleanup['operate_site_type'] == 'Trong kho']
-                if 'billcode' in df_bl_cleanup.columns:
-                    live_backlog_wbs = set(df_bl_cleanup['billcode'].astype(str).str.strip().tolist())
-                    if live_backlog_wbs:
-                        # Lấy tất cả waybill đang 'Đang trên bãi' trong DB
-                        c.execute("SELECT waybillNo FROM inventory WHERE status_order = 'Đang trên bãi'")
-                        db_backlog_wbs = {row[0] for row in c.fetchall()}
-                        # Các đơn không còn trong Backlog API → đã rời HUB hoặc đã xuất
-                        stale_wbs = db_backlog_wbs - live_backlog_wbs
-                        if stale_wbs:
-                            c.executemany(
-                                "UPDATE inventory SET status_order = 'Đã rời HUB', last_updated = CURRENT_TIMESTAMP WHERE waybillNo = ?",
-                                [(wb,) for wb in stale_wbs]
-                            )
-                            conn.commit()
-                            print(f"   ✅ Đã dọn dẹp {len(stale_wbs):,} đơn stale 'Đang trên bãi' → 'Đã rời HUB'")
-        except Exception as e_cleanup:
-            print(f"   ⚠️ Lỗi cleanup stale backlog: {e_cleanup}")
-        
+        c.execute("SELECT * FROM inventory")
+        rows = c.fetchall()
+        if rows:
+            col_names = [description[0] for description in c.description]
+            for r in rows:
+                rec = dict(zip(col_names, r))
+                db_records[rec['waybillNo']] = rec
         conn.close()
-    except Exception as ex_db:
-        print(f"   ❌ Lỗi lưu dữ liệu vào SQLite state store: {ex_db}")
+        print(f"   ℹ| Load được {len(db_records):,} đơn lịch sử từ SQLite để thực hiện Incremental Merge.")
+    except Exception as e_db:
+        print(f"   ⚠️ Lỗi load đơn từ SQLite: {e_db}")
+
+    # --- Step 4: Normalize AWB and Merge with 4-day API data ---
+    new_records = {}
     
+    # 1. Dispatch (primary dataset)
+    if not df_dp_lookup.empty:
+        for _, r in df_dp_lookup.iterrows():
+            wb = str(r.get('waybillNo') or '').strip()
+            if not wb or wb.lower() in ('nan', 'none'):
+                continue
+            
+            fc = str(r.get('pickNetworkName', '')).strip()
+            fc_mapped = d_buucuc.get(fc, fc)
+            weight = float(r.get('weight') or r.get('packageChargeWeight') or 0.0)
+            dispatch_plan = str(r.get('dispatch_plan') or '').strip()
+            
+            dispatch_time = str(r.get('dispatchNetworkTime') or '').strip()
+            status_dp = str(r.get('status_order') or '').strip()
+            update_time = str(r.get('updateTime') or '').strip()
+            
+            # Pickup time is updateTime if status is 'Đã lấy hàng'
+            pickup_time = ''
+            if status_dp == 'Đã lấy hàng' and update_time and update_time.lower() not in ('nan', 'none'):
+                pickup_time = update_time
+                
+            next_station = str(r.get('next_station') or '').strip()
+            
+            new_records[wb] = {
+                'waybillNo': wb,
+                'data_source': 'Dispatch',
+                'weight': weight,
+                'pickNetworkName': fc_mapped,
+                'dispatch_plan': dispatch_plan,
+                'dispatchNetworkTime': dispatch_time if (dispatch_time and dispatch_time.lower() not in ('nan', 'none')) else '',
+                'updateTime': update_time if (update_time and update_time.lower() not in ('nan', 'none')) else '',
+                'Pickup_time': pickup_time,
+                'next_station': next_station,
+                'status_order': status_dp,
+                'inbound_scanDate': '',
+                'inbound_network': '',
+                'outbound_scanDate': '',
+                'dispatch_actual': ''
+            }
+
+    # 2. Forecast (merge or add new)
+    if not df_fc.empty:
+        for _, r in df_fc.iterrows():
+            wb = str(r.get('waybillNo') or '').strip()
+            if not wb or wb.lower() in ('nan', 'none'):
+                continue
+            
+            fc = str(r.get('pickNetworkName', '')).strip()
+            fc_mapped = d_buucuc.get(fc, fc)
+            weight = float(r.get('weight') or r.get('loadWeight') or 0.0)
+            dispatch_plan = str(r.get('dispatch_plan') or '').strip()
+            delivery_time = str(r.get('Pickup_time') or r.get('deliveryTime') or '').strip()
+            next_station = str(r.get('next_station') or '').strip()
+            
+            if wb in new_records:
+                # Merge into existing Dispatch record
+                if not new_records[wb]['Pickup_time'] and delivery_time and delivery_time.lower() not in ('nan', 'none'):
+                    new_records[wb]['Pickup_time'] = delivery_time
+            else:
+                # Create a new Forecast record
+                new_records[wb] = {
+                    'waybillNo': wb,
+                    'data_source': 'Forecast',
+                    'weight': weight,
+                    'pickNetworkName': fc_mapped,
+                    'dispatch_plan': dispatch_plan,
+                    'dispatchNetworkTime': '',
+                    'updateTime': '',
+                    'Pickup_time': delivery_time if (delivery_time and delivery_time.lower() not in ('nan', 'none')) else '',
+                    'next_station': next_station,
+                    'status_order': '',
+                    'inbound_scanDate': '',
+                    'inbound_network': '',
+                    'outbound_scanDate': '',
+                    'dispatch_actual': ''
+                }
+
+    # 3. Inbound (merge or add new)
+    if not df_in.empty:
+        for _, r in df_in.iterrows():
+            wb = str(r.get('billNo') or r.get('waybillNo', '')).strip()
+            if not wb or wb.lower() in ('nan', 'none'):
+                continue
+                
+            ib_time = str(r.get('inbound_scanDate') or r.get('scanDate') or '').strip()
+            ib_net = str(r.get('inbound_network') or r.get('sendSite') or '').strip()
+            ib_net_mapped = d_buucuc.get(ib_net, ib_net)
+            
+            if wb in new_records:
+                new_records[wb]['inbound_scanDate'] = ib_time if (ib_time and ib_time.lower() not in ('nan', 'none')) else ''
+                new_records[wb]['inbound_network'] = ib_net_mapped
+            else:
+                # Orphan Inbound
+                new_records[wb] = {
+                    'waybillNo': wb,
+                    'data_source': 'Inbound',
+                    'weight': 0.0,
+                    'pickNetworkName': ib_net_mapped,
+                    'dispatch_plan': '',
+                    'dispatchNetworkTime': '',
+                    'updateTime': '',
+                    'Pickup_time': '',
+                    'next_station': '',
+                    'status_order': '',
+                    'inbound_scanDate': ib_time if (ib_time and ib_time.lower() not in ('nan', 'none')) else '',
+                    'inbound_network': ib_net_mapped,
+                    'outbound_scanDate': '',
+                    'dispatch_actual': ''
+                }
+
+    # 4. Outbound (merge or add new)
+    if not df_out.empty:
+        for _, r in df_out.iterrows():
+            wb = str(r.get('billNo') or r.get('waybillNo', '')).strip()
+            if not wb or wb.lower() in ('nan', 'none'):
+                continue
+                
+            ob_time = str(r.get('outbound_scanDate') or r.get('scanDate') or '').strip()
+            ob_act = str(r.get('dispatch_actual') or r.get('upOrNextStation') or '').strip()
+            ob_act_mapped = d_buucuc.get(ob_act, ob_act)
+            
+            if wb in new_records:
+                new_records[wb]['outbound_scanDate'] = ob_time if (ob_time and ob_time.lower() not in ('nan', 'none')) else ''
+                new_records[wb]['dispatch_actual'] = ob_act_mapped
+            else:
+                # Orphan Outbound
+                new_records[wb] = {
+                    'waybillNo': wb,
+                    'data_source': 'Outbound',
+                    'weight': 0.0,
+                    'pickNetworkName': '',
+                    'dispatch_plan': '',
+                    'dispatchNetworkTime': '',
+                    'updateTime': '',
+                    'Pickup_time': '',
+                    'next_station': ob_act_mapped,
+                    'status_order': '',
+                    'inbound_scanDate': '',
+                    'inbound_network': '',
+                    'outbound_scanDate': ob_time if (ob_time and ob_time.lower() not in ('nan', 'none')) else '',
+                    'dispatch_actual': ob_act_mapped
+                }
+
+
+    # ================================================================
+    # BATCH SEARCH DISPATCH API FOR FORECAST/INBOUND AWBS MISSING DISPATCH NETWORK TIME
+    # ================================================================
+    missing_disp_wbs = []
+    for wb, rec in new_records.items():
+        if rec['data_source'] in ('Forecast', 'Inbound', 'Outbound') and not rec.get('dispatchNetworkTime'):
+            missing_disp_wbs.append(wb)
+            
+    for wb, rec in db_records.items():
+        if rec.get('data_source') in ('Forecast', 'Inbound', 'Outbound') and not rec.get('dispatchNetworkTime'):
+            t_ref = rec.get('time_ref') or rec.get('Pickup_time') or rec.get('inbound_scanDate') or ''
+            if t_ref:
+                try:
+                    dt = pd.to_datetime(t_ref)
+                    if (now - dt.tz_localize('Asia/Ho_Chi_Minh' if dt.tzinfo is None else None)).days <= 15:
+                        missing_disp_wbs.append(wb)
+                except Exception:
+                    pass
+                    
+    missing_disp_wbs = list(set(missing_disp_wbs))
+    
+    if missing_disp_wbs:
+        print(f"\n🔍 [Batch Search] Phát hiện {len(missing_disp_wbs):,} đơn Forecast/Inbound chưa có dispatchNetworkTime.")
+        print("   🚀 Tiến hành Batch search trực tiếp trên Dispatch API sử dụng parameter 'waybillIds'...")
+        
+        dh_path = os.path.join(BASE_DIR, "config", "dispatchheaders.json")
+        dp_path = os.path.join(BASE_DIR, "config", "dispatchpayload.json")
+        
+        if os.path.exists(dh_path) and os.path.exists(dp_path):
+            try:
+                dh = load_json(dh_path)
+                dp_cfg = load_json(dp_path)
+                
+                dh['authToken'] = token_mgr.get_token()
+                dh['Authtoken'] = token_mgr.get_token()
+                dh['Routename'] = 'orderScheduling'
+                dh['routeName'] = 'orderScheduling'
+                
+                chunk_size = 50
+                resolved_disp = {}
+                
+                for i in range(0, len(missing_disp_wbs), chunk_size):
+                    chunk = missing_disp_wbs[i:i+chunk_size]
+                    payload = dp_cfg.copy()
+                    payload['waybillIds'] = ",".join(chunk)
+                    payload['current'] = 1
+                    payload['size'] = len(chunk)
+                    
+                    for k in ['startInputTime', 'endInputTime', 'startPickTime', 'endPickTime']:
+                        if k in payload:
+                            payload[k] = ""
+                            
+                    try:
+                        r_dp = session.post(URL_DISPATCH, headers=dh, data=payload, timeout=25)
+                        dp_res = r_dp.json()
+                        records = dp_res.get('data', {}).get('records', []) or []
+                        if records:
+                            for item in records:
+                                waybill_id = str(item.get('waybillId') or '').strip()
+                                if waybill_id:
+                                    disp_time = str(item.get('dispatchNetworkTime') or item.get('inputTime') or item.get('createTime') or '').strip()
+                                    pickup_time = str(item.get('updateTime') or '').strip()
+                                    order_status = str(item.get('orderStatusName') or '').strip()
+                                    
+                                    pk_val = pickup_time if (order_status == 'Đã lấy hàng' and pickup_time) else ''
+                                    
+                                    if disp_time and disp_time.lower() not in ('nan', 'none', ''):
+                                        resolved_disp[waybill_id] = {
+                                            'dispatchNetworkTime': disp_time,
+                                            'Pickup_time': pk_val,
+                                            'status_order': order_status
+                                        }
+                    except Exception as e_batch:
+                        print(f"      ⚠️ Lỗi query batch chunk {i//chunk_size}: {e_batch}")
+                        
+                print(f"   ✅ [Batch Search] Hoàn tất: Tìm thấy thông tin Dispatch cho {len(resolved_disp):,} / {len(missing_disp_wbs):,} đơn.")
+                
+                for wb, info in resolved_disp.items():
+                    if wb in new_records:
+                        new_records[wb]['dispatchNetworkTime'] = info['dispatchNetworkTime']
+                        if info['Pickup_time']:
+                            new_records[wb]['Pickup_time'] = info['Pickup_time']
+                        new_records[wb]['data_source'] = 'Dispatch'
+                        
+                    if wb in db_records:
+                        db_records[wb]['dispatchNetworkTime'] = info['dispatchNetworkTime']
+                        if info['Pickup_time']:
+                            db_records[wb]['Pickup_time'] = info['Pickup_time']
+                        db_records[wb]['data_source'] = 'Dispatch'
+                        db_records[wb]['changed'] = True
+                        
+            except Exception as e_setup:
+                print(f"   ❌ Lỗi cấu hình Batch search: {e_setup}")
+    # ================================================================
+
+    # Perform Merge & preservation / dynamic update checks
+    changed_count = 0
+    
+    for wb, new_rec in new_records.items():
+        if wb in db_records:
+            hist_rec = db_records[wb]
+            changed = False
+            
+            # Rule 3: Finalize Inbound Time (do not overwrite historical Inbound Time if present)
+            hist_ib = str(hist_rec.get('inbound_scanDate') or '').strip()
+            new_ib = str(new_rec.get('inbound_scanDate') or '').strip()
+            final_ib = hist_ib
+            if (not hist_ib or hist_ib.lower() in ('nan', 'none')) and new_ib and new_ib.lower() not in ('nan', 'none'):
+                final_ib = new_ib
+                changed = True
+                
+            # Rule 4: Dynamic Timestamps Update (Pickup & Forecast times)
+            hist_pk = str(hist_rec.get('Pickup_time') or '').strip()
+            new_pk = str(new_rec.get('Pickup_time') or '').strip()
+            final_pk = hist_pk
+            if new_pk and new_pk.lower() not in ('nan', 'none') and new_pk != hist_pk:
+                final_pk = new_pk
+                changed = True
+                
+            hist_disp = str(hist_rec.get('dispatchNetworkTime') or '').strip()
+            new_disp = str(new_rec.get('dispatchNetworkTime') or '').strip()
+            final_disp = hist_disp
+            if new_disp and new_disp.lower() not in ('nan', 'none') and new_disp != hist_disp:
+                final_disp = new_disp
+                changed = True
+                
+            # Other fields update
+            final_weight = float(hist_rec.get('weight') or 0.0)
+            if new_rec['weight'] > 0 and new_rec['weight'] != final_weight:
+                final_weight = new_rec['weight']
+                changed = True
+                
+            final_pkn = str(hist_rec.get('pickNetworkName') or '').strip()
+            if new_rec['pickNetworkName'] and new_rec['pickNetworkName'] != final_pkn:
+                final_pkn = new_rec['pickNetworkName']
+                changed = True
+                
+            final_dpl = str(hist_rec.get('dispatch_plan') or '').strip()
+            if new_rec['dispatch_plan'] and new_rec['dispatch_plan'] != final_dpl:
+                final_dpl = new_rec['dispatch_plan']
+                changed = True
+                
+            final_nst = str(hist_rec.get('next_station') or '').strip()
+            if new_rec['next_station'] and new_rec['next_station'] != final_nst:
+                final_nst = new_rec['next_station']
+                changed = True
+                
+            hist_ob = str(hist_rec.get('outbound_scanDate') or '').strip()
+            new_ob = str(new_rec.get('outbound_scanDate') or '').strip()
+            final_ob = hist_ob
+            if new_ob and new_ob.lower() not in ('nan', 'none') and new_ob != hist_ob:
+                final_ob = new_ob
+                changed = True
+                
+            hist_act = str(hist_rec.get('dispatch_actual') or '').strip()
+            new_act = str(new_rec.get('dispatch_actual') or '').strip()
+            final_act = hist_act
+            if new_act and new_act.lower() not in ('nan', 'none') and new_act != hist_act:
+                final_act = new_act
+                changed = True
+                
+            final_ds = str(hist_rec.get('data_source') or '').strip()
+            if new_rec['data_source'] != 'Forecast' and new_rec['data_source'] != final_ds:
+                final_ds = new_rec['data_source']
+                changed = True
+                
+            # Update DB dict
+            db_records[wb]['weight'] = final_weight
+            db_records[wb]['pickNetworkName'] = final_pkn
+            db_records[wb]['dispatch_plan'] = final_dpl
+            db_records[wb]['Pickup_time'] = final_pk
+            db_records[wb]['dispatchNetworkTime'] = final_disp
+            db_records[wb]['next_station'] = final_nst
+            db_records[wb]['inbound_scanDate'] = final_ib
+            db_records[wb]['outbound_scanDate'] = final_ob
+            db_records[wb]['dispatch_actual'] = final_act
+            db_records[wb]['data_source'] = final_ds
+            
+            if changed:
+                db_records[wb]['changed'] = True
+                changed_count += 1
+        else:
+            # AWB is new: insert
+            new_rec['changed'] = True
+            new_rec['pickup_label'] = ''
+            new_rec['Pickup_ontime'] = ''
+            new_rec['Tuyến'] = ''
+            new_rec['Rank'] = ''
+            new_rec['time_ref'] = ''
+            new_rec['inbound_network'] = new_rec['pickNetworkName']
+            db_records[wb] = new_rec
+            changed_count += 1
+            
+    print(f"   ℹ| Merge completed: {changed_count} records created or updated.")
+    
+    # Calculate status and derived fields for modified records
+    for wb, rec in db_records.items():
+        if not rec.get('changed'):
+            continue
+            
+        ib_time = rec['inbound_scanDate']
+        pk_time = rec['Pickup_time']
+        fc_time = rec['dispatchNetworkTime']
+        ob_time = rec['outbound_scanDate']
+        
+        # Outbound logic filter:
+        # If in Outbound but has no Inbound Time -> mark status = 'Đã rời HUB'
+        if ob_time and (not ib_time or ib_time.lower() in ('nan', 'none', '')):
+            status = 'Đã rời HUB'
+        elif ob_time:
+            status = 'Đã rời HUB'
+        elif ib_time:
+            status = 'Đang trên bãi'
+        elif pk_time:
+            status = 'Đã lấy hàng'
+        elif fc_time:
+            status = 'Đã điều phối bưu cục'
+        else:
+            status = 'Forecast'
+            
+        rec['status_order'] = status
+        
+        # Next station details
+        raw_code = str(rec.get('dispatch_plan') or '').strip()
+        if not raw_code:
+            raw_code = str(rec.get('next_station') or '').strip()
+
+        mapped_ns = ""
+        
+        # 1. Check for hyphen prefix mapping (e.g. 001-HCM048A)
+        if '-' in raw_code:
+            parts = raw_code.split('-')
+            if len(parts) > 1:
+                clean_code = parts[1].strip().upper()
+                if clean_code in d_thong_tin:
+                    info = d_thong_tin[clean_code]
+                    tgd = info['ten_gd']
+                    ttt = info['ten_tiep_theo']
+                    if 'HCM' in tgd:
+                        mapped_ns = ttt
+                    elif 'BN HUB' in tgd:
+                        mapped_ns = 'BN HUB'
+                    else:
+                        mapped_ns = tgd
+
+        # 2. Fallback to normal valid.csv maps if not matched yet
+        if not mapped_ns:
+            code_upper = raw_code.upper()
+            if code_upper in d_sortcode:
+                mapped_ns = d_sortcode[code_upper]
+            elif code_upper in d_buucuc:
+                mapped_ns = d_buucuc[code_upper]
+            else:
+                # Try fallback on the clean split code
+                if '-' in raw_code:
+                    clean_code = raw_code.split('-')[1].strip().upper()
+                    if clean_code in d_sortcode:
+                        mapped_ns = d_sortcode[clean_code]
+                    elif clean_code in d_buucuc:
+                        mapped_ns = d_buucuc[clean_code]
+
+        # 3. Default to Hubs if next_station is still empty
+        pkn = str(rec.get('pickNetworkName') or '').strip()
+        NORTH_POST_OFFICES = {
+            'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
+            'HN THƯỜNG TÍN', 'HN HOÀNG MAI', 'HD KINH MÔN', 'HY VĂN GIANG', 'HN NGỌC HỒI',
+            'HN MỸ ĐỨC', 'HN ĐÔNG ANH', 'HN HÀ ĐÔNG', 'HN THANH TRÌ', 'HN THANH LIỆT',
+            'HN HOÀI ĐỨC', 'HN MÊ LINH', 'HN AN KHÁNH', 'HN CẦU GIẤY', 'HN THANH OAI',
+            'HN ĐỐNG ĐA', 'HN CHƯƠNG MỸ', 'HN CHÚC SƠN', 'HN HẠ BẰNG', 'HN HÁT MÔN',
+            'HN LONG BIÊN', 'HN PHÚ XUYÊN', 'HN HÀ NAM', 'HN SƠN TÂY', 'HN NAM TỪ LIÊM',
+            'HN PHÚ DIỄN', 'HN TÂY HỒ', 'HN VĨNH TUY', 'HN ỨNG HÒA'
+        }
+
+        if not mapped_ns or mapped_ns.lower() in ('nan', 'none', ''):
+            if pkn in NORTH_POST_OFFICES or pkn.startswith('HN ') or pkn.startswith('HD ') or pkn.startswith('HY '):
+                mapped_ns = 'BN HUB'
+            else:
+                mapped_ns = 'HCM HUB'
+
+        rec['next_station'] = mapped_ns
+
+        # Map Tuyến and Rank
+        if mapped_ns == 'BN HUB':
+            rec['Tuyến'] = 'Linehaul'
+            rec['Rank'] = 'BN HUB'
+        elif mapped_ns == 'HCM HUB':
+            rec['Tuyến'] = 'Linehaul'
+            rec['Rank'] = 'HCM HUB'
+        else:
+            rec['Tuyến'] = d_tuyen.get(mapped_ns, '')
+            rec['Rank'] = d_rank.get(mapped_ns, '')
+        
+        # time_ref
+        t_ref = ob_time if ob_time else (ib_time if ib_time else (pk_time if pk_time else fc_time))
+        rec['time_ref'] = t_ref
+        
+        # pickup_label & Pickup_ontime
+        disp = fc_time
+        pick = pk_time
+        p_lbl = ''
+        p_ont = ''
+        if disp and disp != 'nan' and pick and pick != 'nan':
+            try:
+                d_disp = disp[:10]
+                d_pick = pick[:10]
+                if d_disp == d_pick:
+                    p_lbl = 'Lấy trong ngày'
+                    p_ont = 'YES'
+                elif d_disp < d_pick:
+                    p_lbl = 'Lấy ngày hôm sau'
+                    p_ont = 'NO'
+                else:
+                    p_ont = 'NO'
+            except Exception:
+                pass
+        rec['pickup_label'] = p_lbl
+        rec['Pickup_ontime'] = p_ont
+
+    # Extract modified records to UPSERT
+    changed_records = []
+    for wb, rec in db_records.items():
+        if rec.get('changed'):
+            changed_records.append([
+                rec['waybillNo'], rec['data_source'], rec['weight'], rec['pickNetworkName'], rec['dispatch_plan'],
+                rec['Pickup_time'], rec['pickup_label'], rec['Pickup_ontime'], rec['dispatchNetworkTime'],
+                rec['next_station'], rec['Tuyến'], rec['Rank'], rec['inbound_network'], rec['inbound_scanDate'],
+                rec['outbound_scanDate'], rec['dispatch_actual'], rec['status_order'], rec['time_ref']
+            ])
+
+    if changed_records:
+        init_db()
+        print(f"\n💾 Đang lưu {len(changed_records):,} bản ghi thay đổi vào SQLite Database cục bộ...")
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            c = conn.cursor()
+            c.execute("PRAGMA journal_mode = WAL")
+            c.execute("PRAGMA synchronous = OFF")
+            c.execute("PRAGMA cache_size = -64000")
+            c.execute("PRAGMA temp_store = MEMORY")
+            
+            c.executemany("""
+                INSERT INTO inventory (
+                    waybillNo, data_source, weight, pickNetworkName, dispatch_plan,
+                    Pickup_time, pickup_label, Pickup_ontime, dispatchNetworkTime,
+                    next_station, Tuyến, Rank, inbound_network, inbound_scanDate,
+                    outbound_scanDate, dispatch_actual, status_order, time_ref,
+                    last_updated
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(waybillNo) DO UPDATE SET
+                    data_source        = excluded.data_source,
+                    weight             = excluded.weight,
+                    pickNetworkName    = excluded.pickNetworkName,
+                    dispatch_plan      = excluded.dispatch_plan,
+                    Pickup_time        = excluded.Pickup_time,
+                    pickup_label       = excluded.pickup_label,
+                    Pickup_ontime      = excluded.Pickup_ontime,
+                    dispatchNetworkTime= excluded.dispatchNetworkTime,
+                    next_station       = excluded.next_station,
+                    Tuyến              = excluded.Tuyến,
+                    Rank               = excluded.Rank,
+                    inbound_network    = excluded.inbound_network,
+                    inbound_scanDate   = excluded.inbound_scanDate,
+                    outbound_scanDate  = excluded.outbound_scanDate,
+                    dispatch_actual    = excluded.dispatch_actual,
+                    status_order       = excluded.status_order,
+                    time_ref           = excluded.time_ref,
+                    last_updated       = CURRENT_TIMESTAMP
+            """, changed_records)
+            conn.commit()
+            conn.close()
+            print(f"   ✅ Đã UPSERT thành công {len(changed_records)} bản ghi thay đổi vào SQLite.")
+        except Exception as ex_db:
+            print(f"   ❌ Lỗi lưu dữ liệu thay đổi vào SQLite: {ex_db}")
+
+    # Build df of all records from SQLite for downstream push / sheets
+    df = pd.DataFrame(list(db_records.values()))
+    if 'changed' in df.columns:
+        df.drop(columns=['changed'], inplace=True)
+
     # ── Tính toán sản lượng Outbound thực tế để ghi Sheets ──
     outbound_volumes_grouped = {}
     target_dates = set()
@@ -2431,6 +2689,14 @@ def run_once(session, token_mgr, rebuild_days=None):
     # Cập nhật dữ liệu cấu hình lên Google Sheets (config sheets, Linehaul, Arrival, Outbound)
     # Data chính (100k rows) đã được push lên Github — không cần ghi vào Sheet nữa
     update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, now.strftime('%Y-%m-%d'), results, d_buucuc, session, token_mgr, fh, fp)
+    
+    # Write last successful run timestamp
+    try:
+        with open(last_run_file, "w") as f:
+            f.write(now.strftime('%Y-%m-%d %H:%M:%S'))
+        print(f"   ✅ Đã ghi nhận thời gian chạy cuối: {now.strftime('%Y-%m-%d %H:%M:%S')}")
+    except Exception as e_lr:
+        print(f"   ⚠️ Lỗi ghi file last_run.txt: {e_lr}")
 
 
 # ================================================================
@@ -2680,7 +2946,7 @@ def run_realtime_sync(session, token_mgr):
 
     now_vn = datetime.now(ZoneInfo('Asia/Ho_Chi_Minh'))
     DATE_END   = now_vn.strftime('%Y-%m-%d %H:%M:%S')
-    DATE_START = (now_vn - timedelta(days=2)).strftime('%Y-%m-%d 06:00:00')
+    DATE_START = (now_vn - timedelta(days=4)).strftime('%Y-%m-%d 06:00:00')
 
     # Load config files
     fh = load_json(os.path.join(BASE_DIR, "config", "forecastheaders.json"))
