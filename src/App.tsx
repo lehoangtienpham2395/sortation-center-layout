@@ -100,24 +100,7 @@ function generateMockData() {
   }, {} as any);
 }
 
-function parseCSVLine(line: string): string[] {
-  const parts: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (let charIndex = 0; charIndex < line.length; charIndex++) {
-    const char = line[charIndex];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      parts.push(current);
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  parts.push(current);
-  return parts;
-}
+
 
 interface SheetRow {
   zone: string;
@@ -131,44 +114,34 @@ interface SheetRow {
   status?: string;
 }
 
-// Sheet GIDs for Google Spreadsheet
-const SHEET_GIDS: Record<string, string> = {
-  'Outbound':         '1650516820',
-  'Backlog':          '1380336385',
-  'Backlog CAP 6AM':  '1380336385',
-  'Inventory':        '1359945051',
-};
+
 
 async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival'): Promise<any[] | null> {
   try {
-    const url = `https://docs.google.com/spreadsheets/d/1GMgvwa1MIEg0P102MDBcvwJPd-0wAeZh3hewmz_LBQI/gviz/tq?tqx=out:csv&sheet=${sheetType}`;
+    const t = Date.now();
+    const url = `https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`;
     const response = await fetch(url);
-    if (!response.ok) throw new Error('Network response was not ok');
-    const csvText = await response.text();
-    const lines = csvText.split('\n');
-    const rows: any[] = [];
-
-    if (lines.length === 0) return [];
-
-    const headerLine = lines[0].trim();
-    const headers = parseCSVLine(headerLine).map(h => h.trim().replace(/^"|"$/g, ''));
-
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
-      const parts = parseCSVLine(line).map(p => p.trim().replace(/^"|"$/g, ''));
-      if (parts.length === 0) continue;
-
-      const rowObj: Record<string, any> = {};
-      headers.forEach((h, idx) => {
-        if (idx < parts.length) {
-          rowObj[h] = parts[idx];
-        }
-      });
-      rows.push(rowObj);
-    }
-    return rows;
+    if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
+    const data = await response.json();
+    if (!Array.isArray(data)) return [];
+    // Remap unaccented column keys back to accented Vietnamese column names used by the dashboard
+    const keyMap: Record<string, string> = {
+      'Bu cc': 'Bưu cục',
+      'Trng thi': 'Trạng thái',
+      'Ngy vn hnh_Inbound': 'Ngày vận hành_Inbound',
+      'Ngy vn hnh_Forecast': 'Ngày vận hành_Forecast',
+      'Ngy vn hnh_Pickup': 'Ngày vận hành_Pickup',
+      'Loi rt': 'Loại rớt',
+      'Ngy vn hnh': 'Ngày vận hành',
+      'Tng s n': 'Tổng số đơn',
+    };
+    return data.map((row: Record<string, any>) => {
+      const out: Record<string, any> = {};
+      for (const [k, v] of Object.entries(row)) {
+        out[keyMap[k] ?? k] = v;
+      }
+      return out;
+    });
   } catch (error) {
     console.error(`Error fetching inbound sheet ${sheetType}:`, error);
     return null;
@@ -177,60 +150,29 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
 
 async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[] | null> {
   try {
-    const gid = SHEET_GIDS[sheetType] || '1650516820';
-    const url = `https://docs.google.com/spreadsheets/d/1GMgvwa1MIEg0P102MDBcvwJPd-0wAeZh3hewmz_LBQI/export?format=csv&gid=${gid}`;
+    const t = Date.now();
+    const url = `https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`;
     const response = await fetch(url);
-    if (!response.ok) throw new Error('Network response was not ok');
-    const csvText = await response.text();
-    const lines = csvText.split('\n');
-    const rows: SheetRow[] = [];
-
-    if (lines.length === 0) return [];
-
-    const headerLine = lines[0].trim();
-    const headers = parseCSVLine(headerLine).map(h => h.trim().replace(/^"|"$/g, ''));
-
-    const colZone = headers.indexOf("Zone") !== -1 ? headers.indexOf("Zone") : 0;
-    const colArea = headers.indexOf("AreaID") !== -1 ? headers.indexOf("AreaID") : (headers.indexOf("Area ID") !== -1 ? headers.indexOf("Area ID") : 1);
-    const colName = headers.indexOf("BuuCuc") !== -1 ? headers.indexOf("BuuCuc") : (headers.indexOf("B\u01b0u c\u1ee5c") !== -1 ? headers.indexOf("B\u01b0u c\u1ee5c") : 2);
-    // Inventory has an extra "Tr\u1ea1ng th\u00e1i" col at index 3, so Volume shifts to col 4
-    const colVol = sheetType === 'Inventory'
-      ? (headers.indexOf("Volume") !== -1 ? headers.indexOf("Volume") : 4)
-      : (headers.indexOf("Volume") !== -1 ? headers.indexOf("Volume") : 3);
-    const colCap = headers.indexOf("S\u1ee9c ch\u1ee9a") !== -1 ? headers.indexOf("S\u1ee9c ch\u1ee9a")
-      : (headers.indexOf("Ki\u1ec7n h\u00e0ng") !== -1 ? headers.indexOf("Ki\u1ec7n h\u00e0ng")
-      : (headers.indexOf("S\u1ee9c ch\u1ee9a Pallet") !== -1 ? headers.indexOf("S\u1ee9c ch\u1ee9a Pallet") : 7));
-    const colDate = headers.indexOf("Ng\u00e0y") !== -1 ? headers.indexOf("Ng\u00e0y") : (headers.indexOf("Date") !== -1 ? headers.indexOf("Date") : -1);
-    const colWeight = headers.indexOf("Weight") !== -1 ? headers.indexOf("Weight") : (headers.indexOf("Trọng lượng") !== -1 ? headers.indexOf("Trọng lượng") : -1);
-    // Parse Trạng thái column for Inventory sheet (col index 3)
-    const colStatus = sheetType === 'Inventory'
-      ? (headers.indexOf("Tr\u1ea1ng th\u00e1i") !== -1 ? headers.indexOf("Tr\u1ea1ng th\u00e1i") : 3)
-      : -1;
+    if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
+    const data = await response.json();
+    if (!Array.isArray(data)) return [];
 
     const todayStr = new Date().toISOString().split('T')[0];
+    const rows: SheetRow[] = [];
 
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
+    for (const item of data) {
+      const zone       = String(item['Zone'] ?? '');
+      const areaId     = String(item['AreaID'] ?? '');
+      const buuCuc     = String(item['Bu cc'] ?? item['Bưu cục'] ?? '');
+      const volumeRaw  = item['Volume'];
+      const weightRaw  = item['Weight'];
+      const capRaw     = item['Sc cha'] ?? item['Sức chứa'] ?? 780;
+      const dateRaw    = item['Ngy'] ?? item['Ngày'] ?? todayStr;
+      const statusRaw  = item['Trng thi'] ?? item['Trạng thái'] ?? undefined;
 
-      const parts = parseCSVLine(line).map(p => p.trim().replace(/^"|"$/g, ''));
-      if (parts.length === 0) continue;
-
-      const zone    = parts[colZone] ? parts[colZone] : '';
-      const areaId  = parts[colArea] ? parts[colArea] : '';
-      const buuCuc  = parts[colName] ? parts[colName] : '';
-      const volumeStr   = parts[colVol] ? parts[colVol].replace(/[,.]/g, '') : '';
-      const weightStr   = colWeight !== -1 && parts[colWeight] ? parts[colWeight].replace(/[,.]/g, '') : '';
-      const capacityStr = parts[colCap] ? parts[colCap].replace(/[,.]/g, '') : '780';
-      const date    = colDate !== -1 && parts[colDate] ? parts[colDate] : todayStr;
-      // Force type from which sheet we fetched
-      const type = sheetType;
-      // Parse status for Inventory rows
-      const status = colStatus !== -1 && parts[colStatus] ? parts[colStatus].trim() : undefined;
-
-      const volume   = volumeStr !== '' ? parseInt(volumeStr, 10) : NaN;
-      const capacity = capacityStr !== '' ? parseInt(capacityStr, 10) : 780;
-      const weight   = weightStr !== '' ? parseInt(weightStr, 10) : 0;
+      const volume   = Number(volumeRaw);
+      const weight   = Number(weightRaw) || 0;
+      const capacity = Number(capRaw) || 780;
 
       if (areaId && zone) {
         rows.push({
@@ -238,11 +180,11 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
           areaId,
           buuCuc,
           volume: isNaN(volume) ? 0 : volume,
-          weight: isNaN(weight) ? 0 : weight,
-          capacity: isNaN(capacity) ? 780 : capacity,
-          date,
-          type,
-          status
+          weight,
+          capacity,
+          date: String(dateRaw),
+          type: sheetType,
+          status: statusRaw ? String(statusRaw) : undefined
         });
       }
     }

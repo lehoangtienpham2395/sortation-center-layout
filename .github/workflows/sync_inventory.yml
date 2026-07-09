@@ -1,4 +1,4 @@
-name: Sync Inventory to Google Sheets
+name: Sync Inventory to GitHub Data
 
 on:
   push:
@@ -27,6 +27,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Cache SQLite database  # ⚡ Bảo toàn dữ liệu đơn tồn đọng & thời gian lấy hàng lịch sử giữa các lần chạy tự động
       uses: actions/cache@v4
@@ -35,6 +37,14 @@ jobs:
         key: ${{ runner.os }}-sqlite-db-${{ github.run_id }}
         restore-keys: |
           ${{ runner.os }}-sqlite-db-
+
+    - name: Cache data/ JSON files  # ⚡ Restore historical data (Arrival, Outbound) between runs
+      uses: actions/cache@v4
+      with:
+        path: data/
+        key: ${{ runner.os }}-data-json-${{ github.run_id }}
+        restore-keys: |
+          ${{ runner.os }}-data-json-
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -54,21 +64,23 @@ jobs:
         python -m pip install --upgrade pip
         if [ -f backend_sync/requirements.txt ]; then pip install -r backend_sync/requirements.txt; fi
 
-    - name: Check secrets configuration
-      run: |
-        if [ -z "${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}" ]; then
-          echo "❌ GOOGLE_SERVICE_ACCOUNT_JSON is NOT configured in GitHub Secrets!"
-          exit 1
-        else
-          echo "✅ GOOGLE_SERVICE_ACCOUNT_JSON is present."
-        fi
-
-    - name: Run sync script (Inventory + Giam sat phat hang merged)
+    - name: Run sync script
       env:
         SYSTEM_ACCOUNT: ${{ secrets.SYSTEM_ACCOUNT }}
         SYSTEM_PASSWORD: ${{ secrets.SYSTEM_PASSWORD }}
-        GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # ⚡ Dùng để push data/latest.json.gz
-        GH_REPO: ${{ github.repository }}             # lehoangtienpham2395/sortation-center-layout
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_REPO: ${{ github.repository }}
       run: |
         python backend_sync/sync_to_sheets.py
+
+    - name: Commit and push data/ JSON files  # ⚡ Thay thế Contents API cũ — nhanh hơn 10x
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add data/
+        if git diff --staged --quiet; then
+          echo "No data changes to commit."
+        else
+          git commit -m "chore: auto-update data JSON files [skip ci]"
+          git push
+        fi

@@ -38,6 +38,7 @@ LOGIN_URL  = "https://gw.jtcargo.com.vn/basicdata/login"
 
 # Google Sheet ID
 SHEET_ID = "1GMgvwa1MIEg0P102MDBcvwJPd-0wAeZh3hewmz_LBQI"
+DISABLE_GOOGLE_SHEETS = True
 
 # ============================================================
 # CONFIG ĐƯỜNG DẪN CỤC BỘ (Relative to Script Path)
@@ -857,40 +858,51 @@ def _cleanup_old_files(directory: str, keep_file: str):
 # GOOGLE SHEETS SYNC
 # ================================================================
 def update_outbound_sheet(ss, master_chutes, outbound_volumes_grouped, target_dates):
-    try:
-        sheet = ss.worksheet("Outbound")
-    except Exception:
-        sheet = ss.add_worksheet("Outbound", rows=1000, cols=7)
-        
-    all_rows = sheet.get_all_values()
-    headers = ["Zone", "AreaID", "Bưu cục", "Volume", "Weight", "Sức chứa", "Ngày"]
+    all_rows = []
+    sheet = None
     
+    # Read from sheet if not disabled
+    if not DISABLE_GOOGLE_SHEETS and ss:
+        try:
+            sheet = ss.worksheet("Outbound")
+            all_rows = sheet.get_all_values()
+        except Exception:
+            try:
+                sheet = ss.add_worksheet("Outbound", rows=1000, cols=7)
+            except Exception:
+                sheet = None
+                
+    # Read from local json if empty
+    if not all_rows:
+        local_path = "data/outbound.json"
+        if os.path.exists(local_path):
+            try:
+                df_old = pd.read_json(local_path)
+                if not df_old.empty:
+                    all_rows = [["Zone", "AreaID", "Bưu cục", "Volume", "Weight", "Sức chứa", "Ngày"]]
+                    for _, r in df_old.iterrows():
+                        all_rows.append([
+                            str(r.get("Zone", "")), str(r.get("AreaID", "")), str(r.get("Bu cc", "")),
+                            int(r.get("Volume", 0)), int(r.get("Weight", 0)), str(r.get("Sc cha", "780")),
+                            str(r.get("Ngy", ""))
+                        ])
+            except Exception:
+                pass
+                
+    headers = ["Zone", "AreaID", "Bưu cục", "Volume", "Weight", "Sức chứa", "Ngày"]
     new_rows = [headers]
     if all_rows:
         for r in all_rows[1:]:
-            # Pad row if too short to prevent index errors
-            while len(r) < len(all_rows[0]):
+            while len(r) < len(headers):
                 r.append("")
             try:
                 zone = r[0]
                 area_id = r[1]
                 name = r[2]
                 vol = int(str(r[3]).replace(".", "").replace(",", ""))
-                
-                if len(r) == 7:
-                    weight = int(str(r[4]).replace(".", "").replace(",", ""))
-                    capacity = r[5]
-                    date = r[6].strip()
-                elif len(r) == 9:
-                    weight = int(str(r[4]).replace(".", "").replace(",", ""))
-                    capacity = r[7]
-                    date = r[8].strip()
-                elif len(r) == 8:
-                    weight = 0
-                    capacity = r[6]
-                    date = r[7].strip()
-                else:
-                    continue
+                weight = int(str(r[4]).replace(".", "").replace(",", ""))
+                capacity = r[5]
+                date = r[6].strip()
                 
                 if date in target_dates:
                     continue
@@ -921,17 +933,23 @@ def update_outbound_sheet(ss, master_chutes, outbound_volumes_grouped, target_da
             row[6] = d_str
             new_rows.append(row)
             
-    sheet.clear()
-    sheet.update(range_name="A1", values=new_rows)
-    print(f"   ✅ Đã cập nhật sheet 'Outbound' cho các ngày: {list(target_dates)}")
+    # Write to local JSON
+    os.makedirs("data", exist_ok=True)
+    df_outbound = pd.DataFrame(new_rows[1:], columns=["Zone", "AreaID", "Bu cc", "Volume", "Weight", "Sc cha", "Ngy"])
+    df_outbound.to_json("data/outbound.json", orient="records", force_ascii=False)
+    print(f"   💾 Đã lưu file 'data/outbound.json' với {len(new_rows)-1} dòng.")
+
+    # Write to Google Sheet if not disabled
+    if not DISABLE_GOOGLE_SHEETS and sheet:
+        try:
+            sheet.clear()
+            sheet.update(range_name="A1", values=new_rows)
+            print(f"   ✅ Đã cập nhật sheet 'Outbound' cho các ngày: {list(target_dates)}")
+        except Exception as e:
+            print(f"   ⚠️ Lỗi ghi sheet Outbound: {e}")
 
 
 def update_backlog_sheet(ss, master_chutes, backlog_volumes, current_date_str):
-    try:
-        sheet = ss.worksheet("Backlog")
-    except Exception:
-        sheet = ss.add_worksheet("Backlog", rows=1000, cols=7)
-        
     headers = ["Zone", "AreaID", "Bưu cục", "Volume", "Weight", "Sức chứa", "Ngày"]
     
     new_rows = [headers]
@@ -951,17 +969,27 @@ def update_backlog_sheet(ss, master_chutes, backlog_volumes, current_date_str):
         ]
         new_rows.append(row)
         
-    sheet.clear()
-    sheet.update(range_name="A1", values=new_rows)
-    print(f"   ✅ Đã cập nhật sheet 'Backlog' pivoted với {len(new_rows)-1} dòng.")
+    # Write to local JSON
+    os.makedirs("data", exist_ok=True)
+    df_backlog = pd.DataFrame(new_rows[1:], columns=["Zone", "AreaID", "Bu cc", "Volume", "Weight", "Sc cha", "Ngy"])
+    df_backlog.to_json("data/backlog.json", orient="records", force_ascii=False)
+    print(f"   💾 Đã lưu file 'data/backlog.json' với {len(new_rows)-1} dòng.")
+
+    # Write to Google Sheet if not disabled
+    if not DISABLE_GOOGLE_SHEETS and ss:
+        try:
+            try:
+                sheet = ss.worksheet("Backlog")
+            except Exception:
+                sheet = ss.add_worksheet("Backlog", rows=1000, cols=7)
+            sheet.clear()
+            sheet.update(range_name="A1", values=new_rows)
+            print(f"   ✅ Đã cập nhật sheet 'Backlog' pivoted với {len(new_rows)-1} dòng.")
+        except Exception as e:
+            print(f"   ⚠️ Lỗi ghi sheet Backlog: {e}")
 
 
 def update_inventory_sheet(ss, master_chutes, inventory_volumes, current_date_str):
-    try:
-        sheet = ss.worksheet("Inventory")
-    except Exception:
-        sheet = ss.add_worksheet("Inventory", rows=1000, cols=8)
-        
     headers = ["Zone", "AreaID", "Bưu cục", "Trạng thái", "Volume", "Weight", "Sức chứa", "Ngày"]
     statuses = ['Đang trên bãi', 'Đã lấy hàng', 'Đã điều phối bưu cục', 'Đã rời HUB']
     
@@ -984,40 +1012,67 @@ def update_inventory_sheet(ss, master_chutes, inventory_volumes, current_date_st
             ]
             new_rows.append(row)
             
-    sheet.clear()
-    sheet.update(range_name="A1", values=new_rows)
-    print(f"   ✅ Đã cập nhật sheet 'Inventory' pivoted với {len(new_rows)-1} dòng.")
+    # Write to local JSON
+    os.makedirs("data", exist_ok=True)
+    df_inventory = pd.DataFrame(new_rows[1:], columns=["Zone", "AreaID", "Bu cc", "Trng thi", "Volume", "Weight", "Sc cha", "Ngy"])
+    df_inventory.to_json("data/inventory.json", orient="records", force_ascii=False)
+    print(f"   💾 Đã lưu file 'data/inventory.json' với {len(new_rows)-1} dòng.")
+
+    # Write to Google Sheet if not disabled
+    if not DISABLE_GOOGLE_SHEETS and ss:
+        try:
+            try:
+                sheet = ss.worksheet("Inventory")
+            except Exception:
+                sheet = ss.add_worksheet("Inventory", rows=1000, cols=8)
+            sheet.clear()
+            sheet.update(range_name="A1", values=new_rows)
+            print(f"   ✅ Đã cập nhật sheet 'Inventory' pivoted với {len(new_rows)-1} dòng.")
+        except Exception as e:
+            print(f"   ⚠️ Lỗi ghi sheet Inventory: {e}")
 
 
 def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, token_mgr=None, fh=None, fp=None):
     print("\n📥 Bắt đầu cập nhật dữ liệu Inbound gom nhóm theo trạng thái & khung giờ lên Google Sheets...")
     
     def write_sheet(sheet_name, df_data, headers):
-        try:
-            sheet = ss.worksheet(sheet_name)
-        except Exception:
-            try:
-                sheet = ss.add_worksheet(sheet_name, rows=1000, cols=len(headers))
-            except Exception as e:
-                print(f"   ❌ Không thể tạo sheet '{sheet_name}': {e}")
-                raise e
+        if df_data.empty:
+            df_clean = pd.DataFrame(columns=headers)
+        else:
+            for h in headers:
+                if h not in df_data.columns:
+                    df_data[h] = ""
+            df_clean = df_data[headers].fillna("")
+            
+        # Write to local JSON
+        os.makedirs("data", exist_ok=True)
+        col_mappings = {
+            "Bưu cục": "Bu cc", "Trạng thái": "Trng thi", "Volume": "Volume", "Weight": "Weight",
+            "Ngày vận hành_Inbound": "Ngy vn hnh_Inbound", "Ngày vận hành_Forecast": "Ngy vn hnh_Forecast",
+            "Ngày vận hành_Pickup": "Ngy vn hnh_Pickup", "Inbound Hour": "Inbound Hour",
+            "Forecast Time": "Forecast Time", "Pickup Time": "Pickup Time", "Loại rớt": "Loi rt"
+        }
+        df_json = df_clean.copy()
+        df_json.rename(columns={k: v for k, v in col_mappings.items() if k in df_json.columns}, inplace=True)
         
-        try:
-            sheet.clear()
-            if df_data.empty:
-                rows = [headers]
-            else:
-                for h in headers:
-                    if h not in df_data.columns:
-                        df_data[h] = ""
-                df_clean = df_data[headers].fillna("")
-                rows = [headers] + df_clean.values.tolist()
+        df_json.to_json(f"data/{sheet_name.lower()}.json", orient="records", force_ascii=False)
+        print(f"   💾 Đã lưu file 'data/{sheet_name.lower()}.json' với {len(df_clean)} dòng.")
+        
+        # Write to Google Sheet if not disabled
+        if not DISABLE_GOOGLE_SHEETS and ss:
+            try:
+                try:
+                    sheet = ss.worksheet(sheet_name)
+                except Exception:
+                    sheet = ss.add_worksheet(sheet_name, rows=1000, cols=len(headers))
                 
-            sheet.update(range_name='A1', values=rows)
-            print(f"   ✅ Đã cập nhật Sheet '{sheet_name}' với {len(rows)-1} dòng.")
-        except Exception as e:
-            print(f"   ❌ Lỗi ghi dữ liệu lên sheet '{sheet_name}': {e}")
-            raise e
+                sheet.clear()
+                rows = [headers] + df_clean.values.tolist()
+                sheet.update(range_name='A1', values=rows)
+                print(f"   ✅ Đã cập nhật Sheet '{sheet_name}' với {len(rows)-1} dòng.")
+            except Exception as e:
+                print(f"   ❌ Lỗi ghi dữ liệu lên sheet '{sheet_name}': {e}")
+                raise e
 
     # Using module-level get_operating_date
 
@@ -1520,41 +1575,70 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
             df_pivot = pd.DataFrame()
 
         if not df_pivot.empty:
-            # Đọc dữ liệu Arrival cũ từ Google Sheets để upsert tích lũy
             arrival_cols = ['Ngày vận hành', 'Pickup_station', 'Scan Hour',
                             'Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub', 'Last time']
-            try:
-                arr_sheet = ss.worksheet('Arrival')
-            except Exception:
+            df_old = pd.DataFrame()
+            
+            # Read from local json first
+            arrival_json_path = "data/arrival.json"
+            if os.path.exists(arrival_json_path):
                 try:
-                    arr_sheet = ss.add_worksheet('Arrival', rows=5000, cols=len(arrival_cols))
-                except Exception as e_cr:
-                    print(f'   ❌ Không thể tạo sheet Arrival: {e_cr}')
-                    arr_sheet = None
-
-            if arr_sheet:
+                    df_old = pd.read_json(arrival_json_path)
+                    # Rename back to accented columns for mapping logic
+                    df_old.rename(columns={
+                        'Ngy vn hnh': 'Ngày vận hành',
+                        'Tng s n': 'Tổng số đơn'
+                    }, inplace=True)
+                except Exception:
+                    pass
+                    
+            # Read from Google Sheets if empty and not disabled
+            if df_old.empty and not DISABLE_GOOGLE_SHEETS and ss:
                 try:
+                    arr_sheet = ss.worksheet('Arrival')
                     old_vals = arr_sheet.get_all_values()
                     if len(old_vals) > 1:
                         df_old = pd.DataFrame(old_vals[1:], columns=old_vals[0])
-                        for col in ['Scan Hour', 'Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub']:
-                            if col in df_old.columns:
-                                df_old[col] = pd.to_numeric(df_old[col], errors='coerce').fillna(0).astype(int)
-                        # Xóa dữ liệu cùng ngày để upsert với dữ liệu mới nhất
-                        today_dates = set(df_pivot['Ngày vận hành'].unique())
-                        df_old = df_old[~df_old['Ngày vận hành'].isin(today_dates)]
-                        df_final = pd.concat([df_old, df_pivot[arrival_cols]], ignore_index=True)
-                    else:
-                        df_final = df_pivot[arrival_cols].copy()
-                    # Sắp xếp: ngày mới nhất lên đầu
-                    df_final = df_final.sort_values(
-                        by=['Ngày vận hành', 'Pickup_station', 'Scan Hour'],
-                        ascending=[False, True, True]
-                    )
-                    # Giới hạn 7 ngày gần nhất
-                    all_dates = sorted(df_final['Ngày vận hành'].unique(), reverse=True)
-                    df_final = df_final[df_final['Ngày vận hành'].isin(all_dates[:7])]
-                    # Ghi lên Google Sheets
+                except Exception:
+                    pass
+                    
+            if not df_old.empty:
+                for col in ['Scan Hour', 'Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub']:
+                    if col in df_old.columns:
+                        df_old[col] = pd.to_numeric(df_old[col], errors='coerce').fillna(0).astype(int)
+                # Xóa dữ liệu cùng ngày để upsert với dữ liệu mới nhất
+                today_dates = set(df_pivot['Ngày vận hành'].unique())
+                df_old = df_old[~df_old['Ngày vận hành'].isin(today_dates)]
+                df_final = pd.concat([df_old, df_pivot[arrival_cols]], ignore_index=True)
+            else:
+                df_final = df_pivot[arrival_cols].copy()
+                
+            # Sắp xếp: ngày mới nhất lên đầu
+            df_final = df_final.sort_values(
+                by=['Ngày vận hành', 'Pickup_station', 'Scan Hour'],
+                ascending=[False, True, True]
+            )
+            # Giới hạn 7 ngày gần nhất
+            all_dates = sorted(df_final['Ngày vận hành'].unique(), reverse=True)
+            df_final = df_final[df_final['Ngày vận hành'].isin(all_dates[:7])]
+            
+            # Write to local JSON
+            os.makedirs("data", exist_ok=True)
+            df_final_json = df_final.copy()
+            df_final_json.rename(columns={
+                'Ngày vận hành': 'Ngy vn hnh',
+                'Tổng số đơn': 'Tng s n'
+            }, inplace=True)
+            df_final_json.to_json("data/arrival.json", orient="records", force_ascii=False)
+            print(f"   💾 Đã lưu file 'data/arrival.json' với {len(df_final)} dòng.")
+            
+            # Write to Google Sheet if not disabled
+            if not DISABLE_GOOGLE_SHEETS and ss:
+                try:
+                    try:
+                        arr_sheet = ss.worksheet('Arrival')
+                    except Exception:
+                        arr_sheet = ss.add_worksheet('Arrival', rows=5000, cols=len(arrival_cols))
                     rows_to_write = [arrival_cols] + df_final[arrival_cols].fillna('').values.tolist()
                     arr_sheet.clear()
                     arr_sheet.update(range_name='A1', values=rows_to_write)
@@ -1566,68 +1650,95 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
 
 
 def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, current_date_str, results=None, d_buucuc=None, session=None, token_mgr=None, fh=None, fp=None):
-    print(f"\n📊 Bắt đầu cập nhật dữ liệu Google Sheets...")
+    print(f"\n📊 Bắt đầu cập nhật dữ liệu đầu ra...")
     
-    creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
-    local_creds_path = r"C:\Users\lehoa\OneDrive\Desktop\testing\addressproject.json"
+    master_chutes = {}
     
-    # Sử dụng local json nếu không có biến môi trường
-    if not creds_json and os.path.exists(local_creds_path):
-        try:
-            with open(local_creds_path, 'r', encoding='utf-8') as f:
-                creds_json = f.read()
-            print("   🔑 Đã tự động nạp Google Service Account từ file local addressproject.json trên Desktop.")
-        except Exception as e_ld:
-            print(f"   ⚠️ Lỗi đọc file addressproject.json: {e_ld}")
-
-    if not creds_json:
-        print("❌ Không tìm thấy biến môi trường GOOGLE_SERVICE_ACCOUNT_JSON hoặc file credentials local. Bỏ qua ghi Sheet.")
-        return
-        
+    # Load fallback directly from valid.csv as primary source
+    print("   ℹ| Load cấu hình bưu cục mặc định từ valid.csv...")
     try:
-        import gspread
-        from google.oauth2.service_account import Credentials
+        df_valid = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
+        df_valid.columns = df_valid.columns.str.strip()
+        col_z = 'Zone'
+        col_a = 'area' if 'area' in df_valid.columns else 'Area'
+        col_n = 'Bưu cục final' if 'Bưu cục final' in df_valid.columns else 'Bưu cục'
         
-        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-        creds = Credentials.from_service_account_info(json.loads(creds_json), scopes=scopes)
-        gc = gspread.authorize(creds)
+        for _, row in df_valid.iterrows():
+            zone = str(row.get(col_z, '')) if col_z in row else 'A' # fallback zone
+            area_id = str(row.get(col_a, '')).strip()
+            name = str(row.get(col_n, '')).strip()
+            if zone and area_id and name and name.lower() != 'nan':
+                key = (zone, area_id)
+                if key not in master_chutes:
+                    master_chutes[key] = {
+                        "zone": zone,
+                        "area_id": area_id,
+                        "name": name,
+                        "dai": "8",
+                        "rong": "4",
+                        "capacity": "780"
+                    }
+    except Exception as ex2:
+        print(f"   ❌ Lỗi load fallback từ valid.csv: {ex2}")
+
+    ss = None
+    if not DISABLE_GOOGLE_SHEETS:
+        creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+        local_creds_path = r"C:\Users\lehoa\OneDrive\Desktop\testing\addressproject.json"
         
-        # Open spreadsheet once
-        ss = gc.open_by_key(SHEET_ID)
-        
-        # Load master chutes from sheet1 (first sheet)
-        master_chutes = {}
-        try:
-            first_sheet = ss.sheet1
-            all_rows = first_sheet.get_all_values()
-            if all_rows and len(all_rows) > 1:
-                headers = all_rows[0]
-                col_zone = headers.index("Zone") if "Zone" in headers else 0
-                col_area = headers.index("AreaID") if "AreaID" in headers else 1
-                col_name = headers.index("Bưu cục") if "Bưu cục" in headers else 2
-                col_len = headers.index("Dài") if "Dài" in headers else 4
-                col_wid = headers.index("Rộng") if "Rộng" in headers else 5
-                col_cap = headers.index("Sức chứa") if "Sức chứa" in headers else 6
+        # Sử dụng local json nếu không có biến môi trường
+        if not creds_json and os.path.exists(local_creds_path):
+            try:
+                with open(local_creds_path, 'r', encoding='utf-8') as f:
+                    creds_json = f.read()
+                print("   🔑 Đã tự động nạp Google Service Account từ file local addressproject.json trên Desktop.")
+            except Exception as e_ld:
+                print(f"   ⚠️ Lỗi đọc file addressproject.json: {e_ld}")
+
+        if creds_json:
+            try:
+                import gspread
+                from google.oauth2.service_account import Credentials
                 
-                for r in all_rows[1:]:
-                    if len(r) > max(col_zone, col_area, col_name):
-                        zone = r[col_zone].strip()
-                        area_id = r[col_area].strip()
-                        name = r[col_name].strip()
-                        if zone and area_id and name:
-                            key = (zone, area_id)
-                            if key not in master_chutes:
-                                master_chutes[key] = {
-                                    "zone": zone,
-                                    "area_id": area_id,
-                                    "name": name,
-                                    "dai": r[col_len] if col_len < len(r) else "8",
-                                    "rong": r[col_wid] if col_wid < len(r) else "4",
-                                    "capacity": r[col_cap] if col_cap < len(r) else "780"
-                                }
-        except Exception as ex:
-            print(f"   ⚠️ Không thể load cấu hình bưu cục từ sheet1: {ex}")
-            
+                scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+                creds = Credentials.from_service_account_info(json.loads(creds_json), scopes=scopes)
+                gc = gspread.authorize(creds)
+                
+                # Open spreadsheet once
+                ss = gc.open_by_key(SHEET_ID)
+                
+                # Load master chutes from sheet1 (first sheet)
+                try:
+                    first_sheet = ss.sheet1
+                    all_rows = first_sheet.get_all_values()
+                    if all_rows and len(all_rows) > 1:
+                        headers = all_rows[0]
+                        col_zone = headers.index("Zone") if "Zone" in headers else 0
+                        col_area = headers.index("AreaID") if "AreaID" in headers else 1
+                        col_name = headers.index("Bưu cục") if "Bưu cục" in headers else 2
+                        col_len = headers.index("Dài") if "Dài" in headers else 4
+                        col_wid = headers.index("Rộng") if "Rộng" in headers else 5
+                        col_cap = headers.index("Sức chứa") if "Sức chứa" in headers else 6
+                        
+                        for r in all_rows[1:]:
+                            if len(r) > max(col_zone, col_area, col_name):
+                                zone = r[col_zone].strip()
+                                area_id = r[col_area].strip()
+                                name = r[col_name].strip()
+                                if zone and area_id and name:
+                                    key = (zone, area_id)
+                                    master_chutes[key] = {
+                                        "zone": zone,
+                                        "area_id": area_id,
+                                        "name": name,
+                                        "dai": r[col_len] if col_len < len(r) else "8",
+                                        "rong": r[col_wid] if col_wid < len(r) else "4",
+                                        "capacity": r[col_cap] if col_cap < len(r) else "780"
+                                    }
+                except Exception as ex:
+                    print(f"   ⚠️ Không thể load cấu hình bưu cục từ sheet1: {ex}")
+            except Exception as e:
+                print(f"   ❌ Lỗi kết nối Google Sheets: {e}")
         # Fallback to valid.csv
         if not master_chutes:
             print("   ℹ| Load cấu hình bưu cục mặc định từ valid.csv...")
@@ -1733,10 +1844,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
         # 4. Update Inbound Sheets (aggregated Inbound + raw Linehaul + Arrival)
         if results:
             update_inbound_sheets(ss, results, master_chutes, d_buucuc, session, token_mgr, fh, fp)
-            
-    except Exception as e:
-        print(f"   ❌ Lỗi cập nhật Google Sheets: {e}")
-        raise e
+
 
 # ================================================================
 # MAIN (Run Once)
@@ -2736,8 +2844,10 @@ def run_once(session, token_mgr, rebuild_days=None):
     # ⚡ PUSH DATA LÊN GITHUB RAW (thay thế Google Sheet cho 100k rows)
     # Dashboard JS sẽ đọc trực tiếp từ raw.githubusercontent.com
     # ================================================================
-    print("\n🚀 Đang push data lên Github Raw...")
-    push_json_to_github(df, GH_TOKEN, GH_REPO, GH_DATA_PATH)
+    print("\n🚀 Đang lưu và nén dữ liệu thô ra local...")
+    os.makedirs("data", exist_ok=True)
+    df.to_json("data/latest.json.gz", orient="records", force_ascii=False, compression="gzip")
+    # push_json_to_github(df, GH_TOKEN, GH_REPO, GH_DATA_PATH)
     
     # print("\n💾 Đang đồng bộ hóa Database SQLite lên Github...")
     # push_db_to_github(DB_FILE, GH_TOKEN, GH_REPO, "backend_sync/db/state.db")
