@@ -1793,83 +1793,84 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             except Exception as ex2:
                 print(f"   ❌ Lỗi load fallback từ valid.csv: {ex2}")
                 
-        # 1. Update Outbound Sheet
-        if run_outbound and target_dates:
-            update_outbound_sheet(ss, master_chutes, outbound_volumes_grouped, target_dates)
-            
-        # 2. Update Backlog Sheet (Realtime Pivot)
-        # ✅ Dùng thẳng df_bl từ JFS API (real-time) thay vì đọc từ DB cũ tích lũy nhiều ngày
-        if run_backlog_inv:
-            backlog_volumes = {}
-            try:
-                raw_bl = results.get('backlog', [])
-                if raw_bl:
-                    df_live_bl = pd.DataFrame(raw_bl)
-                    # Lọc chỉ đơn đang trong kho
-                    if 'operate_site_type' in df_live_bl.columns:
-                        df_live_bl = df_live_bl[df_live_bl['operate_site_type'] == 'Trong kho']
-                    if 'billcode' in df_live_bl.columns and 'destination_site_name' in df_live_bl.columns:
-                        # Xác định bưu cục đích (giống logic df_bl bên trên)
-                        BACKLOG_REDELIVER_REMARKS_LOCAL = {
-                            'Người nhận từ chối nhận hàng','Khách không ở địa chỉ giao hàng',
-                            'Số điện thoại không liên lạc được','Người nhận đặt trùng đơn / mua nhầm',
-                            'Khách từ chối thanh toán','Khách không đặt hàng','Sai số điện thoại',
-                            'Khách yêu cầu dùng thử, kiểm hàng','Người nhận hẹn lại thời gian giao hàng',
-                            'Địa chỉ khách hàng sai','Hàng hóa hư hỏng một phần','Hàng hóa hư hỏng hoàn toàn'
-                        }
-                        df_live_bl['dispatch_plan'] = df_live_bl['destination_site_name']
-                        if 'abnormal_remark' in df_live_bl.columns and 'take_site_name' in df_live_bl.columns:
-                            is_rdlv = df_live_bl['abnormal_remark'].isin(BACKLOG_REDELIVER_REMARKS_LOCAL)
-                            df_live_bl.loc[is_rdlv, 'dispatch_plan'] = df_live_bl.loc[is_rdlv, 'take_site_name']
-                        df_live_bl['next_station'] = df_live_bl['dispatch_plan'].map(d_buucuc).fillna('')
-                        df_live_bl['weight'] = pd.to_numeric(df_live_bl.get('weight', 0), errors='coerce').fillna(0)
-                        df_live_bl['next_station_upper'] = df_live_bl['next_station'].astype(str).str.strip().str.upper()
-                        backlog_volumes = df_live_bl.groupby('next_station_upper').agg(
-                            volume=('billcode', 'size'),
-                            weight=('weight', 'sum')
-                        ).to_dict(orient='index')
-                        print(f"   ℹ| Backlog live từ JFS API: {df_live_bl['billcode'].nunique():,} đơn unique")
-            except Exception as e_bl_live:
-                print(f"   ⚠️ Lỗi tính Backlog pivot từ API: {e_bl_live}")
-            update_backlog_sheet(ss, master_chutes, backlog_volumes, current_date_str)
-            
-        # 3. Update Inventory Sheet (Realtime Pivot)
-        if run_backlog_inv:
-            inventory_volumes = {}
-            try:
-                conn = sqlite3.connect(DB_FILE)
-                # Đọc toàn bộ inventory từ SQLite
-                df_db_inv = pd.read_sql_query(
-                    "SELECT next_station, status_order, weight, waybillNo, time_ref FROM inventory", 
-                    conn
-                )
-                conn.close()
-                if not df_db_inv.empty:
-                    # Chỉ lọc ngày vận hành hiện tại đối với đơn 'Đã rời HUB'. 
-                    # Các đơn chưa xuất kho (Đang trên bãi, Đã lấy hàng, Đã điều phối) thì giữ lại toàn bộ để tính tồn đọng thực tế.
-                    def filter_inventory_dates(row):
-                        status = str(row['status_order']).strip()
-                        if status == 'Đã rời HUB':
-                            t_ref = row['time_ref']
-                            row_op = get_operating_date(t_ref) if (t_ref and str(t_ref).strip() not in ('', 'nan', 'None')) else current_date_str
-                            return row_op == current_date_str
-                        return True
-                        
-                    df_db_inv = df_db_inv[df_db_inv.apply(filter_inventory_dates, axis=1)]
-                    df_db_inv['next_station_upper'] = df_db_inv['next_station'].astype(str).str.strip().str.upper()
-                    df_db_inv['status_upper'] = df_db_inv['status_order'].astype(str).str.strip()
-                    
-                    inventory_volumes = df_db_inv.groupby(['next_station_upper', 'status_upper']).agg(
-                        volume=('waybillNo', 'size'),
+    # 1. Update Outbound Sheet
+    if run_outbound and target_dates:
+        update_outbound_sheet(ss, master_chutes, outbound_volumes_grouped, target_dates)
+        
+    # 2. Update Backlog Sheet (Realtime Pivot)
+    # ✅ Dùng thẳng df_bl từ JFS API (real-time) thay vì đọc từ DB cũ tích lũy nhiều ngày
+    if run_backlog_inv:
+        backlog_volumes = {}
+        try:
+            raw_bl = results.get('backlog', [])
+            if raw_bl:
+                df_live_bl = pd.DataFrame(raw_bl)
+                # Lọc chỉ đơn đang trong kho
+                if 'operate_site_type' in df_live_bl.columns:
+                    df_live_bl = df_live_bl[df_live_bl['operate_site_type'] == 'Trong kho']
+                if 'billcode' in df_live_bl.columns and 'destination_site_name' in df_live_bl.columns:
+                    # Xác định bưu cục đích (giống logic df_bl bên trên)
+                    BACKLOG_REDELIVER_REMARKS_LOCAL = {
+                        'Người nhận từ chối nhận hàng','Khách không ở địa chỉ giao hàng',
+                        'Số điện thoại không liên lạc được','Người nhận đặt trùng đơn / mua nhầm',
+                        'Khách từ chối thanh toán','Khách không đặt hàng','Sai số điện thoại',
+                        'Khách yêu cầu dùng thử, kiểm hàng','Người nhận hẹn lại thời gian giao hàng',
+                        'Địa chỉ khách hàng sai','Hàng hóa hư hỏng một phần','Hàng hóa hư hỏng hoàn toàn'
+                    }
+                    df_live_bl['dispatch_plan'] = df_live_bl['destination_site_name']
+                    if 'abnormal_remark' in df_live_bl.columns and 'take_site_name' in df_live_bl.columns:
+                        is_rdlv = df_live_bl['abnormal_remark'].isin(BACKLOG_REDELIVER_REMARKS_LOCAL)
+                        df_live_bl.loc[is_rdlv, 'dispatch_plan'] = df_live_bl.loc[is_rdlv, 'take_site_name']
+                    df_live_bl['next_station'] = df_live_bl['dispatch_plan'].map(d_buucuc).fillna('')
+                    df_live_bl['weight'] = pd.to_numeric(df_live_bl.get('weight', 0), errors='coerce').fillna(0)
+                    df_live_bl['next_station_upper'] = df_live_bl['next_station'].astype(str).str.strip().str.upper()
+                    backlog_volumes = df_live_bl.groupby('next_station_upper').agg(
+                        volume=('billcode', 'size'),
                         weight=('weight', 'sum')
                     ).to_dict(orient='index')
-            except Exception as e_inv_db:
-                print(f"   ⚠️ Lỗi tính Inventory pivot từ SQLite: {e_inv_db}")
-            update_inventory_sheet(ss, master_chutes, inventory_volumes, current_date_str)
-            
-        # 4. Update Inbound Sheets (aggregated Inbound + raw Linehaul + Arrival)
-        if results:
-            update_inbound_sheets(ss, results, master_chutes, d_buucuc, session, token_mgr, fh, fp)
+                    print(f"   ℹ| Backlog live từ JFS API: {df_live_bl['billcode'].nunique():,} đơn unique")
+        except Exception as e_bl_live:
+            print(f"   ⚠️ Lỗi tính Backlog pivot từ API: {e_bl_live}")
+        update_backlog_sheet(ss, master_chutes, backlog_volumes, current_date_str)
+        
+    # 3. Update Inventory Sheet (Realtime Pivot)
+    if run_backlog_inv:
+        inventory_volumes = {}
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            # Đọc toàn bộ inventory từ SQLite
+            df_db_inv = pd.read_sql_query(
+                "SELECT next_station, status_order, weight, waybillNo, time_ref FROM inventory", 
+                conn
+            )
+            conn.close()
+            if not df_db_inv.empty:
+                # Chỉ lọc ngày vận hành hiện tại đối với đơn 'Đã rời HUB'. 
+                # Các đơn chưa xuất kho (Đang trên bãi, Đã lấy hàng, Đã điều phối) thì giữ lại toàn bộ để tính tồn đọng thực tế.
+                def filter_inventory_dates(row):
+                    status = str(row['status_order']).strip()
+                    if status == 'Đã rời HUB':
+                        t_ref = row['time_ref']
+                        row_op = get_operating_date(t_ref) if (t_ref and str(t_ref).strip() not in ('', 'nan', 'None')) else current_date_str
+                        return row_op == current_date_str
+                    return True
+                    
+                df_db_inv = df_db_inv[df_db_inv.apply(filter_inventory_dates, axis=1)]
+                df_db_inv['next_station_upper'] = df_db_inv['next_station'].astype(str).str.strip().str.upper()
+                df_db_inv['status_upper'] = df_db_inv['status_order'].astype(str).str.strip()
+                
+                inventory_volumes = df_db_inv.groupby(['next_station_upper', 'status_upper']).agg(
+                    volume=('waybillNo', 'size'),
+                    weight=('weight', 'sum')
+                ).to_dict(orient='index')
+        except Exception as e_inv_db:
+            print(f"   ⚠️ Lỗi tính Inventory pivot từ SQLite: {e_inv_db}")
+        update_inventory_sheet(ss, master_chutes, inventory_volumes, current_date_str)
+        
+    # 4. Update Inbound Sheets (aggregated Inbound + raw Linehaul + Arrival)
+    if results:
+        update_inbound_sheets(ss, results, master_chutes, d_buucuc, session, token_mgr, fh, fp)
+
 
 
 # ================================================================
