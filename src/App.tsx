@@ -441,7 +441,13 @@ export default function App() {
     setArrivalData(arrivalRows ?? []);
 
     if (ibRows && ibRows.length > 0) {
-      const ibDates = Array.from(new Set(ibRows.map(r => r['Ngày vận hành']).filter(Boolean))) as string[];
+      const ibDates = Array.from(
+        new Set([
+          ...ibRows.map(r => r['Ngày vận hành_Inbound']),
+          ...ibRows.map(r => r['Ngày vận hành_Forecast']),
+          ...ibRows.map(r => r['Ngày vận hành_Pickup'])
+        ].filter(Boolean))
+      ) as string[];
       ibDates.sort((a, b) => b.localeCompare(a));
       if (ibDates.length > 0) {
         setSelectedInboundDate(prev => {
@@ -740,7 +746,13 @@ export default function App() {
 
   useEffect(() => {
     if (currentView === 'inbound') {
-      const inboundDates = Array.from(new Set(inboundData.map(d => d['Ngày vận hành']).filter(Boolean))) as string[];
+      const inboundDates = Array.from(
+        new Set([
+          ...inboundData.map(d => d['Ngày vận hành_Inbound']),
+          ...inboundData.map(d => d['Ngày vận hành_Forecast']),
+          ...inboundData.map(d => d['Ngày vận hành_Pickup'])
+        ].filter(Boolean))
+      ) as string[];
       inboundDates.sort((a, b) => b.localeCompare(a));
       const activeDate = selectedInboundDate || inboundDates[0] || '';
       
@@ -1730,14 +1742,20 @@ export default function App() {
                     </>
                   ) : (
                     <>
-                      <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[#8B5CF6]">INBOUND CONTROL</h3>
+                      <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[#8B5CF6]">OPERATIONS DATE</h3>
                       <div className="space-y-4">
                         {/* Operating Date Selector for Inbound */}
                         <div className="space-y-2">
                           <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">NGÀY VẬN HÀNH</div>
                           <div className="flex gap-1.5 overflow-x-auto py-1 scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                             {(() => {
-                              const inboundDates = Array.from(new Set(inboundData.map(d => d['Ngày vận hành']).filter(Boolean))) as string[];
+                              const inboundDates = Array.from(
+                                new Set([
+                                  ...inboundData.map(d => d['Ngày vận hành_Inbound']),
+                                  ...inboundData.map(d => d['Ngày vận hành_Forecast']),
+                                  ...inboundData.map(d => d['Ngày vận hành_Pickup'])
+                                ].filter(Boolean))
+                              ) as string[];
                               inboundDates.sort((a, b) => b.localeCompare(a));
                               const activeDate = selectedInboundDate || inboundDates[0] || '';
                               return inboundDates.slice(0, 7).map(d => {
