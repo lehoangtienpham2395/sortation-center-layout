@@ -1285,8 +1285,8 @@ export default function App() {
           <div 
             onMouseEnter={() => setSidebarHovered(true)}
             onMouseLeave={() => setSidebarHovered(false)}
-            className={`fixed top-0 left-0 h-full z-40 flex flex-col bg-gradient-to-b from-[#09111C] to-[#111827] border-r border-white/[0.06] transition-all duration-180 shadow-2xl ${
-              sidebarHovered ? 'w-60' : 'w-16'
+            className={`fixed top-0 left-0 h-full z-40 flex flex-col bg-gradient-to-b from-[#09111C] to-[#111827] border-r border-white/[0.06] transition-all duration-180 ${
+              sidebarHovered ? 'w-56' : 'w-12'
             }`}
           >
             {/* Sidebar Header */}
@@ -1335,12 +1335,12 @@ export default function App() {
                         />
                       )}
                       <div 
-                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-180 group-hover:scale-105"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-180 group-hover:scale-105"
                         style={{ 
                           backgroundColor: 'rgba(255,255,255,0.03)',
                           border: '1px solid rgba(255,255,255,0.05)',
                           color: item.active ? item.color : '#94A3B8',
-                          boxShadow: item.active ? `0 0 12px ${item.color}40` : 'none'
+                          boxShadow: item.active ? `0 0 8px ${item.color}30` : 'none'
                         }}
                       >
                         <Icon 
@@ -1399,16 +1399,16 @@ export default function App() {
                           />
                         )}
                         <div 
-                          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-180 group-hover:scale-105"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-180 group-hover:scale-105"
                           style={{ 
                             backgroundColor: 'rgba(255,255,255,0.03)',
                             border: '1px solid rgba(255,255,255,0.05)',
                             color: item.active ? item.color : '#94A3B8',
-                            boxShadow: item.active ? `0 0 12px ${item.color}40` : 'none'
+                            boxShadow: item.active ? `0 0 8px ${item.color}30` : 'none'
                           }}
                         >
                           <Icon 
-                            size={18} 
+                            size={16} 
                             strokeWidth={2}
                           />
                         </div>
@@ -1475,7 +1475,7 @@ export default function App() {
 
           {/* Left Column: Stacked panels (w-80) */}
           {currentView === 'master' && (
-            <div className="absolute z-20 top-16 left-[80px] w-72 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-300">
+            <div className="absolute z-20 top-16 left-[60px] w-72 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-300">
               
               {/* 1. OPERATIONAL MONITOR & ZONE METRICS */}
               {showMonitor && (
@@ -1838,7 +1838,7 @@ export default function App() {
 
           {/* Floating Legend */}
           {currentView === 'master' && (
-            <div className="absolute bottom-16 left-[80px] z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg transition-all duration-300">
+            <div className="absolute bottom-16 left-[60px] z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg transition-all duration-300">
               {[['#0c883d','Ô chứa'],['var(--orange)','Cổng Outbound'],
                 ['var(--inbound)','Cổng Inbound'],['rgba(100,116,139,0.7)','Xe tải']].map(([c,l])=>(
                 <span key={l} className="flex items-center gap-1.5">
@@ -1872,13 +1872,13 @@ export default function App() {
 
           {/* Center Content: Switch between Layout Master and Inbound */}
           <div className={currentView === 'master'
-            ? 'absolute left-[368px] right-[384px] top-16 bottom-20 flex items-center justify-center transition-all duration-300'
+            ? 'absolute left-[348px] right-[384px] top-16 bottom-20 flex items-center justify-center transition-all duration-300'
             : `absolute inset-0 pt-16 pb-6 overflow-y-auto scrollbar-thin transition-all duration-300 flex flex-col items-center ${
                 isMobile 
                   ? 'px-6' 
                   : sidebarHovered 
-                    ? 'pl-[264px] pr-[264px]' 
-                    : 'pl-[88px] pr-[88px]'
+                    ? 'pl-[236px] pr-6' 
+                    : 'pl-[60px] pr-6'
               }`
           }>
             {currentView === 'master' ? (

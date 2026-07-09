@@ -2612,7 +2612,211 @@ def run_giam_sat_phat_hang(session: requests.Session, token_mgr: 'TokenManager')
     print("🎉 GIAM SAT PHAT HANG: Hoàn thành!")
 
 
+def run_realtime_sync(session, token_mgr):
+    """
+    Chế độ Realtime (chạy mỗi 10 phút):
+    - Kéo Dispatch API: cập nhật Pickup_time mới nhất vào SQLite
+    - Kéo Backlog API: cập nhật số tồn kho thực tế
+    - Push Backlog sheet lên Google Sheets ngay lập tức
+    - Cập nhật Inbound sheet với pickup time mới nhất
+    """
+    print("\n⚡ REALTIME SYNC — Backlog + Pickup Time")
+    print(f"🕐 {datetime.now(ZoneInfo('Asia/Ho_Chi_Minh')).strftime('%Y-%m-%d %H:%M:%S')} (VN)")
+    print("=" * 50)
+
+    now_vn = datetime.now(ZoneInfo('Asia/Ho_Chi_Minh'))
+    DATE_END   = now_vn.strftime('%Y-%m-%d %H:%M:%S')
+    DATE_START = (now_vn - timedelta(days=2)).strftime('%Y-%m-%d 06:00:00')
+
+    # Load config files
+    fh = load_json(os.path.join(BASE_DIR, "config", "forecastheaders.json"))
+    fp = load_json(os.path.join(BASE_DIR, "config", "forecastpayload.json"))
+    dh = load_json(os.path.join(BASE_DIR, "config", "dispatchheaders.json"))
+    dp_payload = load_json(os.path.join(BASE_DIR, "config", "dispatchpayload.json"))
+    bh = load_json(os.path.join(BASE_DIR, "config", "backlogheaders.json"))
+    bp = load_json(os.path.join(BASE_DIR, "config", "backlogpayload.json"))
+
+    token = token_mgr.get_token()
+    for h in [fh, dh, bh]:
+        h['authToken'] = token
+        h['Authtoken'] = token
+
+    # Load valid.csv mapping
+    d_sortcode, d_buucuc, d_tuyen, d_rank = load_valid(VALID_FILE)
+
+    # ── 1. KÉO DISPATCH: lấy Pickup_time mới nhất ──
+    print("\n📦 Kéo Dispatch API...")
+    dp_payload['timeStart']      = DATE_START
+    dp_payload['inputTimeStart'] = DATE_START
+    dp_payload['timeEnd']        = DATE_END
+    dp_payload['inputTimeEnd']   = DATE_END
+
+    try:
+        r = session.post(URL_DISPATCH, headers=dh, data=dp_payload, timeout=30)
+        raw = r.json()
+        total_dp = int(raw.get('data', {}).get('total', 0)) if isinstance(raw.get('data'), dict) else 0
+        pages = math.ceil(total_dp / 100) if total_dp > 0 else 1
+
+        updated_pickup = 0
+        conn_rt = sqlite3.connect(DB_FILE)
+        c_rt = conn_rt.cursor()
+
+        for pg in range(1, min(pages + 1, 51)):  # Tối đa 50 trang = 5000 đơn gần nhất
+            try:
+                token = token_mgr.get_token()
+                dh['authToken'] = token
+                dh['Authtoken'] = token
+                dp_payload['pageNo'] = pg
+                r_pg = session.post(URL_DISPATCH, headers=dh, data=dp_payload, timeout=20)
+                raw_pg = r_pg.json()
+                if not isinstance(raw_pg, dict):
+                    continue
+                records = raw_pg.get('data', {})
+                if isinstance(records, dict):
+                    records = records.get('records', []) or []
+                for item in (records or []):
+                    if not isinstance(item, dict):
+                        continue
+                    wb = str(item.get('waybillNo', '')).strip()
+                    status_dp = str(item.get('orderStatusName', '')).strip()
+                    pk = str(item.get('updateTime') or '').strip() if status_dp == 'Đã lấy hàng' else ''
+                    if wb and pk and pk.lower() not in ('nan', 'none', ''):
+                        c_rt.execute("""
+                            UPDATE inventory
+                            SET Pickup_time = ?, status_order = ?, last_updated = CURRENT_TIMESTAMP
+                            WHERE waybillNo = ? AND (Pickup_time = '' OR Pickup_time IS NULL)
+                        """, (pk, status_dp, wb))
+                        updated_pickup += c_rt.rowcount
+            except Exception:
+                continue
+
+        conn_rt.commit()
+        print(f"   ✅ Cập nhật Pickup_time cho {updated_pickup:,} đơn mới từ Dispatch API")
+
+        # ── 2. KÉO BACKLOG: cập nhật số tồn kho thực ──
+        print("\n🏭 Kéo Backlog API...")
+        bp['pageNo'] = 1
+        bp['pageSize'] = 500
+        r_bl = session.post(URL_BACKLOG, headers=bh, data=bp, timeout=30)
+        raw_bl = r_bl.json()
+        if not isinstance(raw_bl, dict):
+            print("   ⚠️ Backlog API trả về lỗi, bỏ qua.")
+        else:
+            total_bl = int(raw_bl.get('data', {}).get('total', 0)) if isinstance(raw_bl.get('data'), dict) else 0
+            bl_pages = math.ceil(total_bl / 500) if total_bl > 0 else 1
+            all_bl = []
+            for pg_bl in range(1, bl_pages + 1):
+                try:
+                    token = token_mgr.get_token()
+                    bh['authToken'] = token
+                    bh['Authtoken'] = token
+                    bp['pageNo'] = pg_bl
+                    r_b = session.post(URL_BACKLOG, headers=bh, data=bp, timeout=20)
+                    raw_b = r_b.json()
+                    if not isinstance(raw_b, dict):
+                        continue
+                    recs = raw_b.get('data', {})
+                    if isinstance(recs, dict):
+                        recs = recs.get('records', []) or []
+                    all_bl.extend(recs or [])
+                except Exception:
+                    continue
+
+            print(f"   ✅ Backlog API: {len(all_bl):,} đơn thực tế trong kho HUB")
+
+            # Cleanup stale records trong DB
+            if all_bl:
+                live_wbs = {str(r.get('billcode', '')).strip() for r in all_bl if isinstance(r, dict)}
+                c_rt.execute("SELECT waybillNo FROM inventory WHERE status_order = 'Đang trên bãi'")
+                db_wbs = {row[0] for row in c_rt.fetchall()}
+                stale = db_wbs - live_wbs
+                if stale:
+                    c_rt.executemany(
+                        "UPDATE inventory SET status_order = 'Đã rời HUB', last_updated = CURRENT_TIMESTAMP WHERE waybillNo = ?",
+                        [(w,) for w in stale]
+                    )
+                    conn_rt.commit()
+                    print(f"   ✅ Dọn dẹp {len(stale):,} đơn stale → 'Đã rời HUB'")
+
+            # Push Backlog sheet
+            BACKLOG_REDELIVER = {
+                'Người nhận từ chối nhận hàng','Khách không ở địa chỉ giao hàng',
+                'Số điện thoại không liên lạc được','Người nhận đặt trùng đơn / mua nhầm',
+                'Khách từ chối thanh toán','Khách không đặt hàng','Sai số điện thoại',
+                'Khách yêu cầu dùng thử, kiểm hàng','Người nhận hẹn lại thời gian giao hàng',
+                'Địa chỉ khách hàng sai','Hàng hóa hư hỏng một phần','Hàng hóa hư hỏng hoàn toàn'
+            }
+            backlog_by_station = {}
+            for item in all_bl:
+                if not isinstance(item, dict):
+                    continue
+                if item.get('operate_site_type') not in ('Trong kho', None, ''):
+                    if item.get('operate_site_type') != 'Trong kho':
+                        continue
+                dest = str(item.get('destination_site_name', '')).strip()
+                src  = str(item.get('take_site_name', '')).strip()
+                remark = str(item.get('abnormal_remark', '')).strip()
+                station_raw = src if remark in BACKLOG_REDELIVER else dest
+                station = d_buucuc.get(station_raw, station_raw).upper()
+                wt = float(str(item.get('weight', 0)).replace(',', '') or 0)
+                if station not in backlog_by_station:
+                    backlog_by_station[station] = {'volume': 0, 'weight': 0.0}
+                backlog_by_station[station]['volume'] += 1
+                backlog_by_station[station]['weight'] += wt
+
+            # Ghi lên Google Sheets
+            try:
+                creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+                local_creds = r"C:\Users\lehoa\OneDrive\Desktop\testing\addressproject.json"
+                if not creds_json and os.path.exists(local_creds):
+                    with open(local_creds, 'r', encoding='utf-8') as f:
+                        creds_json = f.read()
+                if creds_json:
+                    import gspread
+                    from google.oauth2.service_account import Credentials
+                    creds_info = json.loads(creds_json)
+                    creds = Credentials.from_service_account_info(creds_info, scopes=[
+                        'https://spreadsheets.google.com/feeds',
+                        'https://www.googleapis.com/auth/drive'
+                    ])
+                    gc = gspread.authorize(creds)
+
+                    # Load master_chutes từ Sheet
+                    master_chutes = {}
+                    try:
+                        ss = gc.open_by_key(SHEET_ID)
+                        sheet1 = ss.worksheet("Sheet1")
+                        all_rows = sheet1.get_all_values()
+                        if len(all_rows) > 1:
+                            hdrs = all_rows[0]
+                            ci_zone = hdrs.index("Zone") if "Zone" in hdrs else 0
+                            ci_area = hdrs.index("AreaID") if "AreaID" in hdrs else 1
+                            ci_name = hdrs.index("Bưu cục") if "Bưu cục" in hdrs else 2
+                            ci_cap  = hdrs.index("Sức chứa") if "Sức chứa" in hdrs else 6
+                            for row in all_rows[1:]:
+                                if len(row) > max(ci_zone, ci_area, ci_name):
+                                    z, a, n = row[ci_zone].strip(), row[ci_area].strip(), row[ci_name].strip()
+                                    if z and a and n:
+                                        master_chutes[(z, a)] = {"zone": z, "area_id": a, "name": n,
+                                                                  "capacity": row[ci_cap] if ci_cap < len(row) else "780"}
+                    except Exception:
+                        pass
+
+                    current_date_str = now_vn.strftime('%Y-%m-%d')
+                    update_backlog_sheet(gc, master_chutes, backlog_by_station, current_date_str)
+                    print(f"   ✅ Đã push Backlog sheet lên Google Sheets ({len(all_bl):,} đơn)")
+            except Exception as e_gs:
+                print(f"   ⚠️ Lỗi push Google Sheets: {e_gs}")
+
+        conn_rt.close()
+    except Exception as e_rt:
+        print(f"   ❌ Lỗi Realtime sync: {e_rt}")
+
+    print("\n✅ REALTIME SYNC hoàn thành!")
+
+
 def main():
+
     parser = argparse.ArgumentParser(description="J&T Cargo HCM HUB — Unified Sync + Giam sat phat hang")
     parser.add_argument("--rebuild", type=int, help="Rebuild data for the last N operating days")
     parser.add_argument("--gsh-only", action="store_true", help="Chỉ chạy Giam sat phat hang")
