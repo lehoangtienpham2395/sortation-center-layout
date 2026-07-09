@@ -249,7 +249,14 @@ export default function InboundDashboard({
   const forecastTrendData = labels.map(l => hourlyForecast[l]);
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
-  const pendingOrders = Math.max(0, totalForecast - totalOrders - totalInTransitOrders);
+  const masterTotal = Math.max(totalForecast, totalOrders + totalInTransitOrders);
+  const pendingOrders = Math.max(0, masterTotal - totalOrders - totalInTransitOrders);
+
+  // Tính tỷ lệ % cho 3 trạng thái của Orders status doughnut chart
+  const totalStates = totalOrders + totalInTransitOrders + pendingOrders;
+  const inboundPct = totalStates > 0 ? Math.round((totalOrders / totalStates) * 100) : 0;
+  const inTransitPct = totalStates > 0 ? Math.round((totalInTransitOrders / totalStates) * 100) : 0;
+  const pendingPct = totalStates > 0 ? Math.max(0, 100 - inboundPct - inTransitPct) : 0;
 
   // MỞ RỘNG METRICS BƯU CỤC GỬI (Đầy đủ bưu cục, tính tổng xe, tổng đơn, tổng trọng lượng, tỉ lệ %)
   const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
@@ -654,9 +661,7 @@ export default function InboundDashboard({
             <div className="donut-canvas-container">
               <canvas ref={donutRef} style={{ width: '100%', height: '100%' }}></canvas>
               <div className="donut-center-text">
-                <span className="number">
-                  {totalForecast > 0 ? ((totalOrders / totalForecast) * 100).toFixed(0) : 0}%
-                </span>
+                <span className="number">{inboundPct}%</span>
                 <span className="label">Inbound</span>
               </div>
             </div>
@@ -666,6 +671,7 @@ export default function InboundDashboard({
                 <div className="donut-legend-dot" style={{ background: '#B8F7E4' }}></div>
                 <div className="donut-legend-header">
                   <span className="label-text">Đã nhập kho</span>
+                  <span className="donut-legend-pct" style={{ marginLeft: '4px' }}>({inboundPct}%)</span>
                 </div>
                 <span className="donut-legend-value">{totalOrders.toLocaleString()}</span>
               </div>
@@ -673,6 +679,7 @@ export default function InboundDashboard({
                 <div className="donut-legend-dot" style={{ background: '#C8FF3D' }}></div>
                 <div className="donut-legend-header">
                   <span className="label-text">Đang trên đường</span>
+                  <span className="donut-legend-pct" style={{ marginLeft: '4px' }}>({inTransitPct}%)</span>
                 </div>
                 <span className="donut-legend-value">{totalInTransitOrders.toLocaleString()}</span>
               </div>
@@ -680,6 +687,7 @@ export default function InboundDashboard({
                 <div className="donut-legend-dot" style={{ background: '#FC6C26' }}></div>
                 <div className="donut-legend-header">
                   <span className="label-text">Chờ xử lý</span>
+                  <span className="donut-legend-pct" style={{ marginLeft: '4px' }}>({pendingPct}%)</span>
                 </div>
                 <span className="donut-legend-value">{pendingOrders.toLocaleString()}</span>
               </div>
