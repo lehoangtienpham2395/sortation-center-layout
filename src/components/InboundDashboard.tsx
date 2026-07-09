@@ -10,43 +10,6 @@ interface InboundDashboardProps {
   fetchAndUpdateData: () => void;
 }
 
-function parseHourAndCheckDate(val: any, activeDate: string, loaiRot: string): number {
-  if (val === undefined || val === null || val === '') return -1;
-  const strVal = String(val).trim();
-  
-  if (strVal.includes('-') || strVal.includes('/')) {
-    const parts = strVal.split(' ');
-    const datePart = parts[0];
-    const timePart = parts[1] || '';
-    
-    const hour = parseInt(timePart.split(':')[0], 10);
-    if (!isNaN(hour) && hour >= 0 && hour < 24) {
-      // Calculate operating date: if hour < 6, it belongs to the previous day
-      let opDate = datePart;
-      if (hour < 6) {
-        const d = new Date(datePart);
-        d.setDate(d.getDate() - 1);
-        opDate = d.toISOString().split('T')[0];
-      }
-      
-      if (opDate !== activeDate) {
-        return -1;
-      }
-      return hour;
-    }
-  }
-  
-  const hour = parseInt(strVal, 10);
-  if (!isNaN(hour) && hour >= 0 && hour < 24) {
-    if (loaiRot === 'Rớt hôm trước') {
-      return -1;
-    }
-    return hour;
-  }
-  
-  return -1;
-}
-
 /**
  * Trích xuất giờ từ chuỗi timestamp (ví dụ: "2026-07-09 21:00" -> 21)
  * độc lập với việc check ngày/lùi ngày vì việc lọc theo ngày vận hành đã được thực hiện trước đó.
