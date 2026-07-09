@@ -856,11 +856,10 @@ def _cleanup_old_files(directory: str, keep_file: str):
 # ================================================================
 # GOOGLE SHEETS SYNC
 # ================================================================
-def update_outbound_sheet(gc, master_chutes, outbound_volumes_grouped, target_dates):
+def update_outbound_sheet(ss, master_chutes, outbound_volumes_grouped, target_dates):
     try:
-        sheet = gc.open_by_key(SHEET_ID).worksheet("Outbound")
+        sheet = ss.worksheet("Outbound")
     except Exception:
-        ss = gc.open_by_key(SHEET_ID)
         sheet = ss.add_worksheet("Outbound", rows=1000, cols=7)
         
     all_rows = sheet.get_all_values()
@@ -927,11 +926,10 @@ def update_outbound_sheet(gc, master_chutes, outbound_volumes_grouped, target_da
     print(f"   ✅ Đã cập nhật sheet 'Outbound' cho các ngày: {list(target_dates)}")
 
 
-def update_backlog_sheet(gc, master_chutes, backlog_volumes, current_date_str):
+def update_backlog_sheet(ss, master_chutes, backlog_volumes, current_date_str):
     try:
-        sheet = gc.open_by_key(SHEET_ID).worksheet("Backlog")
+        sheet = ss.worksheet("Backlog")
     except Exception:
-        ss = gc.open_by_key(SHEET_ID)
         sheet = ss.add_worksheet("Backlog", rows=1000, cols=7)
         
     headers = ["Zone", "AreaID", "Bưu cục", "Volume", "Weight", "Sức chứa", "Ngày"]
@@ -958,11 +956,10 @@ def update_backlog_sheet(gc, master_chutes, backlog_volumes, current_date_str):
     print(f"   ✅ Đã cập nhật sheet 'Backlog' pivoted với {len(new_rows)-1} dòng.")
 
 
-def update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_str):
+def update_inventory_sheet(ss, master_chutes, inventory_volumes, current_date_str):
     try:
-        sheet = gc.open_by_key(SHEET_ID).worksheet("Inventory")
+        sheet = ss.worksheet("Inventory")
     except Exception:
-        ss = gc.open_by_key(SHEET_ID)
         sheet = ss.add_worksheet("Inventory", rows=1000, cols=8)
         
     headers = ["Zone", "AreaID", "Bưu cục", "Trạng thái", "Volume", "Weight", "Sức chứa", "Ngày"]
@@ -992,15 +989,14 @@ def update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_st
     print(f"   ✅ Đã cập nhật sheet 'Inventory' pivoted với {len(new_rows)-1} dòng.")
 
 
-def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, token_mgr=None, fh=None, fp=None):
+def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, token_mgr=None, fh=None, fp=None):
     print("\n📥 Bắt đầu cập nhật dữ liệu Inbound gom nhóm theo trạng thái & khung giờ lên Google Sheets...")
     
     def write_sheet(sheet_name, df_data, headers):
         try:
-            sheet = gc.open_by_key(SHEET_ID).worksheet(sheet_name)
+            sheet = ss.worksheet(sheet_name)
         except Exception:
             try:
-                ss = gc.open_by_key(SHEET_ID)
                 sheet = ss.add_worksheet(sheet_name, rows=1000, cols=len(headers))
             except Exception as e:
                 print(f"   ❌ Không thể tạo sheet '{sheet_name}': {e}")
@@ -1528,10 +1524,9 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
             arrival_cols = ['Ngày vận hành', 'Pickup_station', 'Scan Hour',
                             'Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub', 'Last time']
             try:
-                arr_sheet = gc.open_by_key(SHEET_ID).worksheet('Arrival')
+                arr_sheet = ss.worksheet('Arrival')
             except Exception:
                 try:
-                    ss = gc.open_by_key(SHEET_ID)
                     arr_sheet = ss.add_worksheet('Arrival', rows=5000, cols=len(arrival_cols))
                 except Exception as e_cr:
                     print(f'   ❌ Không thể tạo sheet Arrival: {e_cr}')
@@ -1597,10 +1592,13 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
         creds = Credentials.from_service_account_info(json.loads(creds_json), scopes=scopes)
         gc = gspread.authorize(creds)
         
+        # Open spreadsheet once
+        ss = gc.open_by_key(SHEET_ID)
+        
         # Load master chutes from sheet1 (first sheet)
         master_chutes = {}
         try:
-            first_sheet = gc.open_by_key(SHEET_ID).sheet1
+            first_sheet = ss.sheet1
             all_rows = first_sheet.get_all_values()
             if all_rows and len(all_rows) > 1:
                 headers = all_rows[0]
@@ -1660,7 +1658,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
                 
         # 1. Update Outbound Sheet
         if run_outbound and target_dates:
-            update_outbound_sheet(gc, master_chutes, outbound_volumes_grouped, target_dates)
+            update_outbound_sheet(ss, master_chutes, outbound_volumes_grouped, target_dates)
             
         # 2. Update Backlog Sheet (Realtime Pivot)
         # ✅ Dùng thẳng df_bl từ JFS API (real-time) thay vì đọc từ DB cũ tích lũy nhiều ngày
@@ -1696,7 +1694,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
                         print(f"   ℹ| Backlog live từ JFS API: {df_live_bl['billcode'].nunique():,} đơn unique")
             except Exception as e_bl_live:
                 print(f"   ⚠️ Lỗi tính Backlog pivot từ API: {e_bl_live}")
-            update_backlog_sheet(gc, master_chutes, backlog_volumes, current_date_str)
+            update_backlog_sheet(ss, master_chutes, backlog_volumes, current_date_str)
             
         # 3. Update Inventory Sheet (Realtime Pivot)
         if run_backlog_inv:
@@ -1730,11 +1728,11 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
                     ).to_dict(orient='index')
             except Exception as e_inv_db:
                 print(f"   ⚠️ Lỗi tính Inventory pivot từ SQLite: {e_inv_db}")
-            update_inventory_sheet(gc, master_chutes, inventory_volumes, current_date_str)
+            update_inventory_sheet(ss, master_chutes, inventory_volumes, current_date_str)
             
         # 4. Update Inbound Sheets (aggregated Inbound + raw Linehaul + Arrival)
         if results:
-            update_inbound_sheets(gc, results, master_chutes, d_buucuc, session, token_mgr, fh, fp)
+            update_inbound_sheets(ss, results, master_chutes, d_buucuc, session, token_mgr, fh, fp)
             
     except Exception as e:
         print(f"   ❌ Lỗi cập nhật Google Sheets: {e}")
@@ -2741,8 +2739,8 @@ def run_once(session, token_mgr, rebuild_days=None):
     print("\n🚀 Đang push data lên Github Raw...")
     push_json_to_github(df, GH_TOKEN, GH_REPO, GH_DATA_PATH)
     
-    print("\n💾 Đang đồng bộ hóa Database SQLite lên Github...")
-    push_db_to_github(DB_FILE, GH_TOKEN, GH_REPO, "backend_sync/db/state.db")
+    # print("\n💾 Đang đồng bộ hóa Database SQLite lên Github...")
+    # push_db_to_github(DB_FILE, GH_TOKEN, GH_REPO, "backend_sync/db/state.db")
 
     # Cập nhật dữ liệu cấu hình lên Google Sheets (config sheets, Linehaul, Arrival, Outbound)
     # Data chính (100k rows) đã được push lên Github — không cần ghi vào Sheet nữa
