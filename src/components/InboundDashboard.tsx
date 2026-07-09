@@ -446,22 +446,38 @@ export default function InboundDashboard({
         if (donutInstanceRef.current) donutInstanceRef.current.destroy();
 
         donutInstanceRef.current = new ChartClass(dCtx, {
-          type: 'doughnut',
+          type: 'polarArea',
           data: {
             labels: ['Đã nhập kho', 'Đang trên đường', 'Chờ xử lý'],
             datasets: [
               {
                 data: [totalOrders, totalInTransitOrders, pendingOrders],
-                backgroundColor: ['#B8F7E4', '#C8FF3D', '#2a273f'],
-                borderWidth: 0,
-                hoverOffset: 4
+                backgroundColor: [
+                  'rgba(184, 247, 228, 0.85)', // Mint
+                  'rgba(200, 255, 61, 0.85)',  // Lime
+                  'rgba(252, 108, 38, 0.85)'   // Orange
+                ],
+                borderColor: '#120f22',
+                borderWidth: 2
               }
             ]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '75%',
+            scales: {
+              r: {
+                grid: {
+                  color: 'rgba(255, 255, 255, 0.03)'
+                },
+                angleLines: {
+                  color: 'rgba(255, 255, 255, 0.03)'
+                },
+                ticks: {
+                  display: false
+                }
+              }
+            },
             plugins: {
               legend: { display: false },
               tooltip: {
@@ -478,7 +494,24 @@ export default function InboundDashboard({
                 }
               }
             }
-          }
+          },
+          plugins: [{
+            id: 'polarAreaCutout',
+            afterDatasetsDraw: (chart: any) => {
+              const ctx = chart.ctx;
+              const x = chart.scales.r.xCenter;
+              const y = chart.scales.r.yCenter;
+              const drawingArea = chart.scales.r.drawingArea;
+              const innerRadius = drawingArea * 0.45; // 45% cutout
+              
+              ctx.save();
+              ctx.beginPath();
+              ctx.arc(x, y, innerRadius, 0, 2 * Math.PI);
+              ctx.fillStyle = '#120f22'; // Match background panel color
+              ctx.fill();
+              ctx.restore();
+            }
+          }]
         });
       }
     }
@@ -677,7 +710,7 @@ export default function InboundDashboard({
                 <span className="donut-legend-value">{totalInTransitOrders.toLocaleString()}</span>
               </div>
               <div className="donut-legend-item">
-                <div className="donut-legend-dot" style={{ background: '#2a273f' }}></div>
+                <div className="donut-legend-dot" style={{ background: '#FC6C26' }}></div>
                 <div className="donut-legend-header">
                   <span className="label-text">Chờ xử lý</span>
                 </div>
