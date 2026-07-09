@@ -81,13 +81,20 @@ export default function InboundDashboard({
 
   // 1. Extract and sort available dates
   const inboundDates = Array.from(
-    new Set(inboundData.map(d => d['Ngày vận hành']).filter(Boolean))
+    new Set([
+      ...inboundData.map(d => d['Ngày vận hành_Inbound']),
+      ...inboundData.map(d => d['Ngày vận hành_Forecast']),
+      ...inboundData.map(d => d['Ngày vận hành_Pickup'])
+    ].filter(Boolean))
   ) as string[];
   inboundDates.sort((a, b) => b.localeCompare(a));
   const activeDate = selectedInboundDate || inboundDates[0] || '';
 
   // 2. Filter datasets by active date
-  const filteredInbound = inboundData.filter(d => d['Ngày vận hành'] === activeDate);
+  const filteredInbound = inboundData.filter(d => (d['Trạng thái'] === 'Đã về Hub' || d['Trạng thái'] === 'Đã nhập hàng') && d['Ngày vận hành_Inbound'] === activeDate);
+  const filteredForecast = inboundData.filter(d => (d['Trạng thái'] === 'Forecast' || d['Trạng thái'] === 'Điều phối bưu cục') && d['Ngày vận hành_Forecast'] === activeDate);
+  const filteredPickup = inboundData.filter(d => d['Trạng thái'] === 'Lấy hàng thành công' && d['Ngày vận hành_Pickup'] === activeDate);
+  const filteredChuaVeHub = [...filteredForecast, ...filteredPickup];
 
   const getLinehaulOperatingDate = (row: any) => {
     if (row['Ngày vận hành']) return row['Ngày vận hành'];
@@ -118,7 +125,7 @@ export default function InboundDashboard({
     'Đã về Hub': { orders: 0, weight: 0 }
   };
 
-  filteredInbound.forEach(d => {
+  [...filteredInbound, ...filteredChuaVeHub].forEach(d => {
     const status = d['Trạng thái'];
     const vol = parseInt(d['Volume'], 10) || 0;
     const wt = parseFloat(d['Weight']) || 0;
@@ -217,7 +224,7 @@ export default function InboundDashboard({
   });
 
   // 2. Forecast Time (Dự báo - Kế hoạch lấy): CHỈ HIỂN THỊ MỐC THỜI GIAN RỚT HÔM NAY (Loại rớt không phải Rớt hôm trước)
-  filteredInbound.forEach(d => {
+  filteredForecast.forEach(d => {
     const loaiRot = d['Loại rớt'] || '';
     if (loaiRot !== 'Rớt hôm trước') {
       const fcTime = d['Forecast Time'] !== undefined && d['Forecast Time'] !== null && d['Forecast Time'] !== ''
@@ -236,7 +243,7 @@ export default function InboundDashboard({
   });
 
   // 3. Pickup Time (Shipper đã lấy): lấy từ cột "Pickup Time" (deliveryTime)
-  filteredInbound.forEach(d => {
+  filteredPickup.forEach(d => {
     const loaiRot = d['Loại rớt'] || '';
     const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
       ? d['Pickup Time']
@@ -547,7 +554,7 @@ export default function InboundDashboard({
             <span className="status-text">Update: {new Date().toLocaleString('vi-VN')}</span>
           </div>
           <div className="date-control-wrapper">
-            <span className="control-label">INBOUND CONTROL</span>
+            <span className="control-label">Operations Date</span>
             <div className={`custom-datepicker ${dateDropdownOpen ? 'open' : ''}`}>
               <button className="datepicker-trigger" onClick={toggleDropdown}>
                 <i className="fa-regular fa-calendar-days icon-cal" style={{ marginRight: '6px' }}></i>

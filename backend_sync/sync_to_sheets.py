@@ -1264,20 +1264,26 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
         else:
             status = "Forecast"
             
-        # 2. Operation Date (Ngày vận hành)
-        op_date = get_operating_date(fc_time)
-        if not op_date:
-            op_date = get_operating_date(pk_time)
-        if not op_date:
-            op_date = current_op_date
+        # 2. Status-specific Operation Dates
+        op_date_ib = get_operating_date(ib_time) if ib_time else ""
+        
+        fc_time_temp = fc_time
+        if (not fc_time_temp or fc_time_temp.lower() in ('nan', 'none')) and status == 'Forecast':
+            fc_time_temp = pk_time
+        op_date_fc = get_operating_date(fc_time_temp) if fc_time_temp else ""
+        
+        op_date_pk = ""
+        if status not in ('Forecast', 'Đã điều phối bưu cục') and pk_time:
+            op_date_pk = get_operating_date(pk_time)
             
         # 3. Drop Type (Loại rớt)
         if status == "Đã về Hub":
             loai_rot = "Rớt hôm nay"
         else:
+            ref_date = op_date_fc if op_date_fc else (op_date_pk if op_date_pk else current_op_date)
             if fc_time:
                 dispatch_date = get_operating_date(fc_time)
-                if dispatch_date == op_date:
+                if dispatch_date == ref_date:
                     loai_rot = "Rớt hôm nay"
                 else:
                     loai_rot = "Rớt hôm trước"
@@ -1310,10 +1316,12 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
             'Bưu cục': rec['fc'],
             'Trạng thái': status,
             'weight': rec['weight'],
-            'Ngày vận hành': op_date,
+            'Ngày vận hành_Inbound': op_date_ib,
+            'Ngày vận hành_Forecast': op_date_fc,
+            'Ngày vận hành_Pickup': op_date_pk,
             'Inbound Hour': ib_hour,
-            'Forecast Time': fc_hour, # mapped to Forecast Time column
-            'Pickup Time': pk_hour,     # mapped to Pickup Time column
+            'Forecast Time': fc_hour,
+            'Pickup Time': pk_hour,
             'Loại rớt': loai_rot,
             'waybill': wb
         })
@@ -1323,29 +1331,41 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
     for r in unique_rows:
         projected_rows.append(r)
         # Carry over un-inbounded records from past operating dates to today's date
-        if r['Trạng thái'] != 'Đã về Hub' and r['Ngày vận hành'] < current_op_date:
-            dup = r.copy()
-            dup['Ngày vận hành'] = current_op_date
-            dup['Loại rớt'] = 'Rớt hôm trước'
-            projected_rows.append(dup)
+        if r['Trạng thái'] != 'Đã về Hub' and r['Trạng thái'] != 'Đã nhập hàng':
+            if r['Ngày vận hành_Forecast'] and r['Ngày vận hành_Forecast'] < current_op_date:
+                dup = r.copy()
+                dup['Ngày vận hành_Forecast'] = current_op_date
+                dup['Loại rớt'] = 'Rớt hôm trước'
+                projected_rows.append(dup)
+            elif r['Ngày vận hành_Pickup'] and r['Ngày vận hành_Pickup'] < current_op_date:
+                dup = r.copy()
+                dup['Ngày vận hành_Pickup'] = current_op_date
+                dup['Loại rớt'] = 'Rớt hôm trước'
+                projected_rows.append(dup)
 
     # --- Step 7: Grouping & Aggregation ---
     grouped = {}
     for r in projected_rows:
-        key = (r['Bưu cục'], r['Trạng thái'], r['Ngày vận hành'], r['Inbound Hour'], r['Forecast Time'], r['Pickup Time'], r['Loại rớt'])
+        key = (
+            r['Bưu cục'], r['Trạng thái'],
+            r['Ngày vận hành_Inbound'], r['Ngày vận hành_Forecast'], r['Ngày vận hành_Pickup'],
+            r['Inbound Hour'], r['Forecast Time'], r['Pickup Time'], r['Loại rớt']
+        )
         if key not in grouped:
             grouped[key] = {'volume': 0, 'weight': 0.0}
         grouped[key]['volume'] += 1
         grouped[key]['weight'] += r['weight']
         
     final_rows = []
-    for (fc_name, status, op_date, ib_hour, fc_hour, pk_hour, loai_rot), stats in grouped.items():
+    for (fc_name, status, op_ib, op_fc, op_pk, ib_hour, fc_hour, pk_hour, loai_rot), stats in grouped.items():
         final_rows.append({
             'Bưu cục': fc_name,
             'Trạng thái': status,
             'Volume': stats['volume'],
             'Weight': int(stats['weight']),
-            'Ngày vận hành': op_date,
+            'Ngày vận hành_Inbound': op_ib,
+            'Ngày vận hành_Forecast': op_fc,
+            'Ngày vận hành_Pickup': op_pk,
             'Inbound Hour': ib_hour,
             'Forecast Time': fc_hour,
             'Pickup Time': pk_hour,
@@ -1353,7 +1373,11 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
         })
         
     df_inbound_aggregated = pd.DataFrame(final_rows)
-    write_sheet("Inbound", df_inbound_aggregated, ["Bưu cục", "Trạng thái", "Volume", "Weight", "Ngày vận hành", "Inbound Hour", "Forecast Time", "Pickup Time", "Loại rớt"])
+    write_sheet("Inbound", df_inbound_aggregated, [
+        "Bưu cục", "Trạng thái", "Volume", "Weight",
+        "Ngày vận hành_Inbound", "Ngày vận hành_Forecast", "Ngày vận hành_Pickup",
+        "Inbound Hour", "Forecast Time", "Pickup Time", "Loại rớt"
+    ])
 
     # 4. Linehaul (Gộp các dòng trùng Phiếu nhiệm vụ con để kết hợp thông tin gửi & dỡ)
     df_lh_raw = pd.DataFrame(results.get('linehaul', []))
@@ -2629,6 +2653,36 @@ def run_once(session, token_mgr, rebuild_days=None):
     df = pd.DataFrame(list(db_records.values()))
     if 'changed' in df.columns:
         df.drop(columns=['changed'], inplace=True)
+
+    def get_op_date_clean(dt_str):
+        if not dt_str or str(dt_str).strip() in ('', 'nan', 'None'):
+            return ""
+        try:
+            dt = pd.to_datetime(dt_str)
+            if dt.hour < 6:
+                return (dt - timedelta(days=1)).strftime('%Y-%m-%d')
+            else:
+                return dt.strftime('%Y-%m-%d')
+        except Exception:
+            return ""
+
+    df['Ngày vận hành_Inbound'] = df['inbound_scanDate'].apply(get_op_date_clean)
+    
+    def calc_fc_op_date(row):
+        fc_time = row.get('dispatchNetworkTime')
+        if not fc_time or str(fc_time).strip() in ('', 'nan', 'None'):
+            if row.get('status_order') == 'Forecast':
+                fc_time = row.get('Pickup_time')
+        return get_op_date_clean(fc_time)
+        
+    df['Ngày vận hành_Forecast'] = df.apply(calc_fc_op_date, axis=1)
+    
+    def calc_pk_op_date(row):
+        if row.get('status_order') == 'Forecast':
+            return ""
+        return get_op_date_clean(row.get('Pickup_time'))
+        
+    df['Ngày vận hành_Pickup'] = df.apply(calc_pk_op_date, axis=1)
 
     # ── Tính toán sản lượng Outbound thực tế để ghi Sheets ──
     outbound_volumes_grouped = {}
