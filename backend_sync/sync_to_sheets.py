@@ -3342,8 +3342,9 @@ def main():
     tasks = []
     if not args.gsh_only:
         tasks.append(("InventorySync", lambda: run_once(session, token_mgr, rebuild_days=args.rebuild)))
-    if not args.sync_only:
-        tasks.append(("GiamSatPhatHang", lambda: run_giam_sat_phat_hang(session, token_mgr)))
+    # Bỏ qua GiamSatPhatHang cũ vì InventorySync đã tự động xử lý và lưu Arrival vào data/arrival.json
+    # if not args.sync_only:
+    #     tasks.append(("GiamSatPhatHang", lambda: run_giam_sat_phat_hang(session, token_mgr)))
 
     if len(tasks) == 1:
         # Chạy đơn
