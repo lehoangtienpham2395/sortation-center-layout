@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'backend_sync/**'
+      - '.github/workflows/sync_inventory.yml'
   schedule:
     # Runs every 30 mins from 6:00 AM VN time (23:00 UTC) to 10:00 PM VN time (15:00 UTC)
     - cron: '*/30 23 * * *'    # 23:00–23:59 UTC = 06:00–06:59 SA giờ VN
