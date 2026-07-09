@@ -2431,6 +2431,8 @@ def run_once(session, token_mgr, rebuild_days=None):
                     pass
                     
     missing_disp_wbs = list(set(missing_disp_wbs))
+    # Limit to max 150 waybills per run to prevent excessive JFS direct queries
+    missing_disp_wbs = missing_disp_wbs[:150]
     
     if missing_disp_wbs:
         print(f"\n🔍 [Batch Search] Phát hiện {len(missing_disp_wbs):,} đơn Forecast/Inbound chưa có dispatchNetworkTime.")
@@ -2451,6 +2453,7 @@ def run_once(session, token_mgr, rebuild_days=None):
                 
                 chunk_size = 50
                 resolved_disp = {}
+                resolved_wbs = set()
                 
                 for i in range(0, len(missing_disp_wbs), chunk_size):
                     chunk = missing_disp_wbs[i:i+chunk_size]
@@ -2483,9 +2486,17 @@ def run_once(session, token_mgr, rebuild_days=None):
                                             'Pickup_time': pk_val,
                                             'status_order': order_status
                                         }
+                                        resolved_wbs.add(waybill_id)
                     except Exception as e_batch:
                         print(f"      ⚠️ Lỗi query batch chunk {i//chunk_size}: {e_batch}")
                         
+                    # Mark unresolved ones as 'N/A' to avoid querying again
+                    for wb in chunk:
+                        if wb not in resolved_wbs:
+                            if wb in db_records:
+                                db_records[wb]['dispatchNetworkTime'] = 'N/A'
+                                db_records[wb]['changed'] = True
+                                
                 print(f"   ✅ [Batch Search] Hoàn tất: Tìm thấy thông tin Dispatch cho {len(resolved_disp):,} / {len(missing_disp_wbs):,} đơn.")
                 
                 for wb, info in resolved_disp.items():
