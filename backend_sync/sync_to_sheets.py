@@ -1144,12 +1144,26 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
                         payload[k] = ""
                         
                 try:
+                    # Refresh token trước mỗi chunk để tránh lỗi token hết hạn
+                    new_token = token_mgr.get_token()
+                    headers['authToken'] = new_token
+                    headers['Authtoken'] = new_token
+                    
                     r_fc = session.post(URL_FORECAST, headers=headers, data=payload, timeout=15)
-                    fc_res = r_fc.json().get('data', []) or []
+                    raw_json = r_fc.json()
+                    
+                    # ✅ Handle: API có thể trả string thay vì dict khi token hết hạn
+                    if not isinstance(raw_json, dict):
+                        print(f"   ⚠️ Chunk {i//chunk_size}: API trả về non-dict ({type(raw_json).__name__}), bỏ qua.")
+                        continue
+                        
+                    fc_res = raw_json.get('data', []) or []
                     if isinstance(fc_res, dict):
                         fc_res = fc_res.get('records', []) or []
                     
                     for item in fc_res:
+                        if not isinstance(item, dict):
+                            continue
                         wb = str(item.get('waybillNo', '')).strip()
                         pk = str(item.get('collectTime') or item.get('deliveryTime') or '').strip()
                         disp = str(item.get('dispatchNetworkTime') or '').strip()
