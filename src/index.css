@@ -8,16 +8,16 @@
   --line: rgba(139, 92, 246, 0.16);
   --ink: #f8fafc;
   --muted: #a0aec0;
-  --accent: #0d8346;
-  --cyan: #00e5ff;
-  --green: #0d8346;
+  --accent: #C8FF3D;
+  --cyan: #B8F7E4;
+  --green: #C8FF3D;
   --yellow: #eab308;
-  --orange: #f97316;
+  --orange: #FC6C26;
   --red: #ef4444;
   --purple: #a78bfa;
   --darkred: #7f1d1d;
   --gate: #9aa7c2;
-  --inbound: #00e5ff;
+  --inbound: #B8F7E4;
 }
 
 * {
@@ -362,17 +362,17 @@ body {
   --text-secondary: #a0aec0;
   --text-muted: #5a6578;
   
-  --accent-purple: #0d8346; /* J&T Cargo Brand Green */
-  --accent-purple-glow: rgba(13, 131, 70, 0.15);
-  --accent-purple-border: rgba(13, 131, 70, 0.3);
+  --accent-purple: #C8FF3D; /* Lime for Arrived and Actual Pickup */
+  --accent-purple-glow: rgba(200, 255, 61, 0.15);
+  --accent-purple-border: rgba(200, 255, 61, 0.3);
   
-  --accent-green: #00e5ff; /* Neon Cyan */
-  --accent-green-glow: rgba(0, 229, 255, 0.15);
-  --accent-green-border: rgba(0, 229, 255, 0.3);
+  --accent-green: #B8F7E4; /* Mint for Inbound */
+  --accent-green-glow: rgba(184, 247, 228, 0.15);
+  --accent-green-border: rgba(184, 247, 228, 0.3);
   
-  --accent-orange: #f97316; /* Neon Orange */
-  --accent-orange-glow: rgba(249, 115, 22, 0.15);
-  --accent-orange-border: rgba(249, 115, 22, 0.3);
+  --accent-orange: #FC6C26; /* Forecast Orange */
+  --accent-orange-glow: rgba(252, 108, 38, 0.15);
+  --accent-orange-border: rgba(252, 108, 38, 0.3);
 
   --accent-red: #ef4444;
 
@@ -917,23 +917,23 @@ body {
 }
 
 .legend-item .dot.purple {
-  background-color: #a855f7;
-  box-shadow: 0 0 6px #a855f7;
+  background-color: #C8FF3D;
+  box-shadow: 0 0 6px rgba(200, 255, 61, 0.6);
 }
 
 .legend-item .dot.green {
-  background-color: #0d8346;
-  box-shadow: 0 0 6px #0d8346;
+  background-color: #C8FF3D;
+  box-shadow: 0 0 6px rgba(200, 255, 61, 0.6);
 }
 
 .legend-item .dot.orange {
-  background-color: #f97316;
-  box-shadow: 0 0 6px #f97316;
+  background-color: #FC6C26;
+  box-shadow: 0 0 6px rgba(252, 108, 38, 0.6);
 }
 
 .legend-item .dot.cyan {
-  background-color: #00e5ff;
-  box-shadow: 0 0 6px #00e5ff;
+  background-color: #B8F7E4;
+  box-shadow: 0 0 6px rgba(184, 247, 228, 0.6);
 }
 
 .chart-canvas-wrapper {

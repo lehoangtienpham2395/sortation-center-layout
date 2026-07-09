@@ -313,20 +313,20 @@ export default function InboundDashboard({
         if (chartInstanceRef.current) chartInstanceRef.current.destroy();
 
         const forecastGrad = ctx.createLinearGradient(0, 0, 0, 220);
-        forecastGrad.addColorStop(0, 'rgba(249, 115, 22, 0.25)');
-        forecastGrad.addColorStop(1, 'rgba(249, 115, 22, 0)');
+        forecastGrad.addColorStop(0, 'rgba(252, 108, 38, 0.25)');
+        forecastGrad.addColorStop(1, 'rgba(252, 108, 38, 0)');
 
         const pickupGrad = ctx.createLinearGradient(0, 0, 0, 220);
-        pickupGrad.addColorStop(0, 'rgba(168, 85, 247, 0.25)');
-        pickupGrad.addColorStop(1, 'rgba(168, 85, 247, 0)');
+        pickupGrad.addColorStop(0, 'rgba(200, 255, 61, 0.25)');
+        pickupGrad.addColorStop(1, 'rgba(200, 255, 61, 0)');
 
         const arrivedGrad = ctx.createLinearGradient(0, 0, 0, 220);
-        arrivedGrad.addColorStop(0, 'rgba(13, 131, 70, 0.25)');
-        arrivedGrad.addColorStop(1, 'rgba(13, 131, 70, 0)');
+        arrivedGrad.addColorStop(0, 'rgba(200, 255, 61, 0.25)');
+        arrivedGrad.addColorStop(1, 'rgba(200, 255, 61, 0)');
 
         const inboundGrad = ctx.createLinearGradient(0, 0, 0, 220);
-        inboundGrad.addColorStop(0, 'rgba(0, 229, 255, 0.25)');
-        inboundGrad.addColorStop(1, 'rgba(0, 229, 255, 0)');
+        inboundGrad.addColorStop(0, 'rgba(184, 247, 228, 0.25)');
+        inboundGrad.addColorStop(1, 'rgba(184, 247, 228, 0)');
 
         chartInstanceRef.current = new ChartClass(ctx, {
           type: 'line',
@@ -336,65 +336,65 @@ export default function InboundDashboard({
               {
                 label: 'Dự báo (Forecast)',
                 data: forecastTrendData,
-                borderColor: '#f97316',
+                borderColor: '#FC6C26',
                 backgroundColor: forecastGrad,
                 borderWidth: 3,
                 tension: 0.4,
                 fill: true,
                 pointBackgroundColor: '#05030a',
-                pointBorderColor: '#f97316',
+                pointBorderColor: '#FC6C26',
                 pointBorderWidth: 2,
                 pointHoverRadius: 8,
                 pointRadius: 4,
-                pointHoverBackgroundColor: '#f97316',
+                pointHoverBackgroundColor: '#FC6C26',
                 pointHoverBorderWidth: 3
               },
               {
                 label: 'Shipper đã lấy (Actual Pickup)',
                 data: pickupTrendData,
-                borderColor: '#a855f7',
+                borderColor: '#C8FF3D',
                 backgroundColor: pickupGrad,
                 borderWidth: 3,
                 tension: 0.4,
                 fill: true,
                 pointBackgroundColor: '#05030a',
-                pointBorderColor: '#a855f7',
+                pointBorderColor: '#C8FF3D',
                 pointBorderWidth: 2,
                 pointHoverRadius: 8,
                 pointRadius: 4,
-                pointHoverBackgroundColor: '#a855f7',
+                pointHoverBackgroundColor: '#C8FF3D',
                 pointHoverBorderWidth: 3
               },
               {
                 label: 'Trên đường về (Arrived)',
                 data: arrivedTrendData,
-                borderColor: '#0d8346',
+                borderColor: '#C8FF3D',
                 backgroundColor: arrivedGrad,
                 borderWidth: 3,
                 tension: 0.4,
                 fill: true,
                 pointBackgroundColor: '#05030a',
-                pointBorderColor: '#0d8346',
+                pointBorderColor: '#C8FF3D',
                 pointBorderWidth: 2,
                 pointHoverRadius: 8,
                 pointRadius: 4,
-                pointHoverBackgroundColor: '#0d8346',
+                pointHoverBackgroundColor: '#C8FF3D',
                 pointHoverBorderWidth: 3
               },
               {
                 label: 'Nhập (Inbound)',
                 data: inboundTrendData,
-                borderColor: '#00e5ff',
+                borderColor: '#B8F7E4',
                 backgroundColor: inboundGrad,
                 borderWidth: 3,
                 tension: 0.4,
                 fill: true,
                 pointBackgroundColor: '#05030a',
-                pointBorderColor: '#00e5ff',
+                pointBorderColor: '#B8F7E4',
                 pointBorderWidth: 2,
                 pointHoverRadius: 8,
                 pointRadius: 4,
-                pointHoverBackgroundColor: '#00e5ff',
+                pointHoverBackgroundColor: '#B8F7E4',
                 pointHoverBorderWidth: 3
               }
             ]
@@ -452,7 +452,7 @@ export default function InboundDashboard({
             datasets: [
               {
                 data: [totalOrders, totalInTransitOrders, pendingOrders],
-                backgroundColor: ['#00e5ff', '#0d8346', '#1e1b2e'],
+                backgroundColor: ['#B8F7E4', '#C8FF3D', '#2a273f'],
                 borderWidth: 0,
                 hoverOffset: 4
               }
@@ -663,21 +663,21 @@ export default function InboundDashboard({
             {/* Legend stacked vertically */}
             <div className="donut-legend">
               <div className="donut-legend-item">
-                <div className="donut-legend-dot" style={{ background: '#00e5ff' }}></div>
+                <div className="donut-legend-dot" style={{ background: '#B8F7E4' }}></div>
                 <div className="donut-legend-header">
                   <span className="label-text">Đã nhập kho</span>
                 </div>
                 <span className="donut-legend-value">{totalOrders.toLocaleString()}</span>
               </div>
               <div className="donut-legend-item">
-                <div className="donut-legend-dot" style={{ background: '#0d8346' }}></div>
+                <div className="donut-legend-dot" style={{ background: '#C8FF3D' }}></div>
                 <div className="donut-legend-header">
                   <span className="label-text">Đang trên đường</span>
                 </div>
                 <span className="donut-legend-value">{totalInTransitOrders.toLocaleString()}</span>
               </div>
               <div className="donut-legend-item">
-                <div className="donut-legend-dot" style={{ background: '#334155' }}></div>
+                <div className="donut-legend-dot" style={{ background: '#2a273f' }}></div>
                 <div className="donut-legend-header">
                   <span className="label-text">Chờ xử lý</span>
                 </div>
