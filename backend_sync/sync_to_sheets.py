@@ -612,7 +612,12 @@ def pull_forecast(session, token_mgr, headers, base_payload, label='Forecast'):
     def fetch_page(p):
         payload = {**base_payload, 'current': p}
         r = auth_post(session, URL_FORECAST, token_mgr, headers, data=payload, label=label)
-        return r.json().get('data', []) or []
+        data_node = r.json().get('data', {})
+        if isinstance(data_node, dict):
+            return data_node.get('records', []) or []
+        elif isinstance(data_node, list):
+            return data_node
+        return []
 
     # ⚡ Dùng parallel thay vì sequential khi đã biết total
     if total and total > page_size:
