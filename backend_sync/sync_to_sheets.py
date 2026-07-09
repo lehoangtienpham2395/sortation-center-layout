@@ -1653,24 +1653,39 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             update_outbound_sheet(gc, master_chutes, outbound_volumes_grouped, target_dates)
             
         # 2. Update Backlog Sheet (Realtime Pivot)
+        # ✅ Dùng thẳng df_bl từ JFS API (real-time) thay vì đọc từ DB cũ tích lũy nhiều ngày
         if run_backlog_inv:
             backlog_volumes = {}
             try:
-                conn = sqlite3.connect(DB_FILE)
-                # Đọc trực tiếp các đơn có status 'Đang trên bãi' từ SQLite
-                df_db_bl = pd.read_sql_query(
-                    "SELECT next_station, weight, waybillNo FROM inventory WHERE status_order = 'Đang trên bãi'", 
-                    conn
-                )
-                conn.close()
-                if not df_db_bl.empty:
-                    df_db_bl['next_station_upper'] = df_db_bl['next_station'].astype(str).str.strip().str.upper()
-                    backlog_volumes = df_db_bl.groupby('next_station_upper').agg(
-                        volume=('waybillNo', 'size'),
-                        weight=('weight', 'sum')
-                    ).to_dict(orient='index')
-            except Exception as e_bl_db:
-                print(f"   ⚠️ Lỗi tính Backlog pivot từ SQLite: {e_bl_db}")
+                raw_bl = results.get('backlog', [])
+                if raw_bl:
+                    df_live_bl = pd.DataFrame(raw_bl)
+                    # Lọc chỉ đơn đang trong kho
+                    if 'operate_site_type' in df_live_bl.columns:
+                        df_live_bl = df_live_bl[df_live_bl['operate_site_type'] == 'Trong kho']
+                    if 'billcode' in df_live_bl.columns and 'destination_site_name' in df_live_bl.columns:
+                        # Xác định bưu cục đích (giống logic df_bl bên trên)
+                        BACKLOG_REDELIVER_REMARKS_LOCAL = {
+                            'Người nhận từ chối nhận hàng','Khách không ở địa chỉ giao hàng',
+                            'Số điện thoại không liên lạc được','Người nhận đặt trùng đơn / mua nhầm',
+                            'Khách từ chối thanh toán','Khách không đặt hàng','Sai số điện thoại',
+                            'Khách yêu cầu dùng thử, kiểm hàng','Người nhận hẹn lại thời gian giao hàng',
+                            'Địa chỉ khách hàng sai','Hàng hóa hư hỏng một phần','Hàng hóa hư hỏng hoàn toàn'
+                        }
+                        df_live_bl['dispatch_plan'] = df_live_bl['destination_site_name']
+                        if 'abnormal_remark' in df_live_bl.columns and 'take_site_name' in df_live_bl.columns:
+                            is_rdlv = df_live_bl['abnormal_remark'].isin(BACKLOG_REDELIVER_REMARKS_LOCAL)
+                            df_live_bl.loc[is_rdlv, 'dispatch_plan'] = df_live_bl.loc[is_rdlv, 'take_site_name']
+                        df_live_bl['next_station'] = df_live_bl['dispatch_plan'].map(d_buucuc).fillna('')
+                        df_live_bl['weight'] = pd.to_numeric(df_live_bl.get('weight', 0), errors='coerce').fillna(0)
+                        df_live_bl['next_station_upper'] = df_live_bl['next_station'].astype(str).str.strip().str.upper()
+                        backlog_volumes = df_live_bl.groupby('next_station_upper').agg(
+                            volume=('billcode', 'size'),
+                            weight=('weight', 'sum')
+                        ).to_dict(orient='index')
+                        print(f"   ℹ| Backlog live từ JFS API: {df_live_bl['billcode'].nunique():,} đơn unique")
+            except Exception as e_bl_live:
+                print(f"   ⚠️ Lỗi tính Backlog pivot từ API: {e_bl_live}")
             update_backlog_sheet(gc, master_chutes, backlog_volumes, current_date_str)
             
         # 3. Update Inventory Sheet (Realtime Pivot)
@@ -2263,6 +2278,31 @@ def run_once(session, token_mgr, rebuild_days=None):
         
         conn.commit()
         print(f"   ✅ Đã UPSERT thành công {len(records)} đơn vào SQLite state store.")
+        
+        # ✅ CLEANUP: Đổi status 'Đang trên bãi' cho các đơn không còn trong Backlog API mới nhất
+        # Tránh tích lũy stale records làm lệch số liệu Backlog sheet
+        try:
+            raw_bl_cleanup = results.get('backlog', [])
+            if raw_bl_cleanup:
+                df_bl_cleanup = pd.DataFrame(raw_bl_cleanup)
+                if 'billcode' in df_bl_cleanup.columns:
+                    live_backlog_wbs = set(df_bl_cleanup['billcode'].astype(str).str.strip().tolist())
+                    if live_backlog_wbs:
+                        # Lấy tất cả waybill đang 'Đang trên bãi' trong DB
+                        c.execute("SELECT waybillNo FROM inventory WHERE status_order = 'Đang trên bãi'")
+                        db_backlog_wbs = {row[0] for row in c.fetchall()}
+                        # Các đơn không còn trong Backlog API → đã rời HUB hoặc đã xuất
+                        stale_wbs = db_backlog_wbs - live_backlog_wbs
+                        if stale_wbs:
+                            c.executemany(
+                                "UPDATE inventory SET status_order = 'Đã rời HUB', last_updated = CURRENT_TIMESTAMP WHERE waybillNo = ?",
+                                [(wb,) for wb in stale_wbs]
+                            )
+                            conn.commit()
+                            print(f"   ✅ Đã dọn dẹp {len(stale_wbs):,} đơn stale 'Đang trên bãi' → 'Đã rời HUB'")
+        except Exception as e_cleanup:
+            print(f"   ⚠️ Lỗi cleanup stale backlog: {e_cleanup}")
+        
         conn.close()
     except Exception as ex_db:
         print(f"   ❌ Lỗi lưu dữ liệu vào SQLite state store: {ex_db}")
