@@ -317,8 +317,8 @@ export default function InboundDashboard({
         forecastGrad.addColorStop(1, 'rgba(252, 108, 38, 0)');
 
         const pickupGrad = ctx.createLinearGradient(0, 0, 0, 220);
-        pickupGrad.addColorStop(0, 'rgba(200, 255, 61, 0.25)');
-        pickupGrad.addColorStop(1, 'rgba(200, 255, 61, 0)');
+        pickupGrad.addColorStop(0, 'rgba(91, 61, 245, 0.25)');
+        pickupGrad.addColorStop(1, 'rgba(91, 61, 245, 0)');
 
         const arrivedGrad = ctx.createLinearGradient(0, 0, 0, 220);
         arrivedGrad.addColorStop(0, 'rgba(200, 255, 61, 0.25)');
@@ -352,17 +352,17 @@ export default function InboundDashboard({
               {
                 label: 'Shipper đã lấy (Actual Pickup)',
                 data: pickupTrendData,
-                borderColor: '#C8FF3D',
+                borderColor: '#5B3DF5',
                 backgroundColor: pickupGrad,
                 borderWidth: 3,
                 tension: 0.4,
                 fill: true,
                 pointBackgroundColor: '#05030a',
-                pointBorderColor: '#C8FF3D',
+                pointBorderColor: '#5B3DF5',
                 pointBorderWidth: 2,
                 pointHoverRadius: 8,
                 pointRadius: 4,
-                pointHoverBackgroundColor: '#C8FF3D',
+                pointHoverBackgroundColor: '#5B3DF5',
                 pointHoverBorderWidth: 3
               },
               {
