@@ -48,19 +48,21 @@ function parseHourAndCheckDate(val: any, activeDate: string, loaiRot: string): n
 }
 
 /**
- * Parse giờ từ Forecast Time / Pickup Time — KHÔNG áp dụng logic lùi ngày khi giờ < 6
- * vì đây là kế hoạch lấy hàng, không phải giờ nhập kho.
- * Chỉ kiểm tra: datePart của chuỗi timestamp có khớp activeDate không.
+ * Trích xuất giờ từ chuỗi timestamp (ví dụ: "2026-07-09 21:00" -> 21)
+ * độc lập với việc check ngày/lùi ngày vì việc lọc theo ngày vận hành đã được thực hiện trước đó.
  */
-function parseForecastHour(val: any, activeDate: string): number {
+function getHourFromTimestamp(val: any): number {
   if (val === undefined || val === null || val === '') return -1;
   const strVal = String(val).trim();
-  if (strVal.includes('-') || strVal.includes('/')) {
-    const parts = strVal.split(' ');
-    const datePart = parts[0];
-    const timePart = parts[1] || '';
-    if (datePart !== activeDate) return -1; // chỉ lấy đúng ngày activeDate
+  if (strVal.includes(' ')) {
+    const timePart = strVal.split(' ')[1] || '';
     const hour = parseInt(timePart.split(':')[0], 10);
+    if (!isNaN(hour) && hour >= 0 && hour < 24) return hour;
+  } else if (strVal.includes(':')) {
+    const hour = parseInt(strVal.split(':')[0], 10);
+    if (!isNaN(hour) && hour >= 0 && hour < 24) return hour;
+  } else {
+    const hour = parseInt(strVal, 10);
     if (!isNaN(hour) && hour >= 0 && hour < 24) return hour;
   }
   return -1;
@@ -249,16 +251,15 @@ export default function InboundDashboard({
     }
   });
 
-  // 2. Forecast Time (Dự báo - Kế hoạch lấy): CHỈ HIỂN THỊ đơn thuộc activeDate (Ngày vận hành_Forecast === activeDate)
-  // Fix: dùng parseForecastHour (không lùi ngày khi giờ < 6) thay vì parseHourAndCheckDate
-  filteredForecast.forEach(d => {
+  // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast khớp với activeDate (không phân biệt trạng thái hiện tại)
+  inboundData.filter(d => d['Ngày vận hành_Forecast'] === activeDate).forEach(d => {
     const loaiRot = d['Loại rớt'] || '';
     if (loaiRot !== 'Rớt hôm trước') {
       const fcTime = d['Forecast Time'] !== undefined && d['Forecast Time'] !== null && d['Forecast Time'] !== ''
         ? d['Forecast Time']
         : undefined;
       if (fcTime !== undefined) {
-        const hrVal = parseForecastHour(fcTime, activeDate); // Fix: không lùi ngày
+        const hrVal = getHourFromTimestamp(fcTime);
         if (hrVal >= 0 && hrVal < 24) {
           const hour = `${String(hrVal).padStart(2, '0')}:00`;
           if (hourlyForecast[hour] !== undefined) {
@@ -269,14 +270,13 @@ export default function InboundDashboard({
     }
   });
 
-  // 3. Pickup Time (Shipper đã lấy): lấy từ cột "Pickup Time" (deliveryTime)
-  filteredPickup.forEach(d => {
-    const loaiRot = d['Loại rớt'] || '';
+  // 3. Pickup Time (Shipper đã lấy): Hiển thị tất cả đơn có Ngày vận hành_Pickup khớp với activeDate (không phân biệt trạng thái hiện tại)
+  inboundData.filter(d => d['Ngày vận hành_Pickup'] === activeDate).forEach(d => {
     const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
       ? d['Pickup Time']
       : undefined;
     if (pkTime !== undefined) {
-      const hrVal = parseHourAndCheckDate(pkTime, activeDate, loaiRot);
+      const hrVal = getHourFromTimestamp(pkTime);
       if (hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
         if (hourlyPickup[hour] !== undefined) {
@@ -286,14 +286,14 @@ export default function InboundDashboard({
     }
   });
 
-  // 4. Inbound (Nhập kho HUB)
+  // 4. Inbound (Nhập kho HUB): Hiển thị các đơn nhập kho trong ngày activeDate
   filteredInbound.forEach(d => {
     if (d['Trạng thái'] === 'Đã về Hub' || d['Trạng thái'] === 'Đã nhập hàng') {
       const ibTime = d['Inbound Hour'] !== undefined && d['Inbound Hour'] !== null && d['Inbound Hour'] !== '' 
         ? d['Inbound Hour'] 
         : d['Inbound Time'];
       if (ibTime !== undefined && ibTime !== null && ibTime !== '') {
-        const hrVal = parseHourAndCheckDate(ibTime, activeDate, 'Rớt hôm nay');
+        const hrVal = getHourFromTimestamp(ibTime);
         if (hrVal >= 0 && hrVal < 24) {
           const hour = `${String(hrVal).padStart(2, '0')}:00`;
           if (hourlyInbound[hour] !== undefined) {

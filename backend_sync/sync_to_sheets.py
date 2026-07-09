@@ -2416,6 +2416,53 @@ def run_once(session, token_mgr, rebuild_days=None):
                     'dispatch_actual': ob_act_mapped
                 }
 
+    # 5. Backlog (merge or add new)
+    # Tích hợp đơn backlog đang tồn kho thực tế vào SQLite để tính tồn kho (Inventory) chính xác 100%
+    raw_bl = results.get('backlog', [])
+    if raw_bl:
+        for r in raw_bl:
+            wb = str(r.get('billcode') or '').strip()
+            if not wb:
+                continue
+            
+            # Chỉ lấy các đơn đang lưu kho thực tế
+            site_type = str(r.get('operate_site_type') or '').strip()
+            if site_type != 'Trong kho':
+                continue
+                
+            dest = str(r.get('destination_site_name') or '').strip()
+            # Áp dụng mapping remark bất thường
+            abn = str(r.get('abnormal_remark') or '').strip()
+            if abn in BACKLOG_REDELIVER_REMARKS:
+                take_site = str(r.get('take_site_name') or '').strip()
+                if take_site:
+                    dest = take_site
+                    
+            dest_mapped = d_buucuc.get(dest, dest)
+            weight = float(r.get('weight') or 0.0)
+            
+            if wb in new_records:
+                if not new_records[wb]['next_station'] and dest_mapped:
+                    new_records[wb]['next_station'] = dest_mapped
+                if not new_records[wb]['inbound_scanDate']:
+                    new_records[wb]['inbound_scanDate'] = 'Backlog'
+            else:
+                new_records[wb] = {
+                    'waybillNo': wb,
+                    'data_source': 'Backlog',
+                    'weight': weight,
+                    'pickNetworkName': '',
+                    'dispatch_plan': dest,
+                    'dispatchNetworkTime': '',
+                    'updateTime': '',
+                    'Pickup_time': '',
+                    'next_station': dest_mapped,
+                    'status_order': 'Đang trên bãi',
+                    'inbound_scanDate': 'Backlog',
+                    'inbound_network': '',
+                    'outbound_scanDate': '',
+                    'dispatch_actual': ''
+                }
 
     # ================================================================
     # BATCH SEARCH DISPATCH API FOR FORECAST/INBOUND AWBS MISSING DISPATCH NETWORK TIME
