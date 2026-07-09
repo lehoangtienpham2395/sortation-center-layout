@@ -1280,13 +1280,17 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
         if status == "Đã về Hub":
             loai_rot = "Rớt hôm nay"
         else:
-            ref_date = op_date_fc if op_date_fc else (op_date_pk if op_date_pk else current_op_date)
-            if fc_time:
-                dispatch_date = get_operating_date(fc_time)
-                if dispatch_date == ref_date:
-                    loai_rot = "Rớt hôm nay"
+            if op_date_fc:
+                if op_date_pk:
+                    if op_date_fc == op_date_pk:
+                        loai_rot = "Rớt hôm nay"
+                    else:
+                        loai_rot = "Rớt hôm trước"
                 else:
-                    loai_rot = "Rớt hôm trước"
+                    if op_date_fc < current_op_date:
+                        loai_rot = "Rớt hôm trước"
+                    else:
+                        loai_rot = "Rớt hôm nay"
             else:
                 loai_rot = "Rớt hôm nay"
                 
