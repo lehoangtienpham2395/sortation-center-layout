@@ -10,6 +10,36 @@ interface InboundDashboardProps {
   fetchAndUpdateData: () => void;
 }
 
+function parseHourAndCheckDate(val: any, activeDate: string, loaiRot: string): number {
+  if (val === undefined || val === null || val === '') return -1;
+  const strVal = String(val).trim();
+  
+  if (strVal.includes('-') || strVal.includes('/')) {
+    const parts = strVal.split(' ');
+    const datePart = parts[0];
+    const timePart = parts[1] || '';
+    
+    if (datePart !== activeDate) {
+      return -1;
+    }
+    
+    const hour = parseInt(timePart.split(':')[0], 10);
+    if (!isNaN(hour) && hour >= 0 && hour < 24) {
+      return hour;
+    }
+  }
+  
+  const hour = parseInt(strVal, 10);
+  if (!isNaN(hour) && hour >= 0 && hour < 24) {
+    if (loaiRot === 'Rớt hôm trước') {
+      return -1;
+    }
+    return hour;
+  }
+  
+  return -1;
+}
+
 export default function InboundDashboard({
   inboundData,
   linehaulData,
@@ -144,7 +174,7 @@ export default function InboundDashboard({
   // 1. Trên đường về (Arrived) hourly: từ Arrival sheet, sum Tổng số đơn theo Scan Hour (Loại bỏ BN HUB để tránh lệch giờ)
   filteredArrival.forEach(d => {
     const station = (d['Pickup_station'] || '').trim().toUpperCase();
-    if (station.includes('BN HUB') || station.includes('HCM004H')) return; // Không đưa BN HUB vào line Arrived của biểu đồ đường
+    if (station.includes('BN HUB') || station.includes('HCM004H')) return;
 
     const hr = d['Scan Hour'] !== undefined && d['Scan Hour'] !== null && d['Scan Hour'] !== ''
       ? d['Scan Hour']
@@ -163,14 +193,13 @@ export default function InboundDashboard({
   // 2. Forecast Time (Dự báo - Kế hoạch lấy): CHỈ HIỂN THỊ MỐC THỜI GIAN RỚT HÔM NAY (Loại rớt không phải Rớt hôm trước)
   filteredInbound.forEach(d => {
     const loaiRot = d['Loại rớt'] || '';
-    // Chỉ hiển thị sản lượng rớt hôm nay trên line biểu đồ (Loại rớt rỗng - tức là Inbound/Arrival, hoặc Loại rớt === 'Rớt hôm nay')
     if (loaiRot !== 'Rớt hôm trước') {
       const fcTime = d['Forecast Time'] !== undefined && d['Forecast Time'] !== null && d['Forecast Time'] !== ''
         ? d['Forecast Time']
         : undefined;
       if (fcTime !== undefined) {
-        const hrVal = parseInt(String(fcTime), 10);
-        if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
+        const hrVal = parseHourAndCheckDate(fcTime, activeDate, loaiRot);
+        if (hrVal >= 0 && hrVal < 24) {
           const hour = `${String(hrVal).padStart(2, '0')}:00`;
           if (hourlyForecast[hour] !== undefined) {
             hourlyForecast[hour] += parseInt(d['Volume'], 10) || 0;
@@ -183,18 +212,15 @@ export default function InboundDashboard({
   // 3. Pickup Time (Shipper đã lấy): lấy từ cột "Pickup Time" (deliveryTime)
   filteredInbound.forEach(d => {
     const loaiRot = d['Loại rớt'] || '';
-    // Chỉ tính giờ shipper lấy cho các đơn phát sinh trong ngày hôm nay (không tính đơn rớt hôm trước gom dồn)
-    if (loaiRot !== 'Rớt hôm trước') {
-      const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
-        ? d['Pickup Time']
-        : undefined;
-      if (pkTime !== undefined) {
-        const hrVal = parseInt(String(pkTime), 10);
-        if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
-          const hour = `${String(hrVal).padStart(2, '0')}:00`;
-          if (hourlyPickup[hour] !== undefined) {
-            hourlyPickup[hour] += parseInt(d['Volume'], 10) || 0;
-          }
+    const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
+      ? d['Pickup Time']
+      : undefined;
+    if (pkTime !== undefined) {
+      const hrVal = parseHourAndCheckDate(pkTime, activeDate, loaiRot);
+      if (hrVal >= 0 && hrVal < 24) {
+        const hour = `${String(hrVal).padStart(2, '0')}:00`;
+        if (hourlyPickup[hour] !== undefined) {
+          hourlyPickup[hour] += parseInt(d['Volume'], 10) || 0;
         }
       }
     }
@@ -207,8 +233,8 @@ export default function InboundDashboard({
         ? d['Inbound Hour'] 
         : d['Inbound Time'];
       if (ibTime !== undefined && ibTime !== null && ibTime !== '') {
-        const hrVal = parseInt(String(ibTime), 10);
-        if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
+        const hrVal = parseHourAndCheckDate(ibTime, activeDate, 'Rớt hôm nay');
+        if (hrVal >= 0 && hrVal < 24) {
           const hour = `${String(hrVal).padStart(2, '0')}:00`;
           if (hourlyInbound[hour] !== undefined) {
             hourlyInbound[hour] += parseInt(d['Volume'], 10) || 0;

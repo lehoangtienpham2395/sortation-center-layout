@@ -1319,10 +1319,10 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
             status_clean = 'Đã về Hub'
             try:
                 dt_ib = pd.to_datetime(ib_date_str)
-                ib_hour = int(dt_ib.hour)
+                ib_hour = dt_ib.strftime('%Y-%m-%d %H:00')
                 op_date = get_operating_date(dt_ib)
             except Exception:
-                pass
+                ib_hour = ""
         else:
             status_clean = 'Chưa về Hub'
             
@@ -1348,23 +1348,23 @@ def update_inbound_sheets(gc, results, master_chutes, d_buucuc, session=None, to
         if not op_date:
             op_date = current_op_date
                 
-        # Format pickup time to hour index 0-23
+        # Format pickup time to 'YYYY-MM-DD HH:00'
         pk_time_str = r['pickup_time']
         if pk_time_str and str(pk_time_str).strip() not in ('', 'nan', 'None'):
             try:
                 dt_pk = pd.to_datetime(pk_time_str)
-                pk_hour = int(dt_pk.hour)
+                pk_hour = dt_pk.strftime('%Y-%m-%d %H:00')
             except Exception:
                 pk_hour = ""
         else:
             pk_hour = ""
 
-        # Format forecast time to hour index 0-23
+        # Format forecast time to 'YYYY-MM-DD HH:00'
         fc_time_str = r['forecast_time']
         if fc_time_str and str(fc_time_str).strip() not in ('', 'nan', 'None'):
             try:
                 dt_fc = pd.to_datetime(fc_time_str)
-                fc_hour = int(dt_fc.hour)
+                fc_hour = dt_fc.strftime('%Y-%m-%d %H:00')
             except Exception:
                 fc_hour = ""
         else:
