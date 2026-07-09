@@ -65,9 +65,9 @@ URL_LOADING        = 'https://gw.jtcargo.com.vn/operatingplatform/traceSub/query
 # ============================================================
 # TUNING — đã tối ưu để tăng tốc ~5x so với mặc định
 # ============================================================
-SOURCE_WORKERS      = 8   # ⚡ Tăng từ 5 → 8: song song giữa các nguồn API
-PAGE_WORKERS        = 10  # ⚡ Tăng từ 2 → 10: song song khi kéo pages
-POOL_SIZE           = 64  # ⚡ Tăng connection pool để hỗ trợ nhiều worker
+SOURCE_WORKERS      = 4   # ⚡ Tối ưu lại để tránh bị JFS chặn/429/502 khi chạy từ GitHub Actions
+PAGE_WORKERS        = 4   # ⚡ Giảm concurrency tránh quá tải JFS API
+POOL_SIZE           = 32  # ⚡ Tương thích với số lượng worker nhỏ hơn
 REQUEST_TIMEOUT     = 60
 MAX_RETRIES         = 5
 BACKOFF_BASE        = 3
@@ -571,8 +571,14 @@ def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end
     # 1. Ngày vận hành = Ngày xuất phát gốc + 36 tiếng (chu kỳ Bắc-Nam thực tế).
     #    Lấy trực tiếp ngày dương lịch cập bến làm Ngày vận hành (không trừ 6h cycle vận hành của bưu cục).
     # 2. Scan Hour giữ nguyên giờ quét gốc của bưu cục phát.
-    if 'scansitename' in df.columns:
-        df = df.rename(columns={'scansitename': 'Pickup_station'})
+    found_scansite_col = None
+    for col in df.columns:
+        if col.lower() == 'scansitename':
+            found_scansite_col = col
+            break
+            
+    if found_scansite_col:
+        df = df.rename(columns={found_scansite_col: 'Pickup_station'})
         is_bn_hub = df['Pickup_station'].astype(str).str.strip().str.upper() == 'BN HUB'
         if is_bn_hub.any():
             # Ngày vận hành mới = Ngày xuất phát gốc + 36 tiếng
@@ -1901,9 +1907,9 @@ def run_once(session, token_mgr, rebuild_days=None):
             pass
 
     if not last_run_dt:
-        last_run_dt = now - timedelta(days=4)
+        last_run_dt = now - timedelta(days=2)
 
-    DATE_START_STANDARD = (now - timedelta(days=4)).strftime('%Y-%m-%d') + ' 06:00:00'
+    DATE_START_STANDARD = (now - timedelta(days=2)).strftime('%Y-%m-%d') + ' 06:00:00'
     DATE_START_DISPATCH = (last_run_dt - timedelta(minutes=30)).strftime('%Y-%m-%d %H:%M:%S')
     DATE_END   = now.strftime('%Y-%m-%d %H:%M:%S')
 
