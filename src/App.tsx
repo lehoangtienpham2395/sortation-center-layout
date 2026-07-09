@@ -5,8 +5,6 @@ import {
   Activity, 
   TrendingUp, 
   Sliders, 
-  RefreshCw, 
-  Power,
   ListOrdered,
   Menu,
   Inbox
@@ -1460,46 +1458,7 @@ export default function App() {
 
             </div>
 
-            {/* Bottom Actions */}
-            <div className="p-3 border-t border-white/[0.06] space-y-2">
-              {sidebarHovered && (
-                <div className="px-2 py-1 rounded bg-[#101622]/40 border border-white/5 flex items-center justify-between select-none">
-                  <span className="text-[8.5px] font-mono text-slate-500">SYS STATUS</span>
-                  <div className="flex items-center gap-1">
-                    <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span className="text-[8.5px] font-mono text-emerald-400 font-bold">ONLINE</span>
-                  </div>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <button 
-                  onClick={fetchAndUpdateData}
-                  disabled={loading}
-                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg border text-[9.5px] font-bold cursor-pointer transition-colors duration-200 ${
-                    loading 
-                      ? 'bg-slate-800 border-white/5 text-slate-500' 
-                      : 'bg-[#101622]/60 border-white/10 text-slate-300 hover:bg-white/5 hover:text-white'
-                  }`}
-                  title="Đồng bộ Google Sheets"
-                >
-                  <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
-                  {sidebarHovered && (loading ? 'Đang đồng bộ...' : 'Đồng bộ')}
-                </button>
-                <button 
-                  onClick={() => {
-                    const nextVal = !(showMonitor && showTelemetry && showControls && showTop10);
-                    setShowMonitor(nextVal);
-                    setShowTelemetry(nextVal);
-                    setShowControls(nextVal);
-                    setShowTop10(nextVal);
-                  }}
-                  className="p-1.5 rounded-lg border border-white/10 bg-[#101622]/60 text-slate-400 hover:bg-white/5 hover:text-white cursor-pointer transition-colors"
-                  title="Minimal Mode (Ẩn/Hiện tất cả)"
-                >
-                  <Power size={10} />
-                </button>
-              </div>
-            </div>
+
           </div>
 
           {/* Left Column: Stacked panels (w-80) */}
