@@ -505,10 +505,42 @@ export default function InboundDashboard({
               const innerRadius = drawingArea * 0.45; // 45% cutout
               
               ctx.save();
+              
+              // 1. Draw inner cutout circle to cover the center part
               ctx.beginPath();
               ctx.arc(x, y, innerRadius, 0, 2 * Math.PI);
               ctx.fillStyle = '#120f22'; // Match background panel color
               ctx.fill();
+              
+              // 2. Draw percentage text inside each segment slice
+              const meta = chart.getDatasetMeta(0);
+              const total = totalOrders + totalInTransitOrders + pendingOrders;
+              
+              if (total > 0 && meta && meta.data) {
+                meta.data.forEach((element: any, index: number) => {
+                  const val = chart.data.datasets[0].data[index];
+                  if (val > 0) {
+                    const percentage = ((val / total) * 100).toFixed(0) + '%';
+                    
+                    const startAngle = element.startAngle;
+                    const endAngle = element.endAngle;
+                    const midAngle = startAngle + (endAngle - startAngle) / 2;
+                    
+                    const outerRad = element.outerRadius;
+                    const textRad = innerRadius + (outerRad - innerRadius) * 0.55; // 55% out from cutout edge
+                    
+                    const textX = x + Math.cos(midAngle) * textRad;
+                    const textY = y + Math.sin(midAngle) * textRad;
+                    
+                    ctx.fillStyle = '#05030a'; // Dark ink for maximum contrast on light segments
+                    ctx.font = 'bold 11px Outfit, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(percentage, textX, textY);
+                  }
+                });
+              }
+              
               ctx.restore();
             }
           }]
