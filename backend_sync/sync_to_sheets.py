@@ -2419,17 +2419,6 @@ def run_once(session, token_mgr, rebuild_days=None):
         if rec['data_source'] in ('Forecast', 'Inbound', 'Outbound') and not rec.get('dispatchNetworkTime'):
             missing_disp_wbs.append(wb)
             
-    for wb, rec in db_records.items():
-        if rec.get('data_source') in ('Forecast', 'Inbound', 'Outbound') and not rec.get('dispatchNetworkTime'):
-            t_ref = rec.get('time_ref') or rec.get('Pickup_time') or rec.get('inbound_scanDate') or ''
-            if t_ref:
-                try:
-                    dt = pd.to_datetime(t_ref)
-                    if (now - dt.tz_localize('Asia/Ho_Chi_Minh' if dt.tzinfo is None else None)).days <= 15:
-                        missing_disp_wbs.append(wb)
-                except Exception:
-                    pass
-                    
     missing_disp_wbs = list(set(missing_disp_wbs))
     # Limit to max 150 waybills per run to prevent excessive JFS direct queries
     missing_disp_wbs = missing_disp_wbs[:150]
@@ -2467,11 +2456,19 @@ def run_once(session, token_mgr, rebuild_days=None):
                             payload[k] = ""
                             
                     try:
-                        r_dp = session.post(URL_DISPATCH, headers=dh, data=payload, timeout=25)
+                        r_dp = auth_post(session, URL_DISPATCH, token_mgr, dh, data=payload, timeout=25, label=f'Batch Dispatch {i//chunk_size}')
                         dp_res = r_dp.json()
-                        records = dp_res.get('data', {}).get('records', []) or []
+                        data_node = dp_res.get('data', {})
+                        records = []
+                        if isinstance(data_node, dict):
+                            records = data_node.get('records', []) or []
+                        elif isinstance(data_node, list):
+                            records = data_node
+                            
                         if records:
                             for item in records:
+                                if not isinstance(item, dict):
+                                    continue
                                 waybill_id = str(item.get('waybillId') or '').strip()
                                 if waybill_id:
                                     disp_time = str(item.get('dispatchNetworkTime') or item.get('inputTime') or item.get('createTime') or '').strip()
