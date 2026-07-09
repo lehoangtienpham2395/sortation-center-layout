@@ -611,7 +611,7 @@ export default function InboundDashboard({
         </div>
 
         {/* KPI 2: Inbound (weight) */}
-        <div className="kpi-card accent-purple">
+        <div className="kpi-card accent-green">
           <div className="kpi-card-header">
             <span className="kpi-title">Inbound (weight)</span>
             <i className="fa-solid fa-weight-hanging kpi-icon"></i>
@@ -624,7 +624,7 @@ export default function InboundDashboard({
         </div>
 
         {/* KPI 3: Trucking in Transit */}
-        <div className="kpi-card accent-purple">
+        <div className="kpi-card accent-lime">
           <div className="kpi-card-header">
             <span className="kpi-title">Trucking in transit</span>
             <i className="fa-solid fa-truck-fast kpi-icon"></i>
@@ -647,11 +647,11 @@ export default function InboundDashboard({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.95rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', marginTop: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Rớt hôm trước:</span>
-                <strong style={{ color: '#f97316', fontSize: '1.1rem' }}>{forecastRotHomTruoc.toLocaleString()}</strong>
+                <strong style={{ color: '#FC6C26', fontSize: '1.1rem' }}>{forecastRotHomTruoc.toLocaleString()}</strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Rớt hôm nay:</span>
-                <strong style={{ color: '#fdba74', fontSize: '1.1rem' }}>{forecastRotHomNay.toLocaleString()}</strong>
+                <strong style={{ color: '#ffa066', fontSize: '1.1rem' }}>{forecastRotHomNay.toLocaleString()}</strong>
               </div>
             </div>
           </div>

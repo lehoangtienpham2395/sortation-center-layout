@@ -362,9 +362,13 @@ body {
   --text-secondary: #a0aec0;
   --text-muted: #5a6578;
   
-  --accent-purple: #C8FF3D; /* Lime for Arrived and Actual Pickup */
-  --accent-purple-glow: rgba(200, 255, 61, 0.15);
-  --accent-purple-border: rgba(200, 255, 61, 0.3);
+  --accent-purple: #5B3DF5; /* Purple for Actual Pickup */
+  --accent-purple-glow: rgba(91, 61, 245, 0.15);
+  --accent-purple-border: rgba(91, 61, 245, 0.3);
+  
+  --accent-lime: #C8FF3D; /* Lime for Arrived */
+  --accent-lime-glow: rgba(200, 255, 61, 0.15);
+  --accent-lime-border: rgba(200, 255, 61, 0.3);
   
   --accent-green: #B8F7E4; /* Mint for Inbound */
   --accent-green-glow: rgba(184, 247, 228, 0.15);
@@ -847,8 +851,19 @@ body {
   background: linear-gradient(90deg, transparent, var(--accent-purple), transparent);
 }
 .kpi-card.accent-purple:hover {
-  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.1);
+  box-shadow: 0 8px 25px rgba(91, 61, 245, 0.1);
   border-color: var(--accent-purple-border);
+}
+
+.kpi-card.accent-lime .kpi-title { color: var(--accent-lime); }
+.kpi-card.accent-lime .kpi-value { color: var(--text-primary); }
+.kpi-card.accent-lime .kpi-icon { color: var(--accent-lime); }
+.kpi-card.accent-lime .kpi-glow {
+  background: linear-gradient(90deg, transparent, var(--accent-lime), transparent);
+}
+.kpi-card.accent-lime:hover {
+  box-shadow: 0 8px 25px rgba(200, 255, 61, 0.1);
+  border-color: var(--accent-lime-border);
 }
 
 .kpi-card.accent-green .kpi-title { color: var(--accent-green); }
@@ -858,7 +873,7 @@ body {
   background: linear-gradient(90deg, transparent, var(--accent-green), transparent);
 }
 .kpi-card.accent-green:hover {
-  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.1);
+  box-shadow: 0 8px 25px rgba(184, 247, 228, 0.1);
   border-color: var(--accent-green-border);
 }
 
