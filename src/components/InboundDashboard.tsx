@@ -47,6 +47,25 @@ function parseHourAndCheckDate(val: any, activeDate: string, loaiRot: string): n
   return -1;
 }
 
+/**
+ * Parse giờ từ Forecast Time / Pickup Time — KHÔNG áp dụng logic lùi ngày khi giờ < 6
+ * vì đây là kế hoạch lấy hàng, không phải giờ nhập kho.
+ * Chỉ kiểm tra: datePart của chuỗi timestamp có khớp activeDate không.
+ */
+function parseForecastHour(val: any, activeDate: string): number {
+  if (val === undefined || val === null || val === '') return -1;
+  const strVal = String(val).trim();
+  if (strVal.includes('-') || strVal.includes('/')) {
+    const parts = strVal.split(' ');
+    const datePart = parts[0];
+    const timePart = parts[1] || '';
+    if (datePart !== activeDate) return -1; // chỉ lấy đúng ngày activeDate
+    const hour = parseInt(timePart.split(':')[0], 10);
+    if (!isNaN(hour) && hour >= 0 && hour < 24) return hour;
+  }
+  return -1;
+}
+
 const getSvgArcPath = (cx: number, cy: number, rIn: number, rOut: number, startAngle: number, endAngle: number) => {
   const s = startAngle;
   const e = endAngle;
@@ -230,7 +249,8 @@ export default function InboundDashboard({
     }
   });
 
-  // 2. Forecast Time (Dự báo - Kế hoạch lấy): CHỈ HIỂN THỊ MỐC THỜI GIAN RỚT HÔM NAY (Loại rớt không phải Rớt hôm trước)
+  // 2. Forecast Time (Dự báo - Kế hoạch lấy): CHỈ HIỂN THỊ đơn thuộc activeDate (Ngày vận hành_Forecast === activeDate)
+  // Fix: dùng parseForecastHour (không lùi ngày khi giờ < 6) thay vì parseHourAndCheckDate
   filteredForecast.forEach(d => {
     const loaiRot = d['Loại rớt'] || '';
     if (loaiRot !== 'Rớt hôm trước') {
@@ -238,7 +258,7 @@ export default function InboundDashboard({
         ? d['Forecast Time']
         : undefined;
       if (fcTime !== undefined) {
-        const hrVal = parseHourAndCheckDate(fcTime, activeDate, loaiRot);
+        const hrVal = parseForecastHour(fcTime, activeDate); // Fix: không lùi ngày
         if (hrVal >= 0 && hrVal < 24) {
           const hour = `${String(hrVal).padStart(2, '0')}:00`;
           if (hourlyForecast[hour] !== undefined) {
