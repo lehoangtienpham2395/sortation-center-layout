@@ -9,6 +9,18 @@ import {
   Menu,
   Inbox
 } from 'lucide-react';
+import configData from './data/config.json';
+
+const MASTER_CONFIG_MAP: { [key: string]: string } = {};
+try {
+  (configData as any[]).forEach(c => {
+    if (c && c.areaId && c.buuCuc) {
+      MASTER_CONFIG_MAP[c.areaId] = c.buuCuc;
+    }
+  });
+} catch (e) {
+  console.error("Error loading master config map:", e);
+}
 
 // ── Rack / chute definitions (Cập nhật: Zone 3 = 23 chutes + 24 trucks, Zone 2 = 23 chutes + 23 trucks, Zone 1 = 15 chutes) ──
 const ZONE3_LIST = [
@@ -84,6 +96,12 @@ const ZONE1_TRUCKS = Array.from({ length: 16 }, (_, i) => ({
 
 const CHUTE_RACKS = [...ZONE3_LIST, ...ZONE2_LIST, ...ZONE1_LIST];
 const ALL_RACKS = [...CHUTE_RACKS, ...ZONE3_TRUCKS, ...ZONE2_TRUCKS, ...ZONE1_TRUCKS];
+
+ALL_RACKS.forEach(item => {
+  if (MASTER_CONFIG_MAP[item.areaId]) {
+    item.name = MASTER_CONFIG_MAP[item.areaId];
+  }
+});
 
 function generateMockData() {
   return ALL_RACKS.reduce((acc, curr) => {
@@ -458,14 +476,18 @@ export default function App() {
       }
     });
 
-    // Update static lists (prefer inventoryMap > selectedMap > backlogMap for names)
+    // Update static lists (prefer inventoryMap > selectedMap > backlogMap > MASTER_CONFIG_MAP for names)
     const updateListName = (list: any[]) => {
       list.forEach(item => {
         const key = item.areaId; // Fix: dùng areaId làm key (unique)
         const invEntry = inventoryMap[key];
         const activeItem = selectedMap[key] || backlogMap[key];
-        const name = invEntry?.buuCuc || activeItem?.buuCuc;
-        if (name) {
+        const name = invEntry?.buuCuc || activeItem?.buuCuc || MASTER_CONFIG_MAP[key];
+        if (name && name !== 'Chờ tải' && !name.includes('Dự phòng')) {
+          item.name = name;
+        } else if (MASTER_CONFIG_MAP[key]) {
+          item.name = MASTER_CONFIG_MAP[key];
+        } else if (name) {
           item.name = name;
         } else {
           item.name = `${item.areaId} Dự phòng`;

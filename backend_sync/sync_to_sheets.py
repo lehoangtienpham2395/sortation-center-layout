@@ -1798,6 +1798,28 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             except Exception as ex2:
                 print(f"   ❌ Lỗi load fallback từ valid.csv: {ex2}")
                 
+    # Export master_chutes to data/config.json and src/data/config.json for frontend mapping
+    try:
+        config_list = []
+        for (z_k, a_k), m_info in master_chutes.items():
+            config_list.append({
+                "zone": m_info.get("zone", z_k),
+                "areaId": m_info.get("area_id", a_k),
+                "buuCuc": m_info.get("name", ""),
+                "capacity": int(m_info["capacity"]) if str(m_info.get("capacity", "")).isdigit() else 780,
+                "dai": m_info.get("dai", "8"),
+                "rong": m_info.get("rong", "4")
+            })
+        os.makedirs("data", exist_ok=True)
+        with open("data/config.json", "w", encoding="utf-8") as f_cfg:
+            json.dump(config_list, f_cfg, ensure_ascii=False, indent=2)
+        os.makedirs(os.path.join(BASE_DIR, "..", "src", "data"), exist_ok=True)
+        with open(os.path.join(BASE_DIR, "..", "src", "data", "config.json"), "w", encoding="utf-8") as f_cfg2:
+            json.dump(config_list, f_cfg2, ensure_ascii=False, indent=2)
+        print(f"   💾 Đã xuất cấu hình master ({len(config_list)} bưu cục) ra 'data/config.json'.")
+    except Exception as e_cfg:
+        print(f"   ⚠️ Lỗi xuất config.json: {e_cfg}")
+
     # 1. Update Outbound Sheet
     if run_outbound and target_dates:
         update_outbound_sheet(ss, master_chutes, outbound_volumes_grouped, target_dates)
@@ -2442,6 +2464,7 @@ def run_once(session, token_mgr, rebuild_days=None):
             weight = float(r.get('weight') or 0.0)
             
             if wb in new_records:
+                new_records[wb]['is_backlog'] = True
                 if not new_records[wb]['next_station'] and dest_mapped:
                     new_records[wb]['next_station'] = dest_mapped
                 if not new_records[wb]['inbound_scanDate']:
@@ -2450,6 +2473,7 @@ def run_once(session, token_mgr, rebuild_days=None):
                 new_records[wb] = {
                     'waybillNo': wb,
                     'data_source': 'Backlog',
+                    'is_backlog': True,
                     'weight': weight,
                     'pickNetworkName': '',
                     'dispatch_plan': dest,
@@ -2622,7 +2646,10 @@ def run_once(session, token_mgr, rebuild_days=None):
             hist_ob = str(hist_rec.get('outbound_scanDate') or '').strip()
             new_ob = str(new_rec.get('outbound_scanDate') or '').strip()
             final_ob = hist_ob
-            if new_ob and new_ob.lower() not in ('nan', 'none') and new_ob != hist_ob:
+            if new_rec.get('is_backlog') or new_rec.get('data_source') == 'Backlog':
+                final_ob = ''
+                changed = True
+            elif new_ob and new_ob.lower() not in ('nan', 'none') and new_ob != hist_ob:
                 final_ob = new_ob
                 changed = True
                 
@@ -2649,6 +2676,9 @@ def run_once(session, token_mgr, rebuild_days=None):
             db_records[wb]['outbound_scanDate'] = final_ob
             db_records[wb]['dispatch_actual'] = final_act
             db_records[wb]['data_source'] = final_ds
+            if new_rec.get('is_backlog') or new_rec.get('data_source') == 'Backlog':
+                db_records[wb]['is_backlog'] = True
+                db_records[wb]['outbound_scanDate'] = ''
             
             if changed:
                 db_records[wb]['changed'] = True
@@ -2678,8 +2708,14 @@ def run_once(session, token_mgr, rebuild_days=None):
         ob_time = rec['outbound_scanDate']
         
         # Outbound logic filter:
-        # If in Outbound but has no Inbound Time -> mark status = 'Đã rời HUB'
-        if ob_time and (not ib_time or ib_time.lower() in ('nan', 'none', '')):
+        # If in live Backlog (Trong kho) -> enforce 'Đang trên bãi' and clear outbound scan
+        if rec.get('is_backlog') or rec.get('data_source') == 'Backlog':
+            status = 'Đang trên bãi'
+            rec['outbound_scanDate'] = ''
+            if not ib_time or ib_time.lower() in ('nan', 'none', ''):
+                rec['inbound_scanDate'] = 'Backlog'
+                ib_time = 'Backlog'
+        elif ob_time and (not ib_time or ib_time.lower() in ('nan', 'none', '')):
             status = 'Đã rời HUB'
         elif ob_time:
             status = 'Đã rời HUB'
@@ -3432,6 +3468,19 @@ def main():
         if errors:
             print(f"\n⚠️ Có lỗi trong: {', '.join(errors)}")
             sys.exit(1)
+
+    # Mirror data/ files to root data/ and src/data/ for frontend and GitHub raw access
+    try:
+        import shutil
+        for dest_dir in [os.path.join("..", "data"), os.path.join("..", "src", "data")]:
+            os.makedirs(dest_dir, exist_ok=True)
+            if os.path.exists("data"):
+                for fn in os.listdir("data"):
+                    if fn.endswith(".json") or fn.endswith(".gz"):
+                        shutil.copy2(os.path.join("data", fn), os.path.join(dest_dir, fn))
+        print("   📂 Đã đồng bộ tất cả file JSON ra thư mục gốc '../data/' và '../src/data/'.")
+    except Exception as e_mir:
+        print(f"   ⚠️ Lỗi mirror data: {e_mir}")
 
 
 if __name__ == "__main__":
