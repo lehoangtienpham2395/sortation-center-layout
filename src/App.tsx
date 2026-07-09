@@ -1475,7 +1475,10 @@ export default function App() {
 
           {/* Left Column: Stacked panels (w-80) */}
           {currentView === 'master' && (
-            <div className="absolute z-20 top-16 left-[60px] w-72 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-300">
+            <div 
+              className="absolute z-20 top-16 w-72 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-300"
+              style={{ left: sidebarHovered ? '236px' : '60px' }}
+            >
               
               {/* 1. OPERATIONAL MONITOR & ZONE METRICS */}
               {showMonitor && (
@@ -1838,7 +1841,10 @@ export default function App() {
 
           {/* Floating Legend */}
           {currentView === 'master' && (
-            <div className="absolute bottom-16 left-[60px] z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg transition-all duration-300">
+            <div 
+              className="absolute bottom-16 z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg transition-all duration-300"
+              style={{ left: sidebarHovered ? '236px' : '60px' }}
+            >
               {[['#0c883d','Ô chứa'],['var(--orange)','Cổng Outbound'],
                 ['var(--inbound)','Cổng Inbound'],['rgba(100,116,139,0.7)','Xe tải']].map(([c,l])=>(
                 <span key={l} className="flex items-center gap-1.5">
@@ -1871,16 +1877,26 @@ export default function App() {
           )}
 
           {/* Center Content: Switch between Layout Master and Inbound */}
-          <div className={currentView === 'master'
-            ? 'absolute left-[348px] right-[384px] top-16 bottom-20 flex items-center justify-center transition-all duration-300'
-            : `absolute inset-0 pt-16 pb-6 overflow-y-auto scrollbar-thin transition-all duration-300 flex flex-col items-center ${
-                isMobile 
-                  ? 'px-6' 
-                  : sidebarHovered 
-                    ? 'pl-[236px] pr-6' 
-                    : 'pl-[60px] pr-6'
-              }`
-          }>
+          <div 
+            className={currentView === 'master'
+              ? 'absolute top-16 bottom-20 flex items-center justify-center transition-all duration-300'
+              : 'absolute inset-0 pt-16 pb-6 overflow-y-auto scrollbar-thin transition-all duration-300 flex flex-col items-center'
+            }
+            style={!isMobile ? (
+              currentView === 'master'
+                ? {
+                    left: sidebarHovered ? '536px' : '360px',
+                    right: '384px'
+                  }
+                : {
+                    paddingLeft: sidebarHovered ? '236px' : '60px',
+                    paddingRight: '24px'
+                  }
+            ) : {
+              paddingLeft: '24px',
+              paddingRight: '24px'
+            }}
+          >
             {currentView === 'master' ? (
               renderSVG()
             ) : (
