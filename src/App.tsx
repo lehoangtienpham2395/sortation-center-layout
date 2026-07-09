@@ -741,37 +741,66 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let tCap=0, tCur=0, tRem=0, tOver=0, tUsed=0, tBacklog=0, tWeight=0;
-    const alerts: string[] = [];
-    CHUTE_RACKS.forEach(c => {
-      const d = data[c.areaId]; if (!d) return;
-      tCap += d.capacity; tCur += d.current; tRem += d.remaining;
-      tBacklog += d.backlogCurrent ?? 0;
-      tWeight += d.weight ?? 0;
-      if (d.current > 0) tUsed++;
-      if (d.utilization > 100) { tOver++; alerts.push(`${c.areaId} VƯỢT SỨC CHỨA (${d.utilization}%)`); }
-      else if (d.utilization >= 95) alerts.push(`${c.areaId} SẮP ĐẦY (${d.utilization}%)`);
-    });
-    
-    if (selectedType === 'Outbound') {
-      const denominator = tCur + tBacklog;
-      setUtilTotal((denominator ? (tCur / denominator) * 100 : 0).toFixed(1));
-    } else {
-      setUtilTotal((tCap ? (tCur/tCap)*100 : 0).toFixed(1));
-    }
-    
-    setFree(tRem); setUsedCells(tUsed); setTotalOrders(tCur); setTotalWeight(tWeight);
-    
-    const label = selectedType === 'Outbound' ? 'TỈ LỆ OUTBOUND' : 'LẤP ĐẦY';
-    const rate = selectedType === 'Outbound'
-      ? (tCur + tBacklog ? (tCur / (tCur + tBacklog)) * 100 : 0)
-      : (tCap ? (tCur / tCap) * 100 : 0);
+    if (currentView === 'inbound') {
+      const inboundDates = Array.from(new Set(inboundData.map(d => d['Ngày vận hành']).filter(Boolean))) as string[];
+      inboundDates.sort((a, b) => b.localeCompare(a));
+      const activeDate = selectedInboundDate || inboundDates[0] || '';
       
-    setTickerText(alerts.length > 0
-      ? alerts.join(' // ') + ' // ' + alerts.join(' // ')
-      : `HỆ THỐNG ỔN ĐỊNH — KHÔNG CÓ CẢNH BÁO // TỔNG ${tCur} ĐƠN HÀNG // ${label} ${rate.toFixed(1)}%`
-    );
-  }, [data, selectedType]);
+      const filteredArrival = arrivalData.filter(d => d['Ngày vận hành'] === activeDate);
+      const stationMap: Record<string, number> = {};
+      filteredArrival.forEach(d => {
+        const station = (d['Pickup_station'] || '').trim().toUpperCase();
+        if (!station) return;
+        const chuaDen = parseInt(d['Chưa đến Hub'], 10) || 0;
+        if (chuaDen > 0) {
+          stationMap[station] = (stationMap[station] || 0) + chuaDen;
+        }
+      });
+      
+      const sortedStations = Object.entries(stationMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+        
+      if (sortedStations.length > 0) {
+        const warningItems = sortedStations.map(([st, vol]) => `${st} CÓ XE VỀ (${vol.toLocaleString()} đơn)`);
+        const warningText = `DANH SÁCH BƯU CỤC ĐANG VỀ HÀNG NHIỀU NHẤT: ` + warningItems.join(' // ');
+        setTickerText(warningText + ' // ' + warningText);
+      } else {
+        setTickerText(`HỆ THỐNG INBOUND ỔN ĐỊNH — KHÔNG CÓ XE ĐANG VỀ`);
+      }
+    } else {
+      let tCap=0, tCur=0, tRem=0, tOver=0, tUsed=0, tBacklog=0, tWeight=0;
+      const alerts: string[] = [];
+      CHUTE_RACKS.forEach(c => {
+        const d = data[c.areaId]; if (!d) return;
+        tCap += d.capacity; tCur += d.current; tRem += d.remaining;
+        tBacklog += d.backlogCurrent ?? 0;
+        tWeight += d.weight ?? 0;
+        if (d.current > 0) tUsed++;
+        if (d.utilization > 100) { tOver++; alerts.push(`${c.areaId} VƯỢT SỨC CHỨA (${d.utilization}%)`); }
+        else if (d.utilization >= 95) alerts.push(`${c.areaId} SẮP ĐẦY (${d.utilization}%)`);
+      });
+      
+      if (selectedType === 'Outbound') {
+        const denominator = tCur + tBacklog;
+        setUtilTotal((denominator ? (tCur / denominator) * 100 : 0).toFixed(1));
+      } else {
+        setUtilTotal((tCap ? (tCur/tCap)*100 : 0).toFixed(1));
+      }
+      
+      setFree(tRem); setUsedCells(tUsed); setTotalOrders(tCur); setTotalWeight(tWeight);
+      
+      const label = selectedType === 'Outbound' ? 'TỈ LỆ OUTBOUND' : 'LẤP ĐẦY';
+      const rate = selectedType === 'Outbound'
+        ? (tCur + tBacklog ? (tCur / (tCur + tBacklog)) * 100 : 0)
+        : (tCap ? (tCur / tCap) * 100 : 0);
+        
+      setTickerText(alerts.length > 0
+        ? alerts.join(' // ') + ' // ' + alerts.join(' // ')
+        : `HỆ THỐNG ỔN ĐỊNH — KHÔNG CÓ CẢNH BÁO // TỔNG ${tCur} ĐƠN HÀNG // ${label} ${rate.toFixed(1)}%`
+      );
+    }
+  }, [currentView, data, selectedType, arrivalData, inboundData, selectedInboundDate]);
 
   const getZoneBorderProps = (zone: number, colorVar: string) => {
     const isHovered = hoveredZone === zone;
@@ -2166,7 +2195,7 @@ export default function App() {
       {/* ── Critical Alert Ticker ── */}
       <div className="absolute bottom-0 left-0 right-0 h-8 bg-[var(--accent)] text-[#0a0e14] flex items-center z-30 mono font-bold text-[12px] tracking-[0.05em] overflow-hidden">
         <div className="bg-[#0a0e14] text-[var(--accent)] px-4 h-full flex items-center shrink-0 z-10 font-bold border-r border-[var(--accent)]">
-          ● CRITICAL ALERT
+          {currentView === 'inbound' ? '● INBOUND ALERT' : '● CRITICAL ALERT'}
         </div>
         <div className="ticker-track">{tickerText}</div>
       </div>
