@@ -751,6 +751,55 @@ def push_json_to_github(df: pd.DataFrame, token: str, repo_name: str, path: str 
         return False
 
 
+def push_db_to_github(db_path: str, token: str, repo_name: str, github_path: str = "backend_sync/db/state.db") -> bool:
+    """
+    Push trực tiếp file cơ sở dữ liệu SQLite (state.db) lên Github repository.
+    Giúp bảo toàn 100% dữ liệu lịch sử mốc giờ lấy hàng và tránh việc Github Actions
+    làm mất/reset dữ liệu.
+    """
+    if not token:
+        print("   ⚠️ GITHUB_TOKEN không được set — bỏ qua đồng bộ DB lên Github.")
+        return False
+    if not os.path.exists(db_path):
+        print(f"   ⚠️ File DB không tồn tại tại {db_path}.")
+        return False
+
+    try:
+        t0 = time.time()
+        with open(db_path, "rb") as f:
+            db_data = f.read()
+
+        encoded = base64.b64encode(db_data).decode()
+        size_mb = len(db_data) / (1024 * 1024)
+        print(f"   💾 Đang tải DB lên Github: {github_path} ({size_mb:.2f} MB)...")
+
+        api_url = f"https://api.github.com/repos/{repo_name}/contents/{github_path}"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        commit_msg = f"data: update state.db {datetime.now(ZoneInfo('Asia/Ho_Chi_Minh')).strftime('%H:%M %d/%m/%Y')}"
+
+        sha = None
+        r_get = requests.get(api_url, headers=headers, timeout=20)
+        if r_get.status_code == 200:
+            sha = r_get.json().get("sha")
+
+        body = {"message": commit_msg, "content": encoded}
+        if sha:
+            body["sha"] = sha
+
+        r_put = requests.put(api_url, headers=headers, json=body, timeout=120)
+        r_put.raise_for_status()
+
+        print(f"   ✅ Đồng bộ DB lên Github thành công ({size_mb:.2f} MB) | tổng {time.time()-t0:.1f}s")
+        return True
+    except Exception as e:
+        print(f"   ❌ Lỗi đồng bộ DB lên Github: {e}")
+        return False
+
+
 # ================================================================
 # UTILS
 # ================================================================
@@ -2299,6 +2348,8 @@ def run_once(session, token_mgr, rebuild_days=None):
             raw_bl_cleanup = results.get('backlog', [])
             if raw_bl_cleanup:
                 df_bl_cleanup = pd.DataFrame(raw_bl_cleanup)
+                if 'operate_site_type' in df_bl_cleanup.columns:
+                    df_bl_cleanup = df_bl_cleanup[df_bl_cleanup['operate_site_type'] == 'Trong kho']
                 if 'billcode' in df_bl_cleanup.columns:
                     live_backlog_wbs = set(df_bl_cleanup['billcode'].astype(str).str.strip().tolist())
                     if live_backlog_wbs:
@@ -2373,6 +2424,9 @@ def run_once(session, token_mgr, rebuild_days=None):
     # ================================================================
     print("\n🚀 Đang push data lên Github Raw...")
     push_json_to_github(df, GH_TOKEN, GH_REPO, GH_DATA_PATH)
+    
+    print("\n💾 Đang đồng bộ hóa Database SQLite lên Github...")
+    push_db_to_github(DB_FILE, GH_TOKEN, GH_REPO, "backend_sync/db/state.db")
 
     # Cập nhật dữ liệu cấu hình lên Google Sheets (config sheets, Linehaul, Arrival, Outbound)
     # Data chính (100k rows) đã được push lên Github — không cần ghi vào Sheet nữa
