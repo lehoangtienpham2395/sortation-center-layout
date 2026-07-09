@@ -317,8 +317,8 @@ export default function InboundDashboard({
         forecastGrad.addColorStop(1, 'rgba(252, 108, 38, 0)');
 
         const pickupGrad = ctx.createLinearGradient(0, 0, 0, 220);
-        pickupGrad.addColorStop(0, 'rgba(91, 61, 245, 0.25)');
-        pickupGrad.addColorStop(1, 'rgba(91, 61, 245, 0)');
+        pickupGrad.addColorStop(0, 'rgba(56, 189, 248, 0.25)');
+        pickupGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
 
         const arrivedGrad = ctx.createLinearGradient(0, 0, 0, 220);
         arrivedGrad.addColorStop(0, 'rgba(200, 255, 61, 0.25)');
@@ -352,17 +352,17 @@ export default function InboundDashboard({
               {
                 label: 'Shipper đã lấy (Actual Pickup)',
                 data: pickupTrendData,
-                borderColor: '#5B3DF5',
+                borderColor: '#38BDF8',
                 backgroundColor: pickupGrad,
                 borderWidth: 3,
                 tension: 0.4,
                 fill: true,
                 pointBackgroundColor: '#05030a',
-                pointBorderColor: '#5B3DF5',
+                pointBorderColor: '#38BDF8',
                 pointBorderWidth: 2,
                 pointHoverRadius: 8,
                 pointRadius: 4,
-                pointHoverBackgroundColor: '#5B3DF5',
+                pointHoverBackgroundColor: '#38BDF8',
                 pointHoverBorderWidth: 3
               },
               {
@@ -634,7 +634,7 @@ export default function InboundDashboard({
             <h2>Forecast/Arrived/Inbound trend hourly</h2>
             <div className="chart-legend-custom">
               <span className="legend-item"><span className="dot orange"></span>Dự báo (Forecast)</span>
-              <span className="legend-item"><span className="dot purple"></span>Shipper đã lấy (Actual Pickup)</span>
+              <span className="legend-item"><span className="dot blue"></span>Shipper đã lấy (Actual Pickup)</span>
               <span className="legend-item"><span className="dot green"></span>Trên đường về (Arrived)</span>
               <span className="legend-item"><span className="dot cyan"></span>Nhập (Inbound)</span>
             </div>
