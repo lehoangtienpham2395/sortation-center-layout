@@ -362,9 +362,9 @@ body {
   --text-secondary: #a0aec0;
   --text-muted: #5a6578;
   
-  --accent-purple: #38BDF8; /* Sky Blue for Actual Pickup */
-  --accent-purple-glow: rgba(56, 189, 248, 0.15);
-  --accent-purple-border: rgba(56, 189, 248, 0.3);
+  --accent-purple: #00E5FF; /* Neon Cyan for Actual Pickup */
+  --accent-purple-glow: rgba(0, 229, 255, 0.15);
+  --accent-purple-border: rgba(0, 229, 255, 0.3);
   
   --accent-lime: #C8FF3D; /* Lime for Arrived */
   --accent-lime-glow: rgba(200, 255, 61, 0.15);
@@ -851,7 +851,7 @@ body {
   background: linear-gradient(90deg, transparent, var(--accent-purple), transparent);
 }
 .kpi-card.accent-purple:hover {
-  box-shadow: 0 8px 25px rgba(56, 189, 248, 0.1);
+  box-shadow: 0 8px 25px rgba(0, 229, 255, 0.1);
   border-color: var(--accent-purple-border);
 }
 
@@ -931,7 +931,7 @@ body {
   border-radius: 50%;
 }
 
-.legend-item .dot.purple {
+.legend-item .dot.blue {
   background-color: #38BDF8;
   box-shadow: 0 0 6px rgba(56, 189, 248, 0.6);
 }

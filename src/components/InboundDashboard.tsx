@@ -40,6 +40,31 @@ function parseHourAndCheckDate(val: any, activeDate: string, loaiRot: string): n
   return -1;
 }
 
+const getSvgArcPath = (cx: number, cy: number, rIn: number, rOut: number, startAngle: number, endAngle: number) => {
+  const s = startAngle;
+  const e = endAngle;
+
+  const x1_out = cx + rOut * Math.cos(s);
+  const y1_out = cy + rOut * Math.sin(s);
+  const x2_out = cx + rOut * Math.cos(e);
+  const y2_out = cy + rOut * Math.sin(e);
+
+  const x1_in = cx + rIn * Math.cos(s);
+  const y1_in = cy + rIn * Math.sin(s);
+  const x2_in = cx + rIn * Math.cos(e);
+  const y2_in = cy + rIn * Math.sin(e);
+
+  const largeArcFlag = (e - s) > Math.PI ? 1 : 0;
+
+  return `
+    M ${x1_out} ${y1_out}
+    A ${rOut} ${rOut} 0 ${largeArcFlag} 1 ${x2_out} ${y2_out}
+    L ${x2_in} ${y2_in}
+    A ${rIn} ${rIn} 0 ${largeArcFlag} 0 ${x1_in} ${y1_in}
+    Z
+  `.trim();
+};
+
 export default function InboundDashboard({
   inboundData,
   linehaulData,
@@ -50,6 +75,7 @@ export default function InboundDashboard({
   fetchAndUpdateData
 }: InboundDashboardProps) {
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
+  const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<any | null>(null);
 
@@ -258,6 +284,52 @@ export default function InboundDashboard({
   const inTransitPct = totalStates > 0 ? Math.round((totalInTransitOrders / totalStates) * 100) : 0;
   const pendingPct = totalStates > 0 ? Math.max(0, 100 - inboundPct - inTransitPct) : 0;
 
+  // Concentric radial chart configurations
+  const segments = [
+    { name: 'Đã nhập kho', value: totalOrders, pct: inboundPct, color: '#B8F7E4', label: 'Inbound' },
+    { name: 'Đang trên đường', value: totalInTransitOrders, pct: inTransitPct, color: '#C8FF3D', label: 'In Transit' },
+    { name: 'Chờ xử lý', value: pendingOrders, pct: pendingPct, color: '#FC6C26', label: 'Pending' }
+  ];
+
+  const activeSegments = segments.filter(s => s.pct > 0);
+  const sortedSegments = [...activeSegments].sort((a, b) => b.pct - a.pct);
+
+  const segmentLayers = new Map<string, number>();
+  sortedSegments.forEach((s, index) => {
+    if (index === 0) segmentLayers.set(s.name, 3);
+    else if (index === 1) segmentLayers.set(s.name, 2);
+    else segmentLayers.set(s.name, 1);
+  });
+
+  const gapAngle = 0.05; // ~3 degrees
+  const numGaps = activeSegments.length;
+  const totalGapAngle = numGaps * gapAngle;
+  const availableAngle = 2 * Math.PI - totalGapAngle;
+
+  let currentAngle = 0;
+  const renderedSegments = activeSegments.map(s => {
+    let angleSpan = (s.pct / 100) * availableAngle;
+    if (angleSpan >= 2 * Math.PI) {
+      angleSpan = 2 * Math.PI - 0.01;
+    }
+    const startAngle = currentAngle;
+    const endAngle = currentAngle + angleSpan;
+    currentAngle = endAngle + gapAngle;
+    
+    const layers = segmentLayers.get(s.name) || 1;
+    return {
+      ...s,
+      startAngle,
+      endAngle,
+      layers
+    };
+  });
+
+  const highestStatus = sortedSegments[0] || segments[0] || { name: 'Đã nhập kho', value: 0, pct: 0, color: '#B8F7E4', label: 'Inbound' };
+  const activeDisplayStatus = hoveredStatus 
+    ? (segments.find(s => s.name === hoveredStatus) || highestStatus)
+    : highestStatus;
+
   // MỞ RỘNG METRICS BƯU CỤC GỬI (Đầy đủ bưu cục, tính tổng xe, tổng đơn, tổng trọng lượng, tỉ lệ %)
   const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
   const getFC = (name: any) => {
@@ -306,9 +378,6 @@ export default function InboundDashboard({
   const totalSendingOrders = allSendingFCs.reduce((sum, item) => sum + item.orders, 0);
   const totalSendingWeight = allSendingFCs.reduce((sum, item) => sum + item.weight, 0);
 
-  // Donut chart canvas rendering
-  const donutRef = useRef<HTMLCanvasElement | null>(null);
-  const donutInstanceRef = useRef<any | null>(null);
 
   useEffect(() => {
     const ChartClass = (window as any).Chart;
@@ -440,49 +509,6 @@ export default function InboundDashboard({
               y: {
                 grid: { color: 'rgba(139, 92, 246, 0.05)' },
                 ticks: { color: '#a0aec0', font: { size: 9 } }
-              }
-            }
-          }
-        });
-      }
-    }
-
-    if (donutRef.current) {
-      const dCtx = donutRef.current.getContext('2d');
-      if (dCtx) {
-        if (donutInstanceRef.current) donutInstanceRef.current.destroy();
-
-        donutInstanceRef.current = new ChartClass(dCtx, {
-          type: 'doughnut',
-          data: {
-            labels: ['Đã nhập kho', 'Đang trên đường', 'Chờ xử lý'],
-            datasets: [
-              {
-                data: [totalOrders, totalInTransitOrders, pendingOrders],
-                backgroundColor: ['#B8F7E4', '#C8FF3D', '#FC6C26'],
-                borderWidth: 0,
-                hoverOffset: 4
-              }
-            ]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '75%',
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                backgroundColor: '#120f22',
-                borderColor: 'rgba(139, 92, 246, 0.2)',
-                borderWidth: 1,
-                callbacks: {
-                  label: function (context: any) {
-                    const val = context.raw;
-                    const total = totalOrders + totalInTransitOrders + pendingOrders;
-                    const percentage = total > 0 ? ((val / total) * 100).toFixed(1) : '0';
-                    return ` ${context.label}: ${val.toLocaleString()} đơn (${percentage}%)`;
-                  }
-                }
               }
             }
           }
@@ -657,17 +683,65 @@ export default function InboundDashboard({
             <h2>Orders status</h2>
           </div>
           <div className="donut-chart-box">
-            {/* Canvas + centre label */}
+            {/* SVG concentric arcs + centre label */}
             <div className="donut-canvas-container">
-              <canvas ref={donutRef} style={{ width: '100%', height: '100%' }}></canvas>
-              <div className="donut-center-text">
-                <span className="number">{inboundPct}%</span>
-                <span className="label">Inbound</span>
+              <svg width="100%" height="100%" viewBox="0 0 200 200" style={{ transform: 'rotate(-90deg)', overflow: 'visible' }}>
+                {renderedSegments.map((s) => {
+                  const paths = [];
+                  const baseRadii = [
+                    { rIn: 45, rOut: 54, baseOpacity: 0.4 },
+                    { rIn: 58, rOut: 67, baseOpacity: 0.7 },
+                    { rIn: 71, rOut: 80, baseOpacity: 1.0 }
+                  ];
+                  
+                  // Render layers up to s.layers
+                  for (let i = 0; i < s.layers; i++) {
+                    const { rIn, rOut, baseOpacity } = baseRadii[i];
+                    const pathData = getSvgArcPath(100, 100, rIn, rOut, s.startAngle, s.endAngle);
+                    
+                    let opacity = baseOpacity;
+                    if (hoveredStatus) {
+                      opacity = hoveredStatus === s.name ? 1.0 : 0.15;
+                    }
+
+                    paths.push(
+                      <path
+                        key={`${s.name}-layer-${i}`}
+                        d={pathData}
+                        fill={s.color}
+                        opacity={opacity}
+                        style={{
+                          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                          cursor: 'pointer',
+                          transformOrigin: '100px 100px',
+                          transform: hoveredStatus === s.name ? 'scale(1.03)' : 'scale(1)'
+                        }}
+                        onMouseEnter={() => setHoveredStatus(s.name)}
+                        onMouseLeave={() => setHoveredStatus(null)}
+                      />
+                    );
+                  }
+                  return <g key={s.name}>{paths}</g>;
+                })}
+              </svg>
+              <div className="donut-center-text" style={{ transition: 'all 0.2s ease' }}>
+                <span className="number">{activeDisplayStatus.pct}%</span>
+                <span className="label" style={{ fontSize: '0.62rem' }}>{activeDisplayStatus.label}</span>
               </div>
             </div>
             {/* Legend stacked vertically */}
             <div className="donut-legend">
-              <div className="donut-legend-item">
+              <div 
+                className="donut-legend-item"
+                style={{ 
+                  cursor: 'pointer',
+                  opacity: hoveredStatus && hoveredStatus !== 'Đã nhập kho' ? 0.35 : 1,
+                  transform: hoveredStatus === 'Đã nhập kho' ? 'translateX(4px)' : 'none',
+                  transition: 'all 0.2s ease-in-out'
+                }}
+                onMouseEnter={() => setHoveredStatus('Đã nhập kho')}
+                onMouseLeave={() => setHoveredStatus(null)}
+              >
                 <div className="donut-legend-dot" style={{ background: '#B8F7E4' }}></div>
                 <div className="donut-legend-header">
                   <span className="label-text">Đã nhập kho</span>
@@ -675,7 +749,17 @@ export default function InboundDashboard({
                 </div>
                 <span className="donut-legend-value">{totalOrders.toLocaleString()}</span>
               </div>
-              <div className="donut-legend-item">
+              <div 
+                className="donut-legend-item"
+                style={{ 
+                  cursor: 'pointer',
+                  opacity: hoveredStatus && hoveredStatus !== 'Đang trên đường' ? 0.35 : 1,
+                  transform: hoveredStatus === 'Đang trên đường' ? 'translateX(4px)' : 'none',
+                  transition: 'all 0.2s ease-in-out'
+                }}
+                onMouseEnter={() => setHoveredStatus('Đang trên đường')}
+                onMouseLeave={() => setHoveredStatus(null)}
+              >
                 <div className="donut-legend-dot" style={{ background: '#C8FF3D' }}></div>
                 <div className="donut-legend-header">
                   <span className="label-text">Đang trên đường</span>
@@ -683,7 +767,17 @@ export default function InboundDashboard({
                 </div>
                 <span className="donut-legend-value">{totalInTransitOrders.toLocaleString()}</span>
               </div>
-              <div className="donut-legend-item">
+              <div 
+                className="donut-legend-item"
+                style={{ 
+                  cursor: 'pointer',
+                  opacity: hoveredStatus && hoveredStatus !== 'Chờ xử lý' ? 0.35 : 1,
+                  transform: hoveredStatus === 'Chờ xử lý' ? 'translateX(4px)' : 'none',
+                  transition: 'all 0.2s ease-in-out'
+                }}
+                onMouseEnter={() => setHoveredStatus('Chờ xử lý')}
+                onMouseLeave={() => setHoveredStatus(null)}
+              >
                 <div className="donut-legend-dot" style={{ background: '#FC6C26' }}></div>
                 <div className="donut-legend-header">
                   <span className="label-text">Chờ xử lý</span>
