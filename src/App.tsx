@@ -454,25 +454,34 @@ export default function App() {
     // For Inventory: accumulate volumes per areaId across selected statuses
     const inventoryMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
 
+    const hasInventoryForSelectedDate = rawSheetRows.some(r => r.type === 'Inventory' && r.date === selectedDate);
+    const hasBacklogForSelectedDate = rawSheetRows.some(r => r.type === 'Backlog' && r.date === selectedDate);
+
     rawSheetRows.forEach(row => {
+      const key = row.areaId;
+      if (!key) return;
+
       if (row.date === selectedDate) {
-        const key = row.areaId; // Fix: dùng areaId làm key (unique) thay vì zone_areaId để tránh mismatch khi Zone là chữ ("A") vs số (1)
         if (row.type === selectedType && selectedType !== 'Inventory') {
           selectedMap[key] = row;
         }
-        if (row.type === 'Inventory' && selectedType === 'Inventory') {
-          // Only sum volumes for the user-selected statuses
-          if (!row.status || selectedStatuses.includes(row.status)) {
-            if (!inventoryMap[key]) {
-              inventoryMap[key] = { volume: 0, weight: 0, capacity: row.capacity, buuCuc: row.buuCuc };
-            }
-            inventoryMap[key].volume += row.volume;
-            inventoryMap[key].weight += row.weight;
+      }
+
+      // For Inventory and Backlog, check if exact date exists, otherwise fallback to latest snapshot
+      const matchInventory = row.type === 'Inventory' && (hasInventoryForSelectedDate ? row.date === selectedDate : true);
+      if (matchInventory) {
+        if (!row.status || selectedStatuses.includes(row.status)) {
+          if (!inventoryMap[key]) {
+            inventoryMap[key] = { volume: 0, weight: 0, capacity: row.capacity, buuCuc: row.buuCuc };
           }
+          inventoryMap[key].volume += row.volume;
+          inventoryMap[key].weight += row.weight;
         }
-        if (row.type === 'Backlog') {
-          backlogMap[key] = row;
-        }
+      }
+
+      const matchBacklog = row.type === 'Backlog' && (hasBacklogForSelectedDate ? row.date === selectedDate : true);
+      if (matchBacklog) {
+        backlogMap[key] = row;
       }
     });
 
