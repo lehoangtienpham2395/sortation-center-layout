@@ -527,31 +527,33 @@ export default function InboundDashboard({
   return (
     <div className="inbound-dashboard dashboard-container w-full max-w-7xl mx-auto pb-12 text-slate-100 font-sans">
       {/* 1. Header Control Block */}
-      <header className="dashboard-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        {/* LEFT: Sync Button (replaces old logo position) */}
-        <div className="header-left" style={{ flexShrink: 0, minWidth: '140px' }}>
-          <button
-            className="google-sync-btn"
-            onClick={fetchAndUpdateData}
-            disabled={loading}
-            style={{ width: 'auto', padding: '10px 20px' }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" style={{ marginRight: '8px' }} />
-            {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
-          </button>
+      <header className="dashboard-header" style={{ display: 'flex', alignItems: 'center', gap: '20px', padding: '14px 24px' }}>
+        {/* 1. Nút Đồng bộ - góc trái */}
+        <button
+          className="google-sync-btn"
+          onClick={fetchAndUpdateData}
+          disabled={loading}
+          style={{ width: 'auto', padding: '10px 20px', flexShrink: 0 }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" style={{ marginRight: '8px' }} />
+          {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
+        </button>
+
+        {/* 2. Logo x2 - nằm giữa nút Đồng bộ và Tiêu đề */}
+        <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '80px', borderRadius: '10px', display: 'block', flexShrink: 0 }} />
+
+        {/* 3. Tiêu đề x2 */}
+        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <h1 style={{ fontSize: '36px', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', lineHeight: '1.1', textShadow: '0 2px 20px rgba(99,102,241,0.5)', margin: 0 }}>HCM HUB Inbound Dashboard</h1>
+          <p className="subtitle text-xs text-slate-400" style={{ marginTop: '4px' }}>Operational overview of today's inbound activities</p>
         </div>
 
-        {/* CENTER: Logo + Title */}
-        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '40px', borderRadius: '6px', display: 'block' }} />
-          <div className="title-container">
-            <h1 className="text-[28px] font-extrabold text-white tracking-tight" style={{ lineHeight: '1.15', letterSpacing: '-0.5px', textShadow: '0 2px 16px rgba(99,102,241,0.4)' }}>HCM HUB Inbound Dashboard</h1>
-            <p className="subtitle text-xs text-slate-400">Operational overview of today's inbound activities</p>
-          </div>
-        </div>
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
 
-        {/* RIGHT: Status + Date Picker */}
-        <div className="header-right" style={{ flexShrink: 0, minWidth: '140px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+        {/* 4. Status + Date Picker - góc phải */}
+        <div className="header-right" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+
           <div className="system-status">
             <span className="status-dot pulsing"></span>
             <span className="status-text">Update: {new Date().toLocaleString('vi-VN')}</span>
