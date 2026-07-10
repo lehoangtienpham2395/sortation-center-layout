@@ -128,12 +128,14 @@ export default function InboundDashboard({
       stages['Chưa về Hub'].weight += wt;
     }
 
-    // Phân tách đơn Forecast cho toàn bộ đơn (bao gồm cả đã về và chưa về Hub) sử dụng cột Loại rớt từ backend
-    const loaiRot = d['Loại rớt'] || '';
-    if (loaiRot === 'Rớt hôm trước') {
-      forecastRotHomTruoc += vol;
-    } else if (loaiRot === 'Rớt hôm nay') {
-      forecastRotHomNay += vol;
+    // Phân tách đơn Forecast (chỉ tính những đơn CHƯA PICKUP: status is Forecast hoặc Điều phối bưu cục)
+    if (status === 'Forecast' || status === 'Điều phối bưu cục') {
+      const loaiRot = d['Loại rớt'] || '';
+      if (loaiRot === 'Rớt hôm trước') {
+        forecastRotHomTruoc += vol;
+      } else if (loaiRot === 'Rớt hôm nay') {
+        forecastRotHomNay += vol;
+      }
     }
   });
 
@@ -143,8 +145,8 @@ export default function InboundDashboard({
 
   const totalOrders = stages['Đã về Hub'].orders;
   const totalWeight = stages['Đã về Hub'].weight;
-  // Tổng Forecast gồm Đã về Hub + Chưa về Hub (cả cũ và mới)
-  const totalForecast = stages['Đã về Hub'].orders + stages['Chưa về Hub'].orders;
+  // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
+  const totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
   // KPI: số bưu cục đang trên đường (distinct Pickup_station với Chưa đến Hub > 0)
   const totalVehicles = new Set(

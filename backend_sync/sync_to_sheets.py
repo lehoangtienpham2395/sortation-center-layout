@@ -1416,16 +1416,11 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
     projected_rows = []
     for r in unique_rows:
         projected_rows.append(r)
-        # Carry over un-inbounded records from past operating dates to today's date
-        if r['Trạng thái'] != 'Đã về Hub' and r['Trạng thái'] != 'Đã nhập hàng':
+        # Carry over un-picked records from past operating dates to today's date
+        if r['Trạng thái'] in ('Forecast', 'Điều phối bưu cục'):
             if r['Ngày vận hành_Forecast'] and r['Ngày vận hành_Forecast'] < current_op_date:
                 dup = r.copy()
                 dup['Ngày vận hành_Forecast'] = current_op_date
-                dup['Loại rớt'] = 'Rớt hôm trước'
-                projected_rows.append(dup)
-            elif r['Ngày vận hành_Pickup'] and r['Ngày vận hành_Pickup'] < current_op_date:
-                dup = r.copy()
-                dup['Ngày vận hành_Pickup'] = current_op_date
                 dup['Loại rớt'] = 'Rớt hôm trước'
                 projected_rows.append(dup)
 
