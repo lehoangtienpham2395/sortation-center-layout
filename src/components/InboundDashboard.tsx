@@ -527,17 +527,31 @@ export default function InboundDashboard({
   return (
     <div className="inbound-dashboard dashboard-container w-full max-w-7xl mx-auto pb-12 text-slate-100 font-sans">
       {/* 1. Header Control Block */}
-      <header className="dashboard-header">
-        <div className="header-left">
-          <div className="logo-container">
-            <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '36px', borderRadius: '6px', display: 'block' }} />
-          </div>
+      <header className="dashboard-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* LEFT: Sync Button (replaces old logo position) */}
+        <div className="header-left" style={{ flexShrink: 0, minWidth: '140px' }}>
+          <button
+            className="google-sync-btn"
+            onClick={fetchAndUpdateData}
+            disabled={loading}
+            style={{ width: 'auto', padding: '10px 20px' }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" style={{ marginRight: '8px' }} />
+            {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
+          </button>
+        </div>
+
+        {/* CENTER: Logo + Title */}
+        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '40px', borderRadius: '6px', display: 'block' }} />
           <div className="title-container">
-            <h1 className="text-[20px] font-bold text-white tracking-tight">HCM HUB Inbound Dashboard</h1>
+            <h1 className="text-[28px] font-extrabold text-white tracking-tight" style={{ lineHeight: '1.15', letterSpacing: '-0.5px', textShadow: '0 2px 16px rgba(99,102,241,0.4)' }}>HCM HUB Inbound Dashboard</h1>
             <p className="subtitle text-xs text-slate-400">Operational overview of today's inbound activities</p>
           </div>
         </div>
-        <div className="header-right">
+
+        {/* RIGHT: Status + Date Picker */}
+        <div className="header-right" style={{ flexShrink: 0, minWidth: '140px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
           <div className="system-status">
             <span className="status-dot pulsing"></span>
             <span className="status-text">Update: {new Date().toLocaleString('vi-VN')}</span>
@@ -893,18 +907,7 @@ export default function InboundDashboard({
         </div>
       </section>
 
-      {/* Sync Button Row for Mobile/Desktop */}
-      <div className="flex justify-end pt-4 gap-3">
-        <button
-          className="google-sync-btn"
-          onClick={fetchAndUpdateData}
-          disabled={loading}
-          style={{ width: 'auto', padding: '10px 24px' }}
-        >
-          <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" style={{ marginRight: '8px' }} />
-          {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
-        </button>
-      </div>
+
     </div>
   );
 }
