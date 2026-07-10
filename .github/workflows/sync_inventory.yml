@@ -79,11 +79,11 @@ jobs:
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add data/
+        git add data/ backend_sync/db/state.db src/data/
         if git diff --staged --quiet; then
           echo "No data changes to commit."
         else
-          git commit -m "chore: auto-update data JSON files [skip ci]"
+          git commit -m "chore: auto-update data JSON files & SQLite [skip ci]"
           # ✅ Pull --rebase trước khi push để tránh reject khi có commit mới từ ngoài
           git pull --rebase origin main
           git push origin main
