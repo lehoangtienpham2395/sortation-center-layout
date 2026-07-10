@@ -297,7 +297,7 @@ export default function InboundDashboard({
     else segmentLayers.set(s.name, 1);
   });
 
-  const gapAngle = 0.05; // ~3 degrees
+  const gapAngle = 0.06; // ~3.5 degrees
   const numGaps = activeSegments.length;
   const totalGapAngle = numGaps * gapAngle;
   const availableAngle = 2 * Math.PI - totalGapAngle;
@@ -685,8 +685,8 @@ export default function InboundDashboard({
                 {renderedSegments.map((s) => {
                   const paths = [];
                   const baseRadii = [
-                    { rIn: 42, rOut: 60, baseOpacity: 0.4 },
-                    { rIn: 61, rOut: 79, baseOpacity: 0.7 },
+                    { rIn: 43.4, rOut: 61.4, baseOpacity: 0.4 },
+                    { rIn: 61.7, rOut: 79.7, baseOpacity: 0.7 },
                     { rIn: 80, rOut: 98, baseOpacity: 1.0 }
                   ];
                   
