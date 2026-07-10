@@ -272,13 +272,16 @@ export default function InboundDashboard({
   const forecastTrendData = labels.map(l => hourlyForecast[l]);
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
-  const pendingOrders = totalForecast;
+  // totalForecast = tổng đơn rớt trong ngày (đã về + chưa về) = base denominator
+  // pendingOrders = thực sự chưa về Hub (không double-count đơn đã về)
+  const totalBase = Math.max(totalForecast, totalOrders); // safety khi data lệch
+  const pendingOrders = Math.max(0, totalBase - totalOrders - totalInTransitOrders);
 
   // Tính tỷ lệ % cho 3 trạng thái của Orders status doughnut chart
-  const totalStates = totalOrders + totalInTransitOrders + pendingOrders;
-  const inboundPct = totalStates > 0 ? Math.round((totalOrders / totalStates) * 100) : 0;
-  const inTransitPct = totalStates > 0 ? Math.round((totalInTransitOrders / totalStates) * 100) : 0;
-  const pendingPct = totalStates > 0 ? Math.max(0, 100 - inboundPct - inTransitPct) : 0;
+  // Tỉ lệ inbound = đã về Hub / tổng đơn rớt trong ngày (bao gồm rớt hôm trước)
+  const inboundPct   = totalBase > 0 ? Math.round((totalOrders            / totalBase) * 100) : 0;
+  const inTransitPct = totalBase > 0 ? Math.round((totalInTransitOrders   / totalBase) * 100) : 0;
+  const pendingPct   = totalBase > 0 ? Math.max(0, 100 - inboundPct - inTransitPct)           : 0;
 
   // Concentric radial chart configurations
   const segments = [
