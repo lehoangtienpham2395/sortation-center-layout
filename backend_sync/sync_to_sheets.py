@@ -717,11 +717,11 @@ def pull_dispatch(session, token_mgr, headers, base_payload, label='Dispatch'):
         url = URL_DISPATCH
         h = dict(headers)
         h['authToken'] = token_mgr.get_token()
-        r = session.post(url, headers=h, json=payload, timeout=30)
+        r = session.post(url, headers=h, data=payload, timeout=30)
         if r.status_code == 401:
             token_mgr.refresh(h['authToken'])
             h['authToken'] = token_mgr.get_token()
-            r = session.post(url, headers=h, json=payload, timeout=30)
+            r = session.post(url, headers=h, data=payload, timeout=30)
         r.raise_for_status()
         obj = r.json().get('data', {})
         return (obj.get('records') or obj.get('list') or obj.get('rows') or []), obj
