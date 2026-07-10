@@ -290,8 +290,7 @@ export default function InboundDashboard({
   const forecastTrendData = labels.map(l => hourlyForecast[l]);
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
-  const masterTotal = Math.max(totalForecast, totalOrders + totalInTransitOrders);
-  const pendingOrders = Math.max(0, masterTotal - totalOrders - totalInTransitOrders);
+  const pendingOrders = totalForecast;
 
   // Tính tỷ lệ % cho 3 trạng thái của Orders status doughnut chart
   const totalStates = totalOrders + totalInTransitOrders + pendingOrders;
