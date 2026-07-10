@@ -2108,44 +2108,6 @@ def run_once(session, token_mgr, rebuild_days=None):
                 print(f"   ⚠️ {key} lỗi: {e}")
                 results[key] = []
 
-    print("\n🚀 Kéo bổ sung data Cụm SE & TN (Sequentially)...")
-    se_tn_sortcodes = []
-    try:
-        import pandas as pd
-        df_v = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
-        df_v.columns = df_v.columns.str.strip()
-        col_z = 'Vùng lớn' if 'Vùng lớn' in df_v.columns else ('Zone' if 'Zone' in df_v.columns else 'Vùng')
-        col_area = 'area' if 'area' in df_v.columns else 'Area'
-        df_se_tn = df_v[df_v[col_z].str.startswith('SE', na=False) | df_v[col_z].str.startswith('TN', na=False) | (df_v[col_area] == 'B16')]
-        for _, r in df_se_tn.iterrows():
-            code = str(r.get('sortcode') or '').strip().upper()
-            if code and code != 'NAN' and code not in se_tn_sortcodes:
-                se_tn_sortcodes.append(code)
-        print(f"   ► Đã nạp {len(se_tn_sortcodes)} sortcodes (SE/TN/B16): {se_tn_sortcodes}")
-    except Exception as e:
-        print(f"   ⚠️ Không lấy được sortcode SE/TN: {e}")
-
-    import time
-    if 'forecast' not in results: results['forecast'] = []
-    if 'dispatch' not in results: results['dispatch'] = []
-
-    for sc in se_tn_sortcodes:
-        print(f"   ► Pulling Forecast & Dispatch for: {sc}")
-        fp_sc = {**fp, 'pickFinanceCode': '', 'pickNetworkCode': sc}
-        dp_sc = {**dp_cfg, 'pickNetworkCode': sc}
-        try:
-            fc_data = pull_forecast(session, token_mgr, fh, fp_sc, label=f'Forecast_{sc}')
-            if fc_data: results['forecast'].extend(fc_data)
-        except Exception as e:
-            print(f"      ❌ Forecast lỗi {sc}: {e}")
-        time.sleep(0.5)
-        try:
-            dp_data = pull_dispatch(session, token_mgr, dh, dp_sc, label=f'Dispatch_{sc}')
-            if dp_data: results['dispatch'].extend(dp_data)
-        except Exception as e:
-            print(f"      ❌ Dispatch lỗi {sc}: {e}")
-        time.sleep(0.5)
-
     print("\n🔗 Xử lý & join data...")
 
     SYSTEM_STATUSES = {
