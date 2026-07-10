@@ -223,6 +223,45 @@ def init_db():
             WHERE status_order = 'Đã rời HUB' 
               AND datetime(last_updated) < datetime(?)
         """, (limit_date,))
+        
+        # Tự động dọn dẹp các giá trị 'NaT'/'nan' bị lưu sai trong quá khứ
+        columns_to_clean = ['Pickup_time', 'dispatchNetworkTime', 'inbound_scanDate', 'outbound_scanDate', 'time_ref']
+        cleaned_any = False
+        for col in columns_to_clean:
+            c.execute(f"UPDATE inventory SET {col} = '' WHERE {col} = 'NaT' OR {col} = 'nat' OR {col} = 'nan'")
+            if c.rowcount > 0:
+                cleaned_any = True
+                
+        if cleaned_any:
+            c.execute("SELECT waybillNo, Pickup_time, dispatchNetworkTime, inbound_scanDate, outbound_scanDate, status_order, time_ref FROM inventory")
+            rows = c.fetchall()
+            updates = []
+            for r in rows:
+                wb, pk, disp, ib, ob, status, t_ref = r
+                pk = pk or ''
+                disp = disp or ''
+                ib = ib or ''
+                ob = ob or ''
+                
+                new_status = status
+                if ob:
+                    new_status = 'Đã rời HUB'
+                elif ib:
+                    new_status = 'Đang trên bãi'
+                elif pk:
+                    new_status = 'Đã lấy hàng'
+                elif disp:
+                    new_status = 'Đã điều phối bưu cục'
+                else:
+                    new_status = 'Forecast'
+                    
+                new_t_ref = ob if ob else (ib if ib else (pk if pk else disp))
+                if new_status != status or new_t_ref != t_ref:
+                    updates.append((new_status, new_t_ref, wb))
+            
+            if updates:
+                c.executemany("UPDATE inventory SET status_order = ?, time_ref = ? WHERE waybillNo = ?", updates)
+                
         conn.commit()
     except Exception as e_clean:
         print(f"   ⚠️ Lỗi dọn dẹp database: {e_clean}")
@@ -2549,7 +2588,7 @@ def run_once(session, token_mgr, rebuild_days=None):
                                     
                                     pk_val = pickup_time if (order_status == 'Đã lấy hàng' and pickup_time) else ''
                                     
-                                    if disp_time and disp_time.lower() not in ('nan', 'none', ''):
+                                    if disp_time and disp_time.lower() not in ('nan', 'none', 'nat', ''):
                                         resolved_disp[waybill_id] = {
                                             'dispatchNetworkTime': disp_time,
                                             'Pickup_time': pk_val,
@@ -2598,7 +2637,7 @@ def run_once(session, token_mgr, rebuild_days=None):
             hist_ib = str(hist_rec.get('inbound_scanDate') or '').strip()
             new_ib = str(new_rec.get('inbound_scanDate') or '').strip()
             final_ib = hist_ib
-            if (not hist_ib or hist_ib.lower() in ('nan', 'none')) and new_ib and new_ib.lower() not in ('nan', 'none'):
+            if (not hist_ib or hist_ib.lower() in ('nan', 'none', 'nat')) and new_ib and new_ib.lower() not in ('nan', 'none', 'nat'):
                 final_ib = new_ib
                 changed = True
                 
@@ -2606,14 +2645,14 @@ def run_once(session, token_mgr, rebuild_days=None):
             hist_pk = str(hist_rec.get('Pickup_time') or '').strip()
             new_pk = str(new_rec.get('Pickup_time') or '').strip()
             final_pk = hist_pk
-            if new_pk and new_pk.lower() not in ('nan', 'none') and new_pk != hist_pk:
+            if new_pk and new_pk.lower() not in ('nan', 'none', 'nat') and new_pk != hist_pk:
                 final_pk = new_pk
                 changed = True
                 
             hist_disp = str(hist_rec.get('dispatchNetworkTime') or '').strip()
             new_disp = str(new_rec.get('dispatchNetworkTime') or '').strip()
             final_disp = hist_disp
-            if new_disp and new_disp.lower() not in ('nan', 'none') and new_disp != hist_disp:
+            if new_disp and new_disp.lower() not in ('nan', 'none', 'nat') and new_disp != hist_disp:
                 final_disp = new_disp
                 changed = True
                 
@@ -2644,14 +2683,14 @@ def run_once(session, token_mgr, rebuild_days=None):
             if new_rec.get('is_backlog') or new_rec.get('data_source') == 'Backlog':
                 final_ob = ''
                 changed = True
-            elif new_ob and new_ob.lower() not in ('nan', 'none') and new_ob != hist_ob:
+            elif new_ob and new_ob.lower() not in ('nan', 'none', 'nat') and new_ob != hist_ob:
                 final_ob = new_ob
                 changed = True
                 
             hist_act = str(hist_rec.get('dispatch_actual') or '').strip()
             new_act = str(new_rec.get('dispatch_actual') or '').strip()
             final_act = hist_act
-            if new_act and new_act.lower() not in ('nan', 'none') and new_act != hist_act:
+            if new_act and new_act.lower() not in ('nan', 'none', 'nat') and new_act != hist_act:
                 final_act = new_act
                 changed = True
                 
@@ -2692,6 +2731,19 @@ def run_once(session, token_mgr, rebuild_days=None):
             
     print(f"   ℹ| Merge completed: {changed_count} records created or updated.")
     
+    # Normalize and clean all date values in db_records to prevent 'NaT'/'nan' strings
+    for wb, rec in db_records.items():
+        for key in ['inbound_scanDate', 'Pickup_time', 'dispatchNetworkTime', 'outbound_scanDate', 'time_ref']:
+            val = rec.get(key)
+            if val is None or pd.isna(val):
+                rec[key] = ""
+            else:
+                val_str = str(val).strip()
+                if val_str.lower() in ('nan', 'none', 'nat', ''):
+                    rec[key] = ""
+                else:
+                    rec[key] = val_str
+
     # Calculate status and derived fields for modified records
     for wb, rec in db_records.items():
         if not rec.get('changed'):

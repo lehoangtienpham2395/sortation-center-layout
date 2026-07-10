@@ -128,8 +128,10 @@ export default function InboundDashboard({
       stages['Chưa về Hub'].weight += wt;
     }
 
-    // Phân tách đơn Forecast (chỉ tính những đơn CHƯA PICKUP: status is Forecast hoặc Điều phối bưu cục)
-    if (status === 'Forecast' || status === 'Điều phối bưu cục') {
+    // Phân tách đơn Forecast: chỉ tính những đơn chưa pickup đối với ngày hôm nay. Đối với ngày cũ, đếm toàn bộ.
+    const isToday = activeDate === inboundDates[0];
+    const isForecastStatus = status === 'Forecast' || status === 'Điều phối bưu cục';
+    if (!isToday || isForecastStatus) {
       const loaiRot = d['Loại rớt'] || '';
       if (loaiRot === 'Rớt hôm trước') {
         forecastRotHomTruoc += vol;
