@@ -685,8 +685,8 @@ export default function InboundDashboard({
                 {renderedSegments.map((s) => {
                   const paths = [];
                   const baseRadii = [
-                    { rIn: 43.4, rOut: 61.4, baseOpacity: 0.4 },
-                    { rIn: 61.7, rOut: 79.7, baseOpacity: 0.7 },
+                    { rIn: 44, rOut: 62, baseOpacity: 0.4 },
+                    { rIn: 62, rOut: 80, baseOpacity: 0.7 },
                     { rIn: 80, rOut: 98, baseOpacity: 1.0 }
                   ];
                   
