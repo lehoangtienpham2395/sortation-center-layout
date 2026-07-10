@@ -2026,6 +2026,7 @@ def run_once(session, token_mgr, rebuild_days=None):
         tt_file = os.path.join(BASE_DIR, "config", "Thong_tin_co_ban.csv")
     if os.path.exists(tt_file):
         try:
+            import pandas as pd
             df_tt = pd.read_csv(tt_file, encoding='utf-8-sig')
             df_tt.columns = df_tt.columns.str.strip()
             for _, row in df_tt.iterrows():
@@ -2045,14 +2046,6 @@ def run_once(session, token_mgr, rebuild_days=None):
     if not token_mgr.get_token():
         print("❌ Không lấy được token.")
         return
-
-    # Khởi tạo token manager riêng biệt cho nguồn Arrival sử dụng tài khoản 660085
-    print("🔐 Khởi tạo TokenManager riêng biệt cho Arrival (User: 660085)...")
-    arrival_token_mgr = TokenManager(session, "660085", "246@Hoang", COUNTRY_ID)
-    try:
-        arrival_token_mgr.get_token()
-    except Exception as e_login_arr:
-        print(f"⚠️ Lỗi login tài khoản 660085 cho Arrival: {e_login_arr}. Sẽ tự động thử lại khi chạy.")
 
     fh = load_json(os.path.join(BASE_DIR, "config", "forecastheaders.json"))
     fp = load_json(os.path.join(BASE_DIR, "config", "forecastpayload.json"))
@@ -2093,7 +2086,7 @@ def run_once(session, token_mgr, rebuild_days=None):
             ex.submit(pull_scan, session, token_mgr, URL_SCAN, bh, b_params, bp, 'Backlog'): 'backlog',
             ex.submit(pull_dispatch, session, token_mgr, dh, dp_cfg): 'dispatch',
             ex.submit(pull_scan, session, token_mgr, URL_LINEHAUL, lh_h, lh_params, lh_p, 'Linehaul'): 'linehaul',
-            ex.submit(pull_arrival_from_jfs, session, arrival_token_mgr, ih, DATE_START_STANDARD, DATE_END): 'arrival',
+            ex.submit(pull_arrival_from_jfs, session, token_mgr, ih, DATE_START_STANDARD, DATE_END): 'arrival',
         }
         if run_outbound:
             futures[ex.submit(pull_scan, session, token_mgr, URL_SCAN, oh, o_params, op, 'Outbound')] = 'outbound'
