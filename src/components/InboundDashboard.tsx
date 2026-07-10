@@ -137,33 +137,51 @@ export default function InboundDashboard({
     }
   });
 
-  const totalOrders = stages['Đã về Hub'].orders;
-  const totalWeight = stages['Đã về Hub'].weight;
-  // Tổng Forecast gồm Đã về Hub + Chưa về Hub (cả cũ và mới)
-  const totalForecast = stages['Đã về Hub'].orders + stages['Chưa về Hub'].orders;
-
   // --- Arrival data (from the new Arrival Google Sheet) ---
   // Filter by active date
   const filteredArrival = arrivalData.filter(d => d['Ngày vận hành'] === activeDate);
 
-  // KPI: số bưu cục đang trên đường (distinct Pickup_station với Chưa đến Hub > 0)
+  // Sum of Chưa đến Hub for BN HUB which should count as Forecast
+  const bnHubArrivalForecast = filteredArrival
+    .filter(d => {
+      const station = (d['Pickup_station'] || '').trim().toUpperCase();
+      return station === 'BN HUB' || station === 'HCM004H';
+    })
+    .reduce((sum, d) => sum + (parseInt(d['Chưa đến Hub'], 10) || 0), 0);
+
+  // Add BN HUB arrival forecast to today's forecast numbers
+  forecastRotHomNay += bnHubArrivalForecast;
+
+  const totalOrders = stages['Đã về Hub'].orders;
+  const totalWeight = stages['Đã về Hub'].weight;
+  // Tổng Forecast gồm Đã về Hub + Chưa về Hub (cả cũ và mới) + BN HUB forecast từ Arrival
+  const totalForecast = stages['Đã về Hub'].orders + stages['Chưa về Hub'].orders + bnHubArrivalForecast;
+
+  // KPI: số bưu cục đang trên đường (distinct Pickup_station với Chưa đến Hub > 0, loại trừ BN HUB)
   const totalVehicles = new Set(
     filteredArrival
+      .filter(d => {
+        const station = (d['Pickup_station'] || '').trim().toUpperCase();
+        return station !== 'BN HUB' && station !== 'HCM004H';
+      })
       .filter(d => (parseInt(d['Chưa đến Hub'], 10) || 0) > 0)
       .map(d => d['Pickup_station'])
       .filter(Boolean)
   ).size;
 
-  // Orders status: tổng đơn chưa đến Hub = "Đang trên đường"
-  const totalInTransitOrders = filteredArrival.reduce(
-    (sum, d) => sum + (parseInt(d['Chưa đến Hub'], 10) || 0), 0
-  );
+  // Orders status: tổng đơn chưa đến Hub = "Đang trên đường" (loại trừ BN HUB)
+  const totalInTransitOrders = filteredArrival
+    .filter(d => {
+      const station = (d['Pickup_station'] || '').trim().toUpperCase();
+      return station !== 'BN HUB' && station !== 'HCM004H';
+    })
+    .reduce((sum, d) => sum + (parseInt(d['Chưa đến Hub'], 10) || 0), 0);
 
-  // Trucking in transit table: top 10 bưu cục Chưa đến Hub nhiều nhất
+  // Trucking in transit table: top 10 bưu cục Chưa đến Hub nhiều nhất (loại trừ BN HUB)
   const stationMap: Record<string, { station: string; chuaDenHub: number; tongDon: number; lastTime: string }> = {};
   filteredArrival.forEach(d => {
     const key = (d['Pickup_station'] || '').trim();
-    if (!key) return;
+    if (!key || key.toUpperCase() === 'BN HUB' || key.toUpperCase() === 'HCM004H') return;
     if (!stationMap[key]) {
       stationMap[key] = { station: key, chuaDenHub: 0, tongDon: 0, lastTime: '' };
     }
