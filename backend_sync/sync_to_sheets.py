@@ -714,7 +714,7 @@ def pull_dispatch(session, token_mgr, headers, base_payload, label='Dispatch'):
 
     def fetch_page(p):
         payload = {**base_payload, 'current': p}
-        r = auth_post(session, URL_DISPATCH, token_mgr, headers, json_body=payload, label=label)
+        r = auth_post(session, URL_DISPATCH, token_mgr, headers, data=payload, label=label)
         obj = r.json().get('data', {})
         return (obj.get('records') or obj.get('list') or obj.get('rows') or []), obj
 
@@ -1726,7 +1726,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
     try:
         df_valid = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
         df_valid.columns = df_valid.columns.str.strip()
-        col_z = 'Vùng lớn' if 'Vùng lớn' in df_valid.columns else ('Zone' if 'Zone' in df_valid.columns else 'Vùng')
+        col_z = 'Zone'
         col_a = 'area' if 'area' in df_valid.columns else 'Area'
         col_n = 'Bưu cục final' if 'Bưu cục final' in df_valid.columns else 'Bưu cục'
         
@@ -1812,7 +1812,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             try:
                 df_valid = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
                 df_valid.columns = df_valid.columns.str.strip()
-                col_z = 'Vùng lớn' if 'Vùng lớn' in df_valid.columns else ('Zone' if 'Zone' in df_valid.columns else 'Vùng')
+                col_z = 'Zone'
                 col_a = 'area' if 'area' in df_valid.columns else 'Area'
                 col_n = 'Bưu cục final' if 'Bưu cục final' in df_valid.columns else 'Bưu cục'
                 
@@ -2078,44 +2078,25 @@ def run_once(session, token_mgr, rebuild_days=None):
 
     print("\n🚀 Kéo data song song...")
     results = {}
-    sortcodes = list(d_sortcode.keys())
-    print(f"   ► Đã nạp {len(sortcodes)} sortcodes để kéo Forecast và Dispatch.")
-    print(f"   ► Tiến hành pull {len(sortcodes)} bưu cục + Inbound + Backlog + Linehaul + Arrival...")
-    
     with ThreadPoolExecutor(max_workers=SOURCE_WORKERS) as ex:
-        futures = {}
-        for sc in sortcodes:
-            fp_sc = {**fp, 'pickFinanceCode': '', 'pickNetworkCode': sc}
-            futures[ex.submit(pull_forecast, session, token_mgr, fh, fp_sc, f'Forecast_{sc}')] = f'forecast_{sc}'
-        
-        for sc in sortcodes:
-            dp_sc = {**dp_cfg, 'pickNetworkCode': sc}
-            futures[ex.submit(pull_dispatch, session, token_mgr, dh, dp_sc, f'Dispatch_{sc}')] = f'dispatch_{sc}'
-
-        futures[ex.submit(pull_scan, session, token_mgr, URL_SCAN, ih, i_params, ip, 'Inbound')] = 'inbound'
-        futures[ex.submit(pull_scan, session, token_mgr, URL_SCAN, bh, b_params, bp, 'Backlog')] = 'backlog'
-        futures[ex.submit(pull_scan, session, token_mgr, URL_LINEHAUL, lh_h, lh_params, lh_p, 'Linehaul')] = 'linehaul'
-        futures[ex.submit(pull_arrival_from_jfs, session, arrival_token_mgr, ih, DATE_START_STANDARD, DATE_END)] = 'arrival'
-
+        futures = {
+            ex.submit(pull_forecast, session, token_mgr, fh, fp): 'forecast',
+            ex.submit(pull_scan, session, token_mgr, URL_SCAN, ih, i_params, ip, 'Inbound'): 'inbound',
+            ex.submit(pull_scan, session, token_mgr, URL_SCAN, bh, b_params, bp, 'Backlog'): 'backlog',
+            ex.submit(pull_dispatch, session, token_mgr, dh, dp_cfg): 'dispatch',
+            ex.submit(pull_scan, session, token_mgr, URL_LINEHAUL, lh_h, lh_params, lh_p, 'Linehaul'): 'linehaul',
+            ex.submit(pull_arrival_from_jfs, session, arrival_token_mgr, ih, DATE_START_STANDARD, DATE_END): 'arrival',
+        }
         if run_outbound:
             futures[ex.submit(pull_scan, session, token_mgr, URL_SCAN, oh, o_params, op, 'Outbound')] = 'outbound'
 
         for f in as_completed(futures):
             key = futures[f]
             try:
-                res = f.result()
-                if key.startswith('forecast_'):
-                    if 'forecast' not in results: results['forecast'] = []
-                    if res: results['forecast'].extend(res)
-                elif key.startswith('dispatch_'):
-                    if 'dispatch' not in results: results['dispatch'] = []
-                    if res: results['dispatch'].extend(res)
-                else:
-                    results[key] = res
+                results[key] = f.result()
             except Exception as e:
-                print(f"   ❌ Lỗi {key}: {e}")
-                if not key.startswith('forecast_') and not key.startswith('dispatch_'):
-                    results[key] = []
+                print(f"   ⚠️ {key} lỗi: {e}")
+                results[key] = []
 
     print("\n🔗 Xử lý & join data...")
 
@@ -3501,8 +3482,6 @@ def main():
     args = parser.parse_args()
 
     session   = build_session()
-    ACCOUNT = "660085"
-    PASSWORD = "246@Hoang"
     token_mgr = TokenManager(session, ACCOUNT, PASSWORD, COUNTRY_ID)
 
     # Chạy song song cả hai pipeline trên cùng 1 session / token
