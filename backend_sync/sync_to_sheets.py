@@ -2047,6 +2047,15 @@ def run_once(session, token_mgr, rebuild_days=None):
         print("❌ Không lấy được token.")
         return
 
+    # Khởi tạo session và TokenManager riêng biệt cho nguồn Arrival sử dụng tài khoản 660085 (tránh xung đột cookies/session với user 660021)
+    print("🔐 Khởi tạo session & TokenManager riêng biệt cho Arrival (User: 660085)...")
+    arrival_session = build_session()
+    arrival_token_mgr = TokenManager(arrival_session, "660085", "246@Hoang", COUNTRY_ID)
+    try:
+        arrival_token_mgr.get_token()
+    except Exception as e_login_arr:
+        print(f"⚠️ Lỗi login tài khoản 660085 cho Arrival: {e_login_arr}. Sẽ tự động thử lại khi chạy.")
+
     fh = load_json(os.path.join(BASE_DIR, "config", "forecastheaders.json"))
     fp = load_json(os.path.join(BASE_DIR, "config", "forecastpayload.json"))
     for k in ['timeStart', 'inputTimeStart']: fp[k] = DATE_START_STANDARD
@@ -2086,7 +2095,7 @@ def run_once(session, token_mgr, rebuild_days=None):
             ex.submit(pull_scan, session, token_mgr, URL_SCAN, bh, b_params, bp, 'Backlog'): 'backlog',
             ex.submit(pull_dispatch, session, token_mgr, dh, dp_cfg): 'dispatch',
             ex.submit(pull_scan, session, token_mgr, URL_LINEHAUL, lh_h, lh_params, lh_p, 'Linehaul'): 'linehaul',
-            ex.submit(pull_arrival_from_jfs, session, token_mgr, ih, DATE_START_STANDARD, DATE_END): 'arrival',
+            ex.submit(pull_arrival_from_jfs, arrival_session, arrival_token_mgr, ih, DATE_START_STANDARD, DATE_END): 'arrival',
         }
         if run_outbound:
             futures[ex.submit(pull_scan, session, token_mgr, URL_SCAN, oh, o_params, op, 'Outbound')] = 'outbound'
