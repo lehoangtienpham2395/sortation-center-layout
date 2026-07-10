@@ -31,8 +31,8 @@ const ZONE3_LIST = [
   { areaId: 'C04', name: 'C04 Chờ tải', zone: 3 },
   { areaId: 'C05', name: 'C05 Chờ tải', zone: 3 },
   // 19 ô chutes bên trái vách ngăn (C06 -> C24, giữ nguyên bưu cục cũ của C01->C18)
-  { areaId: 'C06', name: 'BD BÌNH PHƯỚC', zone: 3 }, { areaId: 'C07', name: 'SG BẢY HIỀN', zone: 3 },
-  { areaId: 'C08', name: 'BD PHÚ NHUẬN', zone: 3 },   { areaId: 'C09', name: 'AG THOẠI SƠN', zone: 3 },
+  { areaId: 'C06', name: 'BD BÌNH PHƯỚC', zone: 3 }, { areaId: 'C07', name: 'DT TN', zone: 3 },
+  { areaId: 'C08', name: 'TG GÒ CÔNG', zone: 3 },   { areaId: 'C09', name: 'LA HẬU NGHĨA', zone: 3 },
   { areaId: 'C10', name: 'AG TỊNH BIÊN', zone: 3 },   { areaId: 'C11', name: 'AG TÂN CHÂU', zone: 3 },
   { areaId: 'C12', name: 'AG AN PHÚ', zone: 3 },     { areaId: 'C13', name: 'VL CHỢ LÁCH', zone: 3 },
   { areaId: 'C14', name: 'SG NHÀ BÈ', zone: 3 },     { areaId: 'C15', name: 'ST PHÚ LỘC', zone: 3 },
@@ -64,7 +64,7 @@ const ZONE2_LIST = [
   { areaId: 'B09', name: 'SG CỦ CHI', zone: 2 },         { areaId: 'B10', name: 'SG TÂN SƠN NHÌ', zone: 2 },
   { areaId: 'B11', name: 'SG HIỆP BÌNH', zone: 2 },      { areaId: 'B12', name: 'SG PHÚ LÂM', zone: 2 },
   { areaId: 'B13', name: 'SG AN LẠC', zone: 2 },         { areaId: 'B14', name: 'SG BÌNH TÂN', zone: 2 },
-  { areaId: 'B15', name: 'SG TÂN HƯNG', zone: 2 },       { areaId: 'B16', name: 'SG ĐÔNG THẠNH', zone: 2 }
+  { areaId: 'B15', name: 'SG TÂN HƯNG', zone: 2 },       { areaId: 'B16', name: 'SG BÀ ĐIỂM', zone: 2 }
 ];
 
 const ZONE2_TRUCKS = Array.from({ length: 21 }, (_, i) => {
@@ -488,18 +488,30 @@ export default function App() {
     // Update static lists (prefer inventoryMap > selectedMap > backlogMap > MASTER_CONFIG_MAP for names)
     const updateListName = (list: any[]) => {
       list.forEach(item => {
-        const key = item.areaId; // Fix: dùng areaId làm key (unique)
+        const key = item.areaId;
         const invEntry = inventoryMap[key];
         const activeItem = selectedMap[key] || backlogMap[key];
-        const name = invEntry?.buuCuc || activeItem?.buuCuc || MASTER_CONFIG_MAP[key];
+        
+        // HARDCODE CHECK FIRST!
+        const hardcodedNames: Record<string, string> = {
+          'C07': 'DT TN',
+          'C08': 'TG GÒ CÔNG',
+          'C09': 'LA HẬU NGHĨA',
+          'B16': 'SG BÀ ĐIỂM'
+        };
+
+        if (hardcodedNames[key]) {
+          item.name = hardcodedNames[key];
+          return;
+        }
+
+        const name = MASTER_CONFIG_MAP[key] || invEntry?.buuCuc || activeItem?.buuCuc;
         if (name && name !== 'Chờ tải' && !name.includes('Dự phòng')) {
           item.name = name;
-        } else if (MASTER_CONFIG_MAP[key]) {
-          item.name = MASTER_CONFIG_MAP[key];
-        } else if (name) {
-          item.name = name;
+        } else if (item.name && !item.name.includes('Dự phòng')) {
+          // Keep whatever is already statically set in ZONE arrays
         } else {
-          item.name = `${item.areaId} Dự phòng`;
+          item.name = item.areaId + " Dự phòng";
         }
       });
     };
