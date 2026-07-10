@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# SQLite Database & local runtime state (Option 1: Cloud Cache / Local untracked)
+backend_sync/db/state.db*
+backend_sync/db/last_run.txt
+
