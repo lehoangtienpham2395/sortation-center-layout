@@ -685,9 +685,9 @@ export default function InboundDashboard({
                 {renderedSegments.map((s) => {
                   const paths = [];
                   const baseRadii = [
-                    { rIn: 18, rOut: 45, baseOpacity: 0.4 },
-                    { rIn: 45, rOut: 72, baseOpacity: 0.7 },
-                    { rIn: 72, rOut: 99, baseOpacity: 1.0 }
+                    { rIn: 32, rOut: 54, baseOpacity: 0.4 },
+                    { rIn: 54, rOut: 76, baseOpacity: 0.7 },
+                    { rIn: 76, rOut: 98, baseOpacity: 1.0 }
                   ];
                   
                   // Render layers up to s.layers
