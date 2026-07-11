@@ -282,13 +282,8 @@ export default function InboundDashboard({
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
   const totalInbound = stages['Inbound'].orders;
-  
-  // Mapping kỹ bảng Arrival và Inbound: 
-  // Transporting = Đang trên đường (Chưa đến Hub từ arrival) + Đã đến Hub nhưng chưa Inbound (stages['Transporting'])
-  totalInTransitOrders += stages['Transporting'].orders;
-  
-  const totalPickupDone = stages['Pickup Done'].orders;
   const totalCreated = stages['Created'].orders;
+  const totalPickupDone = Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalCreated);
 
   const totalBase = totalInbound + totalInTransitOrders + totalPickupDone + totalCreated;
   const pendingOrders = totalCreated; // for fallback UI components
