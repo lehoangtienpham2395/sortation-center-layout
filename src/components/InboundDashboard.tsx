@@ -82,11 +82,11 @@ export default function InboundDashboard({
   const activeDate = selectedInboundDate || inboundDates[0] || '';
 
   // 2. Filter datasets by active date
-  const getStatus = (d: any) => d['Trạng thái'] || d['Trạng thái'];
-  const getDateInbound = (d: any) => d['Ngày vận hành_Inbound'];
-  const getDateForecast = (d: any) => d['Ngày vận hành_Forecast'];
-  const getDatePickup = (d: any) => d['Ngày vận hành_Pickup'];
-  const getDateArrival = (d: any) => d['Ngày vận hành_Arrival'];
+  const getStatus = (d: any) => d['Trng thi'] || d['Trạng thái'];
+  const getDateInbound = (d: any) => d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'];
+  const getDateForecast = (d: any) => d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
+  const getDatePickup = (d: any) => d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'];
+  const getDateArrival = (d: any) => d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'];
 
   const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && getDateInbound(d) === activeDate);
   const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && getDateForecast(d) === activeDate);
@@ -126,7 +126,7 @@ export default function InboundDashboard({
     };
 
   [...filteredInbound, ...filteredChuaVeHub].forEach(d => {
-    const status = d['Trạng thái'] || d['Trạng thái'];
+    const status = d['Trng thi'] || d['Trạng thái'];
     const vol = parseInt(d['Volume'], 10) || 0;
     const wt = parseFloat(d['Weight']) || 0;
     if (stages[status]) {
@@ -138,7 +138,7 @@ export default function InboundDashboard({
     }
 
     // Phân tách đơn Forecast cho toàn bộ đơn (bao gồm cả đã về và chưa về Hub) sử dụng cột Loại rớt từ backend
-    const loaiRot = d['Loại rớt'] || d['Loại rớt'] || '';
+    const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
     if (loaiRot === 'Rớt hôm trước') {
       forecastRotHomTruoc += vol;
     } else if (loaiRot === 'Rớt hôm nay') {
@@ -148,7 +148,7 @@ export default function InboundDashboard({
 
   // --- Arrival data (from the new Arrival Google Sheet) ---
   // Filter by active date
-  const filteredArrival = arrivalData.filter(d => (d['Ngày vận hành'] || d['Ngày vận hành']) === activeDate);
+  const filteredArrival = arrivalData.filter(d => (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate);
 
   let totalOrders = stages['Inbound'].orders;
   let totalWeight = stages['Inbound'].weight;
@@ -158,14 +158,14 @@ export default function InboundDashboard({
   // KPI: số bưu cục đang trên đường (distinct Pickup_station với Chưa đến Hub > 0)
   const totalVehicles = new Set(
     filteredArrival
-      .filter(d => (parseInt(d['Chưa đến Hub'] || d['Chưa đến Hub'] || d['Chưa đến Hub'], 10) || 0) > 0)
+      .filter(d => (parseInt(d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0) > 0)
       .map(d => d['Pickup_station'])
       .filter(Boolean)
   ).size;
 
   // Orders status: tổng đơn chưa đến Hub = "Đang trên đường"
   let totalInTransitOrders = filteredArrival.reduce(
-    (sum, d) => sum + (parseInt(d['Chưa đến Hub'] || d['Chưa đến Hub'] || d['Chưa đến Hub'], 10) || 0), 0
+    (sum, d) => sum + (parseInt(d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0), 0
   );
 
   // Trucking in transit table: top 10 bưu cục Chưa đến Hub nhiều nhất
@@ -176,8 +176,8 @@ export default function InboundDashboard({
     if (!stationMap[key]) {
       stationMap[key] = { station: key, chuaDenHub: 0, tongDon: 0, lastTime: '' };
     }
-    stationMap[key].chuaDenHub += parseInt(d['Chưa đến Hub'] || d['Chưa đến Hub'] || d['Chưa đến Hub'], 10) || 0;
-    stationMap[key].tongDon   += parseInt(d['Tổng số đơn'] || d['Tng s n'], 10) || 0;
+    stationMap[key].chuaDenHub += parseInt(d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0;
+    stationMap[key].tongDon   += parseInt(d['Tng s n'] || d['Tổng số đơn'], 10) || 0;
     const lt = d['Last time'] || '';
     if (lt > stationMap[key].lastTime) stationMap[key].lastTime = lt;
   });
@@ -217,15 +217,15 @@ export default function InboundDashboard({
       if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
         if (hourlyArrived[hour] !== undefined) {
-          hourlyArrived[hour] += parseInt(d['Tổng số đơn'] || d['Tng s n'], 10) || 0;
+          hourlyArrived[hour] += parseInt(d['Tng s n'] || d['Tổng số đơn'], 10) || 0;
         }
       }
     }
   });
 
   // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast khớp với activeDate (không phân biệt trạng thái hiện tại)
-  inboundData.filter(d => (d['Ngày vận hành_Forecast']) === activeDate).forEach(d => {
-    const loaiRot = d['Loại rớt'] || d['Loại rớt'] || '';
+  inboundData.filter(d => (d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast']) === activeDate).forEach(d => {
+    const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
     if (loaiRot !== 'Rớt hôm trước') {
       const fcTime = d['Forecast Time'] !== undefined && d['Forecast Time'] !== null && d['Forecast Time'] !== ''
         ? d['Forecast Time']
@@ -243,7 +243,7 @@ export default function InboundDashboard({
   });
 
   // 3. Pickup Time (Shipper đã lấy): Hiển thị tất cả đơn có Ngày vận hành_Pickup khớp với activeDate (không phân biệt trạng thái hiện tại)
-  inboundData.filter(d => (d['Ngày vận hành_Pickup']) === activeDate).forEach(d => {
+  inboundData.filter(d => (d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup']) === activeDate).forEach(d => {
     const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
       ? d['Pickup Time']
       : undefined;
@@ -260,7 +260,7 @@ export default function InboundDashboard({
 
   // 4. Inbound (Nhập kho HUB): Hiển thị các đơn nhập kho trong ngày activeDate
   filteredInbound.forEach(d => {
-    if ((d['Trạng thái'] || d['Trạng thái']) === 'Inbound') {
+    if ((d['Trng thi'] || d['Trạng thái']) === 'Inbound') {
       const ibTime = d['Inbound Hour'] !== undefined && d['Inbound Hour'] !== null && d['Inbound Hour'] !== '' 
         ? d['Inbound Hour'] 
         : d['Inbound Time'];
