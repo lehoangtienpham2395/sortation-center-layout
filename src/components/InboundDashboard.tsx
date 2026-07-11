@@ -147,13 +147,8 @@ export default function InboundDashboard({
   });
 
   // --- Arrival data (from the new Arrival Google Sheet) ---
-  // Filter by active date (và loại bỏ BN HUB / HCM004H vì đây là HCM HUB Dashboard)
-  const filteredArrival = arrivalData.filter(d => {
-    if ((d['Ngy vn hnh'] || d['Ngày vận hành']) !== activeDate) return false;
-    const station = (d['Pickup_station'] || '').trim().toUpperCase();
-    if (station.includes('BN HUB') || station.includes('HCM004H')) return false;
-    return true;
-  });
+  // Filter by active date
+  const filteredArrival = arrivalData.filter(d => (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate);
 
   let totalOrders = stages['Inbound'].orders;
   let totalWeight = stages['Inbound'].weight;
