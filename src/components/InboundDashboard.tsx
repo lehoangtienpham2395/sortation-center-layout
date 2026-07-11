@@ -147,8 +147,13 @@ export default function InboundDashboard({
   });
 
   // --- Arrival data (from the new Arrival Google Sheet) ---
-  // Filter by active date
-  const filteredArrival = arrivalData.filter(d => (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate);
+  // Filter by active date (và loại bỏ BN HUB / HCM004H vì đây là HCM HUB Dashboard)
+  const filteredArrival = arrivalData.filter(d => {
+    if ((d['Ngy vn hnh'] || d['Ngày vận hành']) !== activeDate) return false;
+    const station = (d['Pickup_station'] || '').trim().toUpperCase();
+    if (station.includes('BN HUB') || station.includes('HCM004H')) return false;
+    return true;
+  });
 
   let totalOrders = stages['Inbound'].orders;
   let totalWeight = stages['Inbound'].weight;
@@ -282,8 +287,13 @@ export default function InboundDashboard({
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
   const totalInbound = stages['Inbound'].orders;
+  
+  // Mapping kỹ bảng Arrival và Inbound: 
+  // Transporting = Đang trên đường (Chưa đến Hub từ arrival) + Đã đến Hub nhưng chưa Inbound (stages['Transporting'])
+  totalInTransitOrders += stages['Transporting'].orders;
+  
+  const totalPickupDone = stages['Pickup Done'].orders;
   const totalCreated = stages['Created'].orders;
-  const totalPickupDone = Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalCreated);
 
   const totalBase = totalInbound + totalInTransitOrders + totalPickupDone + totalCreated;
   const pendingOrders = totalCreated; // for fallback UI components
