@@ -1141,6 +1141,10 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
         try:
             conn_arr = sqlite3.connect(DB_FILE)
             c_arr = conn_arr.cursor()
+            try:
+                c_arr.execute("ALTER TABLE inventory ADD COLUMN Arrival_time TEXT")
+            except Exception:
+                pass
             arr_updates = []
             for r in arrival_raw:
                 wb = str(r.get('billcode', '') or r.get('waybillNo', '') or r.get('billNo', '')).strip()
@@ -1251,7 +1255,8 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
             if not wb or wb.lower() in ('nan', 'none', ''):
                 continue
             
-            # Check if this waybill has missing pickup_time in our in-memory map or SQLite
+            pk_db = db_waybill_times.get(wb, ('', '', ''))[0]
+            pk_mem = awb_records.get(wb, {}).get('pickup_time', '')
             disp_db = db_waybill_times.get(wb, ('', '', ''))[1]
             disp_mem = awb_records.get(wb, {}).get('forecast_time', '')
             
