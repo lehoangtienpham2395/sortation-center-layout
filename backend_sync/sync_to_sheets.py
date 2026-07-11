@@ -1106,8 +1106,8 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
         col_mappings = {
             "Bưu cục": "Bu cc", "Trạng thái": "Trng thi", "Volume": "Volume", "Weight": "Weight",
             "Ngày vận hành_Inbound": "Ngy vn hnh_Inbound", "Ngày vận hành_Forecast": "Ngy vn hnh_Forecast",
-            "Ngày vận hành_Pickup": "Ngy vn hnh_Pickup", "Inbound Hour": "Inbound Hour",
-            "Forecast Time": "Forecast Time", "Pickup Time": "Pickup Time", "Loại rớt": "Loi rt"
+            "Ngày vận hành_Pickup": "Ngy vn hnh_Pickup", "Ngày vận hành_Arrival": "Ngy vn hnh_Arrival", "Inbound Hour": "Inbound Hour",
+            "Forecast Time": "Forecast Time", "Pickup Time": "Pickup Time", "Arrival Time": "Arrival Time", "Loại rớt": "Loi rt" 
         }
         df_json = df_clean.copy()
         df_json.rename(columns={k: v for k, v in col_mappings.items() if k in df_json.columns}, inplace=True)
@@ -1428,6 +1428,9 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
         if status not in ('Forecast', 'Đã điều phối bưu cục') and pk_time:
             op_date_pk = get_operating_date(pk_time)
             
+        op_date_arr = get_operating_date(arr_time) if arr_time else ""
+
+            
         # 3. Drop Type (Loại rớt)
         # Fix: áp dụng logic phân loại đúng cho mọi status (kể cả "Đã về Hub")
         # "Rớt hôm nay"  = Forecast = Pickup (đơn được lấy đúng ngày kế hoạch)
@@ -1468,6 +1471,14 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
             except Exception:
                 pass
                 
+        arr_hour = ""
+        if arr_time:
+            try:
+                arr_hour = pd.to_datetime(arr_time).strftime('%Y-%m-%d %H:00')
+            except Exception:
+                pass
+
+                
         unique_rows.append({
             'Bưu cục': rec['fc'],
             'Trạng thái': status,
@@ -1475,9 +1486,11 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
             'Ngày vận hành_Inbound': op_date_ib,
             'Ngày vận hành_Forecast': op_date_fc,
             'Ngày vận hành_Pickup': op_date_pk,
+            'Ngày vận hành_Arrival': op_date_arr,
             'Inbound Hour': ib_hour,
             'Forecast Time': fc_hour,
             'Pickup Time': pk_hour,
+            'Arrival Time': arr_hour,
             'Loại rớt': loai_rot,
             'waybill': wb
         })
@@ -1501,8 +1514,8 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
     for r in projected_rows:
         key = (
             r['Bưu cục'], r['Trạng thái'],
-            r['Ngày vận hành_Inbound'], r['Ngày vận hành_Forecast'], r['Ngày vận hành_Pickup'],
-            r['Inbound Hour'], r['Forecast Time'], r['Pickup Time'], r['Loại rớt']
+            r['Ngày vận hành_Inbound'], r['Ngày vận hành_Forecast'], r['Ngày vận hành_Pickup'], r['Ngày vận hành_Arrival'],
+            r['Inbound Hour'], r['Forecast Time'], r['Pickup Time'], r['Arrival Time'], r['Loại rớt']
         )
         if key not in grouped:
             grouped[key] = {'volume': 0, 'weight': 0.0}
@@ -1510,7 +1523,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
         grouped[key]['weight'] += r['weight']
         
     final_rows = []
-    for (fc_name, status, op_ib, op_fc, op_pk, ib_hour, fc_hour, pk_hour, loai_rot), stats in grouped.items():
+    for (fc_name, status, op_ib, op_fc, op_pk, op_arr, ib_hour, fc_hour, pk_hour, arr_hour, loai_rot), stats in grouped.items():
         final_rows.append({
             'Bưu cục': fc_name,
             'Trạng thái': status,
@@ -1519,17 +1532,19 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
             'Ngày vận hành_Inbound': op_ib,
             'Ngày vận hành_Forecast': op_fc,
             'Ngày vận hành_Pickup': op_pk,
+            'Ngày vận hành_Arrival': op_arr,
             'Inbound Hour': ib_hour,
             'Forecast Time': fc_hour,
             'Pickup Time': pk_hour,
+            'Arrival Time': arr_hour,
             'Loại rớt': loai_rot
         })
         
     df_inbound_aggregated = pd.DataFrame(final_rows)
     write_sheet("Inbound", df_inbound_aggregated, [
         "Bưu cục", "Trạng thái", "Volume", "Weight",
-        "Ngày vận hành_Inbound", "Ngày vận hành_Forecast", "Ngày vận hành_Pickup",
-        "Inbound Hour", "Forecast Time", "Pickup Time", "Loại rớt"
+        "Ngày vận hành_Inbound", "Ngày vận hành_Forecast", "Ngày vận hành_Pickup", "Ngày vận hành_Arrival",
+        "Inbound Hour", "Forecast Time", "Pickup Time", "Arrival Time", "Loại rớt" 
     ])
 
     # 4. Linehaul (Gộp các dòng trùng Phiếu nhiệm vụ con để kết hợp thông tin gửi & dỡ)
