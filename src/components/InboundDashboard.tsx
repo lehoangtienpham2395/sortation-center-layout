@@ -82,10 +82,15 @@ export default function InboundDashboard({
   const activeDate = selectedInboundDate || inboundDates[0] || '';
 
   // 2. Filter datasets by active date
-  const filteredInbound = inboundData.filter(d => (d['Trng thi'] === 'Inbound') && d['Ngy vn hnh_Inbound'] === activeDate);
-  const filteredForecast = inboundData.filter(d => (d['Trng thi'] === 'Created') && d['Ngy vn hnh_Forecast'] === activeDate);
-  const filteredPickup = inboundData.filter(d => d['Trng thi'] === 'Pickup Done' && (d['Ngy vn hnh_Pickup'] === activeDate || d['Ngy vn hnh_Forecast'] === activeDate));
-  const filteredTransporting = inboundData.filter(d => d['Trng thi'] === 'Transporting' && (d['Ngy vn hnh_Pickup'] === activeDate || d['Ngy vn hnh_Forecast'] === activeDate));
+  const getStatus = (d: any) => d['Trạng thái'] || d['Trng thi'];
+  const getDateInbound = (d: any) => d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound'];
+  const getDateForecast = (d: any) => d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast'];
+  const getDatePickup = (d: any) => d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Pickup'];
+
+  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && getDateInbound(d) === activeDate);
+  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && getDateForecast(d) === activeDate);
+  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && (getDatePickup(d) === activeDate || getDateForecast(d) === activeDate));
+  const filteredTransporting = inboundData.filter(d => getStatus(d) === 'Transporting' && (getDatePickup(d) === activeDate || getDateForecast(d) === activeDate));
   const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
 
   const getLinehaulOperatingDate = (row: any) => {
@@ -120,7 +125,7 @@ export default function InboundDashboard({
     };
 
   [...filteredInbound, ...filteredChuaVeHub].forEach(d => {
-    const status = d['Trng thi'];
+    const status = d['Trạng thái'] || d['Trng thi'];
     const vol = parseInt(d['Volume'], 10) || 0;
     const wt = parseFloat(d['Weight']) || 0;
     if (stages[status]) {
@@ -132,7 +137,7 @@ export default function InboundDashboard({
     }
 
     // Phân tách đơn Forecast cho toàn bộ đơn (bao gồm cả đã về và chưa về Hub) sử dụng cột Loại rớt từ backend
-    const loaiRot = d['Loi rt'] || '';
+    const loaiRot = d['Loại rớt'] || d['Loi rt'] || '';
     if (loaiRot === 'Rớt hôm trước') {
       forecastRotHomTruoc += vol;
     } else if (loaiRot === 'Rớt hôm nay') {
@@ -218,8 +223,8 @@ export default function InboundDashboard({
   });
 
   // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast khớp với activeDate (không phân biệt trạng thái hiện tại)
-  inboundData.filter(d => d['Ngy vn hnh_Forecast'] === activeDate).forEach(d => {
-    const loaiRot = d['Loi rt'] || '';
+  inboundData.filter(d => (d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast']) === activeDate).forEach(d => {
+    const loaiRot = d['Loại rớt'] || d['Loi rt'] || '';
     if (loaiRot !== 'Rớt hôm trước') {
       const fcTime = d['Forecast Time'] !== undefined && d['Forecast Time'] !== null && d['Forecast Time'] !== ''
         ? d['Forecast Time']
@@ -237,7 +242,7 @@ export default function InboundDashboard({
   });
 
   // 3. Pickup Time (Shipper đã lấy): Hiển thị tất cả đơn có Ngày vận hành_Pickup khớp với activeDate (không phân biệt trạng thái hiện tại)
-  inboundData.filter(d => d['Ngy vn hnh_Pickup'] === activeDate).forEach(d => {
+  inboundData.filter(d => (d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Pickup']) === activeDate).forEach(d => {
     const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
       ? d['Pickup Time']
       : undefined;
