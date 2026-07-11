@@ -157,14 +157,14 @@ export default function InboundDashboard({
   // KPI: số bưu cục đang trên đường (distinct Pickup_station với Chưa đến Hub > 0)
   const totalVehicles = new Set(
     filteredArrival
-      .filter(d => (parseInt(d['Chưa đến Hub'] || d['Chua dn Hub'] || d['Chua d?n Hub'], 10) || 0) > 0)
+      .filter(d => (parseInt(d['Chưa đến Hub'] || d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0) > 0)
       .map(d => d['Pickup_station'])
       .filter(Boolean)
   ).size;
 
   // Orders status: tổng đơn chưa đến Hub = "Đang trên đường"
   let totalInTransitOrders = filteredArrival.reduce(
-    (sum, d) => sum + (parseInt(d['Chưa đến Hub'] || d['Chua dn Hub'] || d['Chua d?n Hub'], 10) || 0), 0
+    (sum, d) => sum + (parseInt(d['Chưa đến Hub'] || d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0), 0
   );
 
   // Trucking in transit table: top 10 bưu cục Chưa đến Hub nhiều nhất
@@ -175,7 +175,7 @@ export default function InboundDashboard({
     if (!stationMap[key]) {
       stationMap[key] = { station: key, chuaDenHub: 0, tongDon: 0, lastTime: '' };
     }
-    stationMap[key].chuaDenHub += parseInt(d['Chưa đến Hub'] || d['Chua dn Hub'] || d['Chua d?n Hub'], 10) || 0;
+    stationMap[key].chuaDenHub += parseInt(d['Chưa đến Hub'] || d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0;
     stationMap[key].tongDon   += parseInt(d['Tổng số đơn'] || d['Tng s n'], 10) || 0;
     const lt = d['Last time'] || '';
     if (lt > stationMap[key].lastTime) stationMap[key].lastTime = lt;
