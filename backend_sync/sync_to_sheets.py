@@ -1134,17 +1134,39 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
     # Using module-level get_operating_date
 
     # Tải mốc thời gian lấy hàng lịch sử từ SQLite để mapping chính xác cho các đơn đã về HUB
+
+    # Update Arrival_time into SQLite before loading db_waybill_times
+    arrival_raw = results.get('arrival', [])
+    if arrival_raw:
+        try:
+            conn_arr = sqlite3.connect(DB_FILE)
+            c_arr = conn_arr.cursor()
+            arr_updates = []
+            for r in arrival_raw:
+                wb = str(r.get('billcode', '') or r.get('waybillNo', '') or r.get('billNo', '')).strip()
+                scan_time = str(r.get('scantime', '')).strip()
+                if wb and scan_time and scan_time.lower() not in ('nan', 'none'):
+                    arr_updates.append((scan_time, wb))
+            if arr_updates:
+                c_arr.executemany("UPDATE inventory SET Arrival_time = ? WHERE waybillNo = ?", arr_updates)
+                conn_arr.commit()
+            conn_arr.close()
+            print(f"   ? C?p nh?t {len(arr_updates)} Arrival_time vo SQLite.")
+        except Exception as e:
+            print("   ?? L?i c?p nh?t Arrival_time vo DB:", e)
+
     db_waybill_times = {}
     try:
         conn = sqlite3.connect(DB_FILE)
         c = conn.cursor()
-        c.execute("SELECT waybillNo, Pickup_time, dispatchNetworkTime FROM inventory")
+        c.execute("SELECT waybillNo, Pickup_time, dispatchNetworkTime, Arrival_time FROM inventory")
         rows = c.fetchall()
         for r in rows:
             wb = r[0]
             pk = r[1] if r[1] else ''
             disp = r[2] if r[2] else ''
-            db_waybill_times[wb] = (pk, disp)
+            arr = r[3] if len(r) > 3 and r[3] else ''
+            db_waybill_times[wb] = (pk, disp, arr)
         conn.close()
         print(f"   ℹ| Load được {len(db_waybill_times):,} mốc thời gian từ SQLite để mapping.")
     except Exception as e_db:
@@ -1230,7 +1252,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
                 continue
             
             # Check if this waybill has missing pickup_time in our in-memory map or SQLite
-            pk_db, _ = db_waybill_times.get(wb, ('', ''))
+            pk_db = db_waybill_times.get(wb, ('', '', ''))[0]
             pk_mem = awb_records.get(wb, {}).get('pickup_time', '')
             
             if not pk_db and not pk_mem:
@@ -1289,7 +1311,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
                         disp = str(item.get('dispatchNetworkTime') or '').strip()
                         
                         if wb and pk and pk.lower() not in ('nan', 'none'):
-                            db_waybill_times[wb] = (pk, disp)
+                            db_waybill_times[wb] = (pk, disp, '')
                             resolved_count += 1
                             resolved_wbs.add(wb)
                             
@@ -1307,7 +1329,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
                     # Mark unresolved ones as 'N/A' to avoid querying again
                     for wb in chunk:
                         if wb not in resolved_wbs:
-                            db_waybill_times[wb] = ('N/A', '')
+                            db_waybill_times[wb] = ('N/A', '', '')
                             if c_db:
                                 try:
                                     c_db.execute("""
@@ -1361,7 +1383,8 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
 
     # 4. Integrate SQLite Cached Times (Fallback for Inbound/Dispatch/Forecast)
     for wb, rec in awb_records.items():
-        pk_db, disp_db = db_waybill_times.get(wb, ('', ''))
+        pk_db, disp_db, arr_db = db_waybill_times.get(wb, ('', '', ''))
+        rec['arrival_time'] = arr_db
         
         # If SQLite has Pickup Time and memory record is missing it
         if pk_db and not rec['pickup_time']:
@@ -1381,16 +1404,17 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
         ib_time = rec['inbound_time']
         pk_time = rec['pickup_time']
         fc_time = rec['forecast_time']
+        arr_time = rec.get('arrival_time', '')
         
         # 1. Shipment Status Priority Engine
         if ib_time:
-            status = "Đã về Hub"
+            status = "Inbound"
+        elif arr_time:
+            status = "Transporting"
         elif pk_time:
-            status = "Lấy hàng thành công"
-        elif fc_time:
-            status = "Điều phối bưu cục"
+            status = "Pickup Done"
         else:
-            status = "Forecast"
+            status = "Created"
             
         # 2. Status-specific Operation Dates
         op_date_ib = get_operating_date(ib_time) if ib_time else ""

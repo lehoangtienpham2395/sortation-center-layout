@@ -73,19 +73,20 @@ export default function InboundDashboard({
   // 1. Extract and sort available dates
   const inboundDates = Array.from(
     new Set([
-      ...inboundData.map(d => d['Ngày vận hành_Inbound']),
-      ...inboundData.map(d => d['Ngày vận hành_Forecast']),
-      ...inboundData.map(d => d['Ngày vận hành_Pickup'])
+      ...inboundData.map(d => d['Ngy vn hnh_Inbound']),
+      ...inboundData.map(d => d['Ngy vn hnh_Forecast']),
+      ...inboundData.map(d => d['Ngy vn hnh_Pickup'])
     ].filter(Boolean))
   ) as string[];
   inboundDates.sort((a, b) => b.localeCompare(a));
   const activeDate = selectedInboundDate || inboundDates[0] || '';
 
   // 2. Filter datasets by active date
-  const filteredInbound = inboundData.filter(d => (d['Trạng thái'] === 'Đã về Hub' || d['Trạng thái'] === 'Đã nhập hàng') && d['Ngày vận hành_Inbound'] === activeDate);
-  const filteredForecast = inboundData.filter(d => (d['Trạng thái'] === 'Forecast' || d['Trạng thái'] === 'Điều phối bưu cục') && d['Ngày vận hành_Forecast'] === activeDate);
-  const filteredPickup = inboundData.filter(d => d['Trạng thái'] === 'Lấy hàng thành công' && d['Ngày vận hành_Pickup'] === activeDate);
-  const filteredChuaVeHub = [...filteredForecast, ...filteredPickup];
+  const filteredInbound = inboundData.filter(d => (d['Trng thi'] === 'Inbound') && d['Ngy vn hnh_Inbound'] === activeDate);
+  const filteredForecast = inboundData.filter(d => (d['Trng thi'] === 'Created') && d['Ngy vn hnh_Forecast'] === activeDate);
+  const filteredPickup = inboundData.filter(d => d['Trng thi'] === 'Pickup Done' && (d['Ngy vn hnh_Pickup'] === activeDate || d['Ngy vn hnh_Forecast'] === activeDate));
+  const filteredTransporting = inboundData.filter(d => d['Trng thi'] === 'Transporting' && (d['Ngy vn hnh_Pickup'] === activeDate || d['Ngy vn hnh_Forecast'] === activeDate));
+  const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
 
   const getLinehaulOperatingDate = (row: any) => {
     if (row['Ngày vận hành']) return row['Ngày vận hành'];
@@ -111,25 +112,27 @@ export default function InboundDashboard({
   let forecastRotHomTruoc = 0;
   let forecastRotHomNay = 0;
 
-  const stages = {
-    'Chưa về Hub': { orders: 0, weight: 0 },
-    'Đã về Hub': { orders: 0, weight: 0 }
-  };
+  const stages: Record<string, { orders: number; weight: number }> = {
+      'Inbound': { orders: 0, weight: 0 },
+      'Transporting': { orders: 0, weight: 0 },
+      'Pickup Done': { orders: 0, weight: 0 },
+      'Created': { orders: 0, weight: 0 }
+    };
 
   [...filteredInbound, ...filteredChuaVeHub].forEach(d => {
-    const status = d['Trạng thái'];
+    const status = d['Trng thi'];
     const vol = parseInt(d['Volume'], 10) || 0;
     const wt = parseFloat(d['Weight']) || 0;
-    if (status === 'Đã về Hub' || status === 'Đã nhập hàng') {
-      stages['Đã về Hub'].orders += vol;
-      stages['Đã về Hub'].weight += wt;
+    if (stages[status]) {
+      stages[status].orders += vol;
+      stages[status].weight += wt;
     } else {
-      stages['Chưa về Hub'].orders += vol;
-      stages['Chưa về Hub'].weight += wt;
+      stages['Created'].orders += vol;
+      stages['Created'].weight += wt;
     }
 
     // Phân tách đơn Forecast cho toàn bộ đơn (bao gồm cả đã về và chưa về Hub) sử dụng cột Loại rớt từ backend
-    const loaiRot = d['Loại rớt'] || '';
+    const loaiRot = d['Loi rt'] || '';
     if (loaiRot === 'Rớt hôm trước') {
       forecastRotHomTruoc += vol;
     } else if (loaiRot === 'Rớt hôm nay') {
@@ -139,24 +142,24 @@ export default function InboundDashboard({
 
   // --- Arrival data (from the new Arrival Google Sheet) ---
   // Filter by active date
-  const filteredArrival = arrivalData.filter(d => d['Ngày vận hành'] === activeDate);
+  const filteredArrival = arrivalData.filter(d => d['Ngy vn hnh'] === activeDate);
 
-  const totalOrders = stages['Đã về Hub'].orders;
-  const totalWeight = stages['Đã về Hub'].weight;
+  let totalOrders = stages['Inbound'].orders;
+  let totalWeight = stages['Inbound'].weight;
   // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
   const totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
   // KPI: số bưu cục đang trên đường (distinct Pickup_station với Chưa đến Hub > 0)
   const totalVehicles = new Set(
     filteredArrival
-      .filter(d => (parseInt(d['Chưa đến Hub'], 10) || 0) > 0)
+      .filter(d => (parseInt(d['Chua d?n Hub'], 10) || 0) > 0)
       .map(d => d['Pickup_station'])
       .filter(Boolean)
   ).size;
 
   // Orders status: tổng đơn chưa đến Hub = "Đang trên đường"
-  const totalInTransitOrders = filteredArrival.reduce(
-    (sum, d) => sum + (parseInt(d['Chưa đến Hub'], 10) || 0), 0
+  let totalInTransitOrders = filteredArrival.reduce(
+    (sum, d) => sum + (parseInt(d['Chua d?n Hub'], 10) || 0), 0
   );
 
   // Trucking in transit table: top 10 bưu cục Chưa đến Hub nhiều nhất
@@ -167,8 +170,8 @@ export default function InboundDashboard({
     if (!stationMap[key]) {
       stationMap[key] = { station: key, chuaDenHub: 0, tongDon: 0, lastTime: '' };
     }
-    stationMap[key].chuaDenHub += parseInt(d['Chưa đến Hub'], 10) || 0;
-    stationMap[key].tongDon   += parseInt(d['Tổng số đơn'], 10) || 0;
+    stationMap[key].chuaDenHub += parseInt(d['Chua d?n Hub'], 10) || 0;
+    stationMap[key].tongDon   += parseInt(d['Tng s n'], 10) || 0;
     const lt = d['Last time'] || '';
     if (lt > stationMap[key].lastTime) stationMap[key].lastTime = lt;
   });
@@ -208,15 +211,15 @@ export default function InboundDashboard({
       if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
         if (hourlyArrived[hour] !== undefined) {
-          hourlyArrived[hour] += parseInt(d['Tổng số đơn'], 10) || 0;
+          hourlyArrived[hour] += parseInt(d['Tng s n'], 10) || 0;
         }
       }
     }
   });
 
   // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast khớp với activeDate (không phân biệt trạng thái hiện tại)
-  inboundData.filter(d => d['Ngày vận hành_Forecast'] === activeDate).forEach(d => {
-    const loaiRot = d['Loại rớt'] || '';
+  inboundData.filter(d => d['Ngy vn hnh_Forecast'] === activeDate).forEach(d => {
+    const loaiRot = d['Loi rt'] || '';
     if (loaiRot !== 'Rớt hôm trước') {
       const fcTime = d['Forecast Time'] !== undefined && d['Forecast Time'] !== null && d['Forecast Time'] !== ''
         ? d['Forecast Time']
@@ -234,7 +237,7 @@ export default function InboundDashboard({
   });
 
   // 3. Pickup Time (Shipper đã lấy): Hiển thị tất cả đơn có Ngày vận hành_Pickup khớp với activeDate (không phân biệt trạng thái hiện tại)
-  inboundData.filter(d => d['Ngày vận hành_Pickup'] === activeDate).forEach(d => {
+  inboundData.filter(d => d['Ngy vn hnh_Pickup'] === activeDate).forEach(d => {
     const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
       ? d['Pickup Time']
       : undefined;
@@ -251,7 +254,7 @@ export default function InboundDashboard({
 
   // 4. Inbound (Nhập kho HUB): Hiển thị các đơn nhập kho trong ngày activeDate
   filteredInbound.forEach(d => {
-    if (d['Trạng thái'] === 'Đã về Hub' || d['Trạng thái'] === 'Đã nhập hàng') {
+    if (d['Trng thi'] === 'Inbound') {
       const ibTime = d['Inbound Hour'] !== undefined && d['Inbound Hour'] !== null && d['Inbound Hour'] !== '' 
         ? d['Inbound Hour'] 
         : d['Inbound Time'];
@@ -272,23 +275,29 @@ export default function InboundDashboard({
   const forecastTrendData = labels.map(l => hourlyForecast[l]);
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
-  // totalForecast = tổng đơn rớt trong ngày (đã về + chưa về) = base denominator
-  // pendingOrders = thực sự chưa về Hub (không double-count đơn đã về)
-  const totalBase = Math.max(totalForecast, totalOrders); // safety khi data lệch
-  const pendingOrders = Math.max(0, totalBase - totalOrders - totalInTransitOrders);
+  const totalInbound = stages['Inbound'].orders;
+  totalInTransitOrders = stages['Transporting'].orders;
+  const totalPickupDone = stages['Pickup Done'].orders;
+  const totalCreated = stages['Created'].orders;
 
-  // Tính tỷ lệ % cho 3 trạng thái của Orders status doughnut chart
-  // Tỉ lệ inbound = đã về Hub / tổng đơn rớt trong ngày (bao gồm rớt hôm trước)
-  const inboundPct   = totalBase > 0 ? Math.round((totalOrders            / totalBase) * 100) : 0;
+  const totalBase = totalInbound + totalInTransitOrders + totalPickupDone + totalCreated;
+  const pendingOrders = totalCreated; // for fallback UI components
+  totalOrders = totalInbound; // reassign the early let
+  totalWeight = stages['Inbound'].weight;
+
+  const inboundPct   = totalBase > 0 ? Math.round((totalInbound           / totalBase) * 100) : 0;
   const inTransitPct = totalBase > 0 ? Math.round((totalInTransitOrders   / totalBase) * 100) : 0;
-  const pendingPct   = totalBase > 0 ? Math.max(0, 100 - inboundPct - inTransitPct)           : 0;
+  const pickupDonePct= totalBase > 0 ? Math.round((totalPickupDone        / totalBase) * 100) : 0;
+  const createdPct   = totalBase > 0 ? Math.max(0, 100 - inboundPct - inTransitPct - pickupDonePct) : 0;
+  // const pendingPct   = createdPct;
 
   // Concentric radial chart configurations
   const segments = [
-    { name: 'Đã nhập kho', value: totalOrders, pct: inboundPct, color: '#B8F7E4', label: 'Inbound' },
-    { name: 'Đang trên đường', value: totalInTransitOrders, pct: inTransitPct, color: '#C8FF3D', label: 'In Transit' },
-    { name: 'Chờ xử lý', value: pendingOrders, pct: pendingPct, color: '#FC6C26', label: 'Pending' }
-  ];
+      { name: 'Inbound', value: totalInbound, pct: inboundPct, color: '#B8F7E4', label: 'Inbound' },
+      { name: 'Transporting', value: totalInTransitOrders, pct: inTransitPct, color: '#C8FF3D', label: 'Transporting' },
+      { name: 'Pickup Done', value: totalPickupDone, pct: pickupDonePct, color: '#38BDF8', label: 'Pickup Done' },
+      { name: 'Created', value: totalCreated, pct: createdPct, color: '#FC6C26', label: 'Created' }
+    ];
 
   const activeSegments = segments.filter(s => s.pct > 0);
   const sortedSegments = [...activeSegments].sort((a, b) => b.pct - a.pct);
@@ -324,7 +333,7 @@ export default function InboundDashboard({
     };
   });
 
-  const highestStatus = sortedSegments[0] || segments[0] || { name: 'Đã nhập kho', value: 0, pct: 0, color: '#B8F7E4', label: 'Inbound' };
+  const highestStatus = sortedSegments[0] || segments[0] || { name: 'Inbound', value: 0, pct: 0, color: '#B8F7E4', label: 'Inbound' };
   const activeDisplayStatus = hoveredStatus 
     ? (segments.find(s => s.name === hoveredStatus) || highestStatus)
     : highestStatus;
@@ -342,7 +351,7 @@ export default function InboundDashboard({
   };
 
   filteredInbound.forEach(d => {
-    if (d['Trạng thái'] === 'Đã về Hub' || d['Trạng thái'] === 'Đã nhập hàng') {
+    if (d['Trng thi'] === 'Inbound') {
       const fc = getFC(d['Bưu cục']);
       if (fc) {
         fc.orders += parseInt(d['Volume'], 10) || 0;
@@ -409,7 +418,7 @@ export default function InboundDashboard({
             labels,
             datasets: [
               {
-                label: 'Dự báo (Forecast)',
+                label: 'Created',
                 data: forecastTrendData,
                 borderColor: '#FC6C26',
                 backgroundColor: forecastGrad,
@@ -425,7 +434,7 @@ export default function InboundDashboard({
                 pointHoverBorderWidth: 3
               },
               {
-                label: 'Shipper đã lấy (Actual Pickup)',
+                label: 'Pickup Done',
                 data: pickupTrendData,
                 borderColor: '#38BDF8',
                 backgroundColor: pickupGrad,
@@ -441,7 +450,7 @@ export default function InboundDashboard({
                 pointHoverBorderWidth: 3
               },
               {
-                label: 'Trên đường về (Arrived)',
+                label: 'Transporting',
                 data: arrivedTrendData,
                 borderColor: '#C8FF3D',
                 backgroundColor: arrivedGrad,
@@ -457,7 +466,7 @@ export default function InboundDashboard({
                 pointHoverBorderWidth: 3
               },
               {
-                label: 'Nhập (Inbound)',
+                label: 'Inbound',
                 data: inboundTrendData,
                 borderColor: '#B8F7E4',
                 backgroundColor: inboundGrad,
@@ -679,10 +688,10 @@ export default function InboundDashboard({
           <div className="chart-header">
             <h2>Forecast/Arrived/Inbound trend hourly</h2>
             <div className="chart-legend-custom">
-              <span className="legend-item"><span className="dot orange"></span>Dự báo (Forecast)</span>
-              <span className="legend-item"><span className="dot blue"></span>Shipper đã lấy (Actual Pickup)</span>
-              <span className="legend-item"><span className="dot green"></span>Trên đường về (Arrived)</span>
-              <span className="legend-item"><span className="dot cyan"></span>Nhập (Inbound)</span>
+              <span className="legend-item"><span className="dot orange"></span>Created</span>
+              <span className="legend-item"><span className="dot blue"></span>Pickup Done</span>
+              <span className="legend-item"><span className="dot green"></span>Transporting</span>
+              <span className="legend-item"><span className="dot cyan"></span>Inbound</span>
             </div>
           </div>
           <div className="chart-canvas-wrapper">
@@ -748,55 +757,76 @@ export default function InboundDashboard({
                 className="donut-legend-item"
                 style={{ 
                   cursor: 'pointer',
-                  opacity: hoveredStatus && hoveredStatus !== 'Đã nhập kho' ? 0.35 : 1,
-                  transform: hoveredStatus === 'Đã nhập kho' ? 'translateX(4px)' : 'none',
+                  opacity: hoveredStatus && hoveredStatus !== 'Inbound' ? 0.35 : 1,
+                  transform: hoveredStatus === 'Inbound' ? 'translateX(4px)' : 'none',
                   transition: 'all 0.2s ease-in-out'
                 }}
-                onMouseEnter={() => setHoveredStatus('Đã nhập kho')}
+                onMouseEnter={() => setHoveredStatus('Inbound')}
                 onMouseLeave={() => setHoveredStatus(null)}
               >
                 <div className="donut-legend-dot" style={{ background: '#B8F7E4' }}></div>
                 <div className="donut-legend-header">
-                  <span className="label-text">Đã nhập kho</span>
+                  <span className="label-text">Inbound</span>
                   <span className="donut-legend-pct" style={{ marginLeft: '4px' }}>({inboundPct}%)</span>
                 </div>
-                <span className="donut-legend-value">{totalOrders.toLocaleString()}</span>
+                <span className="donut-legend-value">{totalInbound.toLocaleString()}</span>
               </div>
+
               <div 
                 className="donut-legend-item"
                 style={{ 
                   cursor: 'pointer',
-                  opacity: hoveredStatus && hoveredStatus !== 'Đang trên đường' ? 0.35 : 1,
-                  transform: hoveredStatus === 'Đang trên đường' ? 'translateX(4px)' : 'none',
+                  opacity: hoveredStatus && hoveredStatus !== 'Transporting' ? 0.35 : 1,
+                  transform: hoveredStatus === 'Transporting' ? 'translateX(4px)' : 'none',
                   transition: 'all 0.2s ease-in-out'
                 }}
-                onMouseEnter={() => setHoveredStatus('Đang trên đường')}
+                onMouseEnter={() => setHoveredStatus('Transporting')}
                 onMouseLeave={() => setHoveredStatus(null)}
               >
                 <div className="donut-legend-dot" style={{ background: '#C8FF3D' }}></div>
                 <div className="donut-legend-header">
-                  <span className="label-text">Đang trên đường</span>
+                  <span className="label-text">Transporting</span>
                   <span className="donut-legend-pct" style={{ marginLeft: '4px' }}>({inTransitPct}%)</span>
                 </div>
                 <span className="donut-legend-value">{totalInTransitOrders.toLocaleString()}</span>
               </div>
+
               <div 
                 className="donut-legend-item"
                 style={{ 
                   cursor: 'pointer',
-                  opacity: hoveredStatus && hoveredStatus !== 'Chờ xử lý' ? 0.35 : 1,
-                  transform: hoveredStatus === 'Chờ xử lý' ? 'translateX(4px)' : 'none',
+                  opacity: hoveredStatus && hoveredStatus !== 'Pickup Done' ? 0.35 : 1,
+                  transform: hoveredStatus === 'Pickup Done' ? 'translateX(4px)' : 'none',
                   transition: 'all 0.2s ease-in-out'
                 }}
-                onMouseEnter={() => setHoveredStatus('Chờ xử lý')}
+                onMouseEnter={() => setHoveredStatus('Pickup Done')}
+                onMouseLeave={() => setHoveredStatus(null)}
+              >
+                <div className="donut-legend-dot" style={{ background: '#38BDF8' }}></div>
+                <div className="donut-legend-header">
+                  <span className="label-text">Pickup Done</span>
+                  <span className="donut-legend-pct" style={{ marginLeft: '4px' }}>({pickupDonePct}%)</span>
+                </div>
+                <span className="donut-legend-value">{totalPickupDone.toLocaleString()}</span>
+              </div>
+
+              <div 
+                className="donut-legend-item"
+                style={{ 
+                  cursor: 'pointer',
+                  opacity: hoveredStatus && hoveredStatus !== 'Created' ? 0.35 : 1,
+                  transform: hoveredStatus === 'Created' ? 'translateX(4px)' : 'none',
+                  transition: 'all 0.2s ease-in-out'
+                }}
+                onMouseEnter={() => setHoveredStatus('Created')}
                 onMouseLeave={() => setHoveredStatus(null)}
               >
                 <div className="donut-legend-dot" style={{ background: '#FC6C26' }}></div>
                 <div className="donut-legend-header">
-                  <span className="label-text">Chờ xử lý</span>
-                  <span className="donut-legend-pct" style={{ marginLeft: '4px' }}>({pendingPct}%)</span>
+                  <span className="label-text">Created</span>
+                  <span className="donut-legend-pct" style={{ marginLeft: '4px' }}>({createdPct}%)</span>
                 </div>
-                <span className="donut-legend-value">{pendingOrders.toLocaleString()}</span>
+                <span className="donut-legend-value">{totalCreated.toLocaleString()}</span>
               </div>
             </div>
           </div>
