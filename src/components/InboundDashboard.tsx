@@ -151,6 +151,7 @@ export default function InboundDashboard({
   const filteredArrival = arrivalData.filter(d => (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate);
 
   let totalOrders = stages['Inbound'].orders;
+  let totalWeight = stages['Inbound'].weight;
   // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
   const totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
