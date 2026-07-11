@@ -1252,15 +1252,17 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
                 continue
             
             # Check if this waybill has missing pickup_time in our in-memory map or SQLite
-            pk_db = db_waybill_times.get(wb, ('', '', ''))[0]
-            pk_mem = awb_records.get(wb, {}).get('pickup_time', '')
+            disp_db = db_waybill_times.get(wb, ('', '', ''))[1]
+            disp_mem = awb_records.get(wb, {}).get('forecast_time', '')
             
             if not pk_db and not pk_mem:
                 missing_wbs.append(wb)
+            elif not disp_db and not disp_mem:
+                missing_wbs.append(wb)
                 
         missing_wbs = list(set(missing_wbs))
-        # Limit to max 160 waybills per run to prevent excessive JFS direct queries
-        missing_wbs = missing_wbs[:160]
+        # Limit to max 800 waybills per run to prevent excessive JFS direct queries
+        missing_wbs = missing_wbs[:800]
         
         if missing_wbs and session and token_mgr and fh and fp:
             print(f"   ℹ️ Phát hiện {len(missing_wbs)} đơn Inbound thiếu mốc giờ lấy hàng. Tiến hành truy vấn trực tiếp JFS...")
