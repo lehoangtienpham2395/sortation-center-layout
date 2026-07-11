@@ -151,7 +151,6 @@ export default function InboundDashboard({
   const filteredArrival = arrivalData.filter(d => (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate);
 
   let totalOrders = stages['Inbound'].orders;
-  let totalWeight = stages['Inbound'].weight;
   // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
   const totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
@@ -258,19 +257,17 @@ export default function InboundDashboard({
     }
   });
 
-  // 4. Inbound (Nhập kho HUB): Hiển thị các đơn nhập kho trong ngày activeDate
-  filteredInbound.forEach(d => {
-    if ((d['Trng thi'] || d['Trạng thái']) === 'Inbound') {
-      const ibTime = d['Inbound Hour'] !== undefined && d['Inbound Hour'] !== null && d['Inbound Hour'] !== '' 
-        ? d['Inbound Hour'] 
-        : d['Inbound Time'];
-      if (ibTime !== undefined && ibTime !== null && ibTime !== '') {
-        const hrVal = getHourFromTimestamp(ibTime);
-        if (hrVal >= 0 && hrVal < 24) {
-          const hour = `${String(hrVal).padStart(2, '0')}:00`;
-          if (hourlyInbound[hour] !== undefined) {
-            hourlyInbound[hour] += parseInt(d['Volume'], 10) || 0;
-          }
+  // 4. Inbound Time (Kho đã quét nhập): Hiển thị tất cả đơn có Ngày vận hành_Inbound khớp với activeDate (không phân biệt trạng thái hiện tại)
+  inboundData.filter(d => (d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound']) === activeDate).forEach(d => {
+    const ibTime = d['Inbound Hour'] !== undefined && d['Inbound Hour'] !== null && d['Inbound Hour'] !== ''
+      ? d['Inbound Hour']
+      : undefined;
+    if (ibTime !== undefined) {
+      const hrVal = getHourFromTimestamp(ibTime);
+      if (hrVal >= 0 && hrVal < 24) {
+        const hour = `${String(hrVal).padStart(2, '0')}:00`;
+        if (hourlyInbound[hour] !== undefined) {
+          hourlyInbound[hour] += parseInt(d['Volume'], 10) || 0;
         }
       }
     }
@@ -282,13 +279,10 @@ export default function InboundDashboard({
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
   const totalInbound = stages['Inbound'].orders;
-  
-  // Mapping kỹ bảng Arrival và Inbound: 
-  // Transporting = Đang trên đường (Chưa đến Hub từ arrival) + Đã đến Hub nhưng chưa Inbound (stages['Transporting'])
-  totalInTransitOrders += stages['Transporting'].orders;
-  
-  const totalPickupDone = stages['Pickup Done'].orders;
   const totalCreated = stages['Created'].orders;
+
+  // Pickup Done = Phần còn lại của Forecast sau khi trừ các trạng thái khác để đảm bảo tổng khớp 100% với Forecast
+  const totalPickupDone = Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalCreated);
 
   const totalBase = totalInbound + totalInTransitOrders + totalPickupDone + totalCreated;
   const pendingOrders = totalCreated; // for fallback UI components
