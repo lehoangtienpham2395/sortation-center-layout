@@ -285,11 +285,9 @@ export default function InboundDashboard({
   
   // Mapping kỹ bảng Arrival và Inbound: 
   // Transporting = Đang trên đường (Chưa đến Hub từ arrival) + Đã đến Hub nhưng chưa Inbound (stages['Transporting'])
-  const chuaDenHub = totalInTransitOrders; // totalInTransitOrders lúc này đang chứa Chưa đến Hub
   totalInTransitOrders += stages['Transporting'].orders;
   
-  // Tránh double count: Những đơn Chưa đến Hub (Đang trên đường) đã có Pickup Time nên nằm trong stages['Pickup Done']
-  const totalPickupDone = Math.max(0, stages['Pickup Done'].orders - chuaDenHub);
+  const totalPickupDone = stages['Pickup Done'].orders;
   const totalCreated = stages['Created'].orders;
 
   const totalBase = totalInbound + totalInTransitOrders + totalPickupDone + totalCreated;
