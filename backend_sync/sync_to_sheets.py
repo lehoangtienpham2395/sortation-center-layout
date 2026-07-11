@@ -1507,7 +1507,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc, session=None, to
     for r in unique_rows:
         projected_rows.append(r)
         # Carry over un-inbounded records from past operating dates to today's date if they were not picked up before today
-        if r['Trạng thái'] != 'Đã về Hub' and r['Trạng thái'] != 'Đã nhập hàng':
+        if r['Trạng thái'] != 'Inbound':
             was_picked_before_today = r['Ngày vận hành_Pickup'] and r['Ngày vận hành_Pickup'] < current_op_date
             if not was_picked_before_today:
                 if r['Ngày vận hành_Forecast'] and r['Ngày vận hành_Forecast'] < current_op_date:
