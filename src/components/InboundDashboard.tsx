@@ -287,13 +287,15 @@ export default function InboundDashboard({
 
   const totalInbound = stages['Inbound'].orders;
   
-  // Mapping kỹ bảng Arrival và Inbound: 
-  // Transporting = Đang trên đường (Chưa đến Hub từ arrival) + Đã đến Hub nhưng chưa Inbound (stages['Transporting'])
-  totalInTransitOrders += stages['Transporting'].orders;
+  // Mapping chuẩn hóa: Nếu bảng Arrival có dữ liệu Chưa đến Hub (trừ BN HUB) thì dùng làm Transporting,
+  // nếu chưa có mới fallback dùng stages['Transporting'].orders từ bảng Inbound Data (tránh cộng chồng đôi)
+  if (totalInTransitOrders === 0 && stages['Transporting'].orders > 0) {
+    totalInTransitOrders = stages['Transporting'].orders;
+  }
   
   const totalPickupDone = stages['Pickup Done'].orders;
   
-  // Orders status: các trạng thái chia đều theo % của Forecast (Tổng sản lượng dự báo về Hub)
+  // Orders status: các trạng thái lấy Forecast làm hệ quy chiếu (100%)
   const totalBase = totalForecast > 0 ? totalForecast : (totalInbound + totalInTransitOrders + totalPickupDone + stages['Created'].orders);
   
   // Phần Created (chờ lấy hàng) = lượng còn lại của Forecast sau khi trừ Inbound, Transporting, Pickup Done
@@ -305,10 +307,20 @@ export default function InboundDashboard({
   totalOrders = totalInbound; // reassign the early let
   totalWeight = stages['Inbound'].weight;
 
-  const inboundPct   = totalBase > 0 ? Math.round((totalInbound           / totalBase) * 100) : 0;
-  const inTransitPct = totalBase > 0 ? Math.round((totalInTransitOrders   / totalBase) * 100) : 0;
-  const pickupDonePct= totalBase > 0 ? Math.round((totalPickupDone        / totalBase) * 100) : 0;
-  const createdPct   = totalBase > 0 ? Math.max(0, 100 - inboundPct - inTransitPct - pickupDonePct) : 0;
+  let inboundPct   = totalBase > 0 ? Math.round((totalInbound           / totalBase) * 100) : 0;
+  let inTransitPct = totalBase > 0 ? Math.round((totalInTransitOrders   / totalBase) * 100) : 0;
+  let pickupDonePct= totalBase > 0 ? Math.round((totalPickupDone        / totalBase) * 100) : 0;
+  
+  // Bảo đảm cấu trúc dữ liệu: Nếu tổng % các bước đang xử lý vượt 100% (do dồn hàng linehaul), tự động scale tỷ lệ để không vỡ biểu đồ tròn
+  const totalCompletedPct = inboundPct + inTransitPct + pickupDonePct;
+  if (totalForecast > 0 && totalCompletedPct > 100) {
+    const scale = 100 / totalCompletedPct;
+    inboundPct = Math.round(inboundPct * scale);
+    inTransitPct = Math.round(inTransitPct * scale);
+    pickupDonePct = Math.round(pickupDonePct * scale);
+  }
+  
+  const createdPct   = totalBase > 0 ? Math.max(0, 100 - (inboundPct + inTransitPct + pickupDonePct)) : 0;
   // const pendingPct   = createdPct;
 
   // Concentric radial chart configurations
