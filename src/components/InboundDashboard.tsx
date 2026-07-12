@@ -165,10 +165,12 @@ export default function InboundDashboard({
       .filter(Boolean)
   ).size;
 
-  // Orders status: tổng đơn chưa đến Hub = "Đang trên đường"
-  let totalInTransitOrders = filteredArrival.reduce(
-    (sum, d) => sum + (parseInt(d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0), 0
-  );
+  // Orders status: tổng đơn chưa đến Hub = "Đang trên đường" (loại trừ BN HUB vì BN HUB không thuộc dự báo nội vùng HCM HUB)
+  let totalInTransitOrders = filteredArrival.reduce((sum, d) => {
+    const station = (d['Pickup_station'] || '').trim().toUpperCase();
+    if (station.includes('BN HUB') || station.includes('HCM004H')) return sum;
+    return sum + (parseInt(d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0);
+  }, 0);
 
   // Trucking in transit table: top 10 bưu cục Chưa đến Hub nhiều nhất
   const stationMap: Record<string, { station: string; chuaDenHub: number; tongDon: number; lastTime: string }> = {};
