@@ -292,9 +292,15 @@ export default function InboundDashboard({
   totalInTransitOrders += stages['Transporting'].orders;
   
   const totalPickupDone = stages['Pickup Done'].orders;
-  const totalCreated = stages['Created'].orders;
+  
+  // Orders status: các trạng thái chia đều theo % của Forecast (Tổng sản lượng dự báo về Hub)
+  const totalBase = totalForecast > 0 ? totalForecast : (totalInbound + totalInTransitOrders + totalPickupDone + stages['Created'].orders);
+  
+  // Phần Created (chờ lấy hàng) = lượng còn lại của Forecast sau khi trừ Inbound, Transporting, Pickup Done
+  const totalCreated = totalForecast > 0
+    ? Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalPickupDone)
+    : stages['Created'].orders;
 
-  const totalBase = totalInbound + totalInTransitOrders + totalPickupDone + totalCreated;
   const pendingOrders = totalCreated; // for fallback UI components
   totalOrders = totalInbound; // reassign the early let
   totalWeight = stages['Inbound'].weight;
