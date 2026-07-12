@@ -449,7 +449,7 @@ export default function InboundDashboard({
                 pointHoverBorderWidth: 3
               },
               {
-                label: 'Pickup Done',
+                label: 'Pickup Volume',
                 data: pickupTrendData,
                 borderColor: '#38BDF8',
                 backgroundColor: pickupGrad,
@@ -701,10 +701,10 @@ export default function InboundDashboard({
         {/* Line Chart */}
         <div className="chart-container-card dual-line-wrapper">
           <div className="chart-header">
-            <h2>Forecast/Arrived/Inbound trend hourly</h2>
+            <h2>Hourly Processing Trend</h2>
             <div className="chart-legend-custom">
               <span className="legend-item"><span className="dot orange"></span>Created</span>
-              <span className="legend-item"><span className="dot blue"></span>Pickup Done</span>
+              <span className="legend-item"><span className="dot blue"></span>Pickup Volume</span>
               <span className="legend-item"><span className="dot green"></span>Transporting</span>
               <span className="legend-item"><span className="dot cyan"></span>Inbound</span>
             </div>
