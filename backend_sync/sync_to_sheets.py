@@ -2330,6 +2330,97 @@ def run_once(session, token_mgr, rebuild_days=None):
                 print(f"   ❌ Lỗi cấu hình Batch search: {e_setup}")
     # ================================================================
 
+    # 7b. Batch search pickup station (pickNetworkName) cho đơn Forecast/Inbound đang thiếu
+    missing_pickup_wbs = [
+        wb for wb, rec in db_records.items()
+        if not rec.get('pickNetworkName')
+        and rec.get('data_source') in ('Forecast', 'Inbound')   # ← chỉ Forecast & Inbound
+        and rec.get('status_order') not in ('Đã rời HUB',)
+        and rec.get('is_active', 1) == 1
+    ]
+    missing_pickup_wbs = list(set(missing_pickup_wbs))[:3000]
+
+
+    if missing_pickup_wbs:
+        print(f"\n🔍 [Batch Pickup] Phát hiện {len(missing_pickup_wbs):,} đơn chưa có pickup station.")
+        dh_path = os.path.join(BASE_DIR, "config", "dispatchheaders.json")
+        dp_path = os.path.join(BASE_DIR, "config", "dispatchpayload.json")
+        if os.path.exists(dh_path) and os.path.exists(dp_path):
+            try:
+                dh2     = load_json(dh_path)
+                dp_cfg2 = load_json(dp_path)
+                pickup_session   = build_session()
+                pickup_token_mgr = TokenManager(pickup_session, token_mgr.account, token_mgr.password, token_mgr.country_id)
+
+                dh2['authToken'] = pickup_token_mgr.get_token()
+                dh2['Authtoken'] = pickup_token_mgr.get_token()
+                dh2['Routename'] = 'orderScheduling'
+                dh2['routeName'] = 'orderScheduling'
+
+                chunk_size     = 50
+                resolved_pickup = {}
+
+                for i in range(0, len(missing_pickup_wbs), chunk_size):
+                    chunk   = missing_pickup_wbs[i:i + chunk_size]
+                    payload = dp_cfg2.copy()
+                    payload['waybillIds'] = ",".join(chunk)
+                    payload['current']    = 1
+                    payload['size']       = len(chunk)
+                    for k in ['startInputTime', 'endInputTime', 'startPickTime', 'endPickTime']:
+                        if k in payload:
+                            payload[k] = ""
+                    try:
+                        r2      = auth_post(pickup_session, URL_DISPATCH, pickup_token_mgr, dh2, data=payload, timeout=25, label=f'BatchPickup {i//chunk_size}')
+                        dp_res2 = r2.json()
+                        data2   = dp_res2.get('data', {})
+                        records2 = data2.get('records', []) if isinstance(data2, dict) else (data2 if isinstance(data2, list) else [])
+                        for item in records2:
+                            if not isinstance(item, dict):
+                                continue
+                            wid = str(item.get('waybillId') or '').strip()
+                            if not wid:
+                                continue
+                            # Lấy pickup network name — thử nhiều field
+                            pick_net = (
+                                str(item.get('pickNetworkName') or '').strip()
+                                or str(item.get('collectNetworkName') or '').strip()
+                                or str(item.get('sendSiteName') or '').strip()
+                            )
+                            if pick_net and pick_net.lower() not in ('nan', 'none', ''):
+                                resolved_pickup[wid] = pick_net
+                    except Exception as e_pk:
+                        print(f"      ⚠️ Lỗi BatchPickup chunk {i//chunk_size}: {e_pk}")
+
+                print(f"   ✅ [Batch Pickup] Tìm thấy pickup station cho {len(resolved_pickup):,} / {len(missing_pickup_wbs):,} đơn.")
+
+                # Cập nhật vào db_records và DB
+                if resolved_pickup:
+                    for wb, pick_name in resolved_pickup.items():
+                        if wb in db_records:
+                            db_records[wb]['pickNetworkName'] = pick_name
+                            db_records[wb]['changed'] = True
+                    # Ghi thẳng vào SQLite ngay
+                    try:
+                        conn_pk = sqlite3.connect(DB_FILE)
+                        c_pk    = conn_pk.cursor()
+                        updated_pk = 0
+                        for wb, pick_name in resolved_pickup.items():
+                            c_pk.execute("""
+                                UPDATE shipments SET pickNetworkName = ?, last_updated = CURRENT_TIMESTAMP
+                                WHERE waybillNo = ? AND (pickNetworkName = '' OR pickNetworkName IS NULL)
+                            """, (pick_name, wb))
+                            updated_pk += c_pk.rowcount
+                        conn_pk.commit()
+                        conn_pk.close()
+                        print(f"   ✅ [Batch Pickup] Đã cập nhật {updated_pk:,} đơn vào SQLite.")
+                    except Exception as e_pk_db:
+                        print(f"   ⚠️ Lỗi ghi pickup station vào DB: {e_pk_db}")
+
+            except Exception as e_pk_setup:
+                print(f"   ❌ Lỗi cấu hình Batch Pickup: {e_pk_setup}")
+    # ================================================================
+
+
     # All changes are already merged in db_records, we just need to normalize and clean fields
     for wb, rec in db_records.items():
         if rec.get('changed'):
