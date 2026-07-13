@@ -1868,6 +1868,36 @@ def run_once(session, token_mgr, rebuild_days=None):
     try:
         conn = sqlite3.connect(DB_FILE)
         c = conn.cursor()
+        
+        # Tự động dọn dẹp các đơn kẹt quá 3 ngày không có log xuất kho
+        # 1. Đối với các đơn đã quét Inbound
+        c.execute("""
+            UPDATE shipments 
+            SET status_order = 'Đã rời HUB', is_active = 0, last_updated = CURRENT_TIMESTAMP
+            WHERE is_active = 1
+              AND (inbound_scanDate != '' AND inbound_scanDate IS NOT NULL)
+              AND datetime(inbound_scanDate) < datetime('now', '+7 hours', '-3 days')
+        """)
+        cnt1 = c.rowcount
+        
+        # 2. Đối với các đơn mới chỉ ở trạng thái Forecast/Pickup (chưa có inbound scan)
+        c.execute("""
+            UPDATE shipments 
+            SET is_active = 0, last_updated = CURRENT_TIMESTAMP
+            WHERE is_active = 1
+              AND (inbound_scanDate = '' OR inbound_scanDate IS NULL)
+              AND (
+                (Pickup_time != '' AND Pickup_time IS NOT NULL AND datetime(Pickup_time) < datetime('now', '+7 hours', '-3 days'))
+                OR
+                ((Pickup_time = '' OR Pickup_time IS NULL) AND date(time_ref) < date('now', '+7 hours', '-3 days'))
+              )
+        """)
+        cnt2 = c.rowcount
+        conn.commit()
+        
+        if cnt1 + cnt2 > 0:
+            print(f"   🧹 Tự động dọn dẹp: Đã chuyển {cnt1:,} đơn kẹt Inbound sang 'Đã rời HUB' và tắt hoạt động {cnt2:,} đơn Forecast/Pickup cũ (>3 ngày).")
+            
         c.execute("SELECT * FROM shipments WHERE is_active = 1")
         rows = c.fetchall()
         if rows:
