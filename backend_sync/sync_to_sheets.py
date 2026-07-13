@@ -1533,7 +1533,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
         {"zone": "3", "area_id": "C21", "name": "DC NHÀ BÈ", "capacity": 780},
         {"zone": "3", "area_id": "C22", "name": "DC BÌNH HƯNG", "capacity": 780},
         {"zone": "3", "area_id": "C23", "name": "DC GIA ĐỊNH", "capacity": 780},
-        {"zone": "3", "area_id": "C24", "name": "C24 Dự phòng", "capacity": 780},
+        {"zone": "3", "area_id": "C24", "name": "BD BÌNH HÒA", "capacity": 780},
         {"zone": "3", "area_id": "C25", "name": "BD BẾN CÁT", "capacity": 780},
         {"zone": "3", "area_id": "C26", "name": "SETN", "capacity": 780},
         # Zone 2

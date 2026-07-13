@@ -40,7 +40,7 @@ const ZONE3_LIST = [
   { areaId: 'C18', name: 'SG GÒ VẤP', zone: 3 },     { areaId: 'C19', name: 'LA BẾN LỨC', zone: 3 },
   { areaId: 'C20', name: 'SG XUÂN LỘC', zone: 3 },   { areaId: 'C21', name: 'DC NHÀ BÈ', zone: 3 },
   { areaId: 'C22', name: 'DC BÌNH HƯNG', zone: 3 },  { areaId: 'C23', name: 'DC GIA ĐỊNH', zone: 3 },
-  { areaId: 'C24', name: 'C24 Dự phòng', zone: 3 },
+  { areaId: 'C24', name: 'BD BÌNH HÒA', zone: 3 },
   { areaId: 'C25', name: 'BD BẾN CÁT', zone: 3 },
   { areaId: 'C26', name: 'SETN', zone: 3 }
 ];
