@@ -1765,47 +1765,45 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
 
 
 # ================================================================
-# RECONCILE: Kéo Outbound 5 ngày & mapping ngược lại DB
+# RECONCILE: Mapping Outbound ngược lại DB (không kéo API 2 lần)
 # ================================================================
-def reconcile_outbound_5days(session, token_mgr):
+def reconcile_outbound_5days(raw_outbound=None, session=None, token_mgr=None):
     """
-    Kéo dữ liệu Outbound trong 5 ngày gần nhất và cập nhật trạng thái
-    'Đã rời HUB' (is_active=0) cho các đơn đã xuất HUB mà DB chưa ghi nhận.
-    
-    Mục đích: Tránh tình trạng đơn cũ bị kẹt ở 'Đang trên đường' vĩnh viễn
-    do chưa có log Outbound khi kéo data lần đầu.
+    Mapping log Outbound ngược vào DB: đánh dấu các đơn đã xuất HUB
+    là 'Đã rời HUB' (is_active=0).
+
+    - Khi gọi từ run_once(): truyền raw_outbound đã có sẵn → không kéo API thêm.
+    - Khi gọi từ startup_sync.py (độc lập): truyền session + token_mgr → tự kéo 5 ngày.
     """
-    tz_vn = ZoneInfo('Asia/Ho_Chi_Minh')
-    now = datetime.now(tz_vn)
-
-    date_start_5d = (now - timedelta(days=5)).strftime('%Y-%m-%d') + ' 00:00:00'
-    date_end      = now.strftime('%Y-%m-%d %H:%M:%S')
-
-    print(f"\n🔄 [Reconcile Outbound 5 ngày] Kéo từ {date_start_5d} → {date_end}...")
-
-    try:
-        oh = load_json(os.path.join(BASE_DIR, "config", "outboundheaders.json"))
-        op = load_json(os.path.join(BASE_DIR, "config", "outboundpayload.json"))
-    except Exception as e:
-        print(f"   ⚠️ Không load được outbound config: {e}")
-        return
-
-    op['beginDate'] = date_start_5d
-    op['endDate']   = date_end
-    o_params = {
-        'sqlCode':   op.get('sqlCode', ''),
-        'dcr_key':   '57b048fb-bc8c-4d24-982b-a750b7ce8693',
-        'routeName': oh.get('routeName', '')
-    }
-
-    try:
-        raw_outbound = pull_scan(session, token_mgr, URL_SCAN, oh, o_params, op, 'Outbound-5d')
-    except Exception as e:
-        print(f"   ⚠️ Lỗi kéo Outbound 5 ngày: {e}")
-        return
+    if raw_outbound is None:
+        # Chỉ kéo API khi chạy độc lập (startup_sync, không có data sẵn)
+        if not session or not token_mgr:
+            print("   ⚠️ [Reconcile Outbound] Không có data và không có session để kéo API.")
+            return
+        tz_vn = ZoneInfo('Asia/Ho_Chi_Minh')
+        now   = datetime.now(tz_vn)
+        date_start_5d = (now - timedelta(days=5)).strftime('%Y-%m-%d') + ' 00:00:00'
+        date_end      = now.strftime('%Y-%m-%d %H:%M:%S')
+        print(f"\n🔄 [Reconcile Outbound] Kéo từ API: {date_start_5d} → {date_end}...")
+        try:
+            oh = load_json(os.path.join(BASE_DIR, "config", "outboundheaders.json"))
+            op = load_json(os.path.join(BASE_DIR, "config", "outboundpayload.json"))
+            op['beginDate'] = date_start_5d
+            op['endDate']   = date_end
+            o_params = {
+                'sqlCode':   op.get('sqlCode', ''),
+                'dcr_key':   '57b048fb-bc8c-4d24-982b-a750b7ce8693',
+                'routeName': oh.get('routeName', '')
+            }
+            raw_outbound = pull_scan(session, token_mgr, URL_SCAN, oh, o_params, op, 'Outbound-5d')
+        except Exception as e:
+            print(f"   ⚠️ Lỗi kéo Outbound từ API: {e}")
+            return
+    else:
+        print(f"\n🔄 [Reconcile Outbound] Tái sử dụng {len(raw_outbound):,} dòng Outbound đã kéo — không gọi API thêm.")
 
     if not raw_outbound:
-        print("   ⚠️ Outbound 5 ngày: không có dữ liệu.")
+        print("   ⚠️ [Reconcile Outbound] Không có dữ liệu Outbound.")
         return
 
     # Gom max scan time per waybill
@@ -1819,15 +1817,15 @@ def reconcile_outbound_5days(session, token_mgr):
                 outbound_map[wb] = {'time': scan_time, 'station': next_st}
 
     if not outbound_map:
-        print("   ⚠️ Outbound 5 ngày: không có mã vận đơn hợp lệ.")
+        print("   ⚠️ [Reconcile Outbound] Không có mã vận đơn hợp lệ.")
         return
 
-    print(f"   📦 Tìm thấy {len(outbound_map):,} mã vận đơn có log Outbound trong 5 ngày.")
+    print(f"   📦 {len(outbound_map):,} mã vận đơn có log Outbound → mapping vào DB...")
 
     # Cập nhật ngược vào DB: đánh dấu Đã rời HUB
     try:
-        conn = sqlite3.connect(DB_FILE)
-        c    = conn.cursor()
+        conn    = sqlite3.connect(DB_FILE)
+        c       = conn.cursor()
         updated = 0
         for wb, info in outbound_map.items():
             c.execute("""
@@ -1844,10 +1842,9 @@ def reconcile_outbound_5days(session, token_mgr):
             updated += c.rowcount
         conn.commit()
         conn.close()
-        print(f"   ✅ [Reconcile Outbound] Cập nhật {updated:,} đơn → 'Đã rời HUB' (is_active=0) từ log Outbound 5 ngày.")
+        print(f"   ✅ [Reconcile Outbound] Cập nhật {updated:,} đơn → 'Đã rời HUB'.")
     except Exception as e:
         print(f"   ⚠️ Lỗi cập nhật DB sau Reconcile Outbound: {e}")
-
 
 
 def sync_valid_from_sheets(gc):
@@ -2527,13 +2524,13 @@ def run_once(session, token_mgr, rebuild_days=None):
         except Exception as ex_db:
             print(f"   ❌ Lỗi lưu dữ liệu thay đổi vào SQLite: {ex_db}")
 
-    # ── Reconcile: Kéo Outbound 5 ngày và mapping ngược lại DB ──
-    # Mục đích: Đảm bảo các đơn đã xuất HUB trong quá khứ được đánh dấu
-    # 'Đã rời HUB' (is_active=0) trước khi build DataFrame cho dashboard.
+    # ── Reconcile: Mapping Outbound đã kéo ngược lại DB ──
+    # Tái sử dụng results['outbound'] đã kéo ở bước trên → KHÔNG gọi API thêm lần nữa
     try:
-        reconcile_outbound_5days(session, token_mgr)
+        reconcile_outbound_5days(raw_outbound=results.get('outbound', []))
     except Exception as e_reconcile:
-        print(f"   ⚠️ Lỗi Reconcile Outbound 5 ngày: {e_reconcile}")
+        print(f"   ⚠️ Lỗi Reconcile Outbound: {e_reconcile}")
+
 
     # ── Reload DB sau khi reconcile để df phản ánh đúng trạng thái mới nhất ──
     try:
