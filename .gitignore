@@ -27,3 +27,13 @@ dist-ssr
 backend_sync/db/state.db*
 backend_sync/db/last_run.txt
 
+# Temporary export/analysis files (không push lên GitHub)
+data/export_*.csv
+data/compare_*.csv
+data/FILE*.csv
+data/forecast_*.csv
+backend_sync/export_*.py
+backend_sync/compare_*.py
+backend_sync/check_*.py
+backend_sync/cleanup_stale_now.py
+backend_sync/startup_sync.log
