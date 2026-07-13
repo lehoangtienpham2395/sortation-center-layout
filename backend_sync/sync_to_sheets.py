@@ -1508,119 +1508,101 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
     print(f"\n📊 Bắt đầu cập nhật dữ liệu đầu ra...")
     
     master_chutes = {}
-    
-    # Load fallback directly from valid.csv as primary source
-    print("   ℹ| Load cấu hình bưu cục mặc định từ valid.csv...")
-    try:
-        df_valid = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
-        df_valid.columns = df_valid.columns.str.strip()
-        col_z = 'Zone'
-        col_a = 'area' if 'area' in df_valid.columns else 'Area'
-        col_n = 'Bưu cục final' if 'Bưu cục final' in df_valid.columns else 'Bưu cục'
-        
-        for _, row in df_valid.iterrows():
-            zone = str(row.get(col_z, '')) if col_z in row else 'A' # fallback zone
-            area_id = str(row.get(col_a, '')).strip()
-            name = str(row.get(col_n, '')).strip()
-            if zone and area_id and name and name.lower() != 'nan':
-                key = (zone, area_id)
-                if key not in master_chutes:
-                    master_chutes[key] = {
-                        "zone": zone,
-                        "area_id": area_id,
-                        "name": name,
-                        "dai": "8",
-                        "rong": "4",
-                        "capacity": "780"
-                    }
-    except Exception as ex2:
-        print(f"   ❌ Lỗi load fallback từ valid.csv: {ex2}")
+    STATIC_CHUTES = [
+        # Zone 3
+        {"zone": "3", "area_id": "C01", "name": "C01 Chờ tải", "capacity": 780},
+        {"zone": "3", "area_id": "C02", "name": "C02 Chờ tải", "capacity": 780},
+        {"zone": "3", "area_id": "C03", "name": "C03 Chờ tải", "capacity": 780},
+        {"zone": "3", "area_id": "C04", "name": "C04 Chờ tải", "capacity": 780},
+        {"zone": "3", "area_id": "C05", "name": "C05 Chờ tải", "capacity": 780},
+        {"zone": "3", "area_id": "C06", "name": "BD BÌNH PHƯỚC", "capacity": 780},
+        {"zone": "3", "area_id": "C07", "name": "DT TN", "capacity": 780},
+        {"zone": "3", "area_id": "C08", "name": "TG GÒ CÔNG", "capacity": 780},
+        {"zone": "3", "area_id": "C09", "name": "LA HẬU NGHĨA", "capacity": 780},
+        {"zone": "3", "area_id": "C10", "name": "AG TỊNH BIÊN", "capacity": 780},
+        {"zone": "3", "area_id": "C11", "name": "AG TÂN CHÂU", "capacity": 780},
+        {"zone": "3", "area_id": "C12", "name": "AG AN PHÚ", "capacity": 780},
+        {"zone": "3", "area_id": "C13", "name": "VL CHỢ LÁCH", "capacity": 780},
+        {"zone": "3", "area_id": "C14", "name": "SG NHÀ BÈ", "capacity": 780},
+        {"zone": "3", "area_id": "C15", "name": "ST PHÚ LỘC", "capacity": 780},
+        {"zone": "3", "area_id": "C16", "name": "CT LONG MỸ", "capacity": 780},
+        {"zone": "3", "area_id": "C17", "name": "ST VĨNH CHÂU", "capacity": 780},
+        {"zone": "3", "area_id": "C18", "name": "SG GÒ VẤP", "capacity": 780},
+        {"zone": "3", "area_id": "C19", "name": "LA BẾN LỨC", "capacity": 780},
+        {"zone": "3", "area_id": "C20", "name": "SG XUÂN LỘC", "capacity": 780},
+        {"zone": "3", "area_id": "C21", "name": "DC NHÀ BÈ", "capacity": 780},
+        {"zone": "3", "area_id": "C22", "name": "DC BÌNH HƯNG", "capacity": 780},
+        {"zone": "3", "area_id": "C23", "name": "DC GIA ĐỊNH", "capacity": 780},
+        {"zone": "3", "area_id": "C24", "name": "C24 Dự phòng", "capacity": 780},
+        # Zone 2
+        {"zone": "3", "area_id": "A00", "name": "A00 Chờ tải", "capacity": 780},
+        {"zone": "3", "area_id": "A01", "name": "A01 Chờ tải", "capacity": 780},
+        {"zone": "3", "area_id": "A02", "name": "A02 Chờ tải", "capacity": 780},
+        {"zone": "3", "area_id": "A03", "name": "A03 Chờ tải", "capacity": 780},
+        {"zone": "3", "area_id": "A04", "name": "A04 Chờ tải", "capacity": 780},
+        {"zone": "2", "area_id": "B01", "name": "SG XUÂN THỚI SƠN", "capacity": 780},
+        {"zone": "2", "area_id": "B02", "name": "SG TÂN NHỰT", "capacity": 780},
+        {"zone": "2", "area_id": "B03", "name": "SG VĨNH LỘC", "capacity": 780},
+        {"zone": "2", "area_id": "B04", "name": "YT XUYÊN MỘC", "capacity": 780},
+        {"zone": "2", "area_id": "B05", "name": "YT CHÂU ĐỨC", "capacity": 780},
+        {"zone": "2", "area_id": "B06", "name": "AN PHÚ ĐÔNG", "capacity": 780},
+        {"zone": "2", "area_id": "B07", "name": "TÂN THỚI HIỆP", "capacity": 780},
+        {"zone": "2", "area_id": "B08", "name": "SG TÂN TẠO", "capacity": 780},
+        {"zone": "2", "area_id": "B09", "name": "SG CỦ CHI", "capacity": 780},
+        {"zone": "2", "area_id": "B10", "name": "SG TÂN SƠN NHÌ", "capacity": 780},
+        {"zone": "2", "area_id": "B11", "name": "SG HIỆP BÌNH", "capacity": 780},
+        {"zone": "2", "area_id": "B12", "name": "SG PHÚ LÂM", "capacity": 780},
+        {"zone": "2", "area_id": "B13", "name": "SG AN LẠC", "capacity": 780},
+        {"zone": "2", "area_id": "B14", "name": "SG BÌNH TÂN", "capacity": 780},
+        {"zone": "2", "area_id": "B15", "name": "SG TÂN HƯNG", "capacity": 780},
+        {"zone": "2", "area_id": "B16", "name": "SG BÀ ĐIỂM", "capacity": 780},
+        # Zone 1
+        {"zone": "1", "area_id": "A05", "name": "AG LONG XUYÊN", "capacity": 780},
+        {"zone": "1", "area_id": "A06", "name": "AG CẦN ĐĂNG", "capacity": 780},
+        {"zone": "1", "area_id": "A07", "name": "CT Ô MÔN", "capacity": 780},
+        {"zone": "1", "area_id": "A08", "name": "CT BÌNH THỦY", "capacity": 780},
+        {"zone": "1", "area_id": "A09", "name": "CT NINH KIỀU", "capacity": 780},
+        {"zone": "1", "area_id": "A10", "name": "DT CAO LÃNH", "capacity": 780},
+        {"zone": "1", "area_id": "A11", "name": "DT SA ĐÉC", "capacity": 780},
+        {"zone": "1", "area_id": "A12", "name": "TG HÒA KHÁNH", "capacity": 780},
+        {"zone": "1", "area_id": "A13", "name": "VL VĨNH LONG", "capacity": 780},
+        {"zone": "1", "area_id": "A14", "name": "TG AN HỮU", "capacity": 780},
+        {"zone": "1", "area_id": "A15", "name": "LA TÂN AN", "capacity": 780},
+        {"zone": "1", "area_id": "A16", "name": "TG MỸ THO", "capacity": 780},
+        {"zone": "1", "area_id": "A17", "name": "TG TRUNG AN", "capacity": 780},
+        {"zone": "1", "area_id": "A18", "name": "VT VŨNG TÀU", "capacity": 780},
+        {"zone": "1", "area_id": "A19", "name": "BN HUB", "capacity": 780}
+    ]
+    for item in STATIC_CHUTES:
+        key = (item["zone"], item["area_id"])
+        master_chutes[key] = {
+            "zone": item["zone"],
+            "area_id": item["area_id"],
+            "name": item["name"],
+            "dai": "8",
+            "rong": "4",
+            "capacity": str(item["capacity"])
+        }
 
     ss = None
-    if True:
-        creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
-        local_creds_path = r"C:\Users\lehoa\OneDrive\Desktop\testing\addressproject.json"
-        
-        # Sử dụng local json nếu không có biến môi trường
-        if not creds_json and os.path.exists(local_creds_path):
-            try:
-                with open(local_creds_path, 'r', encoding='utf-8') as f:
-                    creds_json = f.read()
-                print("   🔑 Đã tự động nạp Google Service Account từ file local addressproject.json trên Desktop.")
-            except Exception as e_ld:
-                print(f"   ⚠️ Lỗi đọc file addressproject.json: {e_ld}")
-
-        if creds_json:
-            try:
-                import gspread
-                from google.oauth2.service_account import Credentials
-                
-                scopes = ["https://www.googleapis.com/auth/spreadsheets"]
-                creds = Credentials.from_service_account_info(json.loads(creds_json), scopes=scopes)
-                gc = gspread.authorize(creds)
-                
-                # Open spreadsheet once
-                ss = gc.open_by_key(SHEET_ID)
-                
-                # Load master chutes from sheet1 (first sheet)
-                try:
-                    first_sheet = ss.sheet1
-                    all_rows = first_sheet.get_all_values()
-                    if all_rows and len(all_rows) > 1:
-                        headers = all_rows[0]
-                        col_zone = headers.index("Zone") if "Zone" in headers else 0
-                        col_area = headers.index("AreaID") if "AreaID" in headers else 1
-                        col_name = headers.index("Bưu cục") if "Bưu cục" in headers else 2
-                        col_len = headers.index("Dài") if "Dài" in headers else 4
-                        col_wid = headers.index("Rộng") if "Rộng" in headers else 5
-                        col_cap = headers.index("Sức chứa") if "Sức chứa" in headers else 6
-                        
-                        for r in all_rows[1:]:
-                            if len(r) > max(col_zone, col_area, col_name):
-                                zone = r[col_zone].strip()
-                                area_id = r[col_area].strip()
-                                name = r[col_name].strip()
-                                if zone and area_id and name:
-                                    key = (zone, area_id)
-                                    master_chutes[key] = {
-                                        "zone": zone,
-                                        "area_id": area_id,
-                                        "name": name,
-                                        "dai": r[col_len] if col_len < len(r) else "8",
-                                        "rong": r[col_wid] if col_wid < len(r) else "4",
-                                        "capacity": r[col_cap] if col_cap < len(r) else "780"
-                                    }
-                except Exception as ex:
-                    print(f"   ⚠️ Không thể load cấu hình bưu cục từ sheet1: {ex}")
-            except Exception as e:
-                print(f"   ❌ Lỗi kết nối Google Sheets: {e}")
-        # Fallback to valid.csv
-        if not master_chutes:
-            print("   ℹ| Load cấu hình bưu cục mặc định từ valid.csv...")
-            try:
-                df_valid = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
-                df_valid.columns = df_valid.columns.str.strip()
-                col_z = 'Zone'
-                col_a = 'area' if 'area' in df_valid.columns else 'Area'
-                col_n = 'Bưu cục final' if 'Bưu cục final' in df_valid.columns else 'Bưu cục'
-                
-                for _, row in df_valid.iterrows():
-                    zone = str(row.get(col_z, '')) if col_z in row else 'A' # fallback zone
-                    area_id = str(row.get(col_a, '')).strip()
-                    name = str(row.get(col_n, '')).strip()
-                    if zone and area_id and name and name.lower() != 'nan':
-                        key = (zone, area_id)
-                        if key not in master_chutes:
-                            master_chutes[key] = {
-                                "zone": zone,
-                                "area_id": area_id,
-                                "name": name,
-                                "dai": "8",
-                                "rong": "4",
-                                "capacity": "780"
-                            }
-            except Exception as ex2:
-                print(f"   ❌ Lỗi load fallback từ valid.csv: {ex2}")
+    creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    local_creds_path = r"C:\Users\lehoa\OneDrive\Desktop\testing\addressproject.json"
+    if not creds_json and os.path.exists(local_creds_path):
+        try:
+            with open(local_creds_path, 'r', encoding='utf-8') as f:
+                creds_json = f.read()
+        except Exception:
+            pass
+    if creds_json and not DISABLE_GOOGLE_SHEETS:
+        try:
+            import gspread
+            from google.oauth2.service_account import Credentials
+            scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+            creds = Credentials.from_service_account_info(json.loads(creds_json), scopes=scopes)
+            gc = gspread.authorize(creds)
+            ss = gc.open_by_key(SHEET_ID)
+        except Exception:
+            pass
                 
     # Export master_chutes to data/config.json and src/data/config.json for frontend mapping
     try:
@@ -1976,6 +1958,8 @@ def run_once(session, token_mgr, rebuild_days=None):
                 
     for wb, scan_time in arrival_max.items():
         rec, _ = get_or_create_record(wb)
+        if not rec['data_source']:
+            rec['data_source'] = 'Arrival'
         if not rec['Arrival_time'] or scan_time > rec['Arrival_time']:
             rec['Arrival_time'] = scan_time
             rec['changed'] = True
@@ -1993,6 +1977,8 @@ def run_once(session, token_mgr, rebuild_days=None):
                 
     for wb, info in inbound_max.items():
         rec, _ = get_or_create_record(wb)
+        if not rec['data_source']:
+            rec['data_source'] = 'Inbound'
         if not rec['inbound_scanDate'] or info['time'] > rec['inbound_scanDate']:
             rec['inbound_scanDate'] = info['time']
             rec['inbound_network'] = d_buucuc.get(info['site'], info['site'])
@@ -2049,10 +2035,10 @@ def run_once(session, token_mgr, rebuild_days=None):
     # 7. Batch search Dispatch time for Forecast / Inbound waybills
     missing_disp_wbs = []
     for wb, rec in db_records.items():
-        if rec.get('changed') and rec.get('data_source') in ('Forecast', 'Inbound', 'Outbound') and not rec.get('dispatchNetworkTime'):
+        if rec.get('changed') and not rec.get('dispatchNetworkTime'):
             missing_disp_wbs.append(wb)
             
-    missing_disp_wbs = list(set(missing_disp_wbs))[:150]
+    missing_disp_wbs = list(set(missing_disp_wbs))[:3500]
     if missing_disp_wbs:
         print(f"\n🔍 [Batch Search] Phát hiện {len(missing_disp_wbs):,} đơn Forecast/Inbound chưa có dispatchNetworkTime.")
         dh_path = os.path.join(BASE_DIR, "config", "dispatchheaders.json")
