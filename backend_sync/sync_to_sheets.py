@@ -2035,7 +2035,7 @@ def run_once(session, token_mgr, rebuild_days=None):
     # 7. Batch search Dispatch time for Forecast / Inbound waybills
     missing_disp_wbs = []
     for wb, rec in db_records.items():
-        if rec.get('changed') and not rec.get('dispatchNetworkTime'):
+        if not rec.get('dispatchNetworkTime') and rec.get('status_order') != 'Đã rời HUB':
             missing_disp_wbs.append(wb)
             
     missing_disp_wbs = list(set(missing_disp_wbs))[:3500]
