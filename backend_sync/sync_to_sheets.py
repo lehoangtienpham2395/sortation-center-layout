@@ -1740,12 +1740,16 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
         inventory_volumes = {}
         try:
             conn = sqlite3.connect(DB_FILE)
-            # Đọc toàn bộ shipments từ SQLite
+            # ✅ Chỉ đọc đơn đang active (is_active=1) và chưa rời HUB
             df_db_inv = pd.read_sql_query(
-                "SELECT next_station, status_order, weight, waybillNo, time_ref FROM shipments WHERE status_order != 'Đã rời HUB'",
+                """SELECT next_station, status_order, weight, waybillNo, time_ref
+                   FROM shipments
+                   WHERE is_active = 1
+                     AND status_order != 'Đã rời HUB'""",
                 conn
             )
             conn.close()
+
             if not df_db_inv.empty:
                 df_db_inv['next_station_upper'] = df_db_inv['next_station'].astype(str).str.strip().str.upper()
                 df_db_inv['layout_name'] = df_db_inv['next_station_upper'].apply(map_station_to_layout_name)
