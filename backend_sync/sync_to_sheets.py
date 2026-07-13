@@ -1765,8 +1765,91 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
 
 
 # ================================================================
-# MAIN (Run Once)
+# RECONCILE: Kéo Outbound 5 ngày & mapping ngược lại DB
 # ================================================================
+def reconcile_outbound_5days(session, token_mgr):
+    """
+    Kéo dữ liệu Outbound trong 5 ngày gần nhất và cập nhật trạng thái
+    'Đã rời HUB' (is_active=0) cho các đơn đã xuất HUB mà DB chưa ghi nhận.
+    
+    Mục đích: Tránh tình trạng đơn cũ bị kẹt ở 'Đang trên đường' vĩnh viễn
+    do chưa có log Outbound khi kéo data lần đầu.
+    """
+    tz_vn = ZoneInfo('Asia/Ho_Chi_Minh')
+    now = datetime.now(tz_vn)
+
+    date_start_5d = (now - timedelta(days=5)).strftime('%Y-%m-%d') + ' 00:00:00'
+    date_end      = now.strftime('%Y-%m-%d %H:%M:%S')
+
+    print(f"\n🔄 [Reconcile Outbound 5 ngày] Kéo từ {date_start_5d} → {date_end}...")
+
+    try:
+        oh = load_json(os.path.join(BASE_DIR, "config", "outboundheaders.json"))
+        op = load_json(os.path.join(BASE_DIR, "config", "outboundpayload.json"))
+    except Exception as e:
+        print(f"   ⚠️ Không load được outbound config: {e}")
+        return
+
+    op['beginDate'] = date_start_5d
+    op['endDate']   = date_end
+    o_params = {
+        'sqlCode':   op.get('sqlCode', ''),
+        'dcr_key':   '57b048fb-bc8c-4d24-982b-a750b7ce8693',
+        'routeName': oh.get('routeName', '')
+    }
+
+    try:
+        raw_outbound = pull_scan(session, token_mgr, URL_SCAN, oh, o_params, op, 'Outbound-5d')
+    except Exception as e:
+        print(f"   ⚠️ Lỗi kéo Outbound 5 ngày: {e}")
+        return
+
+    if not raw_outbound:
+        print("   ⚠️ Outbound 5 ngày: không có dữ liệu.")
+        return
+
+    # Gom max scan time per waybill
+    outbound_map = {}
+    for r in raw_outbound:
+        wb        = str(r.get('billNo') or r.get('waybillNo') or '').strip()
+        scan_time = str(r.get('scanDate') or '').strip()
+        next_st   = str(r.get('upOrNextStation') or '').strip()
+        if wb and scan_time and scan_time.lower() not in ('nan', 'none', ''):
+            if wb not in outbound_map or scan_time > outbound_map[wb]['time']:
+                outbound_map[wb] = {'time': scan_time, 'station': next_st}
+
+    if not outbound_map:
+        print("   ⚠️ Outbound 5 ngày: không có mã vận đơn hợp lệ.")
+        return
+
+    print(f"   📦 Tìm thấy {len(outbound_map):,} mã vận đơn có log Outbound trong 5 ngày.")
+
+    # Cập nhật ngược vào DB: đánh dấu Đã rời HUB
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        c    = conn.cursor()
+        updated = 0
+        for wb, info in outbound_map.items():
+            c.execute("""
+                UPDATE shipments
+                SET outbound_scanDate = ?,
+                    status_order      = 'Đã rời HUB',
+                    is_active         = 0,
+                    last_updated      = CURRENT_TIMESTAMP
+                WHERE waybillNo = ?
+                  AND is_active = 1
+                  AND (outbound_scanDate = '' OR outbound_scanDate IS NULL
+                       OR outbound_scanDate < ?)
+            """, (info['time'], wb, info['time']))
+            updated += c.rowcount
+        conn.commit()
+        conn.close()
+        print(f"   ✅ [Reconcile Outbound] Cập nhật {updated:,} đơn → 'Đã rời HUB' (is_active=0) từ log Outbound 5 ngày.")
+    except Exception as e:
+        print(f"   ⚠️ Lỗi cập nhật DB sau Reconcile Outbound: {e}")
+
+
+
 def sync_valid_from_sheets(gc):
     print("   📥 Đồng bộ valid.csv từ Google Sheet...")
     try:
@@ -1961,10 +2044,27 @@ def run_once(session, token_mgr, rebuild_days=None):
               )
         """)
         cnt2 = c.rowcount
+
+        # 3. Đối với các đơn chỉ từ nguồn Dispatch (không có inbound, không có Pickup_time)
+        #    mà dispatchNetworkTime đã quá 2 ngày → hết hiệu lực
+        c.execute("""
+            UPDATE shipments
+            SET is_active = 0, last_updated = CURRENT_TIMESTAMP
+            WHERE is_active = 1
+              AND data_source = 'Dispatch'
+              AND (inbound_scanDate = '' OR inbound_scanDate IS NULL)
+              AND (outbound_scanDate = '' OR outbound_scanDate IS NULL)
+              AND (Pickup_time = '' OR Pickup_time IS NULL)
+              AND dispatchNetworkTime != '' AND dispatchNetworkTime IS NOT NULL
+              AND datetime(dispatchNetworkTime) < datetime('now', '+7 hours', '-2 days')
+        """)
+        cnt3 = c.rowcount
         conn.commit()
-        
-        if cnt1 + cnt2 > 0:
-            print(f"   🧹 Tự động dọn dẹp: Đã chuyển {cnt1:,} đơn kẹt Inbound sang 'Đã rời HUB' và tắt hoạt động {cnt2:,} đơn Forecast/Pickup cũ (>3 ngày).")
+        if cnt3 > 0:
+            print(f"   🧹 Dọn dẹp Dispatch cũ: Đã tắt {cnt3:,} đơn Dispatch không có inbound/pickup quá 2 ngày.")
+
+        if cnt1 + cnt2 + cnt3 > 0:
+            print(f"   🧹 Tự động dọn dẹp: Đã chuyển {cnt1:,} đơn kẹt Inbound → 'Đã rời HUB', tắt {cnt2:,} đơn Forecast/Pickup cũ (>3 ngày), tắt {cnt3:,} đơn Dispatch cũ (>2 ngày).")
             
         c.execute("SELECT * FROM shipments WHERE is_active = 1")
         rows = c.fetchall()
@@ -2427,7 +2527,30 @@ def run_once(session, token_mgr, rebuild_days=None):
         except Exception as ex_db:
             print(f"   ❌ Lỗi lưu dữ liệu thay đổi vào SQLite: {ex_db}")
 
+    # ── Reconcile: Kéo Outbound 5 ngày và mapping ngược lại DB ──
+    # Mục đích: Đảm bảo các đơn đã xuất HUB trong quá khứ được đánh dấu
+    # 'Đã rời HUB' (is_active=0) trước khi build DataFrame cho dashboard.
+    try:
+        reconcile_outbound_5days(session, token_mgr)
+    except Exception as e_reconcile:
+        print(f"   ⚠️ Lỗi Reconcile Outbound 5 ngày: {e_reconcile}")
+
+    # ── Reload DB sau khi reconcile để df phản ánh đúng trạng thái mới nhất ──
+    try:
+        conn_r = sqlite3.connect(DB_FILE)
+        c_r    = conn_r.cursor()
+        c_r.execute("SELECT * FROM shipments WHERE is_active = 1")
+        rows_r = c_r.fetchall()
+        if rows_r:
+            col_names_r = [d[0] for d in c_r.description]
+            db_records  = {dict(zip(col_names_r, rw))['waybillNo']: dict(zip(col_names_r, rw)) for rw in rows_r}
+        conn_r.close()
+        print(f"   ✅ Reload DB sau reconcile: {len(db_records):,} đơn active còn lại.")
+    except Exception as e_reload:
+        print(f"   ⚠️ Lỗi reload DB sau reconcile: {e_reload}")
+
     # Build df of all records from SQLite for downstream push / sheets
+
     df = pd.DataFrame(list(db_records.values()))
     if 'changed' in df.columns:
         df.drop(columns=['changed'], inplace=True)
