@@ -30,8 +30,8 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
 
 # ============================================================
 # CONFIG ĐĂNG NHẬP (Đọc từ GitHub Secrets / Environment Variables)
-ACCOUNT    = os.environ.get("SYSTEM_ACCOUNT", "").strip()
-PASSWORD   = os.environ.get("SYSTEM_PASSWORD", "").strip()
+ACCOUNT    = os.environ.get("SYSTEM_ACCOUNT", "660021").strip()
+PASSWORD   = os.environ.get("SYSTEM_PASSWORD", "Tien@giang2395").strip()
 COUNTRY_ID = "1"
 LOGIN_URL  = "https://gw.jtcargo.com.vn/basicdata/login"
 
