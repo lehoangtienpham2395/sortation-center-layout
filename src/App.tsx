@@ -1817,7 +1817,7 @@ export default function App() {
                                 {chute.name}
                               </td>
                               <td className="py-1 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
-                              <td className="py-1 text-right mono text-slate-300 whitespace-nowrap">{chute.weight.toLocaleString()} kg</td>
+                              <td className="py-1 text-right mono text-slate-300 whitespace-nowrap">{Math.round(chute.weight).toLocaleString()} kg</td>
                               <td className="py-1 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
                             </tr>
                           );
@@ -2033,7 +2033,7 @@ export default function App() {
                             <td className="py-2 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
                             <td className="py-2 truncate max-w-[90px] font-medium text-white/95">{chute.name}</td>
                             <td className="py-2 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
-                            <td className="py-2 text-right mono text-slate-300 whitespace-nowrap">{chute.weight.toLocaleString()} kg</td>
+                            <td className="py-2 text-right mono text-slate-300 whitespace-nowrap">{Math.round(chute.weight).toLocaleString()} kg</td>
                             <td className="py-2 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
                           </tr>
                         );
