@@ -1586,20 +1586,39 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             "capacity": str(item["capacity"])
         }
 
-    # Build d_station_to_chute and d_chute_to_name for Layout Master mapping
+    # Load valid.csv and dynamically rename chutes based on latest mappings
     d_station_to_chute = {}
     d_chute_to_name = {}
     
-    for item in STATIC_CHUTES:
-        c_id = item["area_id"].strip().upper()
-        c_name = item["name"].strip().upper()
-        d_chute_to_name[c_id] = c_name
-        if "CHỜ TẢI" not in c_name and "DỰ PHÒNG" not in c_name:
-            d_station_to_chute[c_name] = c_id
-            
     try:
         df_valid = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
         df_valid.columns = df_valid.columns.str.strip()
+        
+        # 1. Dynamically rename master_chutes names
+        if 'Bưu cục final' in df_valid.columns and 'area' in df_valid.columns:
+            area_to_bc = {}
+            for _, row in df_valid.iterrows():
+                bc = str(row['Bưu cục final']).strip()
+                ar = str(row['area']).strip().upper()
+                if bc and ar and ar not in ('OFFLINE', 'NAN', ''):
+                    if ar not in area_to_bc:
+                        area_to_bc[ar] = []
+                    if bc not in area_to_bc[ar]:
+                        area_to_bc[ar].append(bc)
+            
+            for key, info in master_chutes.items():
+                c_id = info["area_id"]
+                if c_id in area_to_bc:
+                    info["name"] = area_to_bc[c_id][0]
+                    
+        # 2. Build d_station_to_chute and d_chute_to_name mapping dictionaries
+        for key, info in master_chutes.items():
+            c_id = info["area_id"]
+            c_name = info["name"].strip().upper()
+            d_chute_to_name[c_id] = c_name
+            d_station_to_chute[c_name] = c_id
+            
+        # 3. Add alternative names from valid.csv
         STATIC_CHUTE_IDS = {item["area_id"].strip().upper() for item in STATIC_CHUTES}
         if 'Bưu cục final' in df_valid.columns and 'area' in df_valid.columns:
             for _, row in df_valid.iterrows():
@@ -1607,8 +1626,15 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
                 ar = str(row['area']).strip().upper()
                 if bc and ar and ar in STATIC_CHUTE_IDS:
                     d_station_to_chute[bc] = ar
-    except Exception as e_load_valid:
-        print(f"   ⚠️ Lỗi build d_station_to_chute từ valid.csv: {e_load_valid}")
+                    
+    except Exception as e_dynamic_rename:
+        print(f"   ⚠️ Lỗi dynamic renaming hoặc build maps từ valid.csv: {e_dynamic_rename}")
+        # Fallback to static mapping
+        for item in STATIC_CHUTES:
+            c_id = item["area_id"].strip().upper()
+            c_name = item["name"].strip().upper()
+            d_chute_to_name[c_id] = c_name
+            d_station_to_chute[c_name] = c_id
         
     def map_station_to_layout_name(station_name):
         st_upper = str(station_name).strip().upper()
