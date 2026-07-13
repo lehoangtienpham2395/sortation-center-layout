@@ -149,7 +149,9 @@ export default function InboundDashboard({
   // --- Arrival data (from the new Arrival Google Sheet) ---
   // Filter by active date
   const filteredArrival = arrivalData.filter(d => {
-    return (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
+    const isToday = (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
+    const isBnHubInTransit = (d['Pickup_station'] || '').trim().toUpperCase() === 'BN HUB' && (parseInt(d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0) > 0;
+    return isToday || isBnHubInTransit;
   });
 
   let totalOrders = stages['Inbound'].orders;
