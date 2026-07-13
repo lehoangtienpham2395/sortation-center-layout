@@ -1080,7 +1080,7 @@ def update_backlog_sheet(ss, master_chutes, backlog_volumes, current_date_str):
 
 def update_inventory_sheet(ss, master_chutes, inventory_volumes, current_date_str):
     headers = ["Zone", "AreaID", "Bưu cục", "Trạng thái", "Volume", "Weight", "Sức chứa", "Ngày"]
-    statuses = ['Đang trên bãi', 'Đã lấy hàng', 'Đã điều phối bưu cục', 'Đã rời HUB']
+    statuses = ['Đang trên bãi', 'Đang trên đường', 'Đã lấy hàng', 'Đã điều phối bưu cục', 'Đã rời HUB']
     
     # Count occurrences of each station name to distribute volume/weight and avoid double-counting
     station_counts = {}
@@ -1266,17 +1266,22 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             })
 
         # Backlog Carryover Projection
+        # Đơn rớt hôm trước (chưa pickup) được CHUYỂN sang ngày hôm nay — không cộng thêm (tránh double-count)
         projected_rows = []
         for r in unique_rows:
-            projected_rows.append(r)
+            is_carryover = False
             if r['Trạng thái'] != 'Inbound':
                 was_picked_before_today = r['Ngày vận hành_Pickup'] and r['Ngày vận hành_Pickup'] < current_op_date
                 if not was_picked_before_today:
                     if r['Ngày vận hành_Forecast'] and r['Ngày vận hành_Forecast'] < current_op_date:
-                         dup = r.copy()
-                         dup['Ngày vận hành_Forecast'] = current_op_date
-                         dup['Loại rớt'] = 'Rớt hôm trước'
-                         projected_rows.append(dup)
+                        # Đơn rớt: REPLACE ngày gốc bằng ngày hôm nay, không thêm dòng mới
+                        dup = r.copy()
+                        dup['Ngày vận hành_Forecast'] = current_op_date
+                        dup['Loại rớt'] = 'Rớt hôm trước'
+                        projected_rows.append(dup)
+                        is_carryover = True
+            if not is_carryover:
+                projected_rows.append(r)
 
         # Grouping & Aggregation
         grouped = {}
@@ -1686,7 +1691,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             conn = sqlite3.connect(DB_FILE)
             # Đọc toàn bộ shipments từ SQLite
             df_db_inv = pd.read_sql_query(
-                "SELECT next_station, status_order, weight, waybillNo, time_ref FROM shipments WHERE status_order != 'Đã rời HUB'", 
+                "SELECT next_station, status_order, weight, waybillNo, time_ref FROM shipments WHERE status_order != 'Đã rời HUB'",
                 conn
             )
             conn.close()
