@@ -1785,7 +1785,7 @@ export default function App() {
                           <th className="py-1 w-10">Mã</th>
                           <th className="py-1">Bưu Cục</th>
                           <th className="py-1 text-right w-14">{selectedType === 'Outbound' ? 'Xuất' : 'Tồn'}</th>
-                          <th className="py-1 text-right w-16">T.lượng</th>
+                          <th className="py-1 text-right w-20 whitespace-nowrap">T.lượng</th>
                           <th className="py-1 text-right w-10">{displayUtilizationLabelLc}</th>
                         </tr>
                       </thead>
@@ -1817,7 +1817,7 @@ export default function App() {
                                 {chute.name}
                               </td>
                               <td className="py-1 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
-                              <td className="py-1 text-right mono text-slate-300">{chute.weight.toLocaleString()} kg</td>
+                              <td className="py-1 text-right mono text-slate-300 whitespace-nowrap">{chute.weight.toLocaleString()} kg</td>
                               <td className="py-1 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
                             </tr>
                           );
@@ -2013,7 +2013,7 @@ export default function App() {
                         <th className="py-2 w-12">Mã</th>
                         <th className="py-2">Bưu Cục</th>
                         <th className="py-2 text-right w-16">{selectedType === 'Outbound' ? 'Lượng xuất' : 'Tồn'}</th>
-                        <th className="py-2 text-right w-16">T.lượng</th>
+                        <th className="py-2 text-right w-20 whitespace-nowrap">T.lượng</th>
                         <th className="py-2 text-right w-12">%</th>
                       </tr>
                     </thead>
@@ -2033,7 +2033,7 @@ export default function App() {
                             <td className="py-2 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
                             <td className="py-2 truncate max-w-[90px] font-medium text-white/95">{chute.name}</td>
                             <td className="py-2 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
-                            <td className="py-2 text-right mono text-slate-300">{chute.weight.toLocaleString()} kg</td>
+                            <td className="py-2 text-right mono text-slate-300 whitespace-nowrap">{chute.weight.toLocaleString()} kg</td>
                             <td className="py-2 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
                           </tr>
                         );
