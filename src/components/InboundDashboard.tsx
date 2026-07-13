@@ -217,8 +217,8 @@ export default function InboundDashboard({
       ? d['Scan Hour']
       : (d['Last time'] ? d['Last time'].split(' ')[1]?.split(':')[0] : undefined);
     if (hr !== undefined && hr !== null && hr !== '') {
-      const hrVal = parseInt(String(hr), 10);
-      if (!isNaN(hrVal) && hrVal >= 0 && hrVal < 24) {
+      const hrVal = getHourFromTimestamp(hr);
+      if (hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
         if (hourlyArrived[hour] !== undefined) {
           hourlyArrived[hour] += parseInt(d['Tng s n'] || d['Tổng số đơn'], 10) || 0;
