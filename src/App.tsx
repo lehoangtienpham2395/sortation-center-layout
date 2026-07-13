@@ -1575,7 +1575,7 @@ export default function App() {
                 <div className="p-3 text-center bg-[#101622]/30 rounded-md">
                   <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">TỔNG TRỌNG LƯỢNG</div>
                   <div className="disp font-extrabold text-2xl text-[var(--green)]">
-                    {Math.round(totalWeight).toLocaleString()} kg
+                    {totalWeight.toLocaleString()} kg
                   </div>
                   <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">TRỌNG LƯỢNG KHO</div>
                 </div>
@@ -2057,7 +2057,7 @@ export default function App() {
                     <div className="p-3 text-center bg-[#101622]/30 rounded-md">
                       <div className="mono text-[9px] text-[var(--muted)] mb-1">TỔNG TRỌNG LƯỢNG</div>
                       <div className="disp font-extrabold text-xl text-[var(--green)]">
-                        {Math.round(totalWeight).toLocaleString()} kg
+                        {totalWeight.toLocaleString()} kg
                       </div>
                     </div>
                   </div>
