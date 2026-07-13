@@ -2146,29 +2146,24 @@ def run_once(session, token_mgr, rebuild_days=None):
         pk_time = rec['Pickup_time']
         fc_time = rec['dispatchNetworkTime']
         ob_time = rec['outbound_scanDate']
+        arr_time = rec.get('Arrival_time', '')
+        
+        # Get status using the unified priority engine
+        status, is_act = calculate_shipment_status(fc_time, pk_time, arr_time, ib_time, ob_time)
         
         # Outbound logic filter:
         # If in live Backlog (Trong kho) -> enforce 'Đang trên bãi' and clear outbound scan
         if rec.get('is_backlog') or rec.get('data_source') == 'Backlog':
             status = 'Đang trên bãi'
             rec['outbound_scanDate'] = ''
+            ob_time = ''
+            is_act = 1
             if not ib_time or ib_time.lower() in ('nan', 'none', ''):
                 rec['inbound_scanDate'] = 'Backlog'
                 ib_time = 'Backlog'
-        elif ob_time and (not ib_time or ib_time.lower() in ('nan', 'none', '')):
-            status = 'Đã rời HUB'
-        elif ob_time:
-            status = 'Đã rời HUB'
-        elif ib_time:
-            status = 'Đang trên bãi'
-        elif pk_time:
-            status = 'Đã lấy hàng'
-        elif fc_time:
-            status = 'Đã điều phối bưu cục'
-        else:
-            status = 'Forecast'
             
         rec['status_order'] = status
+        rec['is_active'] = is_act
         
         # Next station details
         raw_code = str(rec.get('dispatch_plan') or '').strip()
