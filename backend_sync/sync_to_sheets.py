@@ -1946,7 +1946,10 @@ def run_once(session, token_mgr, rebuild_days=None):
             rec, _ = get_or_create_record(wb)
             rec['data_source'] = 'Forecast'
             rec['pickNetworkName'] = d_buucuc.get(str(r.get('pickNetworkName', '')).strip(), str(r.get('pickNetworkName', '')).strip())
-            rec['dispatch_plan'] = str(r.get('dispatchNetworkName') or '').strip()
+            disp_plan = str(r.get('dispatchNetworkName') or '').strip()
+            if not disp_plan or disp_plan.lower() in ('nan', 'none'):
+                disp_plan = str(r.get('terminalDispatchCode') or r.get('transferDispatchCode') or r.get('receiverSortingCode') or '').strip()
+            rec['dispatch_plan'] = disp_plan
             rec['weight'] = float(r.get('loadWeight') or r.get('weight') or rec['weight'])
             
             delivery_time = str(r.get('deliveryTime') or '').strip()
@@ -1964,7 +1967,10 @@ def run_once(session, token_mgr, rebuild_days=None):
             rec, _ = get_or_create_record(wb)
             rec['data_source'] = 'Dispatch'
             rec['pickNetworkName'] = d_buucuc.get(str(r.get('pickNetworkName', '')).strip(), str(r.get('pickNetworkName', '')).strip())
-            rec['dispatch_plan'] = str(r.get('dispatchNetworkName') or '').strip()
+            disp_plan = str(r.get('dispatchNetworkName') or '').strip()
+            if not disp_plan or disp_plan.lower() in ('nan', 'none'):
+                disp_plan = str(r.get('terminalDispatchCode') or r.get('transferDispatchCode') or r.get('receiverSortingCode') or '').strip()
+            rec['dispatch_plan'] = disp_plan
             rec['weight'] = float(r.get('packageChargeWeight') or r.get('weight') or rec['weight'])
             
             disp_time = str(r.get('dispatchNetworkTime') or '').strip()
@@ -2067,12 +2073,12 @@ def run_once(session, token_mgr, rebuild_days=None):
     # 7. Batch search Dispatch time for Forecast / Inbound waybills
     missing_disp_wbs = []
     for wb, rec in db_records.items():
-        if not rec.get('dispatchNetworkTime') and rec.get('status_order') != 'Đã rời HUB':
+        if (not rec.get('dispatch_plan') or not rec.get('dispatchNetworkTime')) and rec.get('status_order') != 'Đã rời HUB':
             missing_disp_wbs.append(wb)
             
     missing_disp_wbs = list(set(missing_disp_wbs))[:3500]
     if missing_disp_wbs:
-        print(f"\n🔍 [Batch Search] Phát hiện {len(missing_disp_wbs):,} đơn Forecast/Inbound chưa có dispatchNetworkTime.")
+        print(f"\n🔍 [Batch Search] Phát hiện {len(missing_disp_wbs):,} đơn Forecast/Inbound chưa có dispatch_plan hoặc dispatchNetworkTime.")
         dh_path = os.path.join(BASE_DIR, "config", "dispatchheaders.json")
         dp_path = os.path.join(BASE_DIR, "config", "dispatchpayload.json")
         if os.path.exists(dh_path) and os.path.exists(dp_path):
@@ -2124,11 +2130,16 @@ def run_once(session, token_mgr, rebuild_days=None):
                                     
                                     pk_val = pickup_time if (order_status == 'Đã lấy hàng' and pickup_time) else ''
                                     
+                                    disp_plan = str(item.get('dispatchNetworkName') or '').strip()
+                                    if not disp_plan or disp_plan.lower() in ('nan', 'none'):
+                                        disp_plan = str(item.get('terminalDispatchCode') or item.get('transferDispatchCode') or item.get('receiverSortingCode') or '').strip()
+                                    
                                     if disp_time and disp_time.lower() not in ('nan', 'none', 'nat', ''):
                                         resolved_disp[waybill_id] = {
                                             'dispatchNetworkTime': disp_time,
                                             'Pickup_time': pk_val,
-                                            'status_order': order_status
+                                            'status_order': order_status,
+                                            'dispatch_plan': disp_plan
                                         }
                                         resolved_wbs.add(waybill_id)
                     except Exception as e_batch:
@@ -2141,6 +2152,8 @@ def run_once(session, token_mgr, rebuild_days=None):
                         db_records[wb]['dispatchNetworkTime'] = info['dispatchNetworkTime']
                         if info['Pickup_time']:
                             db_records[wb]['Pickup_time'] = info['Pickup_time']
+                        if info.get('dispatch_plan'):
+                            db_records[wb]['dispatch_plan'] = info['dispatch_plan']
                         db_records[wb]['data_source'] = 'Dispatch'
                         db_records[wb]['changed'] = True
                         
