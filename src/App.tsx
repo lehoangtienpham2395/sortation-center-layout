@@ -326,7 +326,7 @@ export default function App() {
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Outbound');
-  const INVENTORY_STATUSES = ['Đang trên bãi', 'Đã lấy hàng', 'Đã điều phối bưu cục'];
+  const INVENTORY_STATUSES = ['Đang trên bãi', 'Đang trên đường', 'Đã lấy hàng', 'Đã điều phối bưu cục'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([...INVENTORY_STATUSES]);
 
   const toggleStatus = (status: string) => {
