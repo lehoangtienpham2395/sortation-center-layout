@@ -1510,11 +1510,11 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
     master_chutes = {}
     STATIC_CHUTES = [
         # Zone 3
-        {"zone": "3", "area_id": "C01", "name": "C01 Chờ tải", "capacity": 780},
-        {"zone": "3", "area_id": "C02", "name": "C02 Chờ tải", "capacity": 780},
-        {"zone": "3", "area_id": "C03", "name": "C03 Chờ tải", "capacity": 780},
-        {"zone": "3", "area_id": "C04", "name": "C04 Chờ tải", "capacity": 780},
-        {"zone": "3", "area_id": "C05", "name": "C05 Chờ tải", "capacity": 780},
+        {"zone": "3", "area_id": "C01", "name": "SG CHỢ LỚN", "capacity": 780},
+        {"zone": "3", "area_id": "C02", "name": "SG HƯNG LONG", "capacity": 780},
+        {"zone": "3", "area_id": "C03", "name": "SG BÌNH LỢI TRUNG", "capacity": 780},
+        {"zone": "3", "area_id": "C04", "name": "SG BÌNH TRỊ ĐÔNG", "capacity": 780},
+        {"zone": "3", "area_id": "C05", "name": "SG KHÁNH HỘI", "capacity": 780},
         {"zone": "3", "area_id": "C06", "name": "BD BÌNH PHƯỚC", "capacity": 780},
         {"zone": "3", "area_id": "C07", "name": "DT TN", "capacity": 780},
         {"zone": "3", "area_id": "C08", "name": "TG GÒ CÔNG", "capacity": 780},
@@ -1537,11 +1537,11 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
         {"zone": "3", "area_id": "C25", "name": "BD BẾN CÁT", "capacity": 780},
         {"zone": "3", "area_id": "C26", "name": "SETN", "capacity": 780},
         # Zone 2
-        {"zone": "3", "area_id": "A00", "name": "A00 Chờ tải", "capacity": 780},
-        {"zone": "3", "area_id": "A01", "name": "A01 Chờ tải", "capacity": 780},
-        {"zone": "3", "area_id": "A02", "name": "A02 Chờ tải", "capacity": 780},
-        {"zone": "3", "area_id": "A03", "name": "A03 Chờ tải", "capacity": 780},
-        {"zone": "3", "area_id": "A04", "name": "A04 Chờ tải", "capacity": 780},
+        {"zone": "3", "area_id": "A00", "name": "VT LONG ĐẤT", "capacity": 780},
+        {"zone": "3", "area_id": "A01", "name": "SG HÓC MÔN", "capacity": 780},
+        {"zone": "3", "area_id": "A02", "name": "SG BÌNH LỢI", "capacity": 780},
+        {"zone": "3", "area_id": "A03", "name": "SG THỦ ĐỨC", "capacity": 780},
+        {"zone": "3", "area_id": "A04", "name": "LA ĐỨC HÒA", "capacity": 780},
         {"zone": "2", "area_id": "B01", "name": "SG XUÂN THỚI SƠN", "capacity": 780},
         {"zone": "2", "area_id": "B02", "name": "SG TÂN NHỰT", "capacity": 780},
         {"zone": "2", "area_id": "B03", "name": "SG VĨNH LỘC", "capacity": 780},

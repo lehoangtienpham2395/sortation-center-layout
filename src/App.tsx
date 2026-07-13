@@ -25,11 +25,11 @@ try {
 // ── Rack / chute definitions (Cập nhật: Zone 3 = 26 chutes + 24 trucks) ──
 const ZONE3_LIST = [
   // 5 ô chutes bên phải vách ngăn (vùng xanh lá)
-  { areaId: 'C01', name: 'C01 Chờ tải', zone: 3 },
-  { areaId: 'C02', name: 'C02 Chờ tải', zone: 3 },
-  { areaId: 'C03', name: 'C03 Chờ tải', zone: 3 },
-  { areaId: 'C04', name: 'C04 Chờ tải', zone: 3 },
-  { areaId: 'C05', name: 'C05 Chờ tải', zone: 3 },
+  { areaId: 'C01', name: 'SG CHỢ LỚN', zone: 3 },
+  { areaId: 'C02', name: 'SG HƯNG LONG', zone: 3 },
+  { areaId: 'C03', name: 'SG BÌNH LỢI TRUNG', zone: 3 },
+  { areaId: 'C04', name: 'SG BÌNH TRỊ ĐÔNG', zone: 3 },
+  { areaId: 'C05', name: 'SG KHÁNH HỘI', zone: 3 },
   // 21 ô chutes bên trái vách ngăn (C06 -> C26)
   { areaId: 'C06', name: 'BD BÌNH PHƯỚC', zone: 3 }, { areaId: 'C07', name: 'DT TN', zone: 3 },
   { areaId: 'C08', name: 'TG GÒ CÔNG', zone: 3 },   { areaId: 'C09', name: 'LA HẬU NGHĨA', zone: 3 },
@@ -53,11 +53,11 @@ const ZONE3_TRUCKS = Array.from({ length: 24 }, (_, i) => ({
 
 const ZONE2_LIST = [
   // 5 ô chutes bên phải vách ngăn (vùng màu vàng)
-  { areaId: 'A00', name: 'A00 Chờ tải', zone: 3 },
-  { areaId: 'A01', name: 'A01 Chờ tải', zone: 3 },
-  { areaId: 'A02', name: 'A02 Chờ tải', zone: 3 },
-  { areaId: 'A03', name: 'A03 Chờ tải', zone: 3 },
-  { areaId: 'A04', name: 'A04 Chờ tải', zone: 3 },
+  { areaId: 'A00', name: 'VT LONG ĐẤT', zone: 3 },
+  { areaId: 'A01', name: 'SG HÓC MÔN', zone: 3 },
+  { areaId: 'A02', name: 'SG BÌNH LỢI', zone: 3 },
+  { areaId: 'A03', name: 'SG THỦ ĐỨC', zone: 3 },
+  { areaId: 'A04', name: 'LA ĐỨC HÒA', zone: 3 },
   // 18 ô chutes bên trái vách ngăn (B01 -> B18)
   { areaId: 'B01', name: 'SG XUÂN THỚI SƠN', zone: 2 }, { areaId: 'B02', name: 'SG TÂN NHỰT', zone: 2 },
   { areaId: 'B03', name: 'SG VĨNH LỘC', zone: 2 },      { areaId: 'B04', name: 'YT XUYÊN MỘC', zone: 2 },
