@@ -1534,6 +1534,8 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
         {"zone": "3", "area_id": "C22", "name": "DC BÌNH HƯNG", "capacity": 780},
         {"zone": "3", "area_id": "C23", "name": "DC GIA ĐỊNH", "capacity": 780},
         {"zone": "3", "area_id": "C24", "name": "C24 Dự phòng", "capacity": 780},
+        {"zone": "3", "area_id": "C25", "name": "BD BẾN CÁT", "capacity": 780},
+        {"zone": "3", "area_id": "C26", "name": "SETN", "capacity": 780},
         # Zone 2
         {"zone": "3", "area_id": "A00", "name": "A00 Chờ tải", "capacity": 780},
         {"zone": "3", "area_id": "A01", "name": "A01 Chờ tải", "capacity": 780},
@@ -2047,9 +2049,11 @@ def run_once(session, token_mgr, rebuild_days=None):
             try:
                 dh = load_json(dh_path)
                 dp_cfg = load_json(dp_path)
+                dispatch_session = build_session()
+                dispatch_token_mgr = TokenManager(dispatch_session, token_mgr.account, token_mgr.password, token_mgr.country_id)
                 
-                dh['authToken'] = token_mgr.get_token()
-                dh['Authtoken'] = token_mgr.get_token()
+                dh['authToken'] = dispatch_token_mgr.get_token()
+                dh['Authtoken'] = dispatch_token_mgr.get_token()
                 dh['Routename'] = 'orderScheduling'
                 dh['routeName'] = 'orderScheduling'
                 
@@ -2069,7 +2073,7 @@ def run_once(session, token_mgr, rebuild_days=None):
                             payload[k] = ""
                             
                     try:
-                        r_dp = auth_post(session, URL_DISPATCH, token_mgr, dh, data=payload, timeout=25, label=f'Batch Dispatch {i//chunk_size}')
+                        r_dp = auth_post(dispatch_session, URL_DISPATCH, dispatch_token_mgr, dh, data=payload, timeout=25, label=f'Batch Dispatch {i//chunk_size}')
                         dp_res = r_dp.json()
                         data_node = dp_res.get('data', {})
                         records = []

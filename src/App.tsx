@@ -22,7 +22,7 @@ try {
   console.error("Error loading master config map:", e);
 }
 
-// ── Rack / chute definitions (Cập nhật: Zone 3 = 23 chutes + 24 trucks, Zone 2 = 23 chutes + 23 trucks, Zone 1 = 15 chutes) ──
+// ── Rack / chute definitions (Cập nhật: Zone 3 = 26 chutes + 24 trucks) ──
 const ZONE3_LIST = [
   // 5 ô chutes bên phải vách ngăn (vùng xanh lá)
   { areaId: 'C01', name: 'C01 Chờ tải', zone: 3 },
@@ -30,7 +30,7 @@ const ZONE3_LIST = [
   { areaId: 'C03', name: 'C03 Chờ tải', zone: 3 },
   { areaId: 'C04', name: 'C04 Chờ tải', zone: 3 },
   { areaId: 'C05', name: 'C05 Chờ tải', zone: 3 },
-  // 19 ô chutes bên trái vách ngăn (C06 -> C24, giữ nguyên bưu cục cũ của C01->C18)
+  // 21 ô chutes bên trái vách ngăn (C06 -> C26)
   { areaId: 'C06', name: 'BD BÌNH PHƯỚC', zone: 3 }, { areaId: 'C07', name: 'DT TN', zone: 3 },
   { areaId: 'C08', name: 'TG GÒ CÔNG', zone: 3 },   { areaId: 'C09', name: 'LA HẬU NGHĨA', zone: 3 },
   { areaId: 'C10', name: 'AG TỊNH BIÊN', zone: 3 },   { areaId: 'C11', name: 'AG TÂN CHÂU', zone: 3 },
@@ -40,7 +40,9 @@ const ZONE3_LIST = [
   { areaId: 'C18', name: 'SG GÒ VẤP', zone: 3 },     { areaId: 'C19', name: 'LA BẾN LỨC', zone: 3 },
   { areaId: 'C20', name: 'SG XUÂN LỘC', zone: 3 },   { areaId: 'C21', name: 'DC NHÀ BÈ', zone: 3 },
   { areaId: 'C22', name: 'DC BÌNH HƯNG', zone: 3 },  { areaId: 'C23', name: 'DC GIA ĐỊNH', zone: 3 },
-  { areaId: 'C24', name: 'C24 Dự phòng', zone: 3 }
+  { areaId: 'C24', name: 'C24 Dự phòng', zone: 3 },
+  { areaId: 'C25', name: 'BD BẾN CÁT', zone: 3 },
+  { areaId: 'C26', name: 'SETN', zone: 3 }
 ];
 
 const ZONE3_TRUCKS = Array.from({ length: 24 }, (_, i) => ({
@@ -976,14 +978,14 @@ export default function App() {
                 </g>
               );
             })}
-            {/* Zone 3 Chutes Left border (bao quanh C06->C24) */}
-            <rect x={110} y={118} width={532} height={Z_H} rx="2"
+            {/* Zone 3 Chutes Left border (bao quanh C06->C26) */}
+            <rect x={54} y={118} width={588} height={Z_H} rx="2"
                   {...getZoneBorderProps(3, '--green')}/>
             {/* Zone 3 Chutes Right border (bao quanh C01->C05) */}
             <rect x={642} y={118} width={140} height={Z_H} rx="2"
                   {...getZoneBorderProps(3, '--green')}/>
-            {/* Zone 3 Trucks border (bao quanh T3-01->T3-24) */}
-            <rect x={110} y={174} width={672} height={Z_H} rx="2"
+            {/* Zone 3 Trucks border (bao quanh T3-01->T3-24 + C25-C26) */}
+            <rect x={54} y={174} width={728} height={Z_H} rx="2"
                   {...getZoneBorderProps(3, '--green')}/>
           </g>
 
