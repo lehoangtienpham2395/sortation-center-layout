@@ -1586,6 +1586,37 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             "capacity": str(item["capacity"])
         }
 
+    # Build d_station_to_chute and d_chute_to_name for Layout Master mapping
+    d_station_to_chute = {}
+    d_chute_to_name = {}
+    
+    for item in STATIC_CHUTES:
+        c_id = item["area_id"].strip().upper()
+        c_name = item["name"].strip().upper()
+        d_chute_to_name[c_id] = c_name
+        if "CHỜ TẢI" not in c_name and "DỰ PHÒNG" not in c_name:
+            d_station_to_chute[c_name] = c_id
+            
+    try:
+        df_valid = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
+        df_valid.columns = df_valid.columns.str.strip()
+        STATIC_CHUTE_IDS = {item["area_id"].strip().upper() for item in STATIC_CHUTES}
+        if 'Bưu cục final' in df_valid.columns and 'area' in df_valid.columns:
+            for _, row in df_valid.iterrows():
+                bc = str(row['Bưu cục final']).strip().upper()
+                ar = str(row['area']).strip().upper()
+                if bc and ar and ar in STATIC_CHUTE_IDS:
+                    d_station_to_chute[bc] = ar
+    except Exception as e_load_valid:
+        print(f"   ⚠️ Lỗi build d_station_to_chute từ valid.csv: {e_load_valid}")
+        
+    def map_station_to_layout_name(station_name):
+        st_upper = str(station_name).strip().upper()
+        chute_id = d_station_to_chute.get(st_upper)
+        if chute_id:
+            return d_chute_to_name.get(chute_id, st_upper)
+        return st_upper
+
     ss = None
     creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
     local_creds_path = r"C:\Users\lehoa\OneDrive\Desktop\testing\addressproject.json"
@@ -1630,7 +1661,16 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
 
     # 1. Update Outbound Sheet
     if run_outbound and target_dates:
-        update_outbound_sheet(ss, master_chutes, outbound_volumes_grouped, target_dates)
+        mapped_outbound_volumes = {}
+        if outbound_volumes_grouped:
+            for (d_str, station_clean), val in outbound_volumes_grouped.items():
+                layout_name = map_station_to_layout_name(station_clean)
+                key = (d_str, layout_name)
+                if key not in mapped_outbound_volumes:
+                    mapped_outbound_volumes[key] = {'volume': 0, 'weight': 0.0}
+                mapped_outbound_volumes[key]['volume'] += val.get('volume', 0)
+                mapped_outbound_volumes[key]['weight'] += val.get('weight', 0.0)
+        update_outbound_sheet(ss, master_chutes, mapped_outbound_volumes, target_dates)
         
     # 2. Update Backlog Sheet (Realtime Pivot)
     # ✅ Dùng thẳng df_bl từ JFS API (real-time) thay vì đọc từ DB cũ tích lũy nhiều ngày
@@ -1659,7 +1699,8 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
                     df_live_bl['next_station'] = df_live_bl['dispatch_plan'].map(d_buucuc).fillna('')
                     df_live_bl['weight'] = pd.to_numeric(df_live_bl.get('weight', 0), errors='coerce').fillna(0)
                     df_live_bl['next_station_upper'] = df_live_bl['next_station'].astype(str).str.strip().str.upper()
-                    backlog_volumes = df_live_bl.groupby('next_station_upper').agg(
+                    df_live_bl['layout_name'] = df_live_bl['next_station_upper'].apply(map_station_to_layout_name)
+                    backlog_volumes = df_live_bl.groupby('layout_name').agg(
                         volume=('billcode', 'size'),
                         weight=('weight', 'sum')
                     ).to_dict(orient='index')
@@ -1681,8 +1722,9 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             conn.close()
             if not df_db_inv.empty:
                 df_db_inv['next_station_upper'] = df_db_inv['next_station'].astype(str).str.strip().str.upper()
+                df_db_inv['layout_name'] = df_db_inv['next_station_upper'].apply(map_station_to_layout_name)
                 df_db_inv['status_upper'] = df_db_inv['status_order'].astype(str).str.strip()
-                inventory_volumes = df_db_inv.groupby(['next_station_upper', 'status_upper']).agg(
+                inventory_volumes = df_db_inv.groupby(['layout_name', 'status_upper']).agg(
                     volume=('waybillNo', 'size'),
                     weight=('weight', 'sum')
                 ).to_dict(orient='index')
