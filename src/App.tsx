@@ -172,18 +172,21 @@ interface SheetRow {
 
 async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival'): Promise<any[] | null> {
   try {
-    // Enterprise Architecture v5: Try fetching from FastAPI low-latency endpoint first
     if (sheetType === 'Inbound') {
-      const apiRes = await apiClient.getInboundDashboard();
-      if (apiRes.status === 'ok' && apiRes.data) {
-        return apiRes.data.chutes_table.map((c) => ({
-          'Bưu cục': c.chute_name || c.area_id,
-          'AreaID': c.area_id,
-          'Trạng thái': 'Đang nhập kho',
-          'Ngày vận hành': new Date().toISOString().split('T')[0],
-          'Volume': c.total_volume,
-          'Weight': c.total_weight_kg
-        }));
+      try {
+        const apiRes = await apiClient.getInboundDashboard();
+        if (apiRes.status === 'ok' && apiRes.data) {
+          return apiRes.data.chutes_table.map((c) => ({
+            'Bưu cục': c.chute_name || c.area_id,
+            'AreaID': c.area_id,
+            'Trạng thái': 'Đang nhập kho',
+            'Ngày vận hành': new Date().toISOString().split('T')[0],
+            'Volume': c.total_volume,
+            'Weight': c.total_weight_kg
+          }));
+        }
+      } catch (apiErr) {
+        console.warn(`FastAPI Inbound endpoint failed, falling back to static JSON:`, apiErr);
       }
     }
 
@@ -221,21 +224,24 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
   try {
     const todayStr = new Date().toISOString().split('T')[0];
     
-    // Enterprise Architecture v5: Try fetching from FastAPI low-latency endpoint first
     if (sheetType === 'Outbound') {
-      const apiRes = await apiClient.getOutboundDashboard();
-      if (apiRes.status === 'ok' && apiRes.data) {
-        return apiRes.data.stations_table.map((st) => ({
-          zone: '3',
-          areaId: st.station_name,
-          buuCuc: st.station_name,
-          volume: st.total_volume,
-          weight: st.total_weight_kg,
-          capacity: 780,
-          date: todayStr,
-          type: 'Outbound',
-          status: 'Đã xuất'
-        }));
+      try {
+        const apiRes = await apiClient.getOutboundDashboard();
+        if (apiRes.status === 'ok' && apiRes.data) {
+          return apiRes.data.stations_table.map((st) => ({
+            zone: '3',
+            areaId: st.station_name,
+            buuCuc: st.station_name,
+            volume: st.total_volume,
+            weight: st.total_weight_kg,
+            capacity: 780,
+            date: todayStr,
+            type: 'Outbound',
+            status: 'Đã xuất'
+          }));
+        }
+      } catch (apiErr) {
+        console.warn(`FastAPI Outbound endpoint failed, falling back to static JSON:`, apiErr);
       }
     }
 
