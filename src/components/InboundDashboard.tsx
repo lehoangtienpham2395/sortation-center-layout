@@ -979,7 +979,7 @@ export default function InboundDashboard({
         {/* Table 2: Xe đang di chuyển (Trucks in Transit) */}
         <div className="table-container-card glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="table-header" style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '0.5px', color: '#fff', margin: 0 }}>Xe đang di chuyển (Trucks in Transit)</h2>
+            <h2 style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '0.5px', color: '#fff', margin: 0 }}>Trucks Origin Stations in Transit</h2>
             <span className="badge-count amber">{incomingVehicles.length} xe</span>
           </div>
           <div className="table-wrapper" style={{ overflowY: 'auto', maxHeight: '400px', position: 'relative' }}>
