@@ -151,6 +151,11 @@ export default function InboundDashboard({
   let forecastRotHomTruoc = 0;
   let forecastRotHomNay = 0;
 
+  // ordersWithWeight: chỉ đếm đơn có weight > 0 để tính avg chính xác
+  const stagesWithWeight: Record<string, number> = {
+    'Inbound': 0, 'Transporting': 0, 'Pickup Done': 0, 'Created': 0
+  };
+
   const stages: Record<string, { orders: number; weight: number }> = {
       'Inbound': { orders: 0, weight: 0 },
       'Transporting': { orders: 0, weight: 0 },
@@ -162,12 +167,12 @@ export default function InboundDashboard({
     const status = d['Trng thi'] || d['Trạng thái'];
     const vol = parseInt(d['Volume'], 10) || 0;
     const wt = parseFloat(d['Weight']) || 0;
-    if (stages[status]) {
-      stages[status].orders += vol;
-      stages[status].weight += wt;
-    } else {
-      stages['Created'].orders += vol;
-      stages['Created'].weight += wt;
+    const stageKey = stages[status] ? status : 'Created';
+    stages[stageKey].orders += vol;
+    stages[stageKey].weight += wt;
+    // Chỉ cộng vào ordersWithWeight khi row này có dữ liệu weight thực tế
+    if (wt > 0) {
+      stagesWithWeight[stageKey] += vol;
     }
 
     // Phân tách đơn Forecast cho toàn bộ đơn (bao gồm cả đã về và chưa về Hub) sử dụng cột Loại rớt từ backend
@@ -189,6 +194,8 @@ export default function InboundDashboard({
 
   let totalOrders = stages['Inbound'].orders;
   let totalWeight = stages['Inbound'].weight;
+  // Số đơn có weight thực tế > 0 → dùng để tính avg chính xác
+  const ordersWithWeight = stagesWithWeight['Inbound'];
   // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
   const totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
@@ -707,7 +714,7 @@ export default function InboundDashboard({
           </div>
           <div className="kpi-card-body">
             <span className="kpi-value"><NumberTicker value={totalWeight / 1000} decimals={2} /> Tấn</span>
-            <span className="kpi-sub">Avg: {(totalOrders > 0 ? totalWeight / totalOrders : 0).toFixed(2)} kg/pkg</span>
+            <span className="kpi-sub">Avg: {(ordersWithWeight > 0 ? totalWeight / ordersWithWeight : 0).toFixed(2)} kg/pkg</span>
           </div>
           <div className="kpi-glow"></div>
         </div>
