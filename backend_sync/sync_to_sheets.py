@@ -1458,6 +1458,16 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         df_arr_raw = pd.DataFrame()
 
     if not df_arr_raw.empty:
+        # Convert timezone-aware datetimes to Asia/Ho_Chi_Minh timezone for Arrival sheet
+        for col in ['Arrival_time', 'inbound_scanDate']:
+            if col in df_arr_raw.columns:
+                dt_col = pd.to_datetime(df_arr_raw[col], errors='coerce')
+                if not dt_col.dropna().empty:
+                    if dt_col.dt.tz is None:
+                        df_arr_raw[col] = dt_col.dt.tz_localize('UTC').dt.tz_convert('Asia/Ho_Chi_Minh').dt.strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        df_arr_raw[col] = dt_col.dt.tz_convert('Asia/Ho_Chi_Minh').dt.strftime('%Y-%m-%d %H:%M:%S')
+
         df_arr_raw['Ngày vận hành'] = df_arr_raw['Arrival_time'].apply(get_operating_date)
         df_arr_raw['Scan Hour'] = pd.to_datetime(df_arr_raw['Arrival_time'], errors='coerce').dt.strftime('%Y-%m-%d %H:00')
         
