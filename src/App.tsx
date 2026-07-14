@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import InboundDashboard from './components/InboundDashboard';
 import { 
   LayoutDashboard, 
@@ -10,6 +10,38 @@ import {
   Inbox
 } from 'lucide-react';
 import configData from './data/config.json';
+
+// Animated Number Ticker Component
+function NumberTicker({ value }: { value: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  
+  useEffect(() => {
+    let start = 0;
+    const end = value;
+    if (start === end) {
+      if (ref.current) ref.current.textContent = end.toLocaleString();
+      return;
+    }
+    const duration = 0.8; // seconds
+    let startTime: number | null = null;
+    
+    const animateCount = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / (duration * 1000), 1);
+      const current = Math.floor(progress * (end - start) + start);
+      if (ref.current) {
+        ref.current.textContent = current.toLocaleString();
+      }
+      if (progress < 1) {
+        window.requestAnimationFrame(animateCount);
+      }
+    };
+    
+    window.requestAnimationFrame(animateCount);
+  }, [value]);
+
+  return <span ref={ref}>0</span>;
+}
 
 const MASTER_CONFIG_MAP: { [key: string]: string } = {};
 try {
@@ -1265,30 +1297,14 @@ export default function App() {
   };
 
   return (
-    <div className="w-full h-full relative font-sans text-white bg-[#09111C]">
+    <div className="w-full h-full relative font-sans text-white bg-[#02040a]">
       {(!isMobile ? currentView === 'master' : activeTab === 'layout') && (
         <div className={`absolute top-0 right-0 h-12 flex items-center justify-between px-6 z-20 transition-all duration-300 ${
         isMobile ? 'left-0' : 'left-16'
       }`}
-           style={{background:'linear-gradient(180deg,rgba(9,17,28,.95),rgba(9,17,28,0))'}}>
-        <div className="flex items-center gap-3 select-none">
-          {/* Logo J&T Cargo */}
-          <svg width="120" height="30" viewBox="0 0 135 50" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-8 w-auto">
-            <rect width="135" height="50" rx="6" fill="#006a38" />
-            <g transform="skewX(-16) translate(6, 2)">
-              <path d="M 28,10 H 20 V 32 H 5 V 37 H 28 Z" fill="#ffffff" />
-              <text x="29" y="33" fill="#ffffff" fontSize="20" fontWeight="950" fontFamily="'Arial', sans-serif">{"&"}</text>
-              <rect x="52" y="15" width="8" height="22" fill="#ffffff" />
-              <rect x="40" y="10" width="32" height="5" fill="#ffffff" />
-              <rect x="72" y="10" width="16" height="1.4" fill="#ffffff" />
-              <rect x="72" y="11.8" width="11" height="1.4" fill="#ffffff" />
-              <rect x="72" y="13.6" width="6" height="1.4" fill="#ffffff" />
-              <text x="76" y="36" fill="#ffffff" fontSize="18" fontWeight="bold" fontFamily="'Montserrat', 'Arial', sans-serif">Cargo</text>
-            </g>
-          </svg>
-          <div className="h-5 w-px bg-white/20" />
-          <div className="disp font-extrabold text-sm tracking-[0.18em] text-white/90"
-               style={{textShadow:'0 0 12px rgba(255,255,255,0.1)'}}>HCM HUB</div>
+           style={{background:'linear-gradient(180deg,rgba(2,4,10,.95),rgba(2,4,10,0))'}}>
+        <div className="flex items-center select-none">
+          {/* placeholder - logo moved outside */}
         </div>
                 {!isMobile ? (
           <div className="flex items-center gap-4">
@@ -1311,7 +1327,7 @@ export default function App() {
           <div 
             onMouseEnter={() => setSidebarHovered(true)}
             onMouseLeave={() => setSidebarHovered(false)}
-            className={`fixed top-0 left-0 h-full z-40 flex flex-col bg-gradient-to-b from-[#09111C] to-[#111827] border-r border-white/[0.06] transition-all duration-180 ${
+            className={`fixed top-0 left-0 h-full z-40 flex flex-col bg-slate-950/40 backdrop-blur-xl border-r border-white/[0.04] transition-all duration-180 ${
               sidebarHovered ? 'w-56' : 'w-12'
             }`}
           >
@@ -1460,186 +1476,197 @@ export default function App() {
 
           </div>
 
+          {/* Logo J&T Cargo - absolute top-left, above left panels */}
+          {currentView === 'master' && (
+            <div
+              className="absolute z-30 select-none"
+              style={{ top: '14px', left: sidebarHovered ? '248px' : '72px', transition: 'left 0.3s' }}
+            >
+              <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '72px', borderRadius: '10px', display: 'block' }} />
+            </div>
+          )}
+
           {/* Left Column: Stacked panels (w-80) */}
           {currentView === 'master' && (
             <div 
-              className="absolute z-20 top-16 w-72 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-300"
+              className="absolute z-20 top-[104px] w-72 flex flex-col gap-4 max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-300"
               style={{ left: sidebarHovered ? '236px' : '60px' }}
             >
               
               {/* 1. OPERATIONAL MONITOR & ZONE METRICS */}
               {showMonitor && (
-                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
-              <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">OPERATIONAL MONITOR</h3>
-              <div className="space-y-3">
-                {[
-                  [displayUtilizationLabel, `${utilTotal}%`, 'var(--cyan)'],
-                  ['CÒN TRỐNG', `${free}`, 'var(--green)'],
-                  ['Ô ĐANG DÙNG', `${usedCells}/${CHUTE_RACKS.length}`, '#fff']
-                ].map(([label, val, col]) => (
-                  <div key={label} className="flex justify-between items-center text-[13px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
-                    <span>{label}</span>
-                    <span className="mono font-bold text-[15px]" style={{color: col}}>{val}</span>
-                  </div>
-                ))}
-                <div className="h-1.5 rounded bg-[var(--line)] overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-[var(--green)] to-[var(--cyan)] transition-all duration-1000"
-                       style={{width:`${Math.min(100,Number(utilTotal))}%`}}/>
-                </div>
-              </div>
+                <div className="jt-glowing-card shadow-2xl p-5 shrink-0">
 
-              {/* Zone metrics section */}
-              <div className="mt-5 pt-4 border-t border-[var(--line)]">
-                <h4 className="disp text-[10px] tracking-[0.12em] text-[var(--muted)] mb-3">ZONE METRICS (CHI TIẾT PHÂN KHU)</h4>
-                <div className="space-y-3">
-                  {[
-                    { id: 3, name: 'ZONE 3 CHUTES (A00-A04)', color: 'var(--green)' },
-                    { id: 2, name: 'ZONE 2 CHUTES (A05-A11)', color: 'var(--yellow)' },
-                    { id: 1, name: 'ZONE 1 CHUTES (A12-A19)', color: 'var(--orange)' }
-                  ].map(zone => {
-                    const stats = zoneStats[zone.id];
-                    const isHovered = hoveredZone === zone.id;
-                    return (
-                      <div 
-                        key={zone.id} 
-                        className={`p-2.5 rounded-md border transition-all duration-300 cursor-pointer ${
-                          isHovered 
-                            ? 'bg-[#101622]/90 border-white/20 shadow-[0_0_12px_rgba(255,255,255,0.05)]' 
-                            : 'bg-[#101622]/40 border-white/5 hover:border-white/10'
-                        }`}
-                        style={isHovered ? { borderColor: zone.color, boxShadow: `0 0 10px ${zone.color}22` } : {}}
-                        onMouseEnter={() => setHoveredZone(zone.id)}
-                        onMouseLeave={() => setHoveredZone(null)}
-                      >
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-bold text-[10px] tracking-wide max-w-[170px]" style={{ color: zone.color }}>
-                            {zone.name} <span className="text-[9px] font-bold text-slate-400 ml-1">({(stats as any).totalShare}%)</span>
-                          </span>
-                          <span className="mono text-[11px] font-bold text-white flex flex-col items-end shrink-0">
-                            <span>{stats.current.toLocaleString()} đơn</span>
-                            <span className="text-[9.5px] text-slate-400 font-medium mt-0.5">{stats.weight.toLocaleString()} kg</span>
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] text-[var(--muted)] mb-1.5 mt-2">
-                          <span>{displayUtilizationLabelLc}</span>
-                          <span className="mono font-bold text-white">{stats.fillRate}%</span>
-                        </div>
-                        <div className="h-1 rounded bg-[var(--line)] overflow-hidden">
-                          <div className="h-full transition-all duration-500"
-                               style={{ 
-                                 width: `${Math.min(100, Number(stats.fillRate))}%`,
-                                 backgroundColor: zone.color
-                               }}/>
-                        </div>
+                  {/* Title */}
+                  <h3 className="font-outfit text-sm font-extrabold tracking-widest mb-4 text-[var(--cyan)]" style={{ margin: 0, marginBottom: '14px' }}>OPERATIONAL MONITOR</h3>
+
+                  {/* Top 2-column metrics */}
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="bg-[#101622]/70 border border-white/8 rounded-lg px-3 py-2.5">
+                      <div className="text-[10px] font-bold tracking-widest text-slate-400 mb-1 uppercase">{displayUtilizationLabel}</div>
+                      <div className="disp font-extrabold text-[28px] leading-none" style={{ color: 'var(--cyan)' }}>{utilTotal}%</div>
+                    </div>
+                    <div className="bg-[#101622]/70 border border-white/8 rounded-lg px-3 py-2.5">
+                      <div className="text-[10px] font-bold tracking-widest text-slate-400 mb-1 uppercase">CÒN TRỐNG</div>
+                      <div className="disp font-extrabold text-[28px] leading-none" style={{ color: 'var(--green)' }}>{free.toLocaleString()}</div>
+                    </div>
+                  </div>
+
+                  {/* Ô đang dùng - full width progress row */}
+                  <div className="bg-[#101622]/70 border border-white/8 rounded-lg px-3 py-2 mb-4">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Ô ĐANG DÙNG</span>
+                      <span className="mono font-bold text-white text-[12px]">{usedCells}/{CHUTE_RACKS.length}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-[var(--line)] overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-[var(--cyan)] to-[var(--green)] transition-all duration-1000"
+                           style={{ width: `${Math.min(100, (usedCells / CHUTE_RACKS.length) * 100)}%` }} />
+                    </div>
+                  </div>
+
+                  {/* Zone metrics section */}
+                  <div className="mb-4">
+                    <h4 className="text-[10px] font-bold tracking-widest text-slate-400 mb-3 uppercase">ZONE METRICS (CHI TIẾT PHÂN KHU)</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      {[
+                        { id: 3, shortName: 'ZONE 3 CHUTES', sub: '(A00-A04)', color: 'var(--green)' },
+                        { id: 2, shortName: 'ZONE 2 CHUTES', sub: '(A05-A11)', color: 'var(--yellow)' },
+                        { id: 1, shortName: 'ZONE 1 CHUTES', sub: '(A12-A19)', color: 'var(--orange)' }
+                      ].map(zone => {
+                        const stats = zoneStats[zone.id];
+                        const isHovered = hoveredZone === zone.id;
+                        return (
+                          <div
+                            key={zone.id}
+                            className="bg-[#0d1420]/80 border rounded-lg p-2.5 cursor-pointer transition-all duration-300"
+                            style={{
+                              borderColor: isHovered ? zone.color : 'rgba(255,255,255,0.06)',
+                              boxShadow: isHovered ? `0 0 12px ${zone.color}33` : 'none'
+                            }}
+                            onMouseEnter={() => setHoveredZone(zone.id)}
+                            onMouseLeave={() => setHoveredZone(null)}
+                          >
+                            <div className="font-extrabold text-[9.5px] leading-tight mb-2" style={{ color: zone.color }}>
+                              {zone.shortName}<br/><span className="font-bold">{zone.sub}</span>
+                            </div>
+                            <div className="mono font-bold text-white text-[11px] leading-tight">{stats.current.toLocaleString()} đơn</div>
+                            <div className="text-[9px] text-slate-400 mb-1">({(stats as any).totalShare}%)&nbsp;&nbsp;{stats.weight.toLocaleString()} kg</div>
+                            <div className="flex justify-between items-center text-[9px] text-slate-400 mb-1">
+                              <span>% {displayUtilizationLabelLc}</span>
+                              <span className="mono font-bold text-white">{stats.fillRate}%</span>
+                            </div>
+                            <div className="h-1 rounded-full bg-[var(--line)] overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-500"
+                                   style={{ width: `${Math.min(100, Number(stats.fillRate))}%`, backgroundColor: zone.color }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Chi tiết ô chứa */}
+                  <div className="border-t border-[var(--line)] pt-3">
+                    <h4 className="text-[10px] font-bold tracking-widest text-slate-400 mb-2 uppercase">CHI TIẾT Ô CHỨA</h4>
+                    {hoveredRack ? (
+                      <div className="space-y-1.5 bg-[#101622]/60 rounded-md p-2.5 border border-white/5">
+                        {[
+                          ['Mã ô', hoveredRack.areaId, 'var(--cyan)'],
+                          ['Tên', hoveredRack.name, '#fff'],
+                          ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#fff'],
+                          ['Trọng lượng', `${(hoveredRack.weight || 0).toLocaleString()} kg`, '#fff'],
+                          [displayUtilizationLabelLc, `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
+                        ].map(([k,v,c]) => (
+                          <div key={k} className="flex justify-between">
+                            <span className="text-[10px] text-[var(--muted)]">{k}:</span>
+                            <span className="mono text-[10px] font-bold truncate max-w-[130px]" style={{color:c}}>{v}</span>
+                          </div>
+                        ))}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Chi tiết ô chứa (nếu có hover) */}
-              <div className="mt-5 pt-4 border-t border-[var(--line)]">
-                <h4 className="disp text-[10px] tracking-[0.12em] text-[var(--muted)] mb-3">CHI TIẾT Ô CHỨA</h4>
-                {hoveredRack ? (
-                  <div className="space-y-2 bg-[#101622]/60 rounded-md p-3 border border-white/5">
-                    {[
-                      ['Mã ô', hoveredRack.areaId, 'var(--cyan)'],
-                      ['Tên', hoveredRack.name, '#fff'],
-                      ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#fff'],
-                      ['Trọng lượng', `${(hoveredRack.weight || 0).toLocaleString()} kg`, '#fff'],
-                      [displayUtilizationLabelLc, `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
-                    ].map(([k,v,c]) => (
-                      <div key={k} className="flex justify-between">
-                        <span className="text-[11px] text-[var(--muted)]">{k}:</span>
-                        <span className="mono text-[11px] font-bold truncate max-w-[150px]" style={{color:c}}>{v}</span>
+                    ) : (
+                      <div className="text-center py-3 text-[10px] text-[var(--muted)] border border-dashed border-[var(--line)] rounded-md">
+                        Rê chuột vào ô để xem thông tin chi tiết
                       </div>
-                    ))}
+                    )}
                   </div>
-                ) : (
-                  <div className="text-center py-6 text-[11px] text-[var(--muted)] border border-dashed border-[var(--line)] rounded-md">
-                    Rê chuột vào ô để xem thông tin chi tiết
-                  </div>
-                )}
-              </div>
-            </div>
-            )}
 
-            {/* 2. REAL-TIME TELEMETRY */}
-            {showTelemetry && (
-              <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 w-full">
-              <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">REAL-TIME TELEMETRY</h3>
-              <div className="space-y-4">
-                <div className="p-3 text-center border-b border-[var(--line)] bg-[#101622]/30 rounded-md">
-                  <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">TỔNG ĐƠN HÀNG</div>
-                  <div className="disp font-extrabold text-3xl text-[var(--cyan)]">{totalOrders.toLocaleString()}</div>
-                  <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">ĐƠN HÀNG / KHO</div>
                 </div>
-                <div className="p-3 text-center bg-[#101622]/30 rounded-md">
-                  <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">TỔNG TRỌNG LƯỢNG</div>
-                  <div className="disp font-extrabold text-2xl text-[var(--green)]">
-                    {Math.ceil(totalWeight).toLocaleString()} kg
-                  </div>
-                  <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">TRỌNG LƯỢNG KHO</div>
-                </div>
-              </div>
-            </div>
               )}
+
+            {showTelemetry && (
+              <div className="jt-glowing-card shadow-2xl p-5 shrink-0 w-full">
+                <h3 className="font-outfit text-sm font-extrabold tracking-widest mb-4 text-[var(--cyan)]" style={{ margin: 0, marginBottom: '14px' }}>REAL-TIME TELEMETRY</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="text-center">
+                    <div className="text-[10px] font-bold tracking-widest text-slate-400 mb-1 uppercase">TỔNG ĐƠN HÀNG</div>
+                    <div className="disp font-extrabold text-[32px] leading-none" style={{ color: 'var(--cyan)' }}>
+                      <NumberTicker value={totalOrders} />
+                    </div>
+                    <div className="text-[9px] tracking-widest text-slate-500 mt-1.5 uppercase">Đơn hàng / kho</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-[10px] font-bold tracking-widest text-slate-400 mb-1 uppercase">TỔNG TRỌNG LƯỢNG</div>
+                    <div className="disp font-extrabold text-[28px] leading-none" style={{ color: 'var(--green)' }}>
+                      <NumberTicker value={Math.round(totalWeight)} /> kg
+                    </div>
+                    <div className="text-[9px] tracking-widest text-slate-500 mt-1.5 uppercase">Trọng lượng kho</div>
+                  </div>
+                </div>
+              </div>
+            )}
             </div>
           )}
 
           {/* Right Column: Control Center & Top 10 Racks (w-90) */}
           {currentView === 'master' && (
-            <div className="absolute z-40 top-16 right-6 w-90 flex flex-col gap-8 max-h-[calc(100vh-100px)] overflow-visible pr-2 pb-6">
+            <div className="absolute z-40 top-16 right-6 w-90 flex flex-col gap-4 max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-6 scrollbar-none">
               {/* A. Control Center Panel */}
               {showControls && (
-                <div className="bg-[var(--panel)] border border-[var(--panel-border)] border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 transition-all duration-300 hover:border-[var(--panel-border-hover)] hover:shadow-[0_0_30px_rgba(139,92,246,0.12)]">
+                <div className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-20">
                   {currentView === 'master' ? (
                     <>
-                      <h3 className="disp text-[11px] font-bold tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[var(--accent)]">CONTROL CENTER</h3>
-                      <div className="space-y-4">
+                      <h3 className="font-outfit text-[12px] font-bold tracking-[0.08em] pb-3 mb-4 border-b border-white/[0.08] text-[var(--accent)] text-center" style={{ margin: 0 }}>CONTROL CENTER</h3>
+                      <div className="space-y-6">
                         {/* 1. LOẠI (Type Selector) - Segmented Control */}
-                        <div className="space-y-2">
-                          <div className="mono text-[9px] font-semibold tracking-[0.08em] text-[var(--text-muted)]">LOẠI DỮ LIỆU</div>
-                          <div className="flex bg-[#05030a] border border-[var(--panel-border)] rounded-full p-1 w-full">
-                            {(['Outbound', 'Backlog', 'Inventory'] as const).map(type => {
-                              const isActive = selectedType === type;
-                              const labelMap = { Outbound: 'Outbound', Backlog: 'Backlog', Inventory: 'Volume' };
-                              return (
-                                <button
-                                  key={type}
-                                  onClick={() => setSelectedType(type)}
-                                  className={`flex-1 text-center py-1.5 rounded-full text-[11px] font-bold transition-all duration-300 relative z-10 ${
-                                    isActive
-                                      ? 'text-[#f8fafc] bg-[var(--accent)] shadow-[0_0_12px_rgba(13,131,70,0.4)]'
-                                      : 'text-[var(--text-secondary)] hover:text-[#f8fafc]'
-                                  }`}
-                                >
-                                  {labelMap[type]}
-                                </button>
-                              );
-                            })}
-                          </div>
+                        <div className="flex bg-black/35 rounded-lg p-0.5 w-full">
+                          {(['Outbound', 'Backlog', 'Inventory'] as const).map(type => {
+                            const isActive = selectedType === type;
+                            const labelMap = { Outbound: 'Outbound', Backlog: 'Backlog', Inventory: 'Volume' };
+                            return (
+                              <button
+                                key={type}
+                                onClick={() => setSelectedType(type)}
+                                className={`flex-1 text-center py-1.5 rounded-md text-[11.5px] font-bold transition-all duration-200 relative z-10 ${
+                                  isActive
+                                    ? 'text-white bg-emerald-500/20 shadow-[0_2px_8px_rgba(16,185,129,0.25)]'
+                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                }`}
+                              >
+                                {labelMap[type]}
+                              </button>
+                            );
+                          })}
                         </div>
 
                         {/* 2. NGÀY (Date Selector) - Custom Dropdown (100% giống INBOUND CONTROL) */}
-                        <div className="space-y-2 relative z-50">
-                          <div className="mono text-[9px] font-semibold tracking-[0.08em] text-[var(--text-muted)]">NGÀY BÁO CÁO</div>
-                          <div className={`custom-datepicker ${masterDateDropdownOpen ? 'open' : ''} w-full`}>
+                        <div className="relative z-50 w-full flex justify-center">
+                          <div className={`custom-datepicker ${masterDateDropdownOpen ? 'open' : ''} w-[170px]`}>
                             <button 
-                              className="datepicker-trigger w-full flex justify-between items-center bg-[#05030a] border border-[var(--panel-border)] hover:border-[var(--panel-border-hover)] rounded-md px-3 py-2 text-[11px] font-medium text-white transition-all duration-200"
+                              className="datepicker-trigger w-full flex justify-between items-center py-1 px-3 whitespace-nowrap flex-nowrap"
+                              style={{ fontSize: '11px' }}
                               onClick={() => setMasterDateDropdownOpen(!masterDateDropdownOpen)}
                             >
-                              <div className="flex items-center">
-                                <i className="fa-regular fa-calendar-days icon-cal text-[var(--accent)]" style={{ marginRight: '8px' }}></i>
-                                <span>{selectedDate || 'Chọn ngày'}</span>
+                              <div className="flex items-center shrink-0">
+                                <i className="fa-regular fa-calendar-days icon-cal text-[#22d3ee] text-[13px]" style={{ marginRight: '6px' }}></i>
+                                <span className="font-bold text-slate-200 whitespace-nowrap" style={{ fontSize: '11px' }}>{selectedDate || 'Chọn ngày'}</span>
                               </div>
-                              <i className="fa-solid fa-chevron-down icon-arrow text-slate-500 text-[9px] transition-transform duration-200" style={{ transform: masterDateDropdownOpen ? 'rotate(180deg)' : 'none' }}></i>
+                              <i className="fa-solid fa-chevron-down icon-arrow text-slate-500 text-[9px]" style={{ transform: masterDateDropdownOpen ? 'rotate(180deg)' : 'none' }}></i>
                             </button>
                             {masterDateDropdownOpen && (
-                              <div className="datepicker-dropdown absolute left-0 right-0 mt-1 bg-[#120f22] border border-[var(--panel-border)] rounded-lg shadow-2xl p-3 z-[9999]">
-                                <div className="datepicker-presets grid grid-cols-2 gap-2 mb-2">
+                              <div className="datepicker-dropdown shadow-2xl" style={{ left: '50%', transform: 'translateX(-50%)', width: '180px', padding: '8px', opacity: 1, pointerEvents: 'auto' }}>
+                                <div className="datepicker-presets">
                                   <button 
-                                    className="preset-btn bg-[#05030a] border border-white/5 hover:border-[var(--panel-border-hover)] rounded-md py-1.5 text-[10.5px] text-[var(--text-secondary)] hover:text-white transition-all font-semibold"
+                                    className="preset-btn text-[8.5px] hover:text-[#22d3ee] hover:border-[#22d3ee]/30 transition-all"
                                     onClick={() => {
                                       if (availableDates.length > 0) {
                                         setSelectedDate(availableDates[0]);
@@ -1650,7 +1677,7 @@ export default function App() {
                                     Hôm nay
                                   </button>
                                   <button 
-                                    className="preset-btn bg-[#05030a] border border-white/5 hover:border-[var(--panel-border-hover)] rounded-md py-1.5 text-[10.5px] text-[var(--text-secondary)] hover:text-white transition-all font-semibold"
+                                    className="preset-btn text-[8.5px] hover:text-[#22d3ee] hover:border-[#22d3ee]/30 transition-all"
                                     onClick={() => {
                                       if (availableDates.length > 1) {
                                         setSelectedDate(availableDates[1]);
@@ -1661,24 +1688,27 @@ export default function App() {
                                     Hôm qua
                                   </button>
                                 </div>
-                                <div className="datepicker-list-header text-[9.5px] text-[var(--text-muted)] font-semibold mb-2 select-none uppercase tracking-wider">Chọn ngày vận hành (30 ngày gần đây)</div>
-                                <div className="datepicker-list max-h-[160px] overflow-y-auto space-y-1 pr-1 scrollbar-thin">
-                                  {availableDates.map(d => (
-                                    <button
-                                      key={d}
-                                      className={`datepicker-list-item w-full text-left px-3 py-1.5 rounded text-[11px] transition-all ${
-                                        d === selectedDate 
-                                          ? 'bg-cyan-500/10 text-[var(--cyan)] font-bold border-l-2 border-[var(--cyan)]' 
-                                          : 'text-[var(--text-secondary)] hover:bg-white/5 hover:text-white'
-                                      }`}
-                                      onClick={() => {
-                                        setSelectedDate(d);
-                                        setMasterDateDropdownOpen(false);
-                                      }}
-                                    >
-                                      {d}
-                                    </button>
-                                  ))}
+                                <div className="datepicker-list-header text-[7.5px]">Chọn ngày vận hành (30 ngày gần đây)</div>
+                                <div className="datepicker-list max-h-[96px] overflow-y-auto pr-1 scrollbar-thin">
+                                  {availableDates.map(d => {
+                                    const isActive = d === selectedDate;
+                                    return (
+                                      <button
+                                        key={d}
+                                        className={`datepicker-item text-[9px] transition-all ${
+                                          isActive 
+                                            ? 'bg-cyan-500/10 text-[#22d3ee] font-bold border-l-2 border-[#22d3ee]' 
+                                            : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                                        }`}
+                                        onClick={() => {
+                                          setSelectedDate(d);
+                                          setMasterDateDropdownOpen(false);
+                                        }}
+                                      >
+                                        {d}
+                                      </button>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}
@@ -1686,44 +1716,35 @@ export default function App() {
                         </div>
 
                         {/* 3. TRẠNG THÁI (Status Selector) - Modern Toggle Buttons */}
-                        <div className={`space-y-2 transition-all duration-300 ${
+                        <div className={`grid grid-cols-2 gap-2 transition-all duration-300 ${
                           selectedType !== 'Inventory' ? 'opacity-30 pointer-events-none select-none filter blur-[0.4px]' : 'opacity-100'
                         }`}>
-                          <div className="mono text-[9px] font-semibold tracking-[0.08em] text-[var(--text-muted)]">TRẠNG THÁI (VOLUME)</div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              onClick={toggleAllStatuses}
-                              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[11px] font-medium transition-all duration-200 ${
-                                selectedStatuses.length === INVENTORY_STATUSES.length
-                                  ? 'bg-yellow-500/10 border-[var(--yellow)] text-[var(--yellow)] font-bold shadow-[0_0_10px_rgba(234,179,8,0.2)]'
-                                  : 'bg-[#05030a]/40 border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)] hover:text-[#f8fafc]'
-                              }`}
-                            >
-                              <span className={`w-2 h-2 rounded-full ${
-                                selectedStatuses.length === INVENTORY_STATUSES.length ? 'bg-[var(--yellow)] animate-pulse' : 'bg-slate-600'
-                              }`} />
-                              Tất cả
-                            </button>
-                            {INVENTORY_STATUSES.map(status => {
-                              const isChecked = selectedStatuses.includes(status);
-                              return (
-                                <button
-                                  key={status}
-                                  onClick={() => toggleStatus(status)}
-                                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[10.5px] font-medium transition-all duration-200 ${
-                                    isChecked
-                                      ? 'bg-yellow-500/10 border-[var(--yellow)] text-[var(--yellow)] font-bold shadow-[0_0_10px_rgba(234,179,8,0.2)]'
-                                      : 'bg-[#05030a]/40 border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)] hover:text-[#f8fafc]'
-                                  }`}
-                                >
-                                  <span className={`w-2 h-2 rounded-full ${
-                                    isChecked ? 'bg-[var(--yellow)] animate-pulse' : 'bg-slate-600'
-                                  }`} />
-                                  {status}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          <button
+                            onClick={toggleAllStatuses}
+                            className={`flex items-center justify-center px-2.5 py-1.5 rounded-lg text-[11.5px] font-bold transition-all duration-200 ${
+                              selectedStatuses.length === INVENTORY_STATUSES.length
+                                ? 'bg-emerald-500/15 text-emerald-400 shadow-[0_4px_12px_rgba(0,0,0,0.3),_0_0_8px_rgba(16,185,129,0.15)] hover:translate-y-[-1px]'
+                                : 'bg-white/[0.04] shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-slate-400 hover:bg-white/[0.07] hover:text-white hover:translate-y-[-1px]'
+                            }`}
+                          >
+                            Tất cả
+                          </button>
+                          {INVENTORY_STATUSES.map(status => {
+                            const isChecked = selectedStatuses.includes(status);
+                            return (
+                              <button
+                                key={status}
+                                onClick={() => toggleStatus(status)}
+                                className={`flex items-center justify-center px-2.5 py-1.5 rounded-lg text-[11.5px] font-bold transition-all duration-200 ${
+                                  isChecked
+                                    ? 'bg-emerald-500/15 text-emerald-400 shadow-[0_4px_12px_rgba(0,0,0,0.3),_0_0_8px_rgba(16,185,129,0.15)] hover:translate-y-[-1px]'
+                                    : 'bg-white/[0.04] shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-slate-400 hover:bg-white/[0.07] hover:text-white hover:translate-y-[-1px]'
+                                }`}
+                              >
+                                {status}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     </>
@@ -1773,37 +1794,32 @@ export default function App() {
               {/* B. TOP 10 RACKS */}
               {currentView === 'master' && showTop10 && (
                 <div 
-                  className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 mt-8 relative z-10"
-                  style={{ pointerEvents: masterDateDropdownOpen ? 'none' : 'auto' }}
+                  className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-10 animate-fade-in"
+                  style={{ pointerEvents: masterDateDropdownOpen ? 'none' : 'auto', marginTop: '64px' }}
                 >
-                  <h3 className="disp text-[11px] font-bold tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)] uppercase">
-                    {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC NHIỀU HÀNG NHẤT'}
-                  </h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                  {/* Header Title */}
+                  <div className="flex justify-center items-center mb-2.5 pb-2.5 border-b border-white/[0.08]">
+                    <h3 className="font-outfit text-[11px] font-bold tracking-[0.08em] text-[var(--accent)] uppercase text-center" style={{ margin: 0 }}>
+                      {selectedType === 'Outbound' ? 'DỰ KIẾN SẢN LƯỢNG BƯU CỤC  TOP 10' : 'DỰ KIẾN TỒN KHO BƯU CỤC  TOP 10'}
+                    </h3>
+                  </div>
+
+                  <div className="table-wrapper" style={{ maxHeight: '330px', overflowY: 'auto' }}>
+                    <table className="jt-grid-table">
                       <thead>
-                        <tr className="border-b border-[var(--line)] text-[10px] text-[var(--muted)] uppercase mono font-bold">
-                          <th className="py-1 w-6">#</th>
-                          <th className="py-1 w-10">Mã</th>
-                          <th className="py-1">Bưu Cục</th>
-                          <th className="py-1 text-right w-14">{selectedType === 'Outbound' ? 'Xuất' : 'Tồn'}</th>
-                          <th className="py-1 text-right w-20 whitespace-nowrap">T.lượng</th>
-                          <th className="py-1 text-right w-10">{displayUtilizationLabelLc}</th>
+                        <tr style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                          <th style={{ width: '25px', textAlign: 'center' }}>#</th>
+                          <th style={{ width: '35px', color: '#22d3ee', textAlign: 'center' }}>MÃ</th>
+                          <th style={{ textAlign: 'left' }}>BƯU CỤC</th>
+                          <th style={{ textAlign: 'center', width: '45px', color: '#10b981' }}>{selectedType === 'Outbound' ? 'XUẤT' : 'TỒN'}</th>
+                          <th style={{ textAlign: 'center', width: '70px' }}>T.LƯỢNG</th>
+                          <th style={{ textAlign: 'center', width: '60px', color: '#10b981' }}>%Volume</th>
                         </tr>
                       </thead>
                       <tbody>
                         {getTop10Chutes().map((chute, index) => {
-                          const colors: Record<string, string> = {
-                            green: 'var(--green)',
-                            yellow: 'var(--yellow)',
-                            orange: 'var(--orange)',
-                            red: 'var(--red)',
-                            darkred: 'var(--red)'
-                          };
-                          const col = colors[chute.bucket] || '#fff';
-
                           return (
-                            <tr key={chute.areaId} className="border-b border-[#1e2942]/20 last:border-0 hover:bg-white/5 transition-colors cursor-pointer text-[11px]"
+                            <tr key={chute.areaId} className="cursor-pointer"
                                 onMouseEnter={() => {
                                   const d = data[chute.areaId];
                                   setHoveredRack({ areaId: chute.areaId, name: chute.name, ...d });
@@ -1813,14 +1829,14 @@ export default function App() {
                                   setHoveredRack(null);
                                   setHoveredZone(null);
                                 }}>
-                              <td className="py-1 text-[var(--muted)] mono">{index + 1}</td>
-                              <td className="py-1 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
-                              <td className="py-1 truncate max-w-[80px] font-medium text-white/95" title={chute.name}>
-                                {chute.name}
+                              <td className="font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.2)' }}>{index + 1}</td>
+                              <td className="mono font-bold text-center" style={{ color: '#22d3ee', fontSize: '11.5px', textShadow: '0 0 8px rgba(34, 211, 238, 0.5)' }}>{chute.areaId}</td>
+                              <td className="font-bold text-white uppercase" style={{ fontSize: '11px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2' }} title={chute.name}>
+                                {chute.name.replace(/^(SG|BD|TG|DT|DN|LA)\s+/i, '')}
                               </td>
-                              <td className="py-1 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
-                              <td className="py-1 text-right mono text-slate-300 whitespace-nowrap">{Math.round(chute.weight).toLocaleString()} kg</td>
-                              <td className="py-1 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
+                              <td className="mono font-bold text-center" style={{ color: '#10b981', fontSize: '12px', textShadow: '0 0 8px rgba(16, 185, 129, 0.65)' }}>{chute.current.toLocaleString()}</td>
+                              <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>{(chute.weight / 1000).toFixed(2)} Tấn</td>
+                              <td className="mono font-bold text-center" style={{ color: '#10b981', fontSize: '11.5px', textShadow: '0 0 8px rgba(16, 185, 129, 0.65)' }}>{chute.utilization}%</td>
                             </tr>
                           );
                         })}
@@ -1850,7 +1866,7 @@ export default function App() {
 
           {/* Aligned bottom right buttons */}
           {currentView === 'master' && (
-            <div className="absolute bottom-16 right-6 z-20 flex gap-3 w-90 justify-between" >
+            <div className="absolute bottom-16 right-6 z-20 flex gap-3 w-[300px] justify-between" >
               {currentView === 'master' ? (
                 <button onClick={handleResetZoom}
                         className="flex-1 font-sans font-bold text-[10.5px] uppercase py-2.5 px-4 rounded-md border border-white/20 bg-[var(--panel)] text-[var(--muted)] cursor-pointer hover:bg-white/10 hover:text-white transition-all shadow-lg text-center">
@@ -2004,44 +2020,49 @@ export default function App() {
 
             {activeTab === 'top10' && (
               <div className="w-full h-full overflow-y-auto px-1 pt-2">
-                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg p-4 shadow-xl">
-                  <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)] text-center">
-                    {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
-                  </h3>
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-[var(--line)] text-[10px] text-[var(--muted)] uppercase mono font-bold">
-                        <th className="py-2 w-8">#</th>
-                        <th className="py-2 w-12">Mã</th>
-                        <th className="py-2">Bưu Cục</th>
-                        <th className="py-2 text-right w-16">{selectedType === 'Outbound' ? 'Lượng xuất' : 'Tồn'}</th>
-                        <th className="py-2 text-right w-20 whitespace-nowrap">T.lượng</th>
-                        <th className="py-2 text-right w-12">%</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {getTop10Chutes().map((chute, index) => {
-                        const colors: Record<string, string> = {
-                          green: 'var(--green)',
-                          yellow: 'var(--yellow)',
-                          orange: 'var(--orange)',
-                          red: 'var(--red)',
-                          darkred: 'var(--red)'
-                        };
-                        const col = colors[chute.bucket] || '#fff';
-                        return (
-                          <tr key={chute.areaId} className="border-b border-[#1e2942]/20 last:border-0 hover:bg-white/5 transition-colors text-[11px]">
-                            <td className="py-2 text-[var(--muted)] mono">{index + 1}</td>
-                            <td className="py-2 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
-                            <td className="py-2 truncate max-w-[90px] font-medium text-white/95">{chute.name}</td>
-                            <td className="py-2 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
-                            <td className="py-2 text-right mono text-slate-300 whitespace-nowrap">{Math.round(chute.weight).toLocaleString()} kg</td>
-                            <td className="py-2 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                <div className="glass-card p-5 shadow-2xl">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px', marginBottom: '16px' }}>
+                    <h3 className="disp text-xs tracking-[0.14em] text-[var(--accent)] font-bold uppercase" style={{ margin: 0 }}>
+                      {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
+                    </h3>
+                    <span className="badge-count sky">Top 10</span>
+                  </div>
+                  <div className="premium-table-wrapper">
+                    <table className="premium-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '40px' }}>#</th>
+                          <th style={{ width: '60px' }}>Mã</th>
+                          <th>Bưu Cục</th>
+                          <th style={{ textAlign: 'right', width: '90px' }}>{selectedType === 'Outbound' ? 'Lượng xuất' : 'Tồn'}</th>
+                          <th style={{ textAlign: 'right', width: '100px' }}>T.lượng</th>
+                          <th style={{ textAlign: 'right', width: '60px' }}>%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getTop10Chutes().map((chute, index) => {
+                          const colors: Record<string, string> = {
+                            green: '#10b981',
+                            yellow: '#f59e0b',
+                            orange: '#f97316',
+                            red: '#ef4444',
+                            darkred: '#ef4444'
+                          };
+                          const col = colors[chute.bucket] || '#fff';
+                          return (
+                            <tr key={chute.areaId}>
+                              <td className="table-index">{index + 1}</td>
+                              <td className="num-tabular font-bold" style={{ color: 'var(--cyan)' }}>{chute.areaId}</td>
+                              <td className="table-buucuc">{chute.name}</td>
+                              <td className="num-tabular" style={{ textAlign: 'right', fontWeight: 600 }}>{chute.current.toLocaleString()}</td>
+                              <td className="num-tabular" style={{ textAlign: 'right', color: '#cbd5e1' }}>{Math.round(chute.weight).toLocaleString()} kg</td>
+                              <td className="num-tabular" style={{ textAlign: 'right', fontWeight: 'bold', color: col }}>{chute.utilization}%</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}

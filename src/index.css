@@ -3,21 +3,21 @@
 
 
 :root {
-  --void: #05030a;
-  --panel: #120f22;
-  --line: rgba(139, 92, 246, 0.16);
+  --void: #02040a;
+  --panel: rgba(11, 15, 25, 0.45);
+  --line: rgba(255, 255, 255, 0.05);
   --ink: #f8fafc;
-  --muted: #a0aec0;
-  --accent: #0d8346;
-  --cyan: #00e5ff;
-  --green: #0d8346;
-  --yellow: #eab308;
+  --muted: #94a3b8;
+  --accent: #10b981;
+  --cyan: #06b6d4;
+  --green: #10b981;
+  --yellow: #f59e0b;
   --orange: #f97316;
   --red: #ef4444;
-  --purple: #a78bfa;
-  --darkred: #7f1d1d;
-  --gate: #9aa7c2;
-  --inbound: #00e5ff;
+  --purple: #8b5cf6;
+  --darkred: #991b1b;
+  --gate: #475569;
+  --inbound: #06b6d4;
 }
 
 * {
@@ -351,36 +351,36 @@ body {
 
 
 
-/* === CUSTOM CYBERPUNK INBOUND STYLES === */
+/* === CUSTOM OBSIDIAN INBOUND STYLES === */
 :root {
-  --background: #05030a; /* Darker pitch black background */
-  --panel-bg: #120f22; /* Lighter solid panel background for contrast */
-  --panel-border: rgba(139, 92, 246, 0.16); /* Pronounced borders to see chart cards clearly */
-  --panel-border-hover: rgba(139, 92, 246, 0.35);
+  --background: #02040a;
+  --panel-bg: rgba(11, 15, 25, 0.45);
+  --panel-border: rgba(255, 255, 255, 0.05);
+  --panel-border-hover: rgba(255, 255, 255, 0.12);
   
   --text-primary: #f8fafc;
-  --text-secondary: #a0aec0;
-  --text-muted: #5a6578;
+  --text-secondary: #94a3b8;
+  --text-muted: #475569;
   
-  --accent-purple: #00E5FF; /* Neon Cyan for Actual Pickup */
-  --accent-purple-glow: rgba(0, 229, 255, 0.15);
-  --accent-purple-border: rgba(0, 229, 255, 0.3);
+  --accent-purple: #8b5cf6;
+  --accent-purple-glow: rgba(139, 92, 246, 0.12);
+  --accent-purple-border: rgba(139, 92, 246, 0.2);
   
-  --accent-lime: #C8FF3D; /* Lime for Arrived */
-  --accent-lime-glow: rgba(200, 255, 61, 0.15);
-  --accent-lime-border: rgba(200, 255, 61, 0.3);
+  --accent-lime: #f59e0b;
+  --accent-lime-glow: rgba(245, 158, 11, 0.12);
+  --accent-lime-border: rgba(245, 158, 11, 0.2);
   
-  --accent-green: #B8F7E4; /* Mint for Inbound */
-  --accent-green-glow: rgba(184, 247, 228, 0.15);
-  --accent-green-border: rgba(184, 247, 228, 0.3);
+  --accent-green: #10b981;
+  --accent-green-glow: rgba(16, 185, 129, 0.12);
+  --accent-green-border: rgba(16, 185, 129, 0.2);
   
-  --accent-orange: #FC6C26; /* Forecast Orange */
-  --accent-orange-glow: rgba(252, 108, 38, 0.15);
-  --accent-orange-border: rgba(252, 108, 38, 0.3);
+  --accent-orange: #f97316;
+  --accent-orange-glow: rgba(249, 115, 22, 0.12);
+  --accent-orange-border: rgba(249, 115, 22, 0.2);
 
   --accent-red: #ef4444;
 
-  --font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -566,12 +566,12 @@ body {
 
 .datepicker-trigger:hover {
   background: rgba(15, 23, 42, 0.85);
-  border-color: var(--accent-purple-border);
-  box-shadow: 0 0 12px rgba(139, 92, 246, 0.25);
+  border-color: rgba(6, 182, 212, 0.4);
+  box-shadow: 0 0 12px rgba(6, 182, 212, 0.25);
 }
 
 .datepicker-trigger .icon-cal {
-  color: var(--accent-purple);
+  color: #22d3ee;
   font-size: 0.95rem;
 }
 
@@ -1323,3 +1323,216 @@ body {
     margin-right: 12px;
   }
 }
+
+/* ==========================================
+   PREMIUM GLASSMORPHIC DESIGN SYSTEM
+   ========================================== */
+.glass-card {
+  background: rgba(15, 23, 42, 0.4) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+}
+
+.glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.08) !important;
+}
+
+/* Premium Tables */
+.premium-table-wrapper {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(10, 10, 18, 0.2);
+}
+
+.premium-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 13px;
+  text-align: left;
+}
+
+.premium-table th {
+  background: rgba(15, 23, 42, 0.8) !important;
+  color: #94a3b8 !important;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.premium-table td {
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  color: rgba(248, 250, 252, 0.85);
+  font-family: 'Inter', sans-serif;
+  transition: all 0.2s ease;
+  vertical-align: middle;
+}
+
+.premium-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.premium-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: #ffffff !important;
+}
+
+.premium-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Badges and Values */
+.badge-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-block;
+  text-align: center;
+}
+
+.badge-count.emerald {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.badge-count.sky {
+  background: rgba(14, 165, 233, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(14, 165, 233, 0.25);
+}
+
+.badge-count.amber {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.badge-count.violet {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+.table-index {
+  color: #64748b;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+}
+
+.table-buucuc {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 500;
+  color: #f8fafc;
+}
+
+/* Numeric alignment and tabular presentation */
+.num-tabular {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* Scrollbar customization */
+.table-wrapper::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ==========================================
+   J&T CARGO PREMIUM GLOWING UI
+   ========================================== */
+.jt-glowing-card {
+  background: linear-gradient(rgba(6, 9, 15, 0.88), rgba(6, 9, 15, 0.88)) padding-box,
+              linear-gradient(135deg, rgba(6, 182, 212, 0.6), rgba(139, 92, 246, 0.6)) border-box !important;
+  border: 1.5px solid transparent !important;
+  border-radius: 0px !important;
+  backdrop-filter: blur(24px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.75), 0 0 30px rgba(6, 182, 212, 0.1) !important;
+  position: relative;
+  overflow: visible !important;
+}
+
+.jt-grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.jt-grid-table th {
+  background: #000000 !important;
+  color: #94a3b8;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  padding: 8px 6px;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.12);
+  border-right: none;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.jt-grid-table th:last-child {
+  border-right: none;
+}
+
+.jt-grid-table td {
+  padding: 6px 10px;
+  border-bottom: none;
+  border-right: none;
+  vertical-align: middle;
+  font-family: 'Inter', sans-serif;
+}
+
+.jt-grid-table td:last-child {
+  border-right: none;
+}
+
+.jt-grid-table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.jt-grid-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+

@@ -1,4 +1,37 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
+
+// Animated Number Ticker Component
+function NumberTicker({ value, decimals = 0 }: { value: number; decimals?: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  
+  useEffect(() => {
+    let start = 0;
+    const end = value;
+    if (start === end) {
+      if (ref.current) ref.current.textContent = end.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      return;
+    }
+    const duration = 0.8; // seconds
+    let startTime: number | null = null;
+    
+    const animateCount = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / (duration * 1000), 1);
+      const current = progress * (end - start) + start;
+      if (ref.current) {
+        ref.current.textContent = current.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      }
+      if (progress < 1) {
+        window.requestAnimationFrame(animateCount);
+      }
+    };
+    
+    window.requestAnimationFrame(animateCount);
+  }, [value, decimals]);
+
+  return <span ref={ref}>0</span>;
+}
 
 interface InboundDashboardProps {
   inboundData: any[];
@@ -620,7 +653,7 @@ export default function InboundDashboard({
                     {inboundDates.map(d => (
                       <button
                         key={d}
-                        className={`datepicker-list-item ${d === activeDate ? 'active' : ''}`}
+                        className={`datepicker-item ${d === activeDate ? 'active' : ''}`}
                         onClick={() => {
                           setSelectedInboundDate(d);
                           setDateDropdownOpen(false);
@@ -654,60 +687,60 @@ export default function InboundDashboard({
       {/* Row 1: KPI Cards */}
       <section className="kpi-grid">
         {/* KPI 1: Inbound (orders) */}
-        <div className="kpi-card accent-green">
+        <div className="kpi-card accent-green glass-card">
           <div className="kpi-card-header">
             <span className="kpi-title">Inbound (orders)</span>
             <i className="fa-solid fa-warehouse kpi-icon"></i>
           </div>
           <div className="kpi-card-body">
-            <span className="kpi-value">{totalOrders.toLocaleString()}</span>
+            <span className="kpi-value"><NumberTicker value={totalOrders} /></span>
             <span className="kpi-sub">Tổng đơn hàng đã nhập kho</span>
           </div>
           <div className="kpi-glow"></div>
         </div>
 
         {/* KPI 2: Inbound (weight) */}
-        <div className="kpi-card accent-green">
+        <div className="kpi-card accent-green glass-card">
           <div className="kpi-card-header">
             <span className="kpi-title">Inbound (weight)</span>
             <i className="fa-solid fa-weight-hanging kpi-icon"></i>
           </div>
           <div className="kpi-card-body">
-            <span className="kpi-value">{totalWeight.toLocaleString()} kg</span>
+            <span className="kpi-value"><NumberTicker value={totalWeight / 1000} decimals={2} /> Tấn</span>
             <span className="kpi-sub">Avg: {(totalOrders > 0 ? totalWeight / totalOrders : 0).toFixed(2)} kg/pkg</span>
           </div>
           <div className="kpi-glow"></div>
         </div>
 
         {/* KPI 3: Trucking in Transit */}
-        <div className="kpi-card accent-lime">
+        <div className="kpi-card accent-lime glass-card">
           <div className="kpi-card-header">
             <span className="kpi-title">Trucking in transit</span>
             <i className="fa-solid fa-truck-fast kpi-icon"></i>
           </div>
           <div className="kpi-card-body">
-            <span className="kpi-value">{totalVehicles.toLocaleString()}</span>
+            <span className="kpi-value"><NumberTicker value={totalVehicles} /></span>
             <span className="kpi-sub">Tổng lượng xe sắp về HUB</span>
           </div>
           <div className="kpi-glow"></div>
         </div>
 
         {/* KPI 4: Forecast */}
-        <div className="kpi-card accent-orange">
+        <div className="kpi-card accent-orange glass-card">
           <div className="kpi-card-header">
             <span className="kpi-title">Forecast</span>
             <i className="fa-solid fa-chart-line kpi-icon"></i>
           </div>
           <div className="kpi-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span className="kpi-value">{totalForecast.toLocaleString()}</span>
+            <span className="kpi-value"><NumberTicker value={totalForecast} /></span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.95rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', marginTop: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Rớt hôm trước:</span>
-                <strong style={{ color: '#FC6C26', fontSize: '1.1rem' }}>{forecastRotHomTruoc.toLocaleString()}</strong>
+                <strong style={{ color: '#FC6C26', fontSize: '1.1rem' }}><NumberTicker value={forecastRotHomTruoc} /></strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Rớt hôm nay:</span>
-                <strong style={{ color: '#ffa066', fontSize: '1.1rem' }}>{forecastRotHomNay.toLocaleString()}</strong>
+                <strong style={{ color: '#ffa066', fontSize: '1.1rem' }}><NumberTicker value={forecastRotHomNay} /></strong>
               </div>
             </div>
           </div>
@@ -761,16 +794,19 @@ export default function InboundDashboard({
                     }
 
                     paths.push(
-                      <path
+                      <motion.path
                         key={`${s.name}-layer-${i}`}
                         d={pathData}
                         fill={s.color}
                         opacity={opacity}
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 1.0, ease: "easeOut", delay: i * 0.1 }}
                         style={{
-                          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                           cursor: 'pointer',
                           transformOrigin: '100px 100px',
-                          transform: hoveredStatus === s.name ? 'scale(1.03)' : 'scale(1)'
+                          transform: hoveredStatus === s.name ? 'scale(1.03)' : 'scale(1)',
+                          transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1)'
                         }}
                         onMouseEnter={() => setHoveredStatus(s.name)}
                         onMouseLeave={() => setHoveredStatus(null)}
@@ -868,50 +904,53 @@ export default function InboundDashboard({
       </section>
 
       {/* Row 3: Tables */}
-      <section className="tables-grid">
+      <section className="tables-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px', marginTop: '24px' }}>
         {/* Table 1: Origin Station Inbound */}
-        <div className="table-container-card">
-          <div className="table-header">
-            <h2>Origin Station Inbound ({allSendingFCs.length})</h2>
+        <div className="table-container-card glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className="table-header" style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '0.5px', color: '#fff', margin: 0 }}>Bưu cục gửi (Origin Stations)</h2>
+            <span className="badge-count sky">{allSendingFCs.length} bưu cục</span>
           </div>
           <div className="table-wrapper" style={{ overflowY: 'auto', maxHeight: '400px', position: 'relative' }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-              <thead style={{ position: 'sticky', top: 0, background: 'var(--panel-bg)', zIndex: 10 }}>
+            <table className="premium-table">
+              <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
-                  <th style={{ width: '40px', background: '#1e293b', color: '#94a3b8' }}>#</th>
-                  <th style={{ background: '#1e293b', color: '#94a3b8' }}>Bưu cục gửi</th>
-                  <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Số xe</th>
-                  <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Số lượng Inbound</th>
-                  <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Trọng lượng (kg)</th>
-                  <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Tỉ lệ (%)</th>
+                  <th style={{ width: '50px' }}>#</th>
+                  <th>Bưu cục gửi</th>
+                  <th style={{ textAlign: 'right' }}>Số xe</th>
+                  <th style={{ textAlign: 'right' }}>Đơn Inbound</th>
+                  <th style={{ textAlign: 'right' }}>Trọng lượng (kg)</th>
+                  <th style={{ textAlign: 'right' }}>Tỉ lệ (%)</th>
                 </tr>
               </thead>
               <tbody>
                 {allSendingFCs.length > 0 && (
-                  <tr style={{ fontWeight: 'bold', position: 'sticky', top: '35px', background: '#38bdf8', color: '#ffffff', zIndex: 9, borderBottom: '2px solid #0284c7' }}>
-                    <td style={{ color: '#ffffff' }}>-</td>
-                    <td style={{ color: '#ffffff' }}>TỔNG CỘNG ({allSendingFCs.length})</td>
-                    <td style={{ textAlign: 'right', color: '#ffffff' }}>{totalSendingVehicles} xe</td>
-                    <td style={{ textAlign: 'right', color: '#ffffff' }}>{totalSendingOrders.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right', color: '#ffffff' }}>{totalSendingWeight.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right', color: '#ffffff' }}>100%</td>
+                  <tr className="total-row" style={{ fontWeight: 'bold', position: 'sticky', top: '41px', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', zIndex: 9, backdropFilter: 'blur(8px)' }}>
+                    <td className="table-index">-</td>
+                    <td className="table-buucuc" style={{ color: '#38bdf8' }}>TỔNG CỘNG</td>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{totalSendingVehicles} xe</td>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{totalSendingOrders.toLocaleString()}</td>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{totalSendingWeight.toLocaleString()}</td>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>100%</td>
                   </tr>
                 )}
                 {allSendingFCs.map((fc, idx) => (
                   <tr key={fc.fc}>
-                    <td className="highlight-val">{idx + 1}</td>
-                    <td className="highlight-val">{fc.fc}</td>
-                    <td className="highlight-purple" style={{ textAlign: 'right' }}>{fc.vehicles} xe</td>
-                    <td className="highlight-green" style={{ textAlign: 'right' }}>{fc.orders.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right' }}>{fc.weight.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right', fontWeight: '600' }}>
+                    <td className="table-index">{idx + 1}</td>
+                    <td className="table-buucuc">{fc.fc}</td>
+                    <td className="num-tabular" style={{ textAlign: 'right' }}>
+                      <span className="badge-count violet">{fc.vehicles} xe</span>
+                    </td>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#10b981', fontWeight: 600 }}>{fc.orders.toLocaleString()}</td>
+                    <td className="num-tabular" style={{ textAlign: 'right' }}>{fc.weight.toLocaleString()}</td>
+                    <td className="num-tabular" style={{ textAlign: 'right', fontWeight: '600', color: '#38bdf8' }}>
                       {totalSendingOrders > 0 ? ((fc.orders / totalSendingOrders) * 100).toFixed(1) : '0.0'}%
                     </td>
                   </tr>
                 ))}
                 {allSendingFCs.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', color: '#5a6578', padding: '20px' }}>Không có dữ liệu</td>
+                    <td colSpan={6} style={{ textAlign: 'center', color: '#5a6578', padding: '24px' }}>Không có dữ liệu</td>
                   </tr>
                 )}
               </tbody>
@@ -920,52 +959,53 @@ export default function InboundDashboard({
         </div>
 
         {/* Table 2: Trucking in Transit */}
-        <div className="table-container-card">
-          <div className="table-header">
-            <h2>Trucking in transit ({incomingVehicles.length})</h2>
+        <div className="table-container-card glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className="table-header" style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '0.5px', color: '#fff', margin: 0 }}>Xe đang di chuyển (Trucks in Transit)</h2>
+            <span className="badge-count amber">{incomingVehicles.length} xe</span>
           </div>
           <div className="table-wrapper" style={{ overflowY: 'auto', maxHeight: '400px', position: 'relative' }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-              <thead style={{ position: 'sticky', top: 0, background: 'var(--panel-bg)', zIndex: 10 }}>
+            <table className="premium-table">
+              <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
-                  <th style={{ width: '40px', background: '#1e293b', color: '#94a3b8' }}>#</th>
-                  <th style={{ background: '#1e293b', color: '#94a3b8' }}>Bưu cục</th>
-                  <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Chưa đến Hub</th>
-                  <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Đã đến Hub</th>
-                  <th style={{ textAlign: 'right', background: '#1e293b', color: '#94a3b8' }}>Tổng đơn</th>
-                  <th style={{ textAlign: 'center', background: '#1e293b', color: '#94a3b8' }}>Cập nhật lúc</th>
+                  <th style={{ width: '50px' }}>#</th>
+                  <th>Bưu cục</th>
+                  <th style={{ textAlign: 'right' }}>Chưa đến Hub</th>
+                  <th style={{ textAlign: 'right' }}>Đã đến Hub</th>
+                  <th style={{ textAlign: 'right' }}>Tổng đơn</th>
+                  <th style={{ textAlign: 'center' }}>Cập nhật</th>
                 </tr>
               </thead>
               <tbody>
                 {incomingVehicles.length > 0 && (
-                  <tr style={{ fontWeight: 'bold', position: 'sticky', top: '35px', background: '#38bdf8', color: '#ffffff', zIndex: 9, borderBottom: '2px solid #0284c7' }}>
-                    <td style={{ color: '#ffffff' }}>-</td>
-                    <td style={{ color: '#ffffff' }}>TỔNG CỘNG ({incomingVehicles.length})</td>
-                    <td style={{ textAlign: 'right', color: '#ffffff' }}>
+                  <tr className="total-row" style={{ fontWeight: 'bold', position: 'sticky', top: '41px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', zIndex: 9, backdropFilter: 'blur(8px)' }}>
+                    <td className="table-index">-</td>
+                    <td className="table-buucuc" style={{ color: '#f59e0b' }}>TỔNG CỘNG</td>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
                       {incomingVehicles.reduce((a, b) => a + b.chuaDenHub, 0).toLocaleString()}
                     </td>
-                    <td style={{ textAlign: 'right', color: '#ffffff' }}>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
                       {incomingVehicles.reduce((a, b) => a + (b.tongDon - b.chuaDenHub), 0).toLocaleString()}
                     </td>
-                    <td style={{ textAlign: 'right', color: '#ffffff' }}>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
                       {incomingVehicles.reduce((a, b) => a + b.tongDon, 0).toLocaleString()}
                     </td>
-                    <td style={{ textAlign: 'center', color: '#ffffff' }}>-</td>
+                    <td style={{ textAlign: 'center', color: '#f59e0b' }}>-</td>
                   </tr>
                 )}
                 {incomingVehicles.map((v, idx) => (
                   <tr key={v.station}>
-                     <td className="highlight-val">{idx + 1}</td>
-                     <td className="highlight-val">{v.station}</td>
-                     <td className="highlight-green" style={{ textAlign: 'right' }}>{v.chuaDenHub.toLocaleString()}</td>
-                     <td className="highlight-purple" style={{ textAlign: 'right' }}>{(v.tongDon - v.chuaDenHub).toLocaleString()}</td>
-                     <td style={{ textAlign: 'right' }}>{v.tongDon.toLocaleString()}</td>
-                     <td style={{ textAlign: 'center' }}>{v.lastTime ? v.lastTime.split(' ')[1] : '--:--'}</td>
+                     <td className="table-index">{idx + 1}</td>
+                     <td className="table-buucuc">{v.station}</td>
+                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.chuaDenHub.toLocaleString()}</td>
+                     <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{(v.tongDon - v.chuaDenHub).toLocaleString()}</td>
+                     <td className="num-tabular" style={{ textAlign: 'right' }}>{v.tongDon.toLocaleString()}</td>
+                     <td className="num-tabular" style={{ textAlign: 'center', color: '#64748b' }}>{v.lastTime ? v.lastTime.split(' ')[1] : '--:--'}</td>
                   </tr>
                 ))}
                 {incomingVehicles.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', color: '#5a6578', padding: '20px' }}>Không có xe đang di chuyển</td>
+                    <td colSpan={6} style={{ textAlign: 'center', color: '#5a6578', padding: '24px' }}>Không có xe đang di chuyển</td>
                   </tr>
                 )}
               </tbody>
