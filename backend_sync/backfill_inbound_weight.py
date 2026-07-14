@@ -19,7 +19,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 from sync_to_sheets import (
     build_session, TokenManager, pull_scan,
     ACCOUNT, PASSWORD, COUNTRY_ID, URL_SCAN,
-    DB_CONN_PARAMS
+    DB_CONN_PARAMS, get_db_conn
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -37,7 +37,7 @@ token_mgr = TokenManager(session, ACCOUNT, PASSWORD, COUNTRY_ID)
 
 # ─── 3. Tìm những ngày có đơn weight = 0 trong PostgreSQL ────────────────────
 print(f"🔗 Kết nối PostgreSQL: {DB_CONN_PARAMS['host']}:{DB_CONN_PARAMS['port']}")
-conn = psycopg2.connect(**DB_CONN_PARAMS)
+conn = get_db_conn()
 cur  = conn.cursor()
 
 cur.execute("""
@@ -98,7 +98,7 @@ if not weight_map:
     print("\n⚠️  Không có weight nào cần cập nhật.")
 else:
     print(f"\n💾 Cập nhật {len(weight_map):,} waybill vào PostgreSQL...")
-    conn = psycopg2.connect(**DB_CONN_PARAMS)
+    conn = get_db_conn()
     cur  = conn.cursor()
 
     # Batch update: chỉ update đơn đang weight=0
@@ -123,7 +123,7 @@ else:
     print(f"   ✅ Đã cập nhật {updated:,} bản ghi trong PostgreSQL.")
 
     # Kiểm tra lại sau backfill
-    conn = psycopg2.connect(**DB_CONN_PARAMS)
+    conn = get_db_conn()
     cur  = conn.cursor()
     cur.execute("SELECT COUNT(*) FROM shipments WHERE weight = 0.0")
     remaining_zero = cur.fetchone()[0]

@@ -46,6 +46,8 @@ DISABLE_GOOGLE_SHEETS = True
 BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR   = os.path.join(BASE_DIR, "output")
 VALID_FILE   = os.path.join(BASE_DIR, "config", "valid.csv")
+NEON_URL = "postgresql://neondb_owner:npg_i0dyTk6oeEmD@ep-dawn-poetry-atfofe2l-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
 DB_CONN_PARAMS = {
     "host": "localhost",
     "port": 5433,
@@ -55,13 +57,18 @@ DB_CONN_PARAMS = {
 }
 
 def get_db_conn():
+    # 1. Nếu chạy trên GitHub Actions (máy chủ Cloud) hoặc cấu hình dùng Neon -> kết nối trực tiếp vào Neon Cloud DB
+    if os.environ.get("GITHUB_ACTIONS") == "true" or os.environ.get("USE_NEON") == "true" or os.environ.get("DATABASE_URL"):
+        url = os.environ.get("DATABASE_URL") or NEON_URL
+        return psycopg2.connect(url, connect_timeout=25)
+    
+    # 2. Nếu chạy trên máy cá nhân -> ưu tiên thử kết nối Local DB (localhost:5433) trước
     try:
-        return psycopg2.connect(**DB_CONN_PARAMS, connect_timeout=5)
+        return psycopg2.connect(**DB_CONN_PARAMS, connect_timeout=3)
     except Exception as e:
-        if os.environ.get("GITHUB_ACTIONS") == "true":
-            print(f"   ℹ️ [GitHub Actions] Không tìm thấy Local PostgreSQL (localhost:5433) trên máy chủ Cloud. Vui lòng chạy sync trên máy cá nhân.")
-            sys.exit(0)
-        raise e
+        # Nếu Local DB chưa bật hoặc gặp lỗi -> tự động fallback sang Neon Cloud DB để không bị ngắt quãng
+        print(f"   ⚠️ Local DB localhost:5433 không khả dụng ({e}), tự động kết nối sang Neon Cloud DB...")
+        return psycopg2.connect(NEON_URL, connect_timeout=25)
 
 
 DB_KEYS_MAP = {
