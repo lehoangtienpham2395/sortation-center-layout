@@ -426,8 +426,11 @@ export default function InboundDashboard({
   };
 
   filteredInbound.forEach(d => {
-    if ((d['Trạng thái'] || d['Trạng thái']) === 'Inbound') {
-      const fc = getFC(d['Bưu cục']);
+    const status = d['Trng thi'] || d['Trạng thái'];
+    if (status === 'Inbound') {
+      // Dùng 'BN HUB' cho đơn không có bưu cục gốc (hàng nội bộ HUB)
+      const fcName = d['Bưu cục'] || d['Bu cc'] || 'BN HUB (nội bộ)';
+      const fc = getFC(fcName);
       if (fc) {
         fc.orders += parseInt(d['Volume'], 10) || 0;
         fc.weight += parseFloat(d['Weight']) || 0;

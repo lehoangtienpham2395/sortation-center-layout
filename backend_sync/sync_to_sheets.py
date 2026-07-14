@@ -271,7 +271,12 @@ def calculate_shipment_status(forecast_time, pickup_time, arrival_time, inbound_
     return "Đã điều phối bưu cục", 1
 
 
+_INIT_DB_DONE = False
+
 def init_db():
+    global _INIT_DB_DONE
+    if _INIT_DB_DONE:
+        return  # ← chỉ chạy 1 lần duy nhất mỗi tiến trình
     print("   🔧 Đang khởi tạo Database migrations (TIMESTAMPTZ & NUMERIC)...")
     try:
         execute_all_migrations()
@@ -293,6 +298,7 @@ def init_db():
         print(f"   ⚠️ Lỗi dọn dẹp database: {e_clean}")
     finally:
         conn.close()
+    _INIT_DB_DONE = True
 
 
 def auth_post(session, url, token_mgr, base_headers, *,
@@ -2603,7 +2609,6 @@ def run_once(session, token_mgr, rebuild_days=None):
             ])
 
     if changed_records:
-        init_db()
         print(f"\n💾 Đang lưu {len(changed_records):,} bản ghi thay đổi vào PostgreSQL (Pool UPSERT)...")
         try:
             processed = batch_upsert_shipments(changed_records)
