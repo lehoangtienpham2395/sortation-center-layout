@@ -206,8 +206,15 @@ class TokenManager:
 def get_operating_date(dt_str):
     if not dt_str or str(dt_str).strip() in ('', 'nan', 'None'):
         return ""
+    s = str(dt_str).strip()
     try:
-        dt = pd.to_datetime(dt_str)
+        if len(s) >= 19 and s[4] == '-' and s[7] == '-' and s[13] == ':':
+            hour = int(s[11:13])
+            if hour < 6:
+                return (datetime.strptime(s[:10], '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+            else:
+                return s[:10]
+        dt = pd.to_datetime(s)
         if dt.hour < 6:
             return (dt - timedelta(days=1)).strftime('%Y-%m-%d')
         else:
@@ -1137,8 +1144,11 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
     def safe_hour_format(val):
         if not val or str(val).strip().lower() in ('nan', 'none', 'nat', 'n/a', 'backlog', ''):
             return ""
+        s = str(val).strip()
         try:
-            dt = pd.to_datetime(val)
+            if len(s) >= 13 and s[4] == '-' and s[7] == '-':
+                return s[:13] + ":00"
+            dt = pd.to_datetime(s)
             if pd.isna(dt):
                 return ""
             return dt.strftime('%Y-%m-%d %H:00')
@@ -1205,7 +1215,8 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
 
     if not df_ship.empty:
         unique_rows = []
-        for _, row in df_ship.iterrows():
+        records_list = df_ship.to_dict('records')
+        for row in records_list:
             ib_time = str(row.get('inbound_scanDate') or '').strip()
             pk_time = str(row.get('Pickup_time') or '').strip()
             fc_time = str(row.get('dispatchNetworkTime') or '').strip()
