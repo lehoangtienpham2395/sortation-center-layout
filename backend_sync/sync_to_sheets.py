@@ -21,6 +21,11 @@ from requests.adapters import HTTPAdapter
 import psycopg2
 from psycopg2.extras import execute_values
 
+_sync_dir = os.path.dirname(os.path.abspath(__file__))
+if _sync_dir not in sys.path:
+    sys.path.append(_sync_dir)
+from db.pool import get_proxy_connection, execute_all_migrations, refresh_materialized_views, batch_upsert_shipments
+
 # —— Windows Unicode Fix (cần cho GitHub Actions chạy trên Ubuntu, giữ để đồng nhất) ——
 if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
     try:
@@ -46,6 +51,8 @@ DISABLE_GOOGLE_SHEETS = True
 BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR   = os.path.join(BASE_DIR, "output")
 VALID_FILE   = os.path.join(BASE_DIR, "config", "valid.csv")
+NEON_URL = "postgresql://neondb_owner:npg_i0dyTk6oeEmD@ep-dawn-poetry-atfofe2l-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
 DB_CONN_PARAMS = {
     "host": "localhost",
     "port": 5433,
@@ -53,6 +60,10 @@ DB_CONN_PARAMS = {
     "password": "postgres",
     "dbname": "postgres"
 }
+
+def get_db_conn():
+    return get_proxy_connection()
+
 
 DB_KEYS_MAP = {
     'waybillno': 'waybillNo',
@@ -85,6 +96,8 @@ def pg_row_to_dict(col_names, row):
         key = DB_KEYS_MAP.get(col.lower(), col)
         if val is None and key not in ('weight', 'is_backlog', 'is_active', 'last_updated'):
             d[key] = ""
+        elif hasattr(val, 'strftime'):
+            d[key] = val.strftime('%Y-%m-%d %H:%M:%S')
         else:
             d[key] = val
     return d
@@ -107,11 +120,11 @@ URL_LOADING        = 'https://gw.jtcargo.com.vn/operatingplatform/traceSub/query
 # ============================================================
 # TUNING — đã tối ưu để tăng tốc ~5x so với mặc định
 # ============================================================
-SOURCE_WORKERS      = 4   # ⚡ Tối ưu lại để tránh bị JFS chặn/429/502 khi chạy từ GitHub Actions
-PAGE_WORKERS        = 4   # ⚡ Giảm concurrency tránh quá tải JFS API
+SOURCE_WORKERS      = 3   # ⚡ Tối ưu lại để tránh bị JFS chặn/429/502 khi chạy từ GitHub Actions
+PAGE_WORKERS        = 3   # ⚡ Giảm concurrency tránh quá tải JFS API
 POOL_SIZE           = 32  # ⚡ Tương thích với số lượng worker nhỏ hơn
-REQUEST_TIMEOUT     = 60
-MAX_RETRIES         = 5
+REQUEST_TIMEOUT     = 15
+MAX_RETRIES         = 3
 BACKOFF_BASE        = 3
 INTER_REQUEST_DELAY = 0
 
@@ -206,8 +219,15 @@ class TokenManager:
 def get_operating_date(dt_str):
     if not dt_str or str(dt_str).strip() in ('', 'nan', 'None'):
         return ""
+    s = str(dt_str).strip()
     try:
-        dt = pd.to_datetime(dt_str)
+        if len(s) >= 19 and s[4] == '-' and s[7] == '-' and s[13] == ':':
+            hour = int(s[11:13])
+            if hour < 6:
+                return (datetime.strptime(s[:10], '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
+            else:
+                return s[:10]
+        dt = pd.to_datetime(s)
         if dt.hour < 6:
             return (dt - timedelta(days=1)).strftime('%Y-%m-%d')
         else:
@@ -251,43 +271,22 @@ def calculate_shipment_status(forecast_time, pickup_time, arrival_time, inbound_
     return "Đã điều phối bưu cục", 1
 
 
+_INIT_DB_DONE = False
+
 def init_db():
-    conn = psycopg2.connect(**DB_CONN_PARAMS)
-    c = conn.cursor()
-    
-    # 1. Tạo bảng shipments mới
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS shipments (
-            waybillno           TEXT PRIMARY KEY,
-            data_source         TEXT,
-            weight              REAL,
-            picknetworkname     TEXT,
-            dispatch_plan       TEXT,
-            pickup_time         TEXT,
-            pickup_label        TEXT,
-            pickup_ontime       TEXT,
-            dispatchnetworktime TEXT,
-            next_station        TEXT,
-            tuyen               TEXT,
-            rank                TEXT,
-            inbound_network     TEXT,
-            inbound_scandate    TEXT,
-            outbound_scandate   TEXT,
-            arrival_time        TEXT,
-            dispatch_actual     TEXT,
-            status_order        TEXT,
-            time_ref            TEXT,
-            is_backlog          INTEGER DEFAULT 0,
-            is_active           INTEGER DEFAULT 1,
-            last_updated        TIMESTAMPTZ DEFAULT NOW()
-        )
-    """)
-    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_time_ref ON shipments(time_ref)")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_status ON shipments(status_order)")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_active ON shipments(is_active)")
-    conn.commit()
-    
+    global _INIT_DB_DONE
+    if _INIT_DB_DONE:
+        return  # ← chỉ chạy 1 lần duy nhất mỗi tiến trình
+    print("   🔧 Đang khởi tạo Database migrations (TIMESTAMPTZ & NUMERIC)...")
+    try:
+        execute_all_migrations()
+    except Exception as e:
+        print(f"   ❌ Lỗi khi chạy migrations: {e}")
+        raise
+
     # Tự động dọn dẹp các bản ghi ĐÃ RỜI HUB / Inbound (không active) cũ hơn 7 ngày để tối ưu hóa DB
+    conn = get_db_conn()
+    c = conn.cursor()
     try:
         c.execute("""
             DELETE FROM shipments 
@@ -297,8 +296,9 @@ def init_db():
         conn.commit()
     except Exception as e_clean:
         print(f"   ⚠️ Lỗi dọn dẹp database: {e_clean}")
-        
-    conn.close()
+    finally:
+        conn.close()
+    _INIT_DB_DONE = True
 
 
 def auth_post(session, url, token_mgr, base_headers, *,
@@ -445,34 +445,46 @@ def pull_pages_parallel(fetch_page, total, page_size, label, start_page=1):
     results = {}
     failed_pages = []
 
-    def execute_fetch(p):
+    def execute_fetch(p, log_err=False):
         try:
-            return fetch_page(p)
-        except Exception:
-            return None
+            return fetch_page(p), None
+        except Exception as e:
+            if log_err:
+                print(f"      [Lỗi trang {p}] {e}")
+            return None, e
 
     print(f"   🚀 Đang tải {len(pages)} trang cho {label}...")
     
     with ThreadPoolExecutor(max_workers=PAGE_WORKERS) as ex:
-        future_to_page = {ex.submit(execute_fetch, p): p for p in pages}
+        future_to_page = {ex.submit(execute_fetch, p, False): p for p in pages}
         for f in as_completed(future_to_page):
             p = future_to_page[f]
-            res = f.result()
+            res, _ = f.result()
             if res is not None:
                 results[p] = res
             else:
                 failed_pages.append(p)
 
-    if failed_pages:
-        print(f"   ⚠️ Có {len(failed_pages)} trang lỗi, đang thử lại lần 2...")
+    # Retry tuần tự tối đa 3 vòng cho các trang bị lỗi (tránh JFS rate-limit/timeout khi tải song song)
+    round_num = 1
+    while failed_pages and round_num <= 3:
+        failed_pages.sort()
+        print(f"   ⚠️ Có {len(failed_pages)} trang lỗi, thử lại tuần tự vòng {round_num}/3 (nghỉ {2 * round_num}s giải phóng rate-limit)...")
+        time.sleep(2 * round_num)  # Nghỉ 2-6 giây cho JFS server hồi phục
+        
+        next_failed = []
         for p in failed_pages:
-            time.sleep(1)
-            res = execute_fetch(p)
+            time.sleep(0.6)  # Nghỉ giữa các trang khi tải tuần tự
+            res, err = execute_fetch(p, log_err=(round_num == 3))
             if res is not None:
                 results[p] = res
             else:
-                print(f"   ❌ Trang {p} vẫn lỗi sau khi thử lại.")
-                results[p] = []
+                next_failed.append(p)
+                if round_num == 3:
+                    print(f"   ❌ Trang {p} thất bại hoàn toàn sau 3 vòng thử lại: {err}")
+                
+        failed_pages = next_failed
+        round_num += 1
 
     out = []
     for p in pages:
@@ -485,10 +497,17 @@ def pull_pages_sequential(fetch_page, page_size, label,
     all_data = list(seed) if seed else []
     page = start_page
     while True:
-        try:
-            page_list = fetch_page(page)
-        except Exception as e:
-            print(f"   ❌ {label} trang {page}: {e}")
+        page_list = None
+        for retry in range(1, 4):
+            try:
+                page_list = fetch_page(page)
+                break
+            except Exception as e:
+                if retry < 3:
+                    time.sleep(1.5 * retry)
+                else:
+                    print(f"   ❌ {label} trang {page} lỗi sau 3 lần thử: {e}")
+        if page_list is None:
             break
         if not page_list:
             break
@@ -1137,8 +1156,11 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
     def safe_hour_format(val):
         if not val or str(val).strip().lower() in ('nan', 'none', 'nat', 'n/a', 'backlog', ''):
             return ""
+        s = str(val).strip()
         try:
-            dt = pd.to_datetime(val)
+            if len(s) >= 13 and s[4] == '-' and s[7] == '-':
+                return s[:13] + ":00"
+            dt = pd.to_datetime(s)
             if pd.isna(dt):
                 return ""
             return dt.strftime('%Y-%m-%d %H:00')
@@ -1187,7 +1209,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
     # 1. Generate Inbound aggregated data directly from SQLite shipments table
     df_inbound_aggregated = pd.DataFrame()
     try:
-        conn = psycopg2.connect(**DB_CONN_PARAMS)
+        conn = get_db_conn()
         df_ship = pd.read_sql_query("""
             SELECT picknetworkname AS "pickNetworkName", status_order, weight, 
                    inbound_scandate AS "inbound_scanDate", dispatchnetworktime AS "dispatchNetworkTime", 
@@ -1195,6 +1217,19 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             FROM shipments
         """, conn)
         conn.close()
+        
+        # Convert timezone-aware datetimes to Asia/Ho_Chi_Minh timezone
+        for col in ["inbound_scanDate", "dispatchNetworkTime", "Pickup_time", "Arrival_time"]:
+            if col in df_ship.columns:
+                dt_col = pd.to_datetime(df_ship[col])
+                # If there are any non-null elements, localize/convert timezone
+                if not dt_col.dropna().empty:
+                    if dt_col.dt.tz is None:
+                        df_ship[col] = dt_col.dt.tz_localize('UTC').dt.tz_convert('Asia/Ho_Chi_Minh').dt.strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        df_ship[col] = dt_col.dt.tz_convert('Asia/Ho_Chi_Minh').dt.strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    df_ship[col] = ""
     except Exception as e_db:
         print(f"   ⚠️ Lỗi kết nối DB khi tạo Inbound Sheet: {e_db}")
         df_ship = pd.DataFrame()
@@ -1205,7 +1240,8 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
 
     if not df_ship.empty:
         unique_rows = []
-        for _, row in df_ship.iterrows():
+        records_list = df_ship.to_dict('records')
+        for row in records_list:
             ib_time = str(row.get('inbound_scanDate') or '').strip()
             pk_time = str(row.get('Pickup_time') or '').strip()
             fc_time = str(row.get('dispatchNetworkTime') or '').strip()
@@ -1410,11 +1446,11 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
     print("\n📋 Xử lý sheet Arrival từ shipments...")
     df_arrival_aggregated = pd.DataFrame()
     try:
-        conn = psycopg2.connect(**DB_CONN_PARAMS)
+        conn = get_db_conn()
         df_arr_raw = pd.read_sql_query("""
             SELECT waybillno AS "waybillNo", picknetworkname AS "Pickup_station", arrival_time AS "Arrival_time", inbound_scandate AS "inbound_scanDate"
             FROM shipments
-            WHERE arrival_time IS NOT NULL AND arrival_time != ''
+            WHERE arrival_time IS NOT NULL
         """, conn)
         conn.close()
     except Exception as e_arr_db:
@@ -1422,6 +1458,16 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         df_arr_raw = pd.DataFrame()
 
     if not df_arr_raw.empty:
+        # Convert timezone-aware datetimes to Asia/Ho_Chi_Minh timezone for Arrival sheet
+        for col in ['Arrival_time', 'inbound_scanDate']:
+            if col in df_arr_raw.columns:
+                dt_col = pd.to_datetime(df_arr_raw[col], errors='coerce')
+                if not dt_col.dropna().empty:
+                    if dt_col.dt.tz is None:
+                        df_arr_raw[col] = dt_col.dt.tz_localize('UTC').dt.tz_convert('Asia/Ho_Chi_Minh').dt.strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        df_arr_raw[col] = dt_col.dt.tz_convert('Asia/Ho_Chi_Minh').dt.strftime('%Y-%m-%d %H:%M:%S')
+
         df_arr_raw['Ngày vận hành'] = df_arr_raw['Arrival_time'].apply(get_operating_date)
         df_arr_raw['Scan Hour'] = pd.to_datetime(df_arr_raw['Arrival_time'], errors='coerce').dt.strftime('%Y-%m-%d %H:00')
         
@@ -1744,7 +1790,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
     if run_backlog_inv:
         inventory_volumes = {}
         try:
-            conn = psycopg2.connect(**DB_CONN_PARAMS)
+            conn = get_db_conn()
             # ✅ Chỉ đọc đơn đang active (is_active=1) và chưa rời HUB
             df_db_inv = pd.read_sql_query(
                 """SELECT next_station, status_order, weight, waybillno AS "waybillNo", time_ref
@@ -1833,7 +1879,7 @@ def reconcile_outbound_5days(raw_outbound=None, session=None, token_mgr=None):
 
     # Cập nhật ngược vào DB: đánh dấu Đã rời HUB
     try:
-        conn    = psycopg2.connect(**DB_CONN_PARAMS)
+        conn    = get_db_conn()
         c       = conn.cursor()
         updated = 0
         for wb, info in outbound_map.items():
@@ -1845,8 +1891,7 @@ def reconcile_outbound_5days(raw_outbound=None, session=None, token_mgr=None):
                     last_updated      = NOW()
                 WHERE waybillno = %s
                   AND is_active = 1
-                  AND (outbound_scandate = '' OR outbound_scandate IS NULL
-                       OR outbound_scandate < %s)
+                  AND (outbound_scandate IS NULL OR outbound_scandate < %s::timestamptz)
             """, (info['time'], wb, info['time']))
             updated += c.rowcount
         conn.commit()
@@ -2023,7 +2068,7 @@ def run_once(session, token_mgr, rebuild_days=None):
     db_records = {}
     init_db()
     try:
-        conn = psycopg2.connect(**DB_CONN_PARAMS)
+        conn = get_db_conn()
         c = conn.cursor()
         
         # Tự động dọn dẹp các đơn kẹt quá 3 ngày không có log xuất kho
@@ -2032,8 +2077,8 @@ def run_once(session, token_mgr, rebuild_days=None):
             UPDATE shipments 
             SET status_order = 'Đã rời HUB', is_active = 0, last_updated = NOW()
             WHERE is_active = 1
-              AND (inbound_scandate != '' AND inbound_scandate IS NOT NULL)
-              AND CAST(inbound_scandate AS TIMESTAMP) < NOW() - INTERVAL '3 days'
+              AND inbound_scandate IS NOT NULL
+              AND inbound_scandate < NOW() - INTERVAL '3 days'
         """)
         cnt1 = c.rowcount
         
@@ -2042,11 +2087,11 @@ def run_once(session, token_mgr, rebuild_days=None):
             UPDATE shipments 
             SET is_active = 0, last_updated = NOW()
             WHERE is_active = 1
-              AND (inbound_scandate = '' OR inbound_scandate IS NULL)
+              AND inbound_scandate IS NULL
               AND (
-                (pickup_time != '' AND pickup_time IS NOT NULL AND CAST(pickup_time AS TIMESTAMP) < NOW() - INTERVAL '3 days')
+                (pickup_time IS NOT NULL AND pickup_time < NOW() - INTERVAL '3 days')
                 OR
-                ((pickup_time = '' OR pickup_time IS NULL) AND CAST(time_ref AS DATE) < CURRENT_DATE - INTERVAL '3 days')
+                (pickup_time IS NULL AND time_ref IS NOT NULL AND time_ref < NOW() - INTERVAL '3 days')
               )
         """)
         cnt2 = c.rowcount
@@ -2058,11 +2103,11 @@ def run_once(session, token_mgr, rebuild_days=None):
             SET is_active = 0, last_updated = NOW()
             WHERE is_active = 1
               AND data_source = 'Dispatch'
-              AND (inbound_scandate = '' OR inbound_scandate IS NULL)
-              AND (outbound_scandate = '' OR outbound_scandate IS NULL)
-              AND (pickup_time = '' OR pickup_time IS NULL)
-              AND dispatchnetworktime != '' AND dispatchnetworktime IS NOT NULL
-              AND CAST(dispatchnetworktime AS TIMESTAMP) < NOW() - INTERVAL '2 days'
+              AND inbound_scandate IS NULL
+              AND outbound_scandate IS NULL
+              AND pickup_time IS NULL
+              AND dispatchnetworktime IS NOT NULL
+              AND dispatchnetworktime < NOW() - INTERVAL '2 days'
         """)
         cnt3 = c.rowcount
         conn.commit()
@@ -2072,7 +2117,7 @@ def run_once(session, token_mgr, rebuild_days=None):
         if cnt1 + cnt2 + cnt3 > 0:
             print(f"   🧹 Tự động dọn dẹp: Đã chuyển {cnt1:,} đơn kẹt Inbound → 'Đã rời HUB', tắt {cnt2:,} đơn Forecast/Pickup cũ (>3 ngày), tắt {cnt3:,} đơn Dispatch cũ (>2 ngày).")
             
-        c.execute("SELECT * FROM shipments WHERE is_active = 1")
+        c.execute("SELECT * FROM shipments")
         rows = c.fetchall()
         if rows:
             col_names = [description[0] for description in c.description]
@@ -2080,7 +2125,7 @@ def run_once(session, token_mgr, rebuild_days=None):
                 rec = pg_row_to_dict(col_names, r)
                 db_records[rec['waybillNo']] = rec
         conn.close()
-        print(f"   ℹ| Load được {len(db_records):,} đơn active từ PostgreSQL.")
+        print(f"   ℹ| Load được {len(db_records):,} đơn từ PostgreSQL vào bộ nhớ.")
     except Exception as e_db:
         print(f"   ⚠️ Lỗi load đơn từ PostgreSQL: {e_db}")
 
@@ -2088,18 +2133,6 @@ def run_once(session, token_mgr, rebuild_days=None):
         if wb in db_records:
             return db_records[wb], False
             
-        conn_check = psycopg2.connect(**DB_CONN_PARAMS)
-        c_check = conn_check.cursor()
-        c_check.execute("SELECT * FROM shipments WHERE waybillno = %s", (wb,))
-        row = c_check.fetchone()
-        if row:
-            col_names = [description[0] for description in c_check.description]
-            rec = pg_row_to_dict(col_names, row)
-            conn_check.close()
-            db_records[wb] = rec
-            return rec, False
-            
-        conn_check.close()
         rec = {
             'waybillNo': wb, 'data_source': '', 'weight': 0.0, 'pickNetworkName': '', 'dispatch_plan': '',
             'Pickup_time': '', 'pickup_label': '', 'Pickup_ontime': '', 'dispatchNetworkTime': '',
@@ -2415,7 +2448,7 @@ def run_once(session, token_mgr, rebuild_days=None):
                             db_records[wb]['changed'] = True
                     # Ghi thẳng vào SQLite ngay
                     try:
-                        conn_pk = psycopg2.connect(**DB_CONN_PARAMS)
+                        conn_pk = get_db_conn()
                         c_pk    = conn_pk.cursor()
                         updated_pk = 0
                         for wb, pick_name in resolved_pickup.items():
@@ -2470,9 +2503,9 @@ def run_once(session, token_mgr, rebuild_days=None):
             rec['outbound_scanDate'] = ''
             ob_time = ''
             is_act = 1
-            if not ib_time or ib_time.lower() in ('nan', 'none', ''):
-                rec['inbound_scanDate'] = 'Backlog'
-                ib_time = 'Backlog'
+            if not ib_time or str(ib_time).strip().lower() in ('nan', 'none', '', 'backlog'):
+                rec['inbound_scanDate'] = None
+                ib_time = None
             
         rec['status_order'] = status
         rec['is_active'] = is_act
@@ -2586,47 +2619,13 @@ def run_once(session, token_mgr, rebuild_days=None):
             ])
 
     if changed_records:
-        init_db()
-        print(f"\n💾 Đang lưu {len(changed_records):,} bản ghi thay đổi vào PostgreSQL...")
+        print(f"\n💾 Đang lưu {len(changed_records):,} bản ghi thay đổi vào PostgreSQL (Pool UPSERT)...")
         try:
-            conn = psycopg2.connect(**DB_CONN_PARAMS)
-            c = conn.cursor()
-            
-            upsert_query = """
-                INSERT INTO shipments (
-                    waybillno, data_source, weight, picknetworkname, dispatch_plan,
-                    pickup_time, pickup_label, pickup_ontime, dispatchnetworktime,
-                    next_station, tuyen, rank, inbound_network, inbound_scandate,
-                    outbound_scandate, arrival_time, dispatch_actual, status_order, time_ref,
-                    is_backlog, is_active
-                ) VALUES %s
-                ON CONFLICT(waybillno) DO UPDATE SET
-                    data_source        = EXCLUDED.data_source,
-                    weight             = EXCLUDED.weight,
-                    picknetworkname    = EXCLUDED.picknetworkname,
-                    dispatch_plan      = EXCLUDED.dispatch_plan,
-                    pickup_time        = EXCLUDED.pickup_time,
-                    pickup_label       = EXCLUDED.pickup_label,
-                    pickup_ontime      = EXCLUDED.pickup_ontime,
-                    dispatchnetworktime= EXCLUDED.dispatchnetworktime,
-                    next_station       = EXCLUDED.next_station,
-                    tuyen              = EXCLUDED.tuyen,
-                    rank               = EXCLUDED.rank,
-                    inbound_network    = EXCLUDED.inbound_network,
-                    inbound_scandate   = EXCLUDED.inbound_scandate,
-                    outbound_scandate  = EXCLUDED.outbound_scandate,
-                    arrival_time       = EXCLUDED.arrival_time,
-                    dispatch_actual    = EXCLUDED.dispatch_actual,
-                    status_order       = EXCLUDED.status_order,
-                    time_ref           = EXCLUDED.time_ref,
-                    is_backlog         = EXCLUDED.is_backlog,
-                    is_active          = EXCLUDED.is_active,
-                    last_updated       = NOW()
-            """
-            execute_values(c, upsert_query, changed_records)
-            conn.commit()
-            conn.close()
-            print(f"   ✅ Đã UPSERT thành công {len(changed_records)} bản ghi thay đổi vào PostgreSQL.")
+            processed = batch_upsert_shipments(changed_records)
+            print(f"   ✅ Đã UPSERT thành công {processed} bản ghi thay đổi vào PostgreSQL.")
+            print("   🔄 Đang làm mới Materialized Views (CONCURRENTLY)...")
+            refresh_materialized_views()
+            print("   ✅ Materialized Views đã được cập nhật thành công.")
         except Exception as ex_db:
             print(f"   ❌ Lỗi lưu dữ liệu thay đổi vào PostgreSQL: {ex_db}")
 
@@ -2640,7 +2639,7 @@ def run_once(session, token_mgr, rebuild_days=None):
 
     # ── Reload DB sau khi reconcile để df phản ánh đúng trạng thái mới nhất ──
     try:
-        conn_r = psycopg2.connect(**DB_CONN_PARAMS)
+        conn_r = get_db_conn()
         c_r    = conn_r.cursor()
         c_r.execute("SELECT * FROM shipments WHERE is_active = 1")
         rows_r = c_r.fetchall()
@@ -2735,16 +2734,10 @@ def run_once(session, token_mgr, rebuild_days=None):
                 print(f"   💡 Outbound calculated: {len(outbound_volumes_grouped)} groups. Total: {total_vol}")
 
     # ================================================================
-    # ⚡ PUSH DATA LÊN GITHUB RAW (thay thế Google Sheet cho 100k rows)
-    # Dashboard JS sẽ đọc trực tiếp từ raw.githubusercontent.com
+    # ⚡ PHASE 1 ENTERPRISE ARCHITECTURE: PURE DB MODE (NEON POSTGRESQL)
+    # Gỡ bỏ hoàn toàn logic sinh file data/latest.json.gz theo đúng DoD Phase 1
     # ================================================================
-    print("\n🚀 Đang lưu và nén dữ liệu thô ra local...")
-    os.makedirs("data", exist_ok=True)
-    df.to_json("data/latest.json.gz", orient="records", force_ascii=False, compression="gzip")
-    # push_json_to_github(df, GH_TOKEN, GH_REPO, GH_DATA_PATH)
-    
-    # print("\n💾 Đang đồng bộ hóa Database SQLite lên Github...")
-    # push_db_to_github(DB_FILE, GH_TOKEN, GH_REPO, "backend_sync/db/state.db")
+    print("\n✅ Enterprise Architecture v5: Dữ liệu đã được nạp hoàn chỉnh 100% vào PostgreSQL (Pure DB Mode - Không sinh file data/*.json).")
 
     # Cập nhật dữ liệu cấu hình lên Google Sheets (config sheets, Linehaul, Arrival, Outbound)
     # Data chính (100k rows) đã được push lên Github — không cần ghi vào Sheet nữa
@@ -3038,7 +3031,7 @@ def run_realtime_sync(session, token_mgr):
         pages = math.ceil(total_dp / 100) if total_dp > 0 else 1
 
         updated_pickup = 0
-        conn_rt = sqlite3.connect(DB_FILE)
+        conn_rt = get_db_conn()
         c_rt = conn_rt.cursor()
 
         for pg in range(1, min(pages + 1, 51)):  # Tối đa 50 trang = 5000 đơn gần nhất
@@ -3062,16 +3055,18 @@ def run_realtime_sync(session, token_mgr):
                     pk = str(item.get('updateTime') or '').strip() if status_dp == 'Đã lấy hàng' else ''
                     if wb and pk and pk.lower() not in ('nan', 'none', ''):
                         c_rt.execute("""
-                            UPDATE inventory
-                            SET Pickup_time = ?, status_order = ?, last_updated = CURRENT_TIMESTAMP
-                            WHERE waybillNo = ? AND (Pickup_time = '' OR Pickup_time IS NULL)
+                            UPDATE shipments
+                            SET pickup_time = %s, status_order = %s, last_updated = CURRENT_TIMESTAMP
+                            WHERE waybillno = %s AND (pickup_time = '' OR pickup_time IS NULL)
                         """, (pk, status_dp, wb))
                         updated_pickup += c_rt.rowcount
-            except Exception:
+            except Exception as e_dp_pg:
+                print(f"   ⚠️ Lỗi xử lý trang Dispatch {pg}: {e_dp_pg}")
                 continue
 
         conn_rt.commit()
-        print(f"   ✅ Cập nhật Pickup_time cho {updated_pickup:,} đơn mới từ Dispatch API")
+        conn_rt.close()
+        print(f"   ✅ Cập nhật pickup_time cho {updated_pickup:,} đơn mới từ Dispatch API")
 
         # ── 2. KÉO BACKLOG: cập nhật số tồn kho thực ──
         print("\n🏭 Kéo Backlog API...")

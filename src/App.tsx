@@ -10,6 +10,7 @@ import {
   Inbox
 } from 'lucide-react';
 import configData from './data/config.json';
+import ApiStatusBadge from './components/ApiStatusBadge';
 
 // Animated Number Ticker Component
 function NumberTicker({ value }: { value: number }) {
@@ -1312,9 +1313,7 @@ export default function App() {
              style={{background:'linear-gradient(180deg,rgba(2,4,10,.95),rgba(2,4,10,0))'}}>
           <div className="flex items-center select-none" />
           <div className="flex items-center gap-3 pointer-events-auto">
-            <div style={{ fontSize: '11px', color: '#94a3b8', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', padding: '5px 12px', borderRadius: '20px', fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>
-              Update: {new Date().toLocaleString('vi-VN').replace(',', '')}
-            </div>
+            <ApiStatusBadge onRetry={fetchAndUpdateData} />
           </div>
         </div>
       )}
