@@ -47,6 +47,32 @@ CREATE TABLE IF NOT EXISTS shipments (
     last_updated        TIMESTAMPTZ DEFAULT NOW()      -- Thời điểm cập nhật cuối cùng
 );
 
+-- 2.1. Sanitize any existing TEXT/VARCHAR timestamp columns (if migrated from SQLite/legacy scheme)
+DO $$
+BEGIN
+    UPDATE shipments SET inbound_scandate = NULL WHERE inbound_scandate::text = 'Backlog' OR inbound_scandate::text = '' OR NOT (inbound_scandate::text ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}');
+    UPDATE shipments SET outbound_scandate = NULL WHERE outbound_scandate::text = 'Backlog' OR outbound_scandate::text = '' OR NOT (outbound_scandate::text ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}');
+    UPDATE shipments SET pickup_time = NULL WHERE pickup_time::text = 'Backlog' OR pickup_time::text = '' OR NOT (pickup_time::text ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}');
+    UPDATE shipments SET dispatchnetworktime = NULL WHERE dispatchnetworktime::text = 'Backlog' OR dispatchnetworktime::text = '' OR NOT (dispatchnetworktime::text ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}');
+    UPDATE shipments SET arrival_time = NULL WHERE arrival_time::text = 'Backlog' OR arrival_time::text = '' OR NOT (arrival_time::text ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}');
+    UPDATE shipments SET time_ref = NULL WHERE time_ref::text = 'Backlog' OR time_ref::text = '' OR NOT (time_ref::text ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}');
+EXCEPTION WHEN OTHERS THEN
+    NULL;
+END $$;
+
+-- 2.2. Ensure columns are native TIMESTAMPTZ
+DO $$
+BEGIN
+    ALTER TABLE shipments ALTER COLUMN inbound_scandate TYPE TIMESTAMPTZ USING NULLIF(TRIM(inbound_scandate::text), '')::timestamptz;
+    ALTER TABLE shipments ALTER COLUMN outbound_scandate TYPE TIMESTAMPTZ USING NULLIF(TRIM(outbound_scandate::text), '')::timestamptz;
+    ALTER TABLE shipments ALTER COLUMN pickup_time TYPE TIMESTAMPTZ USING NULLIF(TRIM(pickup_time::text), '')::timestamptz;
+    ALTER TABLE shipments ALTER COLUMN dispatchnetworktime TYPE TIMESTAMPTZ USING NULLIF(TRIM(dispatchnetworktime::text), '')::timestamptz;
+    ALTER TABLE shipments ALTER COLUMN arrival_time TYPE TIMESTAMPTZ USING NULLIF(TRIM(arrival_time::text), '')::timestamptz;
+    ALTER TABLE shipments ALTER COLUMN time_ref TYPE TIMESTAMPTZ USING NULLIF(TRIM(time_ref::text), '')::timestamptz;
+EXCEPTION WHEN OTHERS THEN
+    NULL;
+END $$;
+
 -- 3. Bảng Vận Hành & Audit: Lịch sử ETL Job & Cấu hình Hệ thống
 CREATE TABLE IF NOT EXISTS etl_job_history (
     job_id              VARCHAR(64) PRIMARY KEY,       -- UUID hoặc Job ID ('sync-20260714-170000')

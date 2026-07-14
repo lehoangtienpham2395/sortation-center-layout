@@ -2486,9 +2486,9 @@ def run_once(session, token_mgr, rebuild_days=None):
             rec['outbound_scanDate'] = ''
             ob_time = ''
             is_act = 1
-            if not ib_time or ib_time.lower() in ('nan', 'none', ''):
-                rec['inbound_scanDate'] = 'Backlog'
-                ib_time = 'Backlog'
+            if not ib_time or str(ib_time).strip().lower() in ('nan', 'none', '', 'backlog'):
+                rec['inbound_scanDate'] = None
+                ib_time = None
             
         rec['status_order'] = status
         rec['is_active'] = is_act

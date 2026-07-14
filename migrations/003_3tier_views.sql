@@ -51,7 +51,7 @@ SELECT
     COUNT(*) AS hourly_volume,
     ROUND(SUM(s.weight)::numeric, 2) AS hourly_weight_kg
 FROM shipments s
-WHERE s.is_active = 1 AND NULLIF(TRIM(s.inbound_scandate::text), '') IS NOT NULL
+WHERE s.is_active = 1 AND NULLIF(TRIM(s.inbound_scandate::text), '') IS NOT NULL AND s.inbound_scandate::text ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
 GROUP BY TO_CHAR(NULLIF(TRIM(s.inbound_scandate::text), '')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD HH24:00'), TO_CHAR(NULLIF(TRIM(s.inbound_scandate::text), '')::timestamptz AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:00')
 ORDER BY hour_bucket DESC
 LIMIT 48;

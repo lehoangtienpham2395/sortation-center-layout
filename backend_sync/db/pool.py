@@ -135,6 +135,13 @@ def execute_all_migrations(migrations_dir=None):
     logger.info(f"Found {len(sql_files)} migration files in {migrations_dir}.")
     
     with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            for col in ['inbound_scandate', 'outbound_scandate', 'pickup_time', 'dispatchnetworktime', 'arrival_time', 'time_ref']:
+                try:
+                    cur.execute(f"UPDATE shipments SET {col} = NULL WHERE {col}::text = 'Backlog' OR {col}::text = '' OR NOT ({col}::text ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}');")
+                except Exception:
+                    conn.rollback()
+            conn.commit()
         for sql_file in sql_files:
             file_path = os.path.join(migrations_dir, sql_file)
             run_sql_file(conn, file_path)
