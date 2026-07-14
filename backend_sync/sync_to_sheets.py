@@ -45,7 +45,6 @@ DISABLE_GOOGLE_SHEETS = True
 # ============================================================
 BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR   = os.path.join(BASE_DIR, "output")
-VALID_FILE   = os.path.join(BASE_DIR, "config", "valid.csv")
 DB_CONN_PARAMS = {
     "host": "localhost",
     "port": 5433,
@@ -53,6 +52,16 @@ DB_CONN_PARAMS = {
     "password": "postgres",
     "dbname": "postgres"
 }
+
+def get_db_conn():
+    try:
+        return psycopg2.connect(**DB_CONN_PARAMS, connect_timeout=5)
+    except Exception as e:
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            print(f"   ℹ️ [GitHub Actions] Không tìm thấy Local PostgreSQL (localhost:5433) trên máy chủ Cloud. Vui lòng chạy sync trên máy cá nhân.")
+            sys.exit(0)
+        raise e
+
 
 DB_KEYS_MAP = {
     'waybillno': 'waybillNo',
@@ -1197,7 +1206,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
     # 1. Generate Inbound aggregated data directly from SQLite shipments table
     df_inbound_aggregated = pd.DataFrame()
     try:
-        conn = psycopg2.connect(**DB_CONN_PARAMS)
+        conn = get_db_conn()
         df_ship = pd.read_sql_query("""
             SELECT picknetworkname AS "pickNetworkName", status_order, weight, 
                    inbound_scandate AS "inbound_scanDate", dispatchnetworktime AS "dispatchNetworkTime", 
@@ -1421,7 +1430,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
     print("\n📋 Xử lý sheet Arrival từ shipments...")
     df_arrival_aggregated = pd.DataFrame()
     try:
-        conn = psycopg2.connect(**DB_CONN_PARAMS)
+        conn = get_db_conn()
         df_arr_raw = pd.read_sql_query("""
             SELECT waybillno AS "waybillNo", picknetworkname AS "Pickup_station", arrival_time AS "Arrival_time", inbound_scandate AS "inbound_scanDate"
             FROM shipments
@@ -1755,7 +1764,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
     if run_backlog_inv:
         inventory_volumes = {}
         try:
-            conn = psycopg2.connect(**DB_CONN_PARAMS)
+            conn = get_db_conn()
             # ✅ Chỉ đọc đơn đang active (is_active=1) và chưa rời HUB
             df_db_inv = pd.read_sql_query(
                 """SELECT next_station, status_order, weight, waybillno AS "waybillNo", time_ref
@@ -2034,7 +2043,7 @@ def run_once(session, token_mgr, rebuild_days=None):
     db_records = {}
     init_db()
     try:
-        conn = psycopg2.connect(**DB_CONN_PARAMS)
+        conn = get_db_conn()
         c = conn.cursor()
         
         # Tự động dọn dẹp các đơn kẹt quá 3 ngày không có log xuất kho
@@ -2600,7 +2609,7 @@ def run_once(session, token_mgr, rebuild_days=None):
         init_db()
         print(f"\n💾 Đang lưu {len(changed_records):,} bản ghi thay đổi vào PostgreSQL...")
         try:
-            conn = psycopg2.connect(**DB_CONN_PARAMS)
+            conn = get_db_conn()
             c = conn.cursor()
             
             upsert_query = """
