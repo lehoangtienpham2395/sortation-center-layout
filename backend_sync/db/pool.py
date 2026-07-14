@@ -122,8 +122,18 @@ def run_sql_file(conn, sql_path):
     conn.commit()
     logger.info(f"Successfully executed migration script: {os.path.basename(sql_path)}")
 
+# ──────────────────────────────────────────────────────────────
+# Guard: chỉ chạy migrations 1 lần duy nhất trong toàn bộ tiến trình
+# ──────────────────────────────────────────────────────────────
+_MIGRATIONS_DONE = False
+
 def execute_all_migrations(migrations_dir=None):
-    """Executes all migration scripts in numerical order."""
+    """Executes all migration scripts in numerical order. Runs only ONCE per process."""
+    global _MIGRATIONS_DONE
+    if _MIGRATIONS_DONE:
+        logger.info("Migrations already executed this session — skipping.")
+        return
+
     if migrations_dir is None:
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         migrations_dir = os.path.join(base_dir, "migrations")
@@ -135,16 +145,11 @@ def execute_all_migrations(migrations_dir=None):
     logger.info(f"Found {len(sql_files)} migration files in {migrations_dir}.")
     
     with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            for col in ['inbound_scandate', 'outbound_scandate', 'pickup_time', 'dispatchnetworktime', 'arrival_time', 'time_ref']:
-                try:
-                    cur.execute(f"UPDATE shipments SET {col} = NULL WHERE {col}::text = 'Backlog' OR {col}::text = '' OR NOT ({col}::text ~ '^[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}');")
-                except Exception:
-                    conn.rollback()
-            conn.commit()
         for sql_file in sql_files:
             file_path = os.path.join(migrations_dir, sql_file)
             run_sql_file(conn, file_path)
+
+    _MIGRATIONS_DONE = True
     logger.info("All database migrations completed successfully.")
 
 def batch_upsert_shipments(records, batch_size=2000):

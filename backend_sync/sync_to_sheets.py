@@ -1211,6 +1211,19 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             FROM shipments
         """, conn)
         conn.close()
+        
+        # Convert timezone-aware datetimes to Asia/Ho_Chi_Minh timezone
+        for col in ["inbound_scanDate", "dispatchNetworkTime", "Pickup_time", "Arrival_time"]:
+            if col in df_ship.columns:
+                dt_col = pd.to_datetime(df_ship[col])
+                # If there are any non-null elements, localize/convert timezone
+                if not dt_col.dropna().empty:
+                    if dt_col.dt.tz is None:
+                        df_ship[col] = dt_col.dt.tz_localize('UTC').dt.tz_convert('Asia/Ho_Chi_Minh').dt.strftime('%Y-%m-%d %H:%M:%S')
+                    else:
+                        df_ship[col] = dt_col.dt.tz_convert('Asia/Ho_Chi_Minh').dt.strftime('%Y-%m-%d %H:%M:%S')
+                else:
+                    df_ship[col] = ""
     except Exception as e_db:
         print(f"   ⚠️ Lỗi kết nối DB khi tạo Inbound Sheet: {e_db}")
         df_ship = pd.DataFrame()
