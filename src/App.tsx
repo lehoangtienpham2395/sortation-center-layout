@@ -10,6 +10,8 @@ import {
   Inbox
 } from 'lucide-react';
 import configData from './data/config.json';
+import ApiStatusBadge from './components/ApiStatusBadge';
+import { apiClient } from './services/apiClient';
 
 // Animated Number Ticker Component
 function NumberTicker({ value }: { value: number }) {
@@ -170,6 +172,21 @@ interface SheetRow {
 
 async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival'): Promise<any[] | null> {
   try {
+    // Enterprise Architecture v5: Try fetching from FastAPI low-latency endpoint first
+    if (sheetType === 'Inbound') {
+      const apiRes = await apiClient.getInboundDashboard();
+      if (apiRes.status === 'ok' && apiRes.data) {
+        return apiRes.data.chutes_table.map((c) => ({
+          'Bưu cục': c.chute_name || c.area_id,
+          'AreaID': c.area_id,
+          'Trạng thái': 'Đang nhập kho',
+          'Ngày vận hành': new Date().toISOString().split('T')[0],
+          'Volume': c.total_volume,
+          'Weight': c.total_weight_kg
+        }));
+      }
+    }
+
     const t = Date.now();
     const url = `https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`;
     const response = await fetch(url);
@@ -202,6 +219,26 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
 
 async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[] | null> {
   try {
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    // Enterprise Architecture v5: Try fetching from FastAPI low-latency endpoint first
+    if (sheetType === 'Outbound') {
+      const apiRes = await apiClient.getOutboundDashboard();
+      if (apiRes.status === 'ok' && apiRes.data) {
+        return apiRes.data.stations_table.map((st) => ({
+          zone: '3',
+          areaId: st.station_name,
+          buuCuc: st.station_name,
+          volume: st.total_volume,
+          weight: st.total_weight_kg,
+          capacity: 780,
+          date: todayStr,
+          type: 'Outbound',
+          status: 'Đã xuất'
+        }));
+      }
+    }
+
     const t = Date.now();
     const url = `https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`;
     const response = await fetch(url);
@@ -209,7 +246,6 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
     const data = await response.json();
     if (!Array.isArray(data)) return [];
 
-    const todayStr = new Date().toISOString().split('T')[0];
     const rows: SheetRow[] = [];
 
     for (const item of data) {
@@ -1302,16 +1338,12 @@ export default function App() {
 
   return (
     <div className="w-full h-full relative font-sans text-white bg-[#02040a]">
-      {(!isMobile ? currentView === 'master' : activeTab === 'layout') && (
-        <div className={`absolute top-0 right-0 h-12 flex items-center justify-between px-6 z-20 transition-all duration-300 ${
-        isMobile ? 'left-0' : 'left-16'
-      }`}
-           style={{background:'linear-gradient(180deg,rgba(2,4,10,.95),rgba(2,4,10,0))'}}>
-        <div className="flex items-center select-none">
-          {/* placeholder - logo moved outside */}
-        </div>
-                {!isMobile ? (
-          <div className="flex items-center gap-4">
+      {!isMobile && (
+        <div className="absolute top-0 right-0 h-12 flex items-center justify-between px-6 z-30 transition-all duration-300 left-16 pointer-events-none"
+             style={{background:'linear-gradient(180deg,rgba(2,4,10,.95),rgba(2,4,10,0))'}}>
+          <div className="flex items-center select-none" />
+          <div className="flex items-center gap-3 pointer-events-auto">
+            <ApiStatusBadge onRetry={fetchAndUpdateData} />
             <div className="mono text-[10px] text-slate-400 flex items-center gap-1.5 bg-[#121824]/60 border border-white/5 rounded-full px-3 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-slow"></span>
               Update: <b className="text-emerald-400">{new Date().toLocaleString('vi-VN')}</b>
@@ -1320,8 +1352,7 @@ export default function App() {
               ZONE: LAT 10.823 • LONG 106.63
             </div>
           </div>
-        ) : null}
-      </div>
+        </div>
       )}
 
       {!isMobile ? (
