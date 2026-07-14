@@ -71,6 +71,8 @@ jobs:
         SYSTEM_PASSWORD: ${{ secrets.SYSTEM_PASSWORD }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GH_REPO: ${{ github.repository }}
+        NEON_POOLER_URL: ${{ secrets.NEON_POOLER_URL }}
+        GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
         PYTHONUNBUFFERED: "1"
       run: |
         python backend_sync/sync_to_sheets.py
