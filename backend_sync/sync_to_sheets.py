@@ -1461,7 +1461,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         df_arr_raw['Ngày vận hành'] = df_arr_raw['Arrival_time'].apply(get_operating_date)
         df_arr_raw['Scan Hour'] = pd.to_datetime(df_arr_raw['Arrival_time'], errors='coerce').dt.strftime('%Y-%m-%d %H:00')
         
-        df_arr_raw['Đã đến Hub'] = df_arr_raw['inbound_scanDate'].apply(lambda d: 1 if d and str(d).strip().lower() not in ('nan', 'none', '') else 0)
+        df_arr_raw['Đã đến Hub'] = df_arr_raw['inbound_scanDate'].apply(lambda d: 0 if pd.isna(d) or str(d).strip().lower() in ('nan', 'none', 'nat', '') else 1)
         df_arr_raw['Chưa đến Hub'] = 1 - df_arr_raw['Đã đến Hub']
         
         try:
