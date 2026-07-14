@@ -248,7 +248,7 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
 }
 
 
-const UTILCOL: any = { green:'#0c883d', yellow:'#0c883d', orange:'#0c883d', red:'#0c883d', darkred:'#0c883d' };
+const UTILCOL: any = { green:'#10b981', yellow:'#f59e0b', orange:'#f97316', red:'#ef4444', darkred:'#dc2626' };
 
 const WL = 60;                        
 const WR = 894;                       
@@ -360,6 +360,7 @@ export default function App() {
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Outbound');
+  const [outboundRate, setOutboundRate] = useState<string>('0.0');
   const INVENTORY_STATUSES = ['Đang trên bãi', 'Đang trên đường', 'Đã lấy hàng', 'Đã điều phối bưu cục'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([...INVENTORY_STATUSES]);
 
@@ -810,9 +811,12 @@ export default function App() {
         else if (d.utilization >= 95) alerts.push(`${c.areaId} SẮP ĐẦY (${d.utilization}%)`);
       });
       
+      // Always compute outbound rate regardless of selectedType
+      const outDenominator = tCur + tBacklog;
+      setOutboundRate((outDenominator ? (tCur / outDenominator) * 100 : 0).toFixed(1));
+
       if (selectedType === 'Outbound') {
-        const denominator = tCur + tBacklog;
-        setUtilTotal((denominator ? (tCur / denominator) * 100 : 0).toFixed(1));
+        setUtilTotal((outDenominator ? (tCur / outDenominator) * 100 : 0).toFixed(1));
       } else {
         setUtilTotal((tCap ? (tCur/tCap)*100 : 0).toFixed(1));
       }
@@ -1502,26 +1506,41 @@ export default function App() {
                     OPERATIONAL MONITOR
                   </div>
 
-                  {/* Tỉ lệ lấp đầy - full width with progress bar */}
-                  <div style={{ background: 'rgba(26,140,62,0.08)', border: '1px solid rgba(26,140,62,0.25)', borderRadius: '10px', padding: '12px 16px', marginBottom: '10px' }}>
-                    <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: '#e2e8f0', marginBottom: '6px', fontFamily: "'Inter',sans-serif" }}>{displayUtilizationLabel}</div>
-                    <div className="flex items-center gap-3">
-                      <div style={{ flex: 1, height: '8px', borderRadius: '99px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
-                        <div style={{
-                          height: '100%', borderRadius: '99px',
-                          background: 'linear-gradient(90deg, #1a8c3e, #10b981)',
-                          width: `${Math.min(100, Number(utilTotal))}%`,
-                          transition: 'width 1s ease'
-                        }} />
+                  {/* Tỉ lệ lấp đầy - full width with UTILCOL warning */}
+                  {(() => {
+                    const utilNum = Number(utilTotal);
+                    const utilBucket = utilNum > 100 ? 'darkred' : utilNum >= 95 ? 'red' : utilNum >= 80 ? 'orange' : utilNum >= 50 ? 'yellow' : 'green';
+                    const utilColor = UTILCOL[utilBucket];
+                    return (
+                      <div style={{ background: `${utilColor}12`, border: `1px solid ${utilColor}40`, borderRadius: '10px', padding: '12px 16px', marginBottom: '10px' }}>
+                        <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: '#e2e8f0', marginBottom: '6px', fontFamily: "'Inter',sans-serif" }}>{displayUtilizationLabel}</div>
+                        <div className="flex items-center gap-3">
+                          <div style={{ flex: 1, height: '8px', borderRadius: '99px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', borderRadius: '99px', background: utilColor, width: `${Math.min(100, utilNum)}%`, transition: 'width 1s ease' }} />
+                          </div>
+                          <div className="mono font-bold" style={{ fontSize: '18px', lineHeight: 1, color: utilColor, minWidth: '44px', textAlign: 'right', textShadow: `0 0 10px ${utilColor}99` }}>{utilTotal}%</div>
+                        </div>
                       </div>
-                      <div className="mono font-bold" style={{ fontSize: '18px', lineHeight: 1, color: 'var(--cyan)', minWidth: '44px', textAlign: 'right', textShadow: '0 0 10px rgba(26,140,62,0.6)' }}>{utilTotal}%</div>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
-                  {/* Ô ĐANG DÙNG */}
-                  <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '10px 16px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: '#e2e8f0', fontFamily: "'Inter',sans-serif" }}>Ô ĐANG DÙNG</div>
-                    <div className="mono font-bold" style={{ fontSize: '22px', lineHeight: 1, color: '#fff', textShadow: '0 0 8px rgba(255,255,255,0.3)' }}>{usedCells}<span style={{ fontSize: '12px', color: '#94a3b8' }}>/{CHUTE_RACKS.length}</span></div>
+                  {/* Ô ĐANG DÙNG + TỈ LỆ OUTBOUND - compact 2-column row */}
+                  <div className="grid grid-cols-2 gap-2" style={{ marginBottom: '16px' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '7px 10px' }}>
+                      <div style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '0.12em', color: '#94a3b8', fontFamily: "'Inter',sans-serif", marginBottom: '2px' }}>Ô ĐANG DÙNG</div>
+                      <div className="mono font-bold" style={{ fontSize: '16px', lineHeight: 1, color: '#f1f5f9' }}>{usedCells}<span style={{ fontSize: '11px', color: '#64748b' }}>/{CHUTE_RACKS.length}</span></div>
+                    </div>
+                    {(() => {
+                      const obNum = Number(outboundRate);
+                      const obBucket = obNum > 100 ? 'darkred' : obNum >= 95 ? 'red' : obNum >= 80 ? 'orange' : obNum >= 50 ? 'yellow' : 'green';
+                      const obColor = UTILCOL[obBucket];
+                      return (
+                        <div style={{ background: `${obColor}10`, border: `1px solid ${obColor}35`, borderRadius: '8px', padding: '7px 10px' }}>
+                          <div style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '0.12em', color: '#94a3b8', fontFamily: "'Inter',sans-serif", marginBottom: '2px' }}>TỈ LỆ OUTBOUND</div>
+                          <div className="mono font-bold" style={{ fontSize: '16px', lineHeight: 1, color: obColor, textShadow: `0 0 8px ${obColor}88` }}>{outboundRate}%</div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Zone cards 3-column grid */}
@@ -1550,9 +1569,9 @@ export default function App() {
                         >
                           <div className="mono font-extrabold" style={{ fontSize: '13px', color: zone.color, lineHeight: 1.2, textShadow: `0 0 8px ${zone.color}88` }}>{zone.shortName}</div>
                           <div className="mono font-bold" style={{ fontSize: '13px', color: zone.color, lineHeight: 1.2 }}>{stats.fillRate}%</div>
-                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#f1f5f9', lineHeight: 1.2 }}>{stats.current.toLocaleString()}</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#B8F7E4', lineHeight: 1.2 }}>{stats.current.toLocaleString()}</div>
                           <div className="mono font-bold" style={{ fontSize: '13px', color: '#f1f5f9', lineHeight: 1.2 }}>{(stats as any).totalShare}%</div>
-                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#f1f5f9', lineHeight: 1.2 }}>{(stats.weight / 1000).toFixed(1)} tấn</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#B8F7E4', lineHeight: 1.2 }}>{(stats.weight / 1000).toFixed(1)} tấn</div>
                         </div>
                       );
                     })}
@@ -1591,17 +1610,17 @@ export default function App() {
                   <div className="font-bold text-[13px] tracking-[0.15em] text-center" style={{ color: '#FFF4D6', fontFamily: "'Inter', sans-serif", marginBottom: '10px', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
                     METRICS
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <div className="flex justify-between items-center">
-                      <span style={{ fontSize: '11px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng đơn hàng</span>
-                      <span className="mono font-bold" style={{ fontSize: '20px', color: 'var(--cyan)', textShadow: '0 0 12px rgba(26,140,62,0.6)' }}>
-                        <NumberTicker value={totalOrders} /> <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>Đơn</span>
+                      <span style={{ fontSize: '13px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng đơn hàng</span>
+                      <span className="mono font-bold" style={{ fontSize: '15px', color: '#B8F7E4', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
+                        <NumberTicker value={totalOrders} /> <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Đơn</span>
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span style={{ fontSize: '11px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng trọng lượng</span>
-                      <span className="mono font-bold" style={{ fontSize: '20px', color: 'var(--green)', textShadow: '0 0 12px rgba(16,185,129,0.6)' }}>
-                        {(totalWeight / 1000).toFixed(1)} <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
+                      <span style={{ fontSize: '13px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng trọng lượng</span>
+                      <span className="mono font-bold" style={{ fontSize: '15px', color: '#B8F7E4', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
+                        {(totalWeight / 1000).toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
                       </span>
                     </div>
                   </div>
@@ -1802,11 +1821,11 @@ export default function App() {
                       <thead>
                         <tr style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                           <th style={{ width: '25px', textAlign: 'center' }}>#</th>
-                          <th style={{ width: '35px', color: '#22d3ee', textAlign: 'center' }}>MÃ</th>
+                          <th style={{ width: '35px', textAlign: 'center' }}>MÃ</th>
                           <th style={{ textAlign: 'left' }}>BƯU CỤC</th>
-                          <th style={{ textAlign: 'center', width: '45px', color: '#10b981' }}>{selectedType === 'Outbound' ? 'XUẤT' : 'TỒN'}</th>
+                          <th style={{ textAlign: 'center', width: '45px' }}>{selectedType === 'Outbound' ? 'XUẤT' : 'TỒN'}</th>
                           <th style={{ textAlign: 'center', width: '70px' }}>T.LƯỢNG</th>
-                          <th style={{ textAlign: 'center', width: '60px', color: '#10b981' }}>%Volume</th>
+                          <th style={{ textAlign: 'center', width: '60px' }}>%Volume</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1827,9 +1846,9 @@ export default function App() {
                               <td className="font-bold text-white uppercase" style={{ fontSize: '11px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2' }} title={chute.name}>
                                 {chute.name.replace(/^(SG|BD|TG|DT|DN|LA)\s+/i, '')}
                               </td>
-                              <td className="mono font-bold text-center" style={{ color: '#10b981', fontSize: '12px', textShadow: '0 0 8px rgba(16, 185, 129, 0.65)' }}>{chute.current.toLocaleString()}</td>
+                              <td className="mono font-bold text-center" style={{ color: '#B8F7E4', fontSize: '12px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
                               <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>{(chute.weight / 1000).toFixed(1)} Tấn</td>
-                              <td className="mono font-bold text-center" style={{ color: '#10b981', fontSize: '11.5px', textShadow: '0 0 8px rgba(16, 185, 129, 0.65)' }}>{chute.utilization}%</td>
+                              <td className="mono font-bold text-center" style={{ color: UTILCOL[chute.bucket], fontSize: '11.5px', textShadow: chute.bucket === 'darkred' || chute.bucket === 'red' ? '0 0 8px rgba(239,68,68,0.6)' : '0 0 8px rgba(16,185,129,0.5)' }}>{chute.utilization}%</td>
                             </tr>
                           );
                         })}
