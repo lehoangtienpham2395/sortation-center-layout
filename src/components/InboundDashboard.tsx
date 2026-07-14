@@ -439,11 +439,19 @@ export default function InboundDashboard({
   });
 
   filteredLinehaul.forEach(d => {
+    // nextNetworkName là bưu cục ĐÍCH của chuyến xe → chính là bưu cục "gửi hàng đến HUB"
     const fcName = d['nextNetworkName'] || '';
     if (fcName && d['Phiếu nhiệm vụ']) {
-      const fc = getFC(fcName);
-      if (fc) {
-        fc.vehicles.add(d['Phiếu nhiệm vụ']);
+      // Nếu bưu cục này chưa xuất hiện trong fcMetrics (không có inbound scan), tạo mới
+      const clean = fcName.trim().toUpperCase();
+      if (!fcMetrics[clean]) {
+        fcMetrics[clean] = { fc: fcName.trim(), vehicles: new Set(), orders: 0, weight: 0 };
+      }
+      fcMetrics[clean].vehicles.add(d['Phiếu nhiệm vụ']);
+      // Nếu orders chưa được tính từ inbound scan, dùng unloadingBillPiece làm proxy
+      if (fcMetrics[clean].orders === 0) {
+        fcMetrics[clean].orders += parseInt(d['unloadingBillPiece'] as any, 10) || 0;
+        fcMetrics[clean].weight += parseFloat(d['unloadingWeight'] as any) || 0;
       }
     }
   });
