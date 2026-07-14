@@ -124,8 +124,8 @@ URL_LOADING        = 'https://gw.jtcargo.com.vn/operatingplatform/traceSub/query
 # ============================================================
 # TUNING — đã tối ưu để tăng tốc ~5x so với mặc định
 # ============================================================
-SOURCE_WORKERS      = 4   # ⚡ Tối ưu lại để tránh bị JFS chặn/429/502 khi chạy từ GitHub Actions
-PAGE_WORKERS        = 4   # ⚡ Giảm concurrency tránh quá tải JFS API
+SOURCE_WORKERS      = 3   # ⚡ Tối ưu lại để tránh bị JFS chặn/429/502 khi chạy từ GitHub Actions
+PAGE_WORKERS        = 3   # ⚡ Giảm concurrency tránh quá tải JFS API
 POOL_SIZE           = 32  # ⚡ Tương thích với số lượng worker nhỏ hơn
 REQUEST_TIMEOUT     = 60
 MAX_RETRIES         = 5
@@ -469,34 +469,46 @@ def pull_pages_parallel(fetch_page, total, page_size, label, start_page=1):
     results = {}
     failed_pages = []
 
-    def execute_fetch(p):
+    def execute_fetch(p, log_err=False):
         try:
-            return fetch_page(p)
-        except Exception:
-            return None
+            return fetch_page(p), None
+        except Exception as e:
+            if log_err:
+                print(f"      [Lỗi trang {p}] {e}")
+            return None, e
 
     print(f"   🚀 Đang tải {len(pages)} trang cho {label}...")
     
     with ThreadPoolExecutor(max_workers=PAGE_WORKERS) as ex:
-        future_to_page = {ex.submit(execute_fetch, p): p for p in pages}
+        future_to_page = {ex.submit(execute_fetch, p, False): p for p in pages}
         for f in as_completed(future_to_page):
             p = future_to_page[f]
-            res = f.result()
+            res, _ = f.result()
             if res is not None:
                 results[p] = res
             else:
                 failed_pages.append(p)
 
-    if failed_pages:
-        print(f"   ⚠️ Có {len(failed_pages)} trang lỗi, đang thử lại lần 2...")
+    # Retry tuần tự tối đa 3 vòng cho các trang bị lỗi (tránh JFS rate-limit/timeout khi tải song song)
+    round_num = 1
+    while failed_pages and round_num <= 3:
+        failed_pages.sort()
+        print(f"   ⚠️ Có {len(failed_pages)} trang lỗi, thử lại tuần tự vòng {round_num}/3 (nghỉ {2 * round_num}s giải phóng rate-limit)...")
+        time.sleep(2 * round_num)  # Nghỉ 2-6 giây cho JFS server hồi phục
+        
+        next_failed = []
         for p in failed_pages:
-            time.sleep(1)
-            res = execute_fetch(p)
+            time.sleep(0.6)  # Nghỉ giữa các trang khi tải tuần tự
+            res, err = execute_fetch(p, log_err=(round_num == 3))
             if res is not None:
                 results[p] = res
             else:
-                print(f"   ❌ Trang {p} vẫn lỗi sau khi thử lại.")
-                results[p] = []
+                next_failed.append(p)
+                if round_num == 3:
+                    print(f"   ❌ Trang {p} thất bại hoàn toàn sau 3 vòng thử lại: {err}")
+                
+        failed_pages = next_failed
+        round_num += 1
 
     out = []
     for p in pages:
@@ -509,10 +521,17 @@ def pull_pages_sequential(fetch_page, page_size, label,
     all_data = list(seed) if seed else []
     page = start_page
     while True:
-        try:
-            page_list = fetch_page(page)
-        except Exception as e:
-            print(f"   ❌ {label} trang {page}: {e}")
+        page_list = None
+        for retry in range(1, 4):
+            try:
+                page_list = fetch_page(page)
+                break
+            except Exception as e:
+                if retry < 3:
+                    time.sleep(1.5 * retry)
+                else:
+                    print(f"   ❌ {label} trang {page} lỗi sau 3 lần thử: {e}")
+        if page_list is None:
             break
         if not page_list:
             break
