@@ -1495,96 +1495,89 @@ export default function App() {
               
               {/* 1. OPERATIONAL MONITOR & ZONE METRICS */}
               {showMonitor && (
-                <div className="jt-glowing-card shadow-2xl p-5 shrink-0">
+                <div className="jt-glowing-card shadow-2xl shrink-0" style={{ padding: '18px 20px', background: 'rgba(255,255,255,0.03)' }}>
 
                   {/* Title */}
-                  <h3 className="font-outfit text-sm font-extrabold tracking-widest mb-4 text-[var(--cyan)]" style={{ margin: 0, marginBottom: '14px' }}>OPERATIONAL MONITOR</h3>
+                  <div className="font-bold text-[13px] tracking-[0.15em] text-center" style={{ color: '#FFF4D6', fontFamily: "'Inter', sans-serif", marginBottom: '14px', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
+                    OPERATIONAL MONITOR
+                  </div>
 
-                  {/* Top 2-column metrics */}
-                  <div className="grid grid-cols-2 gap-2 mb-3">
-                    <div className="bg-[#101622]/70 border border-white/8 rounded-lg px-3 py-2.5">
-                      <div className="text-[10px] font-bold tracking-widest text-slate-400 mb-1 uppercase">{displayUtilizationLabel}</div>
-                      <div className="disp font-extrabold text-[28px] leading-none" style={{ color: 'var(--cyan)' }}>{utilTotal}%</div>
-                    </div>
-                    <div className="bg-[#101622]/70 border border-white/8 rounded-lg px-3 py-2.5">
-                      <div className="text-[10px] font-bold tracking-widest text-slate-400 mb-1 uppercase">CÒN TRỐNG</div>
-                      <div className="disp font-extrabold text-[28px] leading-none" style={{ color: 'var(--green)' }}>{free.toLocaleString()}</div>
+                  {/* Tỉ lệ lấp đầy - full width with progress bar */}
+                  <div style={{ background: 'rgba(26,140,62,0.08)', border: '1px solid rgba(26,140,62,0.25)', borderRadius: '10px', padding: '12px 16px', marginBottom: '10px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: '#e2e8f0', marginBottom: '6px', fontFamily: "'Inter',sans-serif" }}>{displayUtilizationLabel}</div>
+                    <div className="flex items-center gap-3">
+                      <div style={{ flex: 1, height: '8px', borderRadius: '99px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%', borderRadius: '99px',
+                          background: 'linear-gradient(90deg, #1a8c3e, #10b981)',
+                          width: `${Math.min(100, Number(utilTotal))}%`,
+                          transition: 'width 1s ease'
+                        }} />
+                      </div>
+                      <div className="mono font-bold" style={{ fontSize: '18px', lineHeight: 1, color: 'var(--cyan)', minWidth: '44px', textAlign: 'right', textShadow: '0 0 10px rgba(26,140,62,0.6)' }}>{utilTotal}%</div>
                     </div>
                   </div>
 
-                  {/* Ô đang dùng - full width progress row */}
-                  <div className="bg-[#101622]/70 border border-white/8 rounded-lg px-3 py-2 mb-4">
-                    <div className="flex justify-between items-center mb-1.5">
-                      <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Ô ĐANG DÙNG</span>
-                      <span className="mono font-bold text-white text-[12px]">{usedCells}/{CHUTE_RACKS.length}</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-[var(--line)] overflow-hidden">
-                      <div className="h-full rounded-full bg-gradient-to-r from-[var(--cyan)] to-[var(--green)] transition-all duration-1000"
-                           style={{ width: `${Math.min(100, (usedCells / CHUTE_RACKS.length) * 100)}%` }} />
-                    </div>
+                  {/* Ô ĐANG DÙNG */}
+                  <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '10px', padding: '10px 16px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: '#e2e8f0', fontFamily: "'Inter',sans-serif" }}>Ô ĐANG DÙNG</div>
+                    <div className="mono font-bold" style={{ fontSize: '22px', lineHeight: 1, color: '#fff', textShadow: '0 0 8px rgba(255,255,255,0.3)' }}>{usedCells}<span style={{ fontSize: '12px', color: '#94a3b8' }}>/{CHUTE_RACKS.length}</span></div>
                   </div>
 
-                  {/* Zone metrics section */}
-                  <div className="mb-4">
-                    <h4 className="text-[10px] font-bold tracking-widest text-slate-400 mb-3 uppercase">ZONE METRICS (CHI TIẾT PHÂN KHU)</h4>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { id: 3, shortName: 'ZONE 3 CHUTES', sub: '(A00-A04)', color: 'var(--green)' },
-                        { id: 2, shortName: 'ZONE 2 CHUTES', sub: '(A05-A11)', color: 'var(--yellow)' },
-                        { id: 1, shortName: 'ZONE 1 CHUTES', sub: '(A12-A19)', color: 'var(--orange)' }
-                      ].map(zone => {
-                        const stats = zoneStats[zone.id];
-                        const isHovered = hoveredZone === zone.id;
-                        return (
-                          <div
-                            key={zone.id}
-                            className="bg-[#0d1420]/80 border rounded-lg p-2.5 cursor-pointer transition-all duration-300"
-                            style={{
-                              borderColor: isHovered ? zone.color : 'rgba(255,255,255,0.06)',
-                              boxShadow: isHovered ? `0 0 12px ${zone.color}33` : 'none'
-                            }}
-                            onMouseEnter={() => setHoveredZone(zone.id)}
-                            onMouseLeave={() => setHoveredZone(null)}
-                          >
-                            <div className="font-extrabold text-[9.5px] leading-tight mb-2" style={{ color: zone.color }}>
-                              {zone.shortName}<br/><span className="font-bold">{zone.sub}</span>
-                            </div>
-                            <div className="mono font-bold text-white text-[11px] leading-tight">{stats.current.toLocaleString()} đơn</div>
-                            <div className="text-[9px] text-slate-400 mb-1">({(stats as any).totalShare}%)&nbsp;&nbsp;{stats.weight.toLocaleString()} kg</div>
-                            <div className="flex justify-between items-center text-[9px] text-slate-400 mb-1">
-                              <span>% {displayUtilizationLabelLc}</span>
-                              <span className="mono font-bold text-white">{stats.fillRate}%</span>
-                            </div>
-                            <div className="h-1 rounded-full bg-[var(--line)] overflow-hidden">
-                              <div className="h-full rounded-full transition-all duration-500"
-                                   style={{ width: `${Math.min(100, Number(stats.fillRate))}%`, backgroundColor: zone.color }} />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                  {/* Zone cards 3-column grid */}
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    {[
+                      { id: 3, shortName: 'ZONE 3', sub: '', color: '#10b981', colorBg: 'rgba(16,185,129,0.1)', colorBorder: 'rgba(16,185,129,0.3)' },
+                      { id: 2, shortName: 'ZONE 2', sub: '', color: '#f59e0b', colorBg: 'rgba(245,158,11,0.1)', colorBorder: 'rgba(245,158,11,0.3)' },
+                      { id: 1, shortName: 'ZONE 1', sub: '', color: '#f97316', colorBg: 'rgba(249,115,22,0.1)', colorBorder: 'rgba(249,115,22,0.3)' }
+                    ].map(zone => {
+                      const stats = zoneStats[zone.id];
+                      const isHovered = hoveredZone === zone.id;
+                      return (
+                        <div
+                          key={zone.id}
+                          style={{
+                            background: isHovered ? zone.colorBg : 'rgba(255,255,255,0.04)',
+                            border: `1px solid ${isHovered ? zone.colorBorder : 'rgba(255,255,255,0.12)'}`,
+                            borderRadius: '10px', padding: '12px 6px',
+                            cursor: 'pointer', transition: 'all 0.25s ease',
+                            boxShadow: isHovered ? `0 0 16px ${zone.color}33` : 'none',
+                            textAlign: 'center',
+                            display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center'
+                          }}
+                          onMouseEnter={() => setHoveredZone(zone.id)}
+                          onMouseLeave={() => setHoveredZone(null)}
+                        >
+                          <div className="mono font-extrabold" style={{ fontSize: '13px', color: zone.color, lineHeight: 1.2, textShadow: `0 0 8px ${zone.color}88` }}>{zone.shortName}</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: zone.color, lineHeight: 1.2 }}>{stats.fillRate}%</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#f1f5f9', lineHeight: 1.2 }}>{stats.current.toLocaleString()}</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#f1f5f9', lineHeight: 1.2 }}>{(stats as any).totalShare}%</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#f1f5f9', lineHeight: 1.2 }}>{(stats.weight / 1000).toFixed(1)} tấn</div>
+                        </div>
+                      );
+                    })}
                   </div>
 
                   {/* Chi tiết ô chứa */}
-                  <div className="border-t border-[var(--line)] pt-3">
-                    <h4 className="text-[10px] font-bold tracking-widest text-slate-400 mb-2 uppercase">CHI TIẾT Ô CHỨA</h4>
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: '#cbd5e1', marginBottom: '8px', fontFamily: "'Inter',sans-serif" }}>CHI TIẾT Ô CHỨA</div>
                     {hoveredRack ? (
-                      <div className="space-y-1.5 bg-[#101622]/60 rounded-md p-2.5 border border-white/5">
+                      <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '8px', padding: '10px', border: '1px solid rgba(255,255,255,0.1)' }}>
                         {[
                           ['Mã ô', hoveredRack.areaId, 'var(--cyan)'],
-                          ['Tên', hoveredRack.name, '#fff'],
-                          ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#fff'],
-                          ['Trọng lượng', `${(hoveredRack.weight || 0).toLocaleString()} kg`, '#fff'],
+                          ['Tên', hoveredRack.name, '#f1f5f9'],
+                          ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#f1f5f9'],
+                          ['Trọng lượng', `${(hoveredRack.weight || 0).toLocaleString()} kg`, '#f1f5f9'],
                           [displayUtilizationLabelLc, `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
-                        ].map(([k,v,c]) => (
-                          <div key={k} className="flex justify-between">
-                            <span className="text-[10px] text-[var(--muted)]">{k}:</span>
-                            <span className="mono text-[10px] font-bold truncate max-w-[130px]" style={{color:c}}>{v}</span>
+                        ].map(([k, v, c]) => (
+                          <div key={k} className="flex justify-between" style={{ marginBottom: '4px' }}>
+                            <span style={{ fontSize: '10px', color: '#94a3b8' }}>{k}:</span>
+                            <span className="mono font-bold" style={{ fontSize: '10px', color: c, maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v}</span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-3 text-[10px] text-[var(--muted)] border border-dashed border-[var(--line)] rounded-md">
+                      <div style={{ textAlign: 'center', padding: '10px', fontSize: '10px', color: '#94a3b8', border: '1px dashed rgba(255,255,255,0.15)', borderRadius: '8px' }}>
                         Rê chuột vào ô để xem thông tin chi tiết
                       </div>
                     )}
@@ -1593,27 +1586,27 @@ export default function App() {
                 </div>
               )}
 
-            {showTelemetry && (
-              <div className="jt-glowing-card shadow-2xl p-5 shrink-0 w-full">
-                <h3 className="font-outfit text-sm font-extrabold tracking-widest mb-4 text-[var(--cyan)]" style={{ margin: 0, marginBottom: '14px' }}>REAL-TIME TELEMETRY</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="text-center">
-                    <div className="text-[10px] font-bold tracking-widest text-slate-400 mb-1 uppercase">TỔNG ĐƠN HÀNG</div>
-                    <div className="disp font-extrabold text-[32px] leading-none" style={{ color: 'var(--cyan)' }}>
-                      <NumberTicker value={totalOrders} />
-                    </div>
-                    <div className="text-[9px] tracking-widest text-slate-500 mt-1.5 uppercase">Đơn hàng / kho</div>
+              {showTelemetry && (
+                <div className="jt-glowing-card shadow-2xl shrink-0 w-full" style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.04)' }}>
+                  <div className="font-bold text-[13px] tracking-[0.15em] text-center" style={{ color: '#FFF4D6', fontFamily: "'Inter', sans-serif", marginBottom: '10px', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
+                    METRICS
                   </div>
-                  <div className="text-center">
-                    <div className="text-[10px] font-bold tracking-widest text-slate-400 mb-1 uppercase">TỔNG TRỌNG LƯỢNG</div>
-                    <div className="disp font-extrabold text-[28px] leading-none" style={{ color: 'var(--green)' }}>
-                      <NumberTicker value={Math.round(totalWeight)} /> kg
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div className="flex justify-between items-center">
+                      <span style={{ fontSize: '11px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng đơn hàng</span>
+                      <span className="mono font-bold" style={{ fontSize: '20px', color: 'var(--cyan)', textShadow: '0 0 12px rgba(26,140,62,0.6)' }}>
+                        <NumberTicker value={totalOrders} /> <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>Đơn</span>
+                      </span>
                     </div>
-                    <div className="text-[9px] tracking-widest text-slate-500 mt-1.5 uppercase">Trọng lượng kho</div>
+                    <div className="flex justify-between items-center">
+                      <span style={{ fontSize: '11px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng trọng lượng</span>
+                      <span className="mono font-bold" style={{ fontSize: '20px', color: 'var(--green)', textShadow: '0 0 12px rgba(16,185,129,0.6)' }}>
+                        {(totalWeight / 1000).toFixed(1)} <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
             </div>
           )}
 
@@ -1625,7 +1618,7 @@ export default function App() {
                 <div className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-20">
                   {currentView === 'master' ? (
                     <>
-                      <h3 className="font-outfit text-[12px] font-bold tracking-[0.08em] pb-3 mb-4 border-b border-white/[0.08] text-[var(--accent)] text-center" style={{ margin: 0 }}>CONTROL CENTER</h3>
+                      <h3 className="font-outfit text-[13px] font-bold tracking-[0.08em] pb-3 mb-4 border-b border-white/[0.08] text-center" style={{ margin: 0, color: '#FFF4D6', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>CONTROL CENTER</h3>
                       <div className="space-y-6">
                         {/* 1. LOẠI (Type Selector) - Segmented Control */}
                         <div className="flex bg-black/35 rounded-lg p-0.5 w-full">
@@ -1799,8 +1792,8 @@ export default function App() {
                 >
                   {/* Header Title */}
                   <div className="flex justify-center items-center mb-2.5 pb-2.5 border-b border-white/[0.08]">
-                    <h3 className="font-outfit text-[11px] font-bold tracking-[0.08em] text-[var(--accent)] uppercase text-center" style={{ margin: 0 }}>
-                      {selectedType === 'Outbound' ? 'DỰ KIẾN SẢN LƯỢNG BƯU CỤC  TOP 10' : 'DỰ KIẾN TỒN KHO BƯU CỤC  TOP 10'}
+                    <h3 className="font-outfit text-[12px] font-bold tracking-[0.08em] text-center" style={{ margin: 0, color: '#FFF4D6', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
+                      {selectedType === 'Outbound' ? 'DỰ KIẾN SẢN LƯỢNG BƯU CỤC TOP 10' : 'DỰ KIẾN TỒN KHO BƯU CỤC TOP 10'}
                     </h3>
                   </div>
 
@@ -1835,7 +1828,7 @@ export default function App() {
                                 {chute.name.replace(/^(SG|BD|TG|DT|DN|LA)\s+/i, '')}
                               </td>
                               <td className="mono font-bold text-center" style={{ color: '#10b981', fontSize: '12px', textShadow: '0 0 8px rgba(16, 185, 129, 0.65)' }}>{chute.current.toLocaleString()}</td>
-                              <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>{(chute.weight / 1000).toFixed(2)} Tấn</td>
+                              <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>{(chute.weight / 1000).toFixed(1)} Tấn</td>
                               <td className="mono font-bold text-center" style={{ color: '#10b981', fontSize: '11.5px', textShadow: '0 0 8px rgba(16, 185, 129, 0.65)' }}>{chute.utilization}%</td>
                             </tr>
                           );
