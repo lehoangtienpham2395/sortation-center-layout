@@ -172,7 +172,7 @@ interface SheetRow {
 
 async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival'): Promise<any[] | null> {
   try {
-    if (sheetType === 'Inbound') {
+    if (false && sheetType === 'Inbound') {
       try {
         const apiRes = await apiClient.getInboundDashboard();
         if (apiRes.status === 'ok' && apiRes.data) {
@@ -224,7 +224,7 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
   try {
     const todayStr = new Date().toISOString().split('T')[0];
     
-    if (sheetType === 'Outbound') {
+    if (false && sheetType === 'Outbound') {
       try {
         const apiRes = await apiClient.getOutboundDashboard();
         if (apiRes.status === 'ok' && apiRes.data) {
