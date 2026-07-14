@@ -2088,7 +2088,7 @@ def run_once(session, token_mgr, rebuild_days=None):
         if cnt1 + cnt2 + cnt3 > 0:
             print(f"   🧹 Tự động dọn dẹp: Đã chuyển {cnt1:,} đơn kẹt Inbound → 'Đã rời HUB', tắt {cnt2:,} đơn Forecast/Pickup cũ (>3 ngày), tắt {cnt3:,} đơn Dispatch cũ (>2 ngày).")
             
-        c.execute("SELECT * FROM shipments WHERE is_active = 1")
+        c.execute("SELECT * FROM shipments")
         rows = c.fetchall()
         if rows:
             col_names = [description[0] for description in c.description]
@@ -2096,7 +2096,7 @@ def run_once(session, token_mgr, rebuild_days=None):
                 rec = pg_row_to_dict(col_names, r)
                 db_records[rec['waybillNo']] = rec
         conn.close()
-        print(f"   ℹ| Load được {len(db_records):,} đơn active từ PostgreSQL.")
+        print(f"   ℹ| Load được {len(db_records):,} đơn từ PostgreSQL vào bộ nhớ.")
     except Exception as e_db:
         print(f"   ⚠️ Lỗi load đơn từ PostgreSQL: {e_db}")
 
@@ -2104,18 +2104,6 @@ def run_once(session, token_mgr, rebuild_days=None):
         if wb in db_records:
             return db_records[wb], False
             
-        conn_check = get_db_conn()
-        c_check = conn_check.cursor()
-        c_check.execute("SELECT * FROM shipments WHERE waybillno = %s", (wb,))
-        row = c_check.fetchone()
-        if row:
-            col_names = [description[0] for description in c_check.description]
-            rec = pg_row_to_dict(col_names, row)
-            conn_check.close()
-            db_records[wb] = rec
-            return rec, False
-            
-        conn_check.close()
         rec = {
             'waybillNo': wb, 'data_source': '', 'weight': 0.0, 'pickNetworkName': '', 'dispatch_plan': '',
             'Pickup_time': '', 'pickup_label': '', 'Pickup_ontime': '', 'dispatchNetworkTime': '',
