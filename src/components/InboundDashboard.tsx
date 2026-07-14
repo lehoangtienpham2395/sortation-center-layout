@@ -252,20 +252,16 @@ export default function InboundDashboard({
     hourlyPickup[l] = 0;
   });
 
-  // 1. Trên đường về (Arrived) hourly: từ Arrival sheet, sum Tổng số đơn theo Scan Hour (Loại bỏ BN HUB để tránh lệch giờ)
-  filteredArrival.forEach(d => {
-    const station = (d['Pickup_station'] || '').trim().toUpperCase();
-    if (station.includes('BN HUB') || station.includes('HCM004H')) return;
-
-    const hr = d['Scan Hour'] !== undefined && d['Scan Hour'] !== null && d['Scan Hour'] !== ''
-      ? d['Scan Hour']
-      : (d['Last time'] ? d['Last time'].split(' ')[1]?.split(':')[0] : undefined);
-    if (hr !== undefined && hr !== null && hr !== '') {
-      const hrVal = getHourFromTimestamp(hr);
+  // 1. Transporting hourly: dùng unloadingStartTime từ linehaul → giờ xe ĐẾN HUB và bắt đầu dỡ hàng (12h-20h)
+  //    Đây là dữ liệu chính xác hơn Scan Hour (giờ rời bưu cục, chỉ 06h-13h)
+  filteredLinehaul.forEach(d => {
+    const unloadTime = d['unloadingStartTime'];
+    if (unloadTime && unloadTime !== '') {
+      const hrVal = getHourFromTimestamp(unloadTime);
       if (hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
         if (hourlyArrived[hour] !== undefined) {
-          hourlyArrived[hour] += parseInt(d['Tng s n'] || d['Tổng số đơn'], 10) || 0;
+          hourlyArrived[hour] += parseInt(d['unloadingBillPiece'] as any, 10) || 0;
         }
       }
     }
