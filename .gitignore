@@ -1,4 +1,4 @@
-# Logs
+# Logs & Cache
 logs
 *.log
 npm-debug.log*
@@ -6,6 +6,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
 node_modules
 dist
@@ -23,14 +27,16 @@ dist-ssr
 *.sln
 *.sw?
 
-# SQLite Database — tracked để sync state giữa các phiên
-# backend_sync/db/state.db*   ← đã bật tracking để đồng bộ lên GitHub
+# SQLite Database (No longer tracked in PostgreSQL mode)
+backend_sync/db/state.db
 backend_sync/db/last_run.txt
 
 # Temporary export/analysis files (không push lên GitHub)
 data/*
 !data/config.json
 !data/.gitkeep
+!data/*.json
+!data/*.json.gz
 data/export_*.csv
 data/compare_*.csv
 data/FILE*.csv

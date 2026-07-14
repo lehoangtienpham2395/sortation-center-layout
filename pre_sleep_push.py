@@ -42,7 +42,6 @@ def main():
 
     # Stage các file cần thiết
     files_to_stage = [
-        "backend_sync/db/state.db",
         "data/inventory.json",
         "data/inbound.json",
         "data/outbound.json",

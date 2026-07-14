@@ -37,11 +37,9 @@ def main():
     log("=" * 55)
     log("🔄 Bắt đầu Auto Sync (30-min schedule)")
 
-    # 1. Pull Git để lấy DB mới nhất từ GitHub
-    log("📥 [1/4] Pull DB mới nhất từ GitHub...")
-    run(["git", "fetch", "origin"])
-    run(["git", "checkout", "origin/main", "--",
-         "backend_sync/db/state.db"], timeout=30)
+    # 1. Pull Git để lấy code/config mới nhất từ GitHub
+    log("📥 [1/4] Pull code/config mới nhất từ GitHub...")
+    run(["git", "pull", "--rebase", "origin", "main"], timeout=30)
 
     # 2. Chạy sync chính (kéo JFS API → SQLite → JSON)
     python_exe = sys.executable
@@ -79,7 +77,6 @@ def main():
     ts_str = datetime.now(TZ_VN).strftime('%Y-%m-%d %H:%M')
 
     run(["git", "add",
-         "backend_sync/db/state.db",
          "data/inventory.json",
          "data/inbound.json",
          "data/outbound.json",
