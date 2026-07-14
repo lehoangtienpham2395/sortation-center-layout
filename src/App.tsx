@@ -1338,19 +1338,12 @@ export default function App() {
 
   return (
     <div className="w-full h-full relative font-sans text-white bg-[#02040a]">
-      {!isMobile && currentView === 'master' && (
+      {!isMobile && (
         <div className="absolute top-0 right-0 h-12 flex items-center justify-between px-6 z-30 transition-all duration-300 left-16 pointer-events-none"
              style={{background:'linear-gradient(180deg,rgba(2,4,10,.95),rgba(2,4,10,0))'}}>
           <div className="flex items-center select-none" />
           <div className="flex items-center gap-3 pointer-events-auto">
             <ApiStatusBadge onRetry={fetchAndUpdateData} />
-            <div className="mono text-[10px] text-slate-400 flex items-center gap-1.5 bg-[#121824]/60 border border-white/5 rounded-full px-3 py-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-slow"></span>
-              Update: <b className="text-emerald-400">{new Date().toLocaleString('vi-VN')}</b>
-            </div>
-            <div className="mono text-[10px] text-slate-400 bg-[#121824]/60 border border-white/5 rounded-full px-3 py-1">
-              ZONE: LAT 10.823 • LONG 106.63
-            </div>
           </div>
         </div>
       )}
