@@ -1224,11 +1224,22 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                 'Đã lấy hàng': 'Pickup Done',
                 'Đã điều phối bưu cục': 'Created'
             }
-            status = status_map.get(row.get('status_order'), 'Created')
-            
-            # Skip outbound shipments in Inbound Sheet
-            if row.get('status_order') == 'Đã rời HUB':
-                continue
+
+            current_status = row.get('status_order', '')
+
+            # ✅ Fix: Đơn "Đã rời HUB" có inbound_scanDate vẫn phải được
+            # tính vào Inbound để báo cáo lịch sử đúng.
+            # Chỉ skip nếu chưa có inbound_scanDate (đơn chưa vào HUB bao giờ).
+            if current_status == 'Đã rời HUB':
+                if ib_time:
+                    # Đã qua HUB rồi ra → vẫn tính là Inbound
+                    status = 'Inbound'
+                else:
+                    # Chưa từng inbound → bỏ qua
+                    continue
+            else:
+                status = status_map.get(current_status, 'Created')
+
                 
             op_date_ib = get_operating_date(ib_time) if ib_time else ""
             fc_time_temp = fc_time if fc_time else pk_time
