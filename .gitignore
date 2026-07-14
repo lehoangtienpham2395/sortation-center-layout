@@ -23,8 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
-# SQLite Database & local runtime state (Option 1: Cloud Cache / Local untracked)
-backend_sync/db/state.db*
+# SQLite Database — tracked để sync state giữa các phiên
+# backend_sync/db/state.db*   ← đã bật tracking để đồng bộ lên GitHub
 backend_sync/db/last_run.txt
 
 # Temporary export/analysis files (không push lên GitHub)
