@@ -229,9 +229,14 @@ export default function InboundDashboard({
     if (lt > stationMap[key].lastTime) stationMap[key].lastTime = lt;
   });
 
-  const incomingVehicles = Object.values(stationMap)
-    .filter(s => s.chuaDenHub > 0)
-    .sort((a, b) => b.chuaDenHub - a.chuaDenHub);
+  // Nếu còn xe đang trên đường → hiển thị xe chưa về
+  // Nếu tất cả xe đã về → hiển thị toàn bộ xe đã về hôm nay (lịch sử)
+  const stillInTransit = Object.values(stationMap).filter(s => s.chuaDenHub > 0);
+  const incomingVehicles = stillInTransit.length > 0
+    ? stillInTransit.sort((a, b) => b.chuaDenHub - a.chuaDenHub || b.tongDon - a.tongDon)
+    : Object.values(stationMap)
+        .filter(s => s.tongDon > 0 && s.station)
+        .sort((a, b) => b.tongDon - a.tongDon);
 
   // 4. Hourly timelines
   const hours24 = [];
@@ -979,11 +984,13 @@ export default function InboundDashboard({
           </div>
         </div>
 
-        {/* Table 2: Trucking in Transit */}
+        {/* Table 2: Trucking in Transit / Arrived Today */}
         <div className="table-container-card glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="table-header" style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '0.5px', color: '#fff', margin: 0 }}>Xe đang di chuyển (Trucks in Transit)</h2>
-            <span className="badge-count amber">{incomingVehicles.length} xe</span>
+            <h2 style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '0.5px', color: '#fff', margin: 0 }}>
+              {stillInTransit.length > 0 ? '🚛 Xe đang di chuyển (Trucks in Transit)' : '✅ Xe đã về hôm nay (Arrived Today)'}
+            </h2>
+            <span className={`badge-count ${stillInTransit.length > 0 ? 'amber' : 'green'}`}>{incomingVehicles.length} bưu cục</span>
           </div>
           <div className="table-wrapper" style={{ overflowY: 'auto', maxHeight: '400px', position: 'relative' }}>
             <table className="premium-table">
@@ -991,42 +998,50 @@ export default function InboundDashboard({
                 <tr>
                   <th style={{ width: '50px' }}>#</th>
                   <th>Bưu cục</th>
-                  <th style={{ textAlign: 'right' }}>Chưa đến Hub</th>
-                  <th style={{ textAlign: 'right' }}>Đã đến Hub</th>
+                  <th style={{ textAlign: 'right' }}>{stillInTransit.length > 0 ? 'Chưa đến Hub' : 'Đã đến Hub'}</th>
+                  <th style={{ textAlign: 'right' }}>{stillInTransit.length > 0 ? 'Đã đến Hub' : 'Tổng đơn'}</th>
                   <th style={{ textAlign: 'right' }}>Tổng đơn</th>
                   <th style={{ textAlign: 'center' }}>Cập nhật</th>
                 </tr>
               </thead>
               <tbody>
                 {incomingVehicles.length > 0 && (
-                  <tr className="total-row" style={{ fontWeight: 'bold', position: 'sticky', top: '41px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', zIndex: 9, backdropFilter: 'blur(8px)' }}>
+                  <tr className="total-row" style={{ fontWeight: 'bold', position: 'sticky', top: '41px', background: stillInTransit.length > 0 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(52, 211, 153, 0.12)', color: stillInTransit.length > 0 ? '#f59e0b' : '#34d399', zIndex: 9, backdropFilter: 'blur(8px)' }}>
                     <td className="table-index">-</td>
-                    <td className="table-buucuc" style={{ color: '#f59e0b' }}>TỔNG CỘNG</td>
-                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
-                      {incomingVehicles.reduce((a, b) => a + b.chuaDenHub, 0).toLocaleString()}
+                    <td className="table-buucuc" style={{ color: stillInTransit.length > 0 ? '#f59e0b' : '#34d399' }}>TỔNG CỘNG</td>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: stillInTransit.length > 0 ? '#f59e0b' : '#34d399' }}>
+                      {stillInTransit.length > 0
+                        ? incomingVehicles.reduce((a, b) => a + b.chuaDenHub, 0).toLocaleString()
+                        : incomingVehicles.reduce((a, b) => a + (b.tongDon - b.chuaDenHub), 0).toLocaleString()}
                     </td>
-                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
-                      {incomingVehicles.reduce((a, b) => a + (b.tongDon - b.chuaDenHub), 0).toLocaleString()}
+                    <td className="num-tabular" style={{ textAlign: 'right', color: stillInTransit.length > 0 ? '#f59e0b' : '#34d399' }}>
+                      {stillInTransit.length > 0
+                        ? incomingVehicles.reduce((a, b) => a + (b.tongDon - b.chuaDenHub), 0).toLocaleString()
+                        : incomingVehicles.reduce((a, b) => a + b.tongDon, 0).toLocaleString()}
                     </td>
-                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: stillInTransit.length > 0 ? '#f59e0b' : '#34d399' }}>
                       {incomingVehicles.reduce((a, b) => a + b.tongDon, 0).toLocaleString()}
                     </td>
-                    <td style={{ textAlign: 'center', color: '#f59e0b' }}>-</td>
+                    <td style={{ textAlign: 'center', color: stillInTransit.length > 0 ? '#f59e0b' : '#34d399' }}>-</td>
                   </tr>
                 )}
                 {incomingVehicles.map((v, idx) => (
                   <tr key={v.station}>
                      <td className="table-index">{idx + 1}</td>
                      <td className="table-buucuc">{v.station}</td>
-                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.chuaDenHub.toLocaleString()}</td>
-                     <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{(v.tongDon - v.chuaDenHub).toLocaleString()}</td>
+                     <td className="num-tabular" style={{ textAlign: 'right', color: stillInTransit.length > 0 ? '#f59e0b' : '#34d399', fontWeight: 600 }}>
+                       {stillInTransit.length > 0 ? v.chuaDenHub.toLocaleString() : (v.tongDon - v.chuaDenHub).toLocaleString()}
+                     </td>
+                     <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>
+                       {stillInTransit.length > 0 ? (v.tongDon - v.chuaDenHub).toLocaleString() : v.tongDon.toLocaleString()}
+                     </td>
                      <td className="num-tabular" style={{ textAlign: 'right' }}>{v.tongDon.toLocaleString()}</td>
                      <td className="num-tabular" style={{ textAlign: 'center', color: '#64748b' }}>{v.lastTime ? v.lastTime.split(' ')[1] : '--:--'}</td>
                   </tr>
                 ))}
                 {incomingVehicles.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', color: '#5a6578', padding: '24px' }}>Không có xe đang di chuyển</td>
+                    <td colSpan={6} style={{ textAlign: 'center', color: '#5a6578', padding: '24px' }}>Không có dữ liệu xe hôm nay</td>
                   </tr>
                 )}
               </tbody>
