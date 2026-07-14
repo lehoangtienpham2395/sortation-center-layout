@@ -429,7 +429,7 @@ export default function InboundDashboard({
     const status = d['Trng thi'] || d['Trạng thái'];
     if (status === 'Inbound') {
       // Dùng 'BN HUB' cho đơn không có bưu cục gốc (hàng nội bộ HUB)
-      const fcName = d['Bưu cục'] || d['Bu cc'] || 'BN HUB (nội bộ)';
+      const fcName = d['Bưu cục'] || d['Bu cc'] || 'BN HUB';
       const fc = getFC(fcName);
       if (fc) {
         fc.orders += parseInt(d['Volume'], 10) || 0;
