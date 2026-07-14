@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import ApiStatusBadge from './ApiStatusBadge';
 
 // Animated Number Ticker Component
 function NumberTicker({ value, decimals = 0 }: { value: number; decimals?: number }) {
@@ -637,8 +638,8 @@ export default function InboundDashboard({
 
         {/* RIGHT: Status + Date Picker */}
         <div className="header-right" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-          <div className="system-status">
-            <span className="status-dot pulsing"></span>
+          <div className="system-status" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ApiStatusBadge onRetry={fetchAndUpdateData} />
             <span className="status-text">Update: {new Date().toLocaleString('vi-VN')}</span>
           </div>
           <div className="date-control-wrapper">
