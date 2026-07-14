@@ -7,6 +7,8 @@ auto_sync_schedule.py — Chạy theo lịch Windows Task Scheduler mỗi 30 ph�
 import os, sys, subprocess, shutil
 from datetime import datetime
 from zoneinfo import ZoneInfo
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = os.path.join(BASE_DIR, "backend_sync", "db", "auto_sync.log")

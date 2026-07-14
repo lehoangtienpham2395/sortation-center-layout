@@ -6,6 +6,8 @@ KHÔNG kéo API, chỉ lưu trạng thái hiện tại lên cloud
 import os, sys, subprocess
 from datetime import datetime
 from zoneinfo import ZoneInfo
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = os.path.join(BASE_DIR, "backend_sync", "db", "pre_sleep.log")
