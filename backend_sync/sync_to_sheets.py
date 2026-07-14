@@ -3021,7 +3021,7 @@ def run_realtime_sync(session, token_mgr):
         pages = math.ceil(total_dp / 100) if total_dp > 0 else 1
 
         updated_pickup = 0
-        conn_rt = sqlite3.connect(DB_FILE)
+        conn_rt = get_db_conn()
         c_rt = conn_rt.cursor()
 
         for pg in range(1, min(pages + 1, 51)):  # Tối đa 50 trang = 5000 đơn gần nhất
@@ -3045,16 +3045,18 @@ def run_realtime_sync(session, token_mgr):
                     pk = str(item.get('updateTime') or '').strip() if status_dp == 'Đã lấy hàng' else ''
                     if wb and pk and pk.lower() not in ('nan', 'none', ''):
                         c_rt.execute("""
-                            UPDATE inventory
-                            SET Pickup_time = ?, status_order = ?, last_updated = CURRENT_TIMESTAMP
-                            WHERE waybillNo = ? AND (Pickup_time = '' OR Pickup_time IS NULL)
+                            UPDATE shipments
+                            SET pickup_time = %s, status_order = %s, last_updated = CURRENT_TIMESTAMP
+                            WHERE waybillno = %s AND (pickup_time = '' OR pickup_time IS NULL)
                         """, (pk, status_dp, wb))
                         updated_pickup += c_rt.rowcount
-            except Exception:
+            except Exception as e_dp_pg:
+                print(f"   ⚠️ Lỗi xử lý trang Dispatch {pg}: {e_dp_pg}")
                 continue
 
         conn_rt.commit()
-        print(f"   ✅ Cập nhật Pickup_time cho {updated_pickup:,} đơn mới từ Dispatch API")
+        conn_rt.close()
+        print(f"   ✅ Cập nhật pickup_time cho {updated_pickup:,} đơn mới từ Dispatch API")
 
         # ── 2. KÉO BACKLOG: cập nhật số tồn kho thực ──
         print("\n🏭 Kéo Backlog API...")
