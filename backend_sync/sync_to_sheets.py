@@ -45,6 +45,7 @@ DISABLE_GOOGLE_SHEETS = True
 # ============================================================
 BASE_DIR     = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR   = os.path.join(BASE_DIR, "output")
+VALID_FILE   = os.path.join(BASE_DIR, "config", "valid.csv")
 DB_CONN_PARAMS = {
     "host": "localhost",
     "port": 5433,
@@ -268,7 +269,7 @@ def calculate_shipment_status(forecast_time, pickup_time, arrival_time, inbound_
 
 
 def init_db():
-    conn = psycopg2.connect(**DB_CONN_PARAMS)
+    conn = get_db_conn()
     c = conn.cursor()
     
     # 1. Tạo bảng shipments mới
@@ -1853,7 +1854,7 @@ def reconcile_outbound_5days(raw_outbound=None, session=None, token_mgr=None):
 
     # Cập nhật ngược vào DB: đánh dấu Đã rời HUB
     try:
-        conn    = psycopg2.connect(**DB_CONN_PARAMS)
+        conn    = get_db_conn()
         c       = conn.cursor()
         updated = 0
         for wb, info in outbound_map.items():
@@ -2108,7 +2109,7 @@ def run_once(session, token_mgr, rebuild_days=None):
         if wb in db_records:
             return db_records[wb], False
             
-        conn_check = psycopg2.connect(**DB_CONN_PARAMS)
+        conn_check = get_db_conn()
         c_check = conn_check.cursor()
         c_check.execute("SELECT * FROM shipments WHERE waybillno = %s", (wb,))
         row = c_check.fetchone()
@@ -2435,7 +2436,7 @@ def run_once(session, token_mgr, rebuild_days=None):
                             db_records[wb]['changed'] = True
                     # Ghi thẳng vào SQLite ngay
                     try:
-                        conn_pk = psycopg2.connect(**DB_CONN_PARAMS)
+                        conn_pk = get_db_conn()
                         c_pk    = conn_pk.cursor()
                         updated_pk = 0
                         for wb, pick_name in resolved_pickup.items():
@@ -2660,7 +2661,7 @@ def run_once(session, token_mgr, rebuild_days=None):
 
     # ── Reload DB sau khi reconcile để df phản ánh đúng trạng thái mới nhất ──
     try:
-        conn_r = psycopg2.connect(**DB_CONN_PARAMS)
+        conn_r = get_db_conn()
         c_r    = conn_r.cursor()
         c_r.execute("SELECT * FROM shipments WHERE is_active = 1")
         rows_r = c_r.fetchall()
