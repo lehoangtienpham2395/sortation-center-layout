@@ -1338,7 +1338,7 @@ export default function App() {
 
   return (
     <div className="w-full h-full relative font-sans text-white bg-[#02040a]">
-      {!isMobile && (
+      {!isMobile && currentView === 'master' && (
         <div className="absolute top-0 right-0 h-12 flex items-center justify-between px-6 z-30 transition-all duration-300 left-16 pointer-events-none"
              style={{background:'linear-gradient(180deg,rgba(2,4,10,.95),rgba(2,4,10,0))'}}>
           <div className="flex items-center select-none" />
