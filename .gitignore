@@ -28,6 +28,9 @@ dist-ssr
 backend_sync/db/last_run.txt
 
 # Temporary export/analysis files (không push lên GitHub)
+data/*
+!data/config.json
+!data/.gitkeep
 data/export_*.csv
 data/compare_*.csv
 data/FILE*.csv

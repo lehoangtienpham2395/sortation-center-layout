@@ -21,6 +21,11 @@ from requests.adapters import HTTPAdapter
 import psycopg2
 from psycopg2.extras import execute_values
 
+_sync_dir = os.path.dirname(os.path.abspath(__file__))
+if _sync_dir not in sys.path:
+    sys.path.append(_sync_dir)
+from db.pool import get_proxy_connection, execute_all_migrations, refresh_materialized_views, batch_upsert_shipments
+
 # —— Windows Unicode Fix (cần cho GitHub Actions chạy trên Ubuntu, giữ để đồng nhất) ——
 if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
     try:
@@ -57,18 +62,7 @@ DB_CONN_PARAMS = {
 }
 
 def get_db_conn():
-    # 1. Nếu chạy trên GitHub Actions (máy chủ Cloud) hoặc cấu hình dùng Neon -> kết nối trực tiếp vào Neon Cloud DB
-    if os.environ.get("GITHUB_ACTIONS") == "true" or os.environ.get("USE_NEON") == "true" or os.environ.get("DATABASE_URL"):
-        url = os.environ.get("DATABASE_URL") or NEON_URL
-        return psycopg2.connect(url, connect_timeout=25)
-    
-    # 2. Nếu chạy trên máy cá nhân -> ưu tiên thử kết nối Local DB (localhost:5433) trước
-    try:
-        return psycopg2.connect(**DB_CONN_PARAMS, connect_timeout=3)
-    except Exception as e:
-        # Nếu Local DB chưa bật hoặc gặp lỗi -> tự động fallback sang Neon Cloud DB để không bị ngắt quãng
-        print(f"   ⚠️ Local DB localhost:5433 không khả dụng ({e}), tự động kết nối sang Neon Cloud DB...")
-        return psycopg2.connect(NEON_URL, connect_timeout=25)
+    return get_proxy_connection()
 
 
 DB_KEYS_MAP = {
@@ -102,6 +96,8 @@ def pg_row_to_dict(col_names, row):
         key = DB_KEYS_MAP.get(col.lower(), col)
         if val is None and key not in ('weight', 'is_backlog', 'is_active', 'last_updated'):
             d[key] = ""
+        elif hasattr(val, 'strftime'):
+            d[key] = val.strftime('%Y-%m-%d %H:%M:%S')
         else:
             d[key] = val
     return d
@@ -127,8 +123,8 @@ URL_LOADING        = 'https://gw.jtcargo.com.vn/operatingplatform/traceSub/query
 SOURCE_WORKERS      = 3   # ⚡ Tối ưu lại để tránh bị JFS chặn/429/502 khi chạy từ GitHub Actions
 PAGE_WORKERS        = 3   # ⚡ Giảm concurrency tránh quá tải JFS API
 POOL_SIZE           = 32  # ⚡ Tương thích với số lượng worker nhỏ hơn
-REQUEST_TIMEOUT     = 60
-MAX_RETRIES         = 5
+REQUEST_TIMEOUT     = 15
+MAX_RETRIES         = 3
 BACKOFF_BASE        = 3
 INTER_REQUEST_DELAY = 0
 
@@ -276,42 +272,16 @@ def calculate_shipment_status(forecast_time, pickup_time, arrival_time, inbound_
 
 
 def init_db():
+    print("   🔧 Đang khởi tạo Database migrations (TIMESTAMPTZ & NUMERIC)...")
+    try:
+        execute_all_migrations()
+    except Exception as e:
+        print(f"   ❌ Lỗi khi chạy migrations: {e}")
+        raise
+
+    # Tự động dọn dẹp các bản ghi ĐÃ RỜI HUB / Inbound (không active) cũ hơn 7 ngày để tối ưu hóa DB
     conn = get_db_conn()
     c = conn.cursor()
-    
-    # 1. Tạo bảng shipments mới
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS shipments (
-            waybillno           TEXT PRIMARY KEY,
-            data_source         TEXT,
-            weight              REAL,
-            picknetworkname     TEXT,
-            dispatch_plan       TEXT,
-            pickup_time         TEXT,
-            pickup_label        TEXT,
-            pickup_ontime       TEXT,
-            dispatchnetworktime TEXT,
-            next_station        TEXT,
-            tuyen               TEXT,
-            rank                TEXT,
-            inbound_network     TEXT,
-            inbound_scandate    TEXT,
-            outbound_scandate   TEXT,
-            arrival_time        TEXT,
-            dispatch_actual     TEXT,
-            status_order        TEXT,
-            time_ref            TEXT,
-            is_backlog          INTEGER DEFAULT 0,
-            is_active           INTEGER DEFAULT 1,
-            last_updated        TIMESTAMPTZ DEFAULT NOW()
-        )
-    """)
-    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_time_ref ON shipments(time_ref)")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_status ON shipments(status_order)")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_active ON shipments(is_active)")
-    conn.commit()
-    
-    # Tự động dọn dẹp các bản ghi ĐÃ RỜI HUB / Inbound (không active) cũ hơn 7 ngày để tối ưu hóa DB
     try:
         c.execute("""
             DELETE FROM shipments 
@@ -321,8 +291,8 @@ def init_db():
         conn.commit()
     except Exception as e_clean:
         print(f"   ⚠️ Lỗi dọn dẹp database: {e_clean}")
-        
-    conn.close()
+    finally:
+        conn.close()
 
 
 def auth_post(session, url, token_mgr, base_headers, *,
@@ -1461,7 +1431,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         df_arr_raw = pd.read_sql_query("""
             SELECT waybillno AS "waybillNo", picknetworkname AS "Pickup_station", arrival_time AS "Arrival_time", inbound_scandate AS "inbound_scanDate"
             FROM shipments
-            WHERE arrival_time IS NOT NULL AND arrival_time != ''
+            WHERE arrival_time IS NOT NULL
         """, conn)
         conn.close()
     except Exception as e_arr_db:
@@ -1892,8 +1862,7 @@ def reconcile_outbound_5days(raw_outbound=None, session=None, token_mgr=None):
                     last_updated      = NOW()
                 WHERE waybillno = %s
                   AND is_active = 1
-                  AND (outbound_scandate = '' OR outbound_scandate IS NULL
-                       OR outbound_scandate < %s)
+                  AND (outbound_scandate IS NULL OR outbound_scandate < %s::timestamptz)
             """, (info['time'], wb, info['time']))
             updated += c.rowcount
         conn.commit()
@@ -2079,8 +2048,8 @@ def run_once(session, token_mgr, rebuild_days=None):
             UPDATE shipments 
             SET status_order = 'Đã rời HUB', is_active = 0, last_updated = NOW()
             WHERE is_active = 1
-              AND (inbound_scandate != '' AND inbound_scandate IS NOT NULL)
-              AND CAST(inbound_scandate AS TIMESTAMP) < NOW() - INTERVAL '3 days'
+              AND inbound_scandate IS NOT NULL
+              AND inbound_scandate < NOW() - INTERVAL '3 days'
         """)
         cnt1 = c.rowcount
         
@@ -2089,11 +2058,11 @@ def run_once(session, token_mgr, rebuild_days=None):
             UPDATE shipments 
             SET is_active = 0, last_updated = NOW()
             WHERE is_active = 1
-              AND (inbound_scandate = '' OR inbound_scandate IS NULL)
+              AND inbound_scandate IS NULL
               AND (
-                (pickup_time != '' AND pickup_time IS NOT NULL AND CAST(pickup_time AS TIMESTAMP) < NOW() - INTERVAL '3 days')
+                (pickup_time IS NOT NULL AND pickup_time < NOW() - INTERVAL '3 days')
                 OR
-                ((pickup_time = '' OR pickup_time IS NULL) AND CAST(time_ref AS DATE) < CURRENT_DATE - INTERVAL '3 days')
+                (pickup_time IS NULL AND time_ref IS NOT NULL AND time_ref < NOW() - INTERVAL '3 days')
               )
         """)
         cnt2 = c.rowcount
@@ -2105,11 +2074,11 @@ def run_once(session, token_mgr, rebuild_days=None):
             SET is_active = 0, last_updated = NOW()
             WHERE is_active = 1
               AND data_source = 'Dispatch'
-              AND (inbound_scandate = '' OR inbound_scandate IS NULL)
-              AND (outbound_scandate = '' OR outbound_scandate IS NULL)
-              AND (pickup_time = '' OR pickup_time IS NULL)
-              AND dispatchnetworktime != '' AND dispatchnetworktime IS NOT NULL
-              AND CAST(dispatchnetworktime AS TIMESTAMP) < NOW() - INTERVAL '2 days'
+              AND inbound_scandate IS NULL
+              AND outbound_scandate IS NULL
+              AND pickup_time IS NULL
+              AND dispatchnetworktime IS NOT NULL
+              AND dispatchnetworktime < NOW() - INTERVAL '2 days'
         """)
         cnt3 = c.rowcount
         conn.commit()
@@ -2634,46 +2603,13 @@ def run_once(session, token_mgr, rebuild_days=None):
 
     if changed_records:
         init_db()
-        print(f"\n💾 Đang lưu {len(changed_records):,} bản ghi thay đổi vào PostgreSQL...")
+        print(f"\n💾 Đang lưu {len(changed_records):,} bản ghi thay đổi vào PostgreSQL (Pool UPSERT)...")
         try:
-            conn = get_db_conn()
-            c = conn.cursor()
-            
-            upsert_query = """
-                INSERT INTO shipments (
-                    waybillno, data_source, weight, picknetworkname, dispatch_plan,
-                    pickup_time, pickup_label, pickup_ontime, dispatchnetworktime,
-                    next_station, tuyen, rank, inbound_network, inbound_scandate,
-                    outbound_scandate, arrival_time, dispatch_actual, status_order, time_ref,
-                    is_backlog, is_active
-                ) VALUES %s
-                ON CONFLICT(waybillno) DO UPDATE SET
-                    data_source        = EXCLUDED.data_source,
-                    weight             = EXCLUDED.weight,
-                    picknetworkname    = EXCLUDED.picknetworkname,
-                    dispatch_plan      = EXCLUDED.dispatch_plan,
-                    pickup_time        = EXCLUDED.pickup_time,
-                    pickup_label       = EXCLUDED.pickup_label,
-                    pickup_ontime      = EXCLUDED.pickup_ontime,
-                    dispatchnetworktime= EXCLUDED.dispatchnetworktime,
-                    next_station       = EXCLUDED.next_station,
-                    tuyen              = EXCLUDED.tuyen,
-                    rank               = EXCLUDED.rank,
-                    inbound_network    = EXCLUDED.inbound_network,
-                    inbound_scandate   = EXCLUDED.inbound_scandate,
-                    outbound_scandate  = EXCLUDED.outbound_scandate,
-                    arrival_time       = EXCLUDED.arrival_time,
-                    dispatch_actual    = EXCLUDED.dispatch_actual,
-                    status_order       = EXCLUDED.status_order,
-                    time_ref           = EXCLUDED.time_ref,
-                    is_backlog         = EXCLUDED.is_backlog,
-                    is_active          = EXCLUDED.is_active,
-                    last_updated       = NOW()
-            """
-            execute_values(c, upsert_query, changed_records)
-            conn.commit()
-            conn.close()
-            print(f"   ✅ Đã UPSERT thành công {len(changed_records)} bản ghi thay đổi vào PostgreSQL.")
+            processed = batch_upsert_shipments(changed_records)
+            print(f"   ✅ Đã UPSERT thành công {processed} bản ghi thay đổi vào PostgreSQL.")
+            print("   🔄 Đang làm mới Materialized Views (CONCURRENTLY)...")
+            refresh_materialized_views()
+            print("   ✅ Materialized Views đã được cập nhật thành công.")
         except Exception as ex_db:
             print(f"   ❌ Lỗi lưu dữ liệu thay đổi vào PostgreSQL: {ex_db}")
 
@@ -2782,16 +2718,10 @@ def run_once(session, token_mgr, rebuild_days=None):
                 print(f"   💡 Outbound calculated: {len(outbound_volumes_grouped)} groups. Total: {total_vol}")
 
     # ================================================================
-    # ⚡ PUSH DATA LÊN GITHUB RAW (thay thế Google Sheet cho 100k rows)
-    # Dashboard JS sẽ đọc trực tiếp từ raw.githubusercontent.com
+    # ⚡ PHASE 1 ENTERPRISE ARCHITECTURE: PURE DB MODE (NEON POSTGRESQL)
+    # Gỡ bỏ hoàn toàn logic sinh file data/latest.json.gz theo đúng DoD Phase 1
     # ================================================================
-    print("\n🚀 Đang lưu và nén dữ liệu thô ra local...")
-    os.makedirs("data", exist_ok=True)
-    df.to_json("data/latest.json.gz", orient="records", force_ascii=False, compression="gzip")
-    # push_json_to_github(df, GH_TOKEN, GH_REPO, GH_DATA_PATH)
-    
-    # print("\n💾 Đang đồng bộ hóa Database SQLite lên Github...")
-    # push_db_to_github(DB_FILE, GH_TOKEN, GH_REPO, "backend_sync/db/state.db")
+    print("\n✅ Enterprise Architecture v5: Dữ liệu đã được nạp hoàn chỉnh 100% vào PostgreSQL (Pure DB Mode - Không sinh file data/*.json).")
 
     # Cập nhật dữ liệu cấu hình lên Google Sheets (config sheets, Linehaul, Arrival, Outbound)
     # Data chính (100k rows) đã được push lên Github — không cần ghi vào Sheet nữa
