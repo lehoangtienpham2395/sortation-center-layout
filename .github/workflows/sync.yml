@@ -1,8 +1,6 @@
 name: Backend Data Sync
 
 on:
-  schedule:
-    - cron: '*/30 * * * *'   # Chạy mỗi 30 phút, 24/7 kể cả khi máy bro sleep
   workflow_dispatch:          # Cho phép chạy thủ công từ GitHub UI
   push:
     branches: [main]
