@@ -217,15 +217,19 @@ export default function InboundDashboard({
   }, 0);
 
   // Trucking in transit table: top 10 bưu cục Chưa đến Hub nhiều nhất
-  const stationMap: Record<string, { station: string; chuaDenHub: number; tongDon: number; lastTime: string }> = {};
+  const stationMap: Record<string, { station: string; chuaDenHub: number; tongDon: number; vehicles: number; lastTime: string }> = {};
   filteredArrival.forEach(d => {
     const key = (d['Pickup_station'] || '').trim();
     if (!key) return;
     if (!stationMap[key]) {
-      stationMap[key] = { station: key, chuaDenHub: 0, tongDon: 0, lastTime: '' };
+      stationMap[key] = { station: key, chuaDenHub: 0, tongDon: 0, vehicles: 0, lastTime: '' };
     }
-    stationMap[key].chuaDenHub += parseInt(d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0;
+    const chuaDenHub = parseInt(d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0;
+    stationMap[key].chuaDenHub += chuaDenHub;
     stationMap[key].tongDon   += parseInt(d['Tng s n'] || d['Tổng số đơn'], 10) || 0;
+    if (chuaDenHub > 0) {
+      stationMap[key].vehicles += 1;
+    }
     const lt = d['Last time'] || '';
     if (lt > stationMap[key].lastTime) stationMap[key].lastTime = lt;
   });
@@ -234,6 +238,8 @@ export default function InboundDashboard({
   const incomingVehicles = Object.values(stationMap)
     .filter(s => s.chuaDenHub > 0)
     .sort((a, b) => b.chuaDenHub - a.chuaDenHub);
+
+  const totalTransitVehicles = incomingVehicles.reduce((sum, v) => sum + v.vehicles, 0);
 
   // 4. Hourly timelines
   const hours24 = [];
@@ -980,7 +986,7 @@ export default function InboundDashboard({
         <div className="table-container-card glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="table-header" style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '0.5px', color: '#fff', margin: 0 }}>Trucking in transit</h2>
-            <span className="badge-count amber">{incomingVehicles.length} xe</span>
+            <span className="badge-count amber">{totalTransitVehicles} xe</span>
           </div>
           <div className="table-wrapper" style={{ overflowY: 'auto', maxHeight: '400px', position: 'relative' }}>
             <table className="premium-table">
@@ -988,6 +994,7 @@ export default function InboundDashboard({
                 <tr>
                   <th style={{ width: '50px' }}>#</th>
                   <th>Bưu cục</th>
+                  <th style={{ textAlign: 'right' }}>Số xe</th>
                   <th style={{ textAlign: 'right' }}>Chưa đến Hub</th>
                   <th style={{ textAlign: 'right' }}>Đã đến Hub</th>
                   <th style={{ textAlign: 'right' }}>Tổng đơn</th>
@@ -999,6 +1006,9 @@ export default function InboundDashboard({
                   <tr className="total-row" style={{ fontWeight: 'bold', position: 'sticky', top: '41px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', zIndex: 9, backdropFilter: 'blur(8px)' }}>
                     <td className="table-index">-</td>
                     <td className="table-buucuc" style={{ color: '#f59e0b' }}>TỔNG CỘNG</td>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
+                      {totalTransitVehicles} xe
+                    </td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
                       {incomingVehicles.reduce((a, b) => a + b.chuaDenHub, 0).toLocaleString()}
                     </td>
@@ -1015,6 +1025,7 @@ export default function InboundDashboard({
                   <tr key={v.station}>
                      <td className="table-index">{idx + 1}</td>
                      <td className="table-buucuc">{v.station}</td>
+                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.vehicles} xe</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.chuaDenHub.toLocaleString()}</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{(v.tongDon - v.chuaDenHub).toLocaleString()}</td>
                      <td className="num-tabular" style={{ textAlign: 'right' }}>{v.tongDon.toLocaleString()}</td>
