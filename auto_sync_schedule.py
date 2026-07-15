@@ -50,25 +50,45 @@ def main():
         python_exe = venv_py
 
     sync_script = os.path.join(BASE_DIR, "backend_sync", "sync_to_sheets.py")
-    log("🚀 [2/4] Chạy sync script...")
+    log("🚀 [2/4] Chạy sync script (real-time stream)...")
     try:
-        r = subprocess.run(
-            [python_exe, sync_script, "--sync-only"],
+        p = subprocess.Popen(
+            [python_exe, "-u", sync_script, "--sync-only"],
             cwd=BASE_DIR,
-            capture_output=True, text=True,
-            encoding='utf-8', errors='replace',
-            timeout=1200  # 20 phút
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding='utf-8',
+            errors='replace',
+            bufsize=1
         )
-        if r.returncode == 0:
+        
+        stdout_lines = []
+        # Đọc trực tiếp và in ra console theo thời gian thực
+        while True:
+            line = p.stdout.readline()
+            if not line and p.poll() is not None:
+                break
+            if line:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+                stdout_lines.append(line.strip())
+        
+        p.wait(timeout=1200)
+        
+        if p.returncode == 0:
             log("✅ Sync hoàn tất.")
         else:
-            log(f"⚠️ Sync exit code: {r.returncode}")
-        # Log 10 dòng cuối output
-        lines = (r.stdout or '').strip().split('\n')
-        for l in lines[-10:]:
+            log(f"⚠️ Sync exit code: {p.returncode}")
+        
+        # Ghi 10 dòng cuối vào file log
+        log("📋 Nhật ký 10 dòng cuối của sync script:")
+        for l in stdout_lines[-10:]:
             if l.strip(): log(f"     {l}")
     except subprocess.TimeoutExpired:
         log("❌ Sync timeout sau 20 phút!")
+        if 'p' in locals():
+            p.kill()
         return
     except Exception as e:
         log(f"❌ Lỗi chạy sync: {e}")
