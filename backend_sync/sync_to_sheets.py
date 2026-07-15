@@ -2250,24 +2250,15 @@ def run_once(session, token_mgr, rebuild_days=None):
         rec['next_station'] = dest_mapped
         rec['changed'] = True
 
-    # 7. Batch search Dispatch time for Forecast / Inbound waybills (only within last 24 hours to prevent API spamming)
+    # 7. Batch search Dispatch time for Forecast / Inbound waybills
     missing_disp_wbs = []
-    now_vn = datetime.now(ZoneInfo('Asia/Ho_Chi_Minh'))
-    limit_dt = now_vn - timedelta(hours=24)
     for wb, rec in db_records.items():
         if (not rec.get('dispatch_plan') or not rec.get('dispatchNetworkTime')) and rec.get('status_order') != 'Đã rời HUB':
-            t_ref = rec.get('time_ref') or ''
-            try:
-                if len(t_ref) >= 10:
-                    dt = datetime.strptime(t_ref[:10], '%Y-%m-%d')
-                    if dt >= limit_dt.replace(hour=0, minute=0, second=0, microsecond=0):
-                        missing_disp_wbs.append(wb)
-            except Exception:
-                pass
+            missing_disp_wbs.append(wb)
             
     missing_disp_wbs = list(set(missing_disp_wbs))[:3500]
     if missing_disp_wbs:
-        print(f"\n🔍 [Batch Search] Phát hiện {len(missing_disp_wbs):,} đơn Forecast/Inbound chưa có dispatch_plan hoặc dispatchNetworkTime (trong 24h qua).")
+        print(f"\n🔍 [Batch Search] Phát hiện {len(missing_disp_wbs):,} đơn Forecast/Inbound chưa có dispatch_plan hoặc dispatchNetworkTime.")
         dh_path = os.path.join(BASE_DIR, "config", "dispatchheaders.json")
         dp_path = os.path.join(BASE_DIR, "config", "dispatchpayload.json")
         if os.path.exists(dh_path) and os.path.exists(dp_path):
@@ -2350,28 +2341,19 @@ def run_once(session, token_mgr, rebuild_days=None):
                 print(f"   ❌ Lỗi cấu hình Batch search: {e_setup}")
     # ================================================================
 
-    # 7b. Batch search pickup station (pickNetworkName) cho đơn Forecast/Inbound đang thiếu (chỉ trong 24h qua)
-    missing_pickup_wbs = []
-    now_vn = datetime.now(ZoneInfo('Asia/Ho_Chi_Minh'))
-    limit_dt = now_vn - timedelta(hours=24)
-    for wb, rec in db_records.items():
-        if not rec.get('pickNetworkName') \
-           and rec.get('data_source') in ('Forecast', 'Inbound') \
-           and rec.get('status_order') not in ('Đã rời HUB',) \
-           and rec.get('is_active', 1) == 1:
-            t_ref = rec.get('time_ref') or ''
-            try:
-                if len(t_ref) >= 10:
-                    dt = datetime.strptime(t_ref[:10], '%Y-%m-%d')
-                    if dt >= limit_dt.replace(hour=0, minute=0, second=0, microsecond=0):
-                        missing_pickup_wbs.append(wb)
-            except Exception:
-                pass
-                
+    # 7b. Batch search pickup station (pickNetworkName) cho đơn Forecast/Inbound đang thiếu
+    missing_pickup_wbs = [
+        wb for wb, rec in db_records.items()
+        if not rec.get('pickNetworkName')
+        and rec.get('data_source') in ('Forecast', 'Inbound')   # ← chỉ Forecast & Inbound
+        and rec.get('status_order') not in ('Đã rời HUB',)
+        and rec.get('is_active', 1) == 1
+    ]
     missing_pickup_wbs = list(set(missing_pickup_wbs))[:3000]
 
+
     if missing_pickup_wbs:
-        print(f"\n🔍 [Batch Pickup] Phát hiện {len(missing_pickup_wbs):,} đơn chưa có pickup station (trong 24h qua).")
+        print(f"\n🔍 [Batch Pickup] Phát hiện {len(missing_pickup_wbs):,} đơn chưa có pickup station.")
         dh_path = os.path.join(BASE_DIR, "config", "dispatchheaders.json")
         dp_path = os.path.join(BASE_DIR, "config", "dispatchpayload.json")
         if os.path.exists(dh_path) and os.path.exists(dp_path):
