@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import ApiStatusBadge from './ApiStatusBadge';
 
 // Animated Number Ticker Component
 function NumberTicker({ value, decimals = 0 }: { value: number; decimals?: number }) {
@@ -42,6 +41,7 @@ interface InboundDashboardProps {
   setSelectedInboundDate: (date: string) => void;
   loading: boolean;
   fetchAndUpdateData: () => void;
+  lastUpdate?: string;
 }
 
 /**
@@ -97,7 +97,8 @@ export default function InboundDashboard({
   selectedInboundDate,
   setSelectedInboundDate,
   loading,
-  fetchAndUpdateData
+  fetchAndUpdateData,
+  lastUpdate
 }: InboundDashboardProps) {
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
@@ -647,9 +648,8 @@ export default function InboundDashboard({
         {/* RIGHT: Status + Date Picker */}
         <div className="header-right" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ApiStatusBadge onRetry={fetchAndUpdateData} />
             <div style={{ fontSize: '11px', color: '#94a3b8', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', padding: '5px 12px', borderRadius: '20px', fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>
-              Update: {new Date().toLocaleString('vi-VN')}
+              Update: {lastUpdate || '...'}
             </div>
           </div>
           <div className="date-control-wrapper">

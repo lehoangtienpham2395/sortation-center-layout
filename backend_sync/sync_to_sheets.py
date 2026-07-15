@@ -2758,9 +2758,15 @@ def run_once(session, token_mgr, rebuild_days=None):
     try:
         with open(last_run_file, "w") as f:
             f.write(now.strftime('%Y-%m-%d %H:%M:%S'))
+        
+        # Write last_update.json for frontend
+        os.makedirs("data", exist_ok=True)
+        with open("data/last_update.json", "w", encoding="utf-8") as f_json:
+            json.dump({"last_update": now.strftime('%H:%M:%S %d/%m/%Y')}, f_json, ensure_ascii=False)
+            
         print(f"   ✅ Đã ghi nhận thời gian chạy cuối: {now.strftime('%Y-%m-%d %H:%M:%S')}")
     except Exception as e_lr:
-        print(f"   ⚠️ Lỗi ghi file last_run.txt: {e_lr}")
+        print(f"   ⚠️ Lỗi ghi file last_run.txt / last_update.json: {e_lr}")
 
 
 # ================================================================

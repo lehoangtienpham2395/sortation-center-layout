@@ -41,6 +41,8 @@ def main():
 
     # 1. Pull Git để lấy code/config mới nhất từ GitHub
     log("📥 [1/4] Pull code/config mới nhất từ GitHub...")
+    # Dọn dẹp các thay đổi của file data JSON cục bộ để tránh xung đột khi pull
+    subprocess.run(["git", "checkout", "--", "data/", "src/data/"], cwd=BASE_DIR, capture_output=True)
     run(["git", "pull", "--rebase", "origin", "main"], timeout=30)
 
     # 2. Chạy sync chính (kéo JFS API → SQLite → JSON)
@@ -106,7 +108,9 @@ def main():
          "data/arrival.json",
          "data/linehaul.json",
          "data/config.json",
+         "data/last_update.json",
          "src/data/config.json",
+         "src/data/last_update.json",
          "backend_sync/config/valid.csv"])
 
     # Kiểm tra có thay đổi không

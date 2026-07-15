@@ -10,7 +10,6 @@ import {
   Inbox
 } from 'lucide-react';
 import configData from './data/config.json';
-import ApiStatusBadge from './components/ApiStatusBadge';
 
 // Animated Number Ticker Component
 function NumberTicker({ value }: { value: number }) {
@@ -359,6 +358,7 @@ export default function App() {
   const [loading,    setLoading]    = useState(false);
   const [hoveredZone,setHoveredZone] = useState<number | null>(null);
   const [masterDateDropdownOpen, setMasterDateDropdownOpen] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<string>('');
 
 
   // State variables for historic date/type filter
@@ -482,6 +482,21 @@ export default function App() {
     } else {
       console.warn('Fetched sheet data is empty or null.');
     }
+
+    // Fetch last_update.json for the last sync timestamp
+    try {
+      const t = Date.now();
+      const res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`);
+      if (res.ok) {
+        const d = await res.json();
+        if (d && d.last_update) {
+          setLastUpdate(d.last_update);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching last_update:', err);
+    }
+
     setLoading(false);
   };
 
@@ -1313,7 +1328,11 @@ export default function App() {
              style={{background:'linear-gradient(180deg,rgba(2,4,10,.95),rgba(2,4,10,0))'}}>
           <div className="flex items-center select-none" />
           <div className="flex items-center gap-3 pointer-events-auto">
-            <ApiStatusBadge onRetry={fetchAndUpdateData} />
+            {lastUpdate && (
+              <div style={{ fontSize: '11px', color: '#94a3b8', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', padding: '5px 12px', borderRadius: '20px', fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>
+                Update: {lastUpdate}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1923,6 +1942,7 @@ export default function App() {
                 setSelectedInboundDate={setSelectedInboundDate}
                 loading={loading}
                 fetchAndUpdateData={fetchAndUpdateData}
+                lastUpdate={lastUpdate}
               />
             )}
           </div>
