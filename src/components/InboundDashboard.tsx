@@ -218,9 +218,26 @@ export default function InboundDashboard({
 
   // Trucking in transit table: top 10 bưu cục Chưa đến Hub nhiều nhất
   const stationMap: Record<string, { station: string; chuaDenHub: number; tongDon: number; vehicles: number; lastTime: string }> = {};
+  const NORTH_POST_OFFICES = new Set([
+    'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
+    'HN THƯỜNG TÍN', 'HN HOÀNG MAI', 'HD KINH MÔN', 'HY VĂN GIANG', 'HN NGỌC HỒI',
+    'HN MỸ ĐỨC', 'HN ĐÔNG ANH', 'HN HÀ ĐÔNG', 'HN THANH TRÌ', 'HN THANH LIỆT',
+    'HN HOÀI ĐỨC', 'HN MÊ LINH', 'HN AN KHÁNH', 'HN CẦU GIẤY', 'HN THANH OAI',
+    'HN ĐỐNG ĐA', 'HN CHƯƠNG MỸ', 'HN CHÚC SƠN', 'HN HẠ BẰNG', 'HN HÁT MÔN',
+    'HN LONG BIÊN', 'HN PHÚ XUYÊN', 'HN HÀ NAM', 'HN SƠN TÂY', 'HN NAM TỪ LIÊM',
+    'HN PHÚ DIỄN', 'HN TÂY HỒ', 'HN VĨNH TUY', 'HN ỨNG HÒA'
+  ]);
+
   filteredArrival.forEach(d => {
-    const key = (d['Pickup_station'] || '').trim();
+    let key = (d['Pickup_station'] || '').trim();
     if (!key) return;
+
+    // Group northern post offices under BN HUB
+    const cleanKey = key.toUpperCase();
+    if (NORTH_POST_OFFICES.has(cleanKey) || cleanKey.startsWith('HN ') || cleanKey.startsWith('HD ') || cleanKey.startsWith('HY ') || cleanKey === 'BN HUB') {
+      key = 'BN HUB';
+    }
+
     if (!stationMap[key]) {
       stationMap[key] = { station: key, chuaDenHub: 0, tongDon: 0, vehicles: 0, lastTime: '' };
     }
