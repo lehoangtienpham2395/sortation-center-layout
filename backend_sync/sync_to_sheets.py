@@ -1835,6 +1835,10 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
 
             if not df_db_inv.empty:
                 df_db_inv['next_station_upper'] = df_db_inv['next_station'].astype(str).str.strip().str.upper()
+                # Keep only today's operating date for Layoutmaster
+                df_db_inv['op_date'] = df_db_inv['time_ref'].apply(get_operating_date)
+                df_db_inv = df_db_inv[df_db_inv['op_date'] == current_date_str].copy()
+                
                 df_db_inv['layout_name'] = df_db_inv['next_station_upper'].apply(map_station_to_layout_name)
                 df_db_inv['status_upper'] = df_db_inv['status_order'].astype(str).str.strip()
                 inventory_volumes = df_db_inv.groupby(['layout_name', 'status_upper']).agg(
