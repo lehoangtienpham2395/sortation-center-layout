@@ -772,13 +772,14 @@ export default function App() {
 
   useEffect(() => {
     if (currentView === 'inbound') {
-      const inboundDates = Array.from(
-        new Set([
-          ...inboundData.map(d => d['Ngày vận hành_Inbound']),
-          ...inboundData.map(d => d['Ngày vận hành_Forecast']),
-          ...inboundData.map(d => d['Ngày vận hành_Pickup'])
-        ].filter(Boolean))
-      ) as string[];
+      const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
+      const uniqueDates = new Set([
+        ...inboundData.map(d => d['Ngày vận hành_Inbound']),
+        ...inboundData.map(d => d['Ngày vận hành_Forecast']),
+        ...inboundData.map(d => d['Ngày vận hành_Pickup']),
+        todayStr
+      ].filter(Boolean));
+      const inboundDates = Array.from(uniqueDates) as string[];
       inboundDates.sort((a, b) => b.localeCompare(a));
       const activeDate = selectedInboundDate || inboundDates[0] || '';
       
@@ -1763,13 +1764,14 @@ export default function App() {
                           <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">NGÀY VẬN HÀNH</div>
                           <div className="flex gap-1.5 overflow-x-auto py-1 scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                             {(() => {
-                              const inboundDates = Array.from(
-                                new Set([
-                                  ...inboundData.map(d => d['Ngày vận hành_Inbound']),
-                                  ...inboundData.map(d => d['Ngày vận hành_Forecast']),
-                                  ...inboundData.map(d => d['Ngày vận hành_Pickup'])
-                                ].filter(Boolean))
-                              ) as string[];
+                              const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
+                              const uniqueDates = new Set([
+                                ...inboundData.map(d => d['Ngày vận hành_Inbound']),
+                                ...inboundData.map(d => d['Ngày vận hành_Forecast']),
+                                ...inboundData.map(d => d['Ngày vận hành_Pickup']),
+                                todayStr
+                              ].filter(Boolean));
+                              const inboundDates = Array.from(uniqueDates) as string[];
                               inboundDates.sort((a, b) => b.localeCompare(a));
                               const activeDate = selectedInboundDate || inboundDates[0] || '';
                               return inboundDates.slice(0, 7).map(d => {
