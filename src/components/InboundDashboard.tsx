@@ -618,11 +618,11 @@ export default function InboundDashboard({
             },
             scales: {
               x: {
-                grid: { color: 'rgba(139, 92, 246, 0.05)' },
+                grid: { display: false },
                 ticks: { color: '#a0aec0', font: { size: 9 } }
               },
               y: {
-                grid: { color: 'rgba(139, 92, 246, 0.05)' },
+                grid: { display: false },
                 ticks: { color: '#a0aec0', font: { size: 9 } }
               }
             }
@@ -671,7 +671,21 @@ export default function InboundDashboard({
         {/* RIGHT: Status + Date Picker */}
         <div className="header-right" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ fontSize: '11px', color: '#94a3b8', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', padding: '5px 12px', borderRadius: '20px', fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>
+            <div style={{ 
+              fontSize: '11px', 
+              color: '#B8F7E4', 
+              background: 'rgba(184, 247, 228, 0.05)', 
+              border: '1px solid rgba(184, 247, 228, 0.2)', 
+              padding: '5px 12px', 
+              borderRadius: '20px', 
+              fontWeight: 600, 
+              fontFamily: "'Inter', sans-serif",
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              textShadow: '0 0 8px rgba(184,247,228,0.3)'
+            }}>
+              <span className="w-1.5 h-1.5 rounded-full bg-[#B8F7E4] animate-pulse" />
               Update: {lastUpdate || '...'}
             </div>
           </div>
@@ -945,7 +959,7 @@ export default function InboundDashboard({
       </section>
 
       {/* Row 3: Tables */}
-      <section className="tables-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px', marginTop: '24px' }}>
+      <section className="tables-grid">
         {/* Table 1: Origin Station Inbound */}
         <div className="table-container-card glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="table-header" style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1011,7 +1025,7 @@ export default function InboundDashboard({
                 <tr>
                   <th style={{ width: '50px' }}>#</th>
                   <th>Bưu cục</th>
-                  <th style={{ textAlign: 'right' }}>Số xe</th>
+                  <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Số xe</th>
                   <th style={{ textAlign: 'right' }}>Chưa đến Hub</th>
                   <th style={{ textAlign: 'right' }}>Đã đến Hub</th>
                   <th style={{ textAlign: 'right' }}>Tổng đơn</th>
@@ -1023,7 +1037,7 @@ export default function InboundDashboard({
                   <tr className="total-row" style={{ fontWeight: 'bold', position: 'sticky', top: '41px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', zIndex: 9, backdropFilter: 'blur(8px)' }}>
                     <td className="table-index">-</td>
                     <td className="table-buucuc" style={{ color: '#f59e0b' }}>TỔNG CỘNG</td>
-                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', whiteSpace: 'nowrap' }}>
                       {totalTransitVehicles} xe
                     </td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
@@ -1042,7 +1056,7 @@ export default function InboundDashboard({
                   <tr key={v.station}>
                      <td className="table-index">{idx + 1}</td>
                      <td className="table-buucuc">{v.station}</td>
-                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.vehicles} xe</td>
+                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600, whiteSpace: 'nowrap' }}>{v.vehicles} xe</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.chuaDenHub.toLocaleString()}</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{(v.tongDon - v.chuaDenHub).toLocaleString()}</td>
                      <td className="num-tabular" style={{ textAlign: 'right' }}>{v.tongDon.toLocaleString()}</td>
