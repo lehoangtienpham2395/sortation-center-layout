@@ -210,12 +210,12 @@ def calculate_shipment_status(forecast_time, pickup_time, arrival_time, inbound_
     # 1. Outbound (Đã rời HUB)
     if ot:
         return "Đã rời HUB", 0
-    # 2. Transporting (Đang trên đường)
-    if at:
-        return "Đang trên đường", 0
-    # 3. Inbound (Đang trên bãi)
+    # 2. Inbound (Đang trên bãi)
     if it:
         return "Đang trên bãi", 0
+    # 3. Transporting (Đang trên đường)
+    if at:
+        return "Đang trên đường", 1
     # 4. Pickup Done (Đã lấy hàng)
     if pt:
         return "Đã lấy hàng", 1
@@ -2178,6 +2178,9 @@ def run_once(session, token_mgr, rebuild_days=None):
 
         if cnt1 + cnt2 + cnt3 > 0:
             print(f"   🧹 Tự động dọn dẹp: Đã chuyển {cnt1:,} đơn kẹt Inbound → 'Đã rời HUB', tắt {cnt2:,} đơn Forecast/Pickup cũ (>3 ngày), tắt {cnt3:,} đơn Dispatch cũ (>2 ngày).")
+        # Reset is_backlog = 0 for all shipments before loading active ones (live backlog will set it back to 1)
+        c.execute("UPDATE shipments SET is_backlog = 0")
+        conn.commit()
             
         c.execute("SELECT * FROM shipments WHERE is_active = 1")
         rows = c.fetchall()
