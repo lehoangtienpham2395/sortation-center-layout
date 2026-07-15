@@ -1387,18 +1387,19 @@ body {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  padding: 14px 18px;
+  padding: 12px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   white-space: nowrap;
 }
 
 .premium-table td {
-  padding: 12px 18px;
+  padding: 10px 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   color: rgba(248, 250, 252, 0.85);
   font-family: 'Inter', sans-serif;
   transition: all 0.2s ease;
   vertical-align: middle;
+  white-space: nowrap;
 }
 
 .premium-table tbody tr {

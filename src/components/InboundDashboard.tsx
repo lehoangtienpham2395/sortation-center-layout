@@ -971,11 +971,11 @@ export default function InboundDashboard({
               <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
                   <th style={{ width: '50px' }}>#</th>
-                  <th>Bưu cục gửi</th>
-                  <th style={{ textAlign: 'right' }}>Số xe</th>
-                  <th style={{ textAlign: 'right' }}>Đơn Inbound</th>
-                  <th style={{ textAlign: 'right' }}>Trọng lượng (kg)</th>
-                  <th style={{ textAlign: 'right' }}>Tỉ lệ (%)</th>
+                  <th>Bưu cục</th>
+                  <th style={{ textAlign: 'right' }}>Xe</th>
+                  <th style={{ textAlign: 'right' }}>Inbound</th>
+                  <th style={{ textAlign: 'right' }}>Trọng lượng</th>
+                  <th style={{ textAlign: 'right' }}>Tỉ lệ</th>
                 </tr>
               </thead>
               <tbody>
@@ -1025,9 +1025,9 @@ export default function InboundDashboard({
                 <tr>
                   <th style={{ width: '50px' }}>#</th>
                   <th>Bưu cục</th>
-                  <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Số xe</th>
-                  <th style={{ textAlign: 'right' }}>Chưa đến Hub</th>
-                  <th style={{ textAlign: 'right' }}>Đã đến Hub</th>
+                  <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Xe</th>
+                  <th style={{ textAlign: 'right' }}>Chưa đến</th>
+                  <th style={{ textAlign: 'right' }}>Đã đến</th>
                   <th style={{ textAlign: 'right' }}>Tổng đơn</th>
                   <th style={{ textAlign: 'center' }}>Cập nhật</th>
                 </tr>
