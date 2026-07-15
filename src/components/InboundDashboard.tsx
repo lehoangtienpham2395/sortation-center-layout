@@ -276,16 +276,15 @@ export default function InboundDashboard({
     hourlyPickup[l] = 0;
   });
 
-  // 1. Transporting hourly: dùng unloadingStartTime từ linehaul → giờ xe ĐẾN HUB và bắt đầu dỡ hàng (12h-20h)
-  //    Đây là dữ liệu chính xác hơn Scan Hour (giờ rời bưu cục, chỉ 06h-13h)
-  filteredLinehaul.forEach(d => {
-    const unloadTime = d['unloadingStartTime'];
-    if (unloadTime && unloadTime !== '') {
-      const hrVal = getHourFromTimestamp(unloadTime);
+  // 1. Transporting hourly: dùng Scan Hour từ Arrival → giờ xe ĐẾN HUB và quét Arrival
+  filteredArrival.forEach(d => {
+    const scanHourStr = d['Scan Hour'] || d['Scan_Hour'] || '';
+    if (scanHourStr) {
+      const hrVal = getHourFromTimestamp(scanHourStr);
       if (hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
         if (hourlyArrived[hour] !== undefined) {
-          hourlyArrived[hour] += parseInt(d['unloadingBillPiece'] as any, 10) || 0;
+          hourlyArrived[hour] += parseInt(d['Tng s n'] || d['Tổng số đơn'] || d['Volume'] || 0, 10);
         }
       }
     }
