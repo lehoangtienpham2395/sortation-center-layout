@@ -1233,6 +1233,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             FROM shipments
             WHERE is_active = 1
                OR (time_ref != '' AND time_ref >= date('now', '+7 hours', '-5 days'))
+               OR (Arrival_time != '' AND Arrival_time >= date('now', '+7 hours', '-5 days'))
         """, conn)
         conn.close()
     except Exception as e_db:
@@ -2650,7 +2651,7 @@ def run_once(session, token_mgr, rebuild_days=None):
             rec['Rank'] = d_rank.get(mapped_ns, '')
         
         # time_ref
-        t_ref = ob_time if ob_time else (ib_time if ib_time else (pk_time if pk_time else fc_time))
+        t_ref = ob_time if ob_time else (ib_time if ib_time else (pk_time if pk_time else (fc_time if fc_time else arr_time)))
         
         # Apply +36 hours shift for northern (BN HUB) shipments that are not yet inbound/outbound
         pkn = str(rec.get('pickNetworkName') or '').strip().upper()
