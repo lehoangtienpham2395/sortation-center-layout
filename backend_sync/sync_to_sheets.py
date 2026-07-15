@@ -1483,6 +1483,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             SELECT waybillNo, pickNetworkName AS Pickup_station, Arrival_time, inbound_scanDate
             FROM shipments
             WHERE Arrival_time IS NOT NULL AND Arrival_time != ''
+              AND Arrival_time >= date('now', '+7 hours', '-3 days')
         """, conn)
         conn.close()
     except Exception as e_arr_db:
@@ -1519,6 +1520,8 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             arr_dt_series = pd.to_datetime(df_arr_raw.loc[is_north, 'Arrival_time'], errors='coerce')
             df_arr_raw.loc[is_north, 'Ngày vận hành'] = (arr_dt_series + pd.Timedelta(hours=36)).dt.strftime('%Y-%m-%d')
             df_arr_raw.loc[is_north, 'Scan Hour'] = (arr_dt_series + pd.Timedelta(hours=36)).dt.strftime('%Y-%m-%d %H:00')
+        # Only keep records of the current operating day
+        df_arr_raw = df_arr_raw[df_arr_raw['Ngày vận hành'] == current_op_date]
         
         df_arr_raw['Đã đến Hub'] = df_arr_raw['inbound_scanDate'].apply(lambda d: 1 if d and str(d).strip().lower() not in ('nan', 'none', '') else 0)
         df_arr_raw['Chưa đến Hub'] = 1 - df_arr_raw['Đã đến Hub']
@@ -1542,37 +1545,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         if not df_pivot.empty:
             arrival_cols = ['Ngày vận hành', 'Pickup_station', 'Scan Hour',
                             'Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub', 'Last time']
-            df_old = pd.DataFrame()
-            
-            arrival_json_path = "data/arrival.json"
-            if os.path.exists(arrival_json_path):
-                try:
-                    df_old = pd.read_json(arrival_json_path)
-                    df_old.rename(columns={
-                        'Ngy vn hnh': 'Ngày vận hành',
-                        'Tng s n': 'Tổng số đơn'
-                    }, inplace=True)
-                except Exception:
-                    pass
-                    
-            if df_old.empty and not DISABLE_GOOGLE_SHEETS and ss:
-                try:
-                    arr_sheet = ss.worksheet('Arrival')
-                    old_vals = arr_sheet.get_all_values()
-                    if len(old_vals) > 1:
-                        df_old = pd.DataFrame(old_vals[1:], columns=old_vals[0])
-                except Exception:
-                    pass
-                    
-            if not df_old.empty:
-                for col in ['Scan Hour', 'Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub']:
-                    if col in df_old.columns:
-                        df_old[col] = pd.to_numeric(df_old[col], errors='coerce').fillna(0).astype(int)
-                today_dates = set(df_pivot['Ngày vận hành'].unique())
-                df_old = df_old[~df_old['Ngày vận hành'].isin(today_dates)]
-                df_arrival_aggregated = pd.concat([df_old, df_pivot[arrival_cols]], ignore_index=True)
-            else:
-                df_arrival_aggregated = df_pivot[arrival_cols].copy()
+            df_arrival_aggregated = df_pivot[arrival_cols].copy()
                 
             df_arrival_aggregated = df_arrival_aggregated.sort_values(
                 by=['Ngày vận hành', 'Pickup_station', 'Scan Hour'],

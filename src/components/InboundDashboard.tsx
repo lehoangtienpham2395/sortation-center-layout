@@ -232,10 +232,10 @@ export default function InboundDashboard({
     let key = (d['Pickup_station'] || '').trim();
     if (!key) return;
 
-    // Group northern post offices under BN HUB
     const cleanKey = key.toUpperCase();
-    if (NORTH_POST_OFFICES.has(cleanKey) || cleanKey.startsWith('HN ') || cleanKey.startsWith('HD ') || cleanKey.startsWith('HY ') || cleanKey === 'BN HUB') {
-      key = 'BN HUB';
+    // Exclude northern post offices (except BN HUB itself)
+    if (cleanKey !== 'BN HUB' && (NORTH_POST_OFFICES.has(cleanKey) || cleanKey.startsWith('HN ') || cleanKey.startsWith('HD ') || cleanKey.startsWith('HY '))) {
+      return;
     }
 
     if (!stationMap[key]) {
