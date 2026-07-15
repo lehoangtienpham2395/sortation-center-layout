@@ -1156,8 +1156,11 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
     def safe_hour_format(val):
         if not val or str(val).strip().lower() in ('nan', 'none', 'nat', 'n/a', 'backlog', ''):
             return ""
+        val_str = str(val).strip()
+        if len(val_str) >= 13 and val_str[4] == '-' and val_str[7] == '-':
+            return val_str[:13] + ':00'
         try:
-            dt = pd.to_datetime(val)
+            dt = pd.to_datetime(val_str)
             if pd.isna(dt):
                 return ""
             return dt.strftime('%Y-%m-%d %H:00')
@@ -2412,15 +2415,25 @@ def run_once(session, token_mgr, rebuild_days=None):
                     payload['waybillIds'] = ",".join(chunk)
                     payload['current'] = 1
                     payload['size'] = len(chunk)
-                    for k in ['startInputTime', 'endInputTime', 'startPickTime', 'endPickTime']:
-                        if k in payload:
-                            payload[k] = ""
+                    
+                    # Set 30-day window for indexing/partitioning (crucial for J&T performance)
+                    now_tz = now
+                    start_time = (now_tz - timedelta(days=30)).strftime('%Y-%m-%d') + ' 00:00:00'
+                    end_time = now_tz.strftime('%Y-%m-%d') + ' 23:59:59'
+                    
+                    payload['startInputTime'] = start_time
+                    payload['endInputTime'] = end_time
+                    payload['timeType'] = "1"
+                    if 'startPickTime' in payload:
+                        payload['startPickTime'] = ""
+                    if 'endPickTime' in payload:
+                        payload['endPickTime'] = ""
                             
                     batch_updated = 0
                     
                     # Wrap query in a try-except block to make Completion Sync non-blocking
                     try:
-                        r_dp = auth_post(session, URL_DISPATCH, token_mgr, dh, data=payload, timeout=25, max_retries=1, label=f'Completion Sync Batch {b_idx + 1}/{total_batches}')
+                        r_dp = auth_post(session, URL_DISPATCH, token_mgr, dh, data=payload, timeout=25, max_retries=3, label=f'Completion Sync Batch {b_idx + 1}/{total_batches}')
                         dp_res = r_dp.json()
                         data_node = dp_res.get('data', {})
                         records = []
