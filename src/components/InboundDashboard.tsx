@@ -963,7 +963,7 @@ export default function InboundDashboard({
         {/* Table 1: Origin Station Inbound */}
         <div className="table-container-card glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="table-header" style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#94a3b8', margin: 0 }}>Origin Station Inbound</h2>
+            <h2 style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#B8F7E4', margin: 0 }}>Origin Station Inbound</h2>
             <span className="badge-count sky">{allSendingFCs.length} bưu cục</span>
           </div>
           <div className="table-wrapper" style={{ overflow: 'auto', maxHeight: '400px', position: 'relative' }}>
@@ -1016,7 +1016,7 @@ export default function InboundDashboard({
         {/* Table 2: Xe đang di chuyển (Trucks in Transit) */}
         <div className="table-container-card glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="table-header" style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#94a3b8', margin: 0 }}>Trucking in transit</h2>
+            <h2 style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#B8F7E4', margin: 0 }}>Trucking in transit</h2>
             <span className="badge-count amber">{totalTransitVehicles} xe</span>
           </div>
           <div className="table-wrapper" style={{ overflow: 'auto', maxHeight: '400px', position: 'relative' }}>
