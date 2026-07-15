@@ -270,6 +270,8 @@ def init_db():
     c.execute("CREATE INDEX IF NOT EXISTS idx_ship_time_ref ON shipments(time_ref)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_ship_status ON shipments(status_order)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_ship_active ON shipments(is_active)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_arrival_time ON shipments(Arrival_time)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_inbound_scanDate ON shipments(inbound_scanDate)")
     
     # 1b. Auto-add retry columns if they do not exist
     try:
@@ -1835,9 +1837,12 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
 
             if not df_db_inv.empty:
                 df_db_inv['next_station_upper'] = df_db_inv['next_station'].astype(str).str.strip().str.upper()
-                # Keep only today's operating date for Layoutmaster
                 df_db_inv['op_date'] = df_db_inv['time_ref'].apply(get_operating_date)
-                df_db_inv = df_db_inv[df_db_inv['op_date'] == current_date_str].copy()
+                # Keep all 'Đang trên bãi' (accumulated backlog), and only keep today's date for other statuses
+                df_db_inv = df_db_inv[
+                    (df_db_inv['status_order'] == 'Đang trên bãi') |
+                    (df_db_inv['op_date'] == current_date_str)
+                ].copy()
                 
                 df_db_inv['layout_name'] = df_db_inv['next_station_upper'].apply(map_station_to_layout_name)
                 df_db_inv['status_upper'] = df_db_inv['status_order'].astype(str).str.strip()
@@ -2181,22 +2186,50 @@ def run_once(session, token_mgr, rebuild_days=None):
     except Exception as e_db:
         print(f"   ⚠️ Lỗi load đơn từ SQLite: {e_db}")
 
-    def get_or_create_record(wb):
+    def update_if_changed(rec, key, new_val):
+        old_val = rec.get(key)
+        if key == 'weight':
+            try:
+                old_f = float(old_val) if old_val is not None and old_val != '' else 0.0
+                new_f = float(new_val) if new_val is not None and new_val != '' else 0.0
+                if abs(old_f - new_f) > 0.0001:
+                    rec[key] = new_f
+                    rec['changed'] = True
+                    return True
+                return False
+            except (ValueError, TypeError):
+                pass
+        
+        old_str = str(old_val or '').strip()
+        new_str = str(new_val or '').strip()
+        if old_str != new_str:
+            rec[key] = new_str
+            rec['changed'] = True
+            return True
+        return False
+
+    def get_or_create_record(wb, conn=None):
         if wb in db_records:
             return db_records[wb], False
             
-        conn_check = sqlite3.connect(DB_FILE)
-        c_check = conn_check.cursor()
+        close_conn = False
+        if conn is None:
+            conn = sqlite3.connect(DB_FILE)
+            close_conn = True
+            
+        c_check = conn.cursor()
         c_check.execute("SELECT * FROM shipments WHERE waybillNo = ?", (wb,))
         row = c_check.fetchone()
         if row:
             col_names = [description[0] for description in c_check.description]
             rec = dict(zip(col_names, row))
-            conn_check.close()
+            if close_conn:
+                conn.close()
             db_records[wb] = rec
             return rec, False
             
-        conn_check.close()
+        if close_conn:
+            conn.close()
         rec = {
             'waybillNo': wb, 'data_source': '', 'weight': 0.0, 'pickNetworkName': '', 'dispatch_plan': '',
             'Pickup_time': '', 'pickup_label': '', 'Pickup_ontime': '', 'dispatchNetworkTime': '',
@@ -2207,6 +2240,9 @@ def run_once(session, token_mgr, rebuild_days=None):
         db_records[wb] = rec
         return rec, True
 
+    # Open shared SQLite connection for efficient batch query/caching
+    conn_db = sqlite3.connect(DB_FILE)
+
     # 1. Process Forecast
     df_fc = pd.DataFrame(results.get('forecast', []))
     if not df_fc.empty:
@@ -2214,19 +2250,26 @@ def run_once(session, token_mgr, rebuild_days=None):
             wb = str(r.get('waybillNo') or '').strip()
             if not wb or wb.lower() in ('nan', 'none', ''):
                 continue
-            rec, _ = get_or_create_record(wb)
-            rec['data_source'] = 'Forecast'
-            rec['pickNetworkName'] = d_buucuc.get(str(r.get('pickNetworkName', '')).strip(), str(r.get('pickNetworkName', '')).strip())
+            rec, is_new = get_or_create_record(wb, conn_db)
+            if is_new:
+                rec['changed'] = True
+            update_if_changed(rec, 'data_source', 'Forecast')
+            pick_net = d_buucuc.get(str(r.get('pickNetworkName', '')).strip(), str(r.get('pickNetworkName', '')).strip())
+            update_if_changed(rec, 'pickNetworkName', pick_net)
             disp_plan = str(r.get('dispatchNetworkName') or '').strip()
             if not disp_plan or disp_plan.lower() in ('nan', 'none'):
                 disp_plan = str(r.get('terminalDispatchCode') or r.get('transferDispatchCode') or r.get('receiverSortingCode') or '').strip()
-            rec['dispatch_plan'] = disp_plan
-            rec['weight'] = float(r.get('loadWeight') or r.get('weight') or rec['weight'])
+            update_if_changed(rec, 'dispatch_plan', disp_plan)
+            
+            try:
+                w_val = r.get('loadWeight') or r.get('weight') or rec.get('weight') or 0.0
+                update_if_changed(rec, 'weight', float(w_val))
+            except (ValueError, TypeError):
+                pass
             
             delivery_time = str(r.get('deliveryTime') or '').strip()
-            if delivery_time and delivery_time.lower() not in ('nan', 'none'):
-                rec['Pickup_time'] = delivery_time
-            rec['changed'] = True
+            if delivery_time and delivery_time.lower() not in ('nan', 'none', ''):
+                update_if_changed(rec, 'Pickup_time', delivery_time)
 
     # 2. Process Dispatch
     df_dp = pd.DataFrame(results.get('dispatch', []))
@@ -2235,25 +2278,31 @@ def run_once(session, token_mgr, rebuild_days=None):
             wb = str(r.get('waybillId') or r.get('waybillNo') or '').strip()
             if not wb or wb.lower() in ('nan', 'none', ''):
                 continue
-            rec, _ = get_or_create_record(wb)
-            rec['data_source'] = 'Dispatch'
-            rec['pickNetworkName'] = d_buucuc.get(str(r.get('pickNetworkName', '')).strip(), str(r.get('pickNetworkName', '')).strip())
+            rec, is_new = get_or_create_record(wb, conn_db)
+            if is_new:
+                rec['changed'] = True
+            update_if_changed(rec, 'data_source', 'Dispatch')
+            pick_net = d_buucuc.get(str(r.get('pickNetworkName', '')).strip(), str(r.get('pickNetworkName', '')).strip())
+            update_if_changed(rec, 'pickNetworkName', pick_net)
             disp_plan = str(r.get('dispatchNetworkName') or '').strip()
             if not disp_plan or disp_plan.lower() in ('nan', 'none'):
                 disp_plan = str(r.get('terminalDispatchCode') or r.get('transferDispatchCode') or r.get('receiverSortingCode') or '').strip()
-            rec['dispatch_plan'] = disp_plan
-            rec['weight'] = float(r.get('packageChargeWeight') or r.get('weight') or rec['weight'])
+            update_if_changed(rec, 'dispatch_plan', disp_plan)
+            
+            try:
+                w_val = r.get('packageChargeWeight') or r.get('weight') or rec.get('weight') or 0.0
+                update_if_changed(rec, 'weight', float(w_val))
+            except (ValueError, TypeError):
+                pass
             
             disp_time = str(r.get('dispatchNetworkTime') or '').strip()
-            if disp_time and disp_time.lower() not in ('nan', 'none'):
-                rec['dispatchNetworkTime'] = disp_time
+            if disp_time and disp_time.lower() not in ('nan', 'none', ''):
+                update_if_changed(rec, 'dispatchNetworkTime', disp_time)
                 
             status_dp = str(r.get('orderStatusName') or '').strip()
             update_time = str(r.get('updateTime') or '').strip()
-            if status_dp == 'Đã lấy hàng' and update_time and update_time.lower() not in ('nan', 'none'):
-                rec['Pickup_time'] = update_time
-                
-            rec['changed'] = True
+            if status_dp == 'Đã lấy hàng' and update_time and update_time.lower() not in ('nan', 'none', ''):
+                update_if_changed(rec, 'Pickup_time', update_time)
 
     # 3. Process Arrival Scans (Max scan time per waybill)
     arrival_raw = results.get('arrival', [])
@@ -2266,12 +2315,13 @@ def run_once(session, token_mgr, rebuild_days=None):
                 arrival_max[wb] = scan_time
                 
     for wb, scan_time in arrival_max.items():
-        rec, _ = get_or_create_record(wb)
-        if not rec['data_source']:
-            rec['data_source'] = 'Arrival'
-        if not rec['Arrival_time'] or scan_time > rec['Arrival_time']:
-            rec['Arrival_time'] = scan_time
+        rec, is_new = get_or_create_record(wb, conn_db)
+        if is_new:
             rec['changed'] = True
+        if not rec.get('data_source'):
+            update_if_changed(rec, 'data_source', 'Arrival')
+        if not rec.get('Arrival_time') or scan_time > rec['Arrival_time']:
+            update_if_changed(rec, 'Arrival_time', scan_time)
 
     # 4. Process Inbound Scans (Max scan time per waybill)
     inbound_raw = results.get('inbound', [])
@@ -2285,13 +2335,14 @@ def run_once(session, token_mgr, rebuild_days=None):
                 inbound_max[wb] = {'time': scan_time, 'site': send_site}
                 
     for wb, info in inbound_max.items():
-        rec, _ = get_or_create_record(wb)
-        if not rec['data_source']:
-            rec['data_source'] = 'Inbound'
-        if not rec['inbound_scanDate'] or info['time'] > rec['inbound_scanDate']:
-            rec['inbound_scanDate'] = info['time']
-            rec['inbound_network'] = d_buucuc.get(info['site'], info['site'])
+        rec, is_new = get_or_create_record(wb, conn_db)
+        if is_new:
             rec['changed'] = True
+        if not rec.get('data_source'):
+            update_if_changed(rec, 'data_source', 'Inbound')
+        if not rec.get('inbound_scanDate') or info['time'] > rec['inbound_scanDate']:
+            update_if_changed(rec, 'inbound_scanDate', info['time'])
+            update_if_changed(rec, 'inbound_network', d_buucuc.get(info['site'], info['site']))
 
     # 5. Process Outbound Scans (Max scan time per waybill)
     outbound_raw = results.get('outbound', [])
@@ -2305,11 +2356,12 @@ def run_once(session, token_mgr, rebuild_days=None):
                 outbound_max[wb] = {'time': scan_time, 'station': next_station}
                 
     for wb, info in outbound_max.items():
-        rec, _ = get_or_create_record(wb)
-        if not rec['outbound_scanDate'] or info['time'] > rec['outbound_scanDate']:
-            rec['outbound_scanDate'] = info['time']
-            rec['dispatch_actual'] = d_buucuc.get(info['station'], info['station'])
+        rec, is_new = get_or_create_record(wb, conn_db)
+        if is_new:
             rec['changed'] = True
+        if not rec.get('outbound_scanDate') or info['time'] > rec['outbound_scanDate']:
+            update_if_changed(rec, 'outbound_scanDate', info['time'])
+            update_if_changed(rec, 'dispatch_actual', d_buucuc.get(info['station'], info['station']))
 
     # 6. Process Backlog
     BACKLOG_REDELIVER_REMARKS = {
@@ -2326,9 +2378,11 @@ def run_once(session, token_mgr, rebuild_days=None):
         site_type = str(r.get('operate_site_type') or '').strip()
         if site_type != 'Trong kho':
             continue
-        rec, _ = get_or_create_record(wb)
-        rec['is_backlog'] = 1
-        rec['outbound_scanDate'] = ''
+        rec, is_new = get_or_create_record(wb, conn_db)
+        if is_new:
+            rec['changed'] = True
+        update_if_changed(rec, 'is_backlog', 1)
+        update_if_changed(rec, 'outbound_scanDate', '')
         
         dest = str(r.get('destination_site_name') or '').strip()
         abn = str(r.get('abnormal_remark') or '').strip()
@@ -2337,9 +2391,11 @@ def run_once(session, token_mgr, rebuild_days=None):
             if take_site:
                 dest = take_site
         dest_mapped = d_buucuc.get(dest, dest)
-        rec['dispatch_plan'] = dest
-        rec['next_station'] = dest_mapped
-        rec['changed'] = True
+        update_if_changed(rec, 'dispatch_plan', dest)
+        update_if_changed(rec, 'next_station', dest_mapped)
+
+    # Close shared SQLite connection
+    conn_db.close()
 
     # 7. Unified Completion Sync (Vòng 2 - rolling window & retry limit)
     t_start_completion = time.time()
@@ -3217,7 +3273,7 @@ def run_realtime_sync(session, token_mgr):
                     pk = str(item.get('updateTime') or '').strip() if status_dp == 'Đã lấy hàng' else ''
                     if wb and pk and pk.lower() not in ('nan', 'none', ''):
                         c_rt.execute("""
-                            UPDATE inventory
+                            UPDATE shipments
                             SET Pickup_time = ?, status_order = ?, last_updated = CURRENT_TIMESTAMP
                             WHERE waybillNo = ? AND (Pickup_time = '' OR Pickup_time IS NULL)
                         """, (pk, status_dp, wb))
@@ -3262,12 +3318,12 @@ def run_realtime_sync(session, token_mgr):
             # Cleanup stale records trong DB
             if all_bl:
                 live_wbs = {str(r.get('billcode', '')).strip() for r in all_bl if isinstance(r, dict)}
-                c_rt.execute("SELECT waybillNo FROM inventory WHERE status_order = 'Đang trên bãi'")
+                c_rt.execute("SELECT waybillNo FROM shipments WHERE status_order = 'Đang trên bãi'")
                 db_wbs = {row[0] for row in c_rt.fetchall()}
                 stale = db_wbs - live_wbs
                 if stale:
                     c_rt.executemany(
-                        "UPDATE inventory SET status_order = 'Đã rời HUB', last_updated = CURRENT_TIMESTAMP WHERE waybillNo = ?",
+                        "UPDATE shipments SET status_order = 'Đã rời HUB', last_updated = CURRENT_TIMESTAMP WHERE waybillNo = ?",
                         [(w,) for w in stale]
                     )
                     conn_rt.commit()
