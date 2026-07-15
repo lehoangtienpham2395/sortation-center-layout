@@ -162,10 +162,27 @@ class TokenManager:
 
 
 def get_operating_date(dt_str):
-    if not dt_str or str(dt_str).strip() in ('', 'nan', 'None'):
+    if not dt_str:
         return ""
+    s = str(dt_str).strip()
+    if s.lower() in ('nan', 'none', 'n/a', 'null', 'nat', ''):
+        return ""
+    if len(s) >= 13 and s[4] == '-' and s[7] == '-':
+        try:
+            yr = int(s[:4])
+            mo = int(s[5:7])
+            dy = int(s[8:10])
+            hr = int(s[11:13])
+            if hr < 6:
+                dt = datetime(yr, mo, dy) - timedelta(days=1)
+                return dt.strftime('%Y-%m-%d')
+            return s[:10]
+        except Exception:
+            pass
     try:
-        dt = pd.to_datetime(dt_str)
+        dt = pd.to_datetime(s)
+        if pd.isna(dt):
+            return ""
         if dt.hour < 6:
             return (dt - timedelta(days=1)).strftime('%Y-%m-%d')
         else:
@@ -193,12 +210,12 @@ def calculate_shipment_status(forecast_time, pickup_time, arrival_time, inbound_
     # 1. Outbound (Đã rời HUB)
     if ot:
         return "Đã rời HUB", 0
-    # 2. Inbound (Đang trên bãi)
+    # 2. Transporting (Đang trên đường)
+    if at:
+        return "Đang trên đường", 0
+    # 3. Inbound (Đang trên bãi)
     if it:
         return "Đang trên bãi", 0
-    # 3. Transporting (Đang trên đường)
-    if at:
-        return "Đang trên đường", 1
     # 4. Pickup Done (Đã lấy hàng)
     if pt:
         return "Đã lấy hàng", 1
@@ -1214,6 +1231,8 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             SELECT pickNetworkName, status_order, weight, 
                    inbound_scanDate, dispatchNetworkTime, Pickup_time, Arrival_time
             FROM shipments
+            WHERE is_active = 1
+               OR (time_ref != '' AND time_ref >= date('now', '+7 hours', '-5 days'))
         """, conn)
         conn.close()
     except Exception as e_db:
