@@ -979,7 +979,7 @@ export default function App() {
 
           <g>
             {/* Zone 3 Chutes */}
-            {ZONE3_LIST.map((c, i) => {
+            {ZONE3_LIST.filter(c => c.areaId !== 'C26').map((c, i) => {
               const d = data[c.areaId]; if (!d) return null;
               const isRight = i < 5;
               const bx = isRight ? 642 + (4 - i) * TR_BAY_W : 614 - (i - 5) * TR_BAY_W;
@@ -1035,14 +1035,14 @@ export default function App() {
                 </g>
               );
             })}
-            {/* Zone 3 Chutes Left border (bao quanh C06->C26) */}
-            <rect x={54} y={118} width={588} height={Z_H} rx="2"
+            {/* Zone 3 Chutes Left border (bao quanh C06->C25) */}
+            <rect x={82} y={118} width={560} height={Z_H} rx="2"
                   {...getZoneBorderProps(3, '--green')}/>
             {/* Zone 3 Chutes Right border (bao quanh C01->C05) */}
             <rect x={642} y={118} width={140} height={Z_H} rx="2"
                   {...getZoneBorderProps(3, '--green')}/>
-            {/* Zone 3 Trucks border (bao quanh T3-01->T3-24 + C25-C26) */}
-            <rect x={54} y={174} width={728} height={Z_H} rx="2"
+            {/* Zone 3 Trucks border (bao quanh T3-01->T3-24) */}
+            <rect x={110} y={174} width={672} height={Z_H} rx="2"
                   {...getZoneBorderProps(3, '--green')}/>
           </g>
 
@@ -1148,6 +1148,50 @@ export default function App() {
                   className="mono text-[6.5px] font-bold tracking-wide">KHU CHỜ XUẤT TẢI (ZONE 1)</text>
           </g>
  
+          {/* Render C26 (Zone 3) separately next to BN HUB on the left */}
+          <g>
+            {(() => {
+              const c = ZONE3_LIST.find(item => item.areaId === 'C26');
+              if (!c) return null;
+              const d = data[c.areaId];
+              if (!d) return null;
+              const bx = 153;
+              const by = Z1_Y;
+              const bw = TR_BAY_W;
+              const isChuteHovered = hoveredRack?.areaId === 'C26';
+              return (
+                <>
+                  <ZoneCell c={c} d={d} bx={bx} by={by}
+                            bw={bw} bh={Z_H} midLabelY={by+Z_H/2}
+                            isHovered={hoveredRack?.areaId===c.areaId}
+                            onEnter={() => {
+                              setHoveredRack({...c,...d});
+                              setHoveredZone(3);
+                            }}
+                            onLeave={() => {
+                              setHoveredRack(null);
+                              setHoveredZone(null);
+                            }}
+                            onClick={() => {
+                              setHoveredRack({...c,...d});
+                              if (isMobile) setBottomSheetOpen(true);
+                            }}
+                            addCenterLine={true}/>
+                  <rect x={bx} y={by} width={bw} height={Z_H} rx="2"
+                        fill="none"
+                        stroke="var(--green)"
+                        strokeWidth={isChuteHovered ? 1.5 : 0.8}
+                        strokeOpacity={isChuteHovered ? 1.0 : 0.5}
+                        style={{
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          filter: isChuteHovered ? 'drop-shadow(0 3px 6px rgba(0,0,0,0.4)) drop-shadow(0 3px 6px var(--green))' : 'none'
+                        }}
+                        pointerEvents="none"/>
+                </>
+              );
+            })()}
+          </g>
+
           {/* Render A19 (BN HUB) separately at A1-A2 with double cell width */}
           <g>
             {(() => {
