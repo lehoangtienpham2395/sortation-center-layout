@@ -1267,7 +1267,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                 pkn_upper == 'BN HUB' or
                 pkn_upper in NORTH_POST_OFFICES
             )
-            if is_north and arr_time:
+            if is_north and not ib_time and arr_time:
                 try:
                     arr_dt = pd.to_datetime(arr_time)
                     shifted_arr_dt = arr_dt + pd.Timedelta(hours=36)
@@ -1472,12 +1472,15 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             'HN PHÚ DIỄN', 'HN TÂY HỒ', 'HN VĨNH TUY', 'HN ỨNG HÒA'
         }
         pkn_series = df_arr_raw['Pickup_station'].astype(str).str.strip().str.upper()
+        ib_series = df_arr_raw['inbound_scanDate'].astype(str).str.strip().str.lower()
+        is_not_ib = ib_series.isin(('', 'nan', 'none'))
         is_north = (
-            pkn_series.str.startswith('HN ') | 
-            pkn_series.str.startswith('HD ') | 
-            pkn_series.str.startswith('HY ') | 
-            (pkn_series == 'BN HUB') |
-            pkn_series.isin(NORTH_POST_OFFICES)
+            (pkn_series.str.startswith('HN ') | 
+             pkn_series.str.startswith('HD ') | 
+             pkn_series.str.startswith('HY ') | 
+             (pkn_series == 'BN HUB') |
+             pkn_series.isin(NORTH_POST_OFFICES)) & 
+            is_not_ib
         )
         if is_north.any():
             arr_dt_series = pd.to_datetime(df_arr_raw.loc[is_north, 'Arrival_time'], errors='coerce')
