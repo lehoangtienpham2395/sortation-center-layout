@@ -104,15 +104,14 @@ export default function InboundDashboard({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<any | null>(null);
 
-  // 1. Extract and sort available dates (include today's date by default)
-  const todayStr = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' });
-  const uniqueDates = new Set([
-    ...inboundData.map(d => d['Ngày vận hành_Inbound']),
-    ...inboundData.map(d => d['Ngày vận hành_Forecast']),
-    ...inboundData.map(d => d['Ngày vận hành_Pickup']),
-    todayStr
-  ].filter(Boolean));
-  const inboundDates = Array.from(uniqueDates) as string[];
+  // 1. Extract and sort available dates
+  const inboundDates = Array.from(
+    new Set([
+      ...inboundData.map(d => d['Ngày vận hành_Inbound']),
+      ...inboundData.map(d => d['Ngày vận hành_Forecast']),
+      ...inboundData.map(d => d['Ngày vận hành_Pickup'])
+    ].filter(Boolean))
+  ) as string[];
   inboundDates.sort((a, b) => b.localeCompare(a));
   const activeDate = selectedInboundDate || inboundDates[0] || '';
 
