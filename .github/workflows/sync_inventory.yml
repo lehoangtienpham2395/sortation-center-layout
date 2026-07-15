@@ -1,9 +1,9 @@
 name: Sync Inventory to GitHub Data
 
-# DISABLED: sync.yml already handles all syncing with correct --sync-only flag
-# This workflow caused timezone issues by running without --sync-only
 on:
-  workflow_dispatch:  # Manual only
+  schedule:
+    - cron: '*/30 * * * *'   # Chạy tự động mỗi 30 phút
+  workflow_dispatch:          # Cho phép chạy thủ công
 
 concurrency:
   group: sync-inventory
