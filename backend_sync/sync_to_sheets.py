@@ -1248,6 +1248,33 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             op_date_fc = get_operating_date(fc_time_temp) if fc_time_temp else ""
             op_date_pk = get_operating_date(pk_time) if pk_time else ""
             op_date_arr = get_operating_date(arr_time) if arr_time else ""
+            
+            # Apply +36 hours shift for northern shipments in inbound.json
+            pkn_upper = (row.get('pickNetworkName') or '').strip().upper()
+            NORTH_POST_OFFICES = {
+                'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
+                'HN THƯỜNG TÍN', 'HN HOÀNG MAI', 'HD KINH MÔN', 'HY VĂN GIANG', 'HN NGỌC HỒI',
+                'HN MỸ ĐỨC', 'HN ĐÔNG ANH', 'HN HÀ ĐÔNG', 'HN THANH TRÌ', 'HN THANH LIỆT',
+                'HN HOÀI ĐỨC', 'HN MÊ LINH', 'HN AN KHÁNH', 'HN CẦU GIẤY', 'HN THANH OAI',
+                'HN ĐỐNG ĐA', 'HN CHƯƠNG MỸ', 'HN CHÚC SƠN', 'HN HẠ BẰNG', 'HN HÁT MÔN',
+                'HN LONG BIÊN', 'HN PHÚ XUYÊN', 'HN HÀ NAM', 'HN SƠN TÂY', 'HN NAM TỪ LIÊM',
+                'HN PHÚ DIỄN', 'HN TÂY HỒ', 'HN VĨNH TUY', 'HN ỨNG HÒA'
+            }
+            is_north = (
+                pkn_upper.startswith('HN ') or 
+                pkn_upper.startswith('HD ') or 
+                pkn_upper.startswith('HY ') or 
+                pkn_upper == 'BN HUB' or
+                pkn_upper in NORTH_POST_OFFICES
+            )
+            if is_north and arr_time:
+                try:
+                    arr_dt = pd.to_datetime(arr_time)
+                    shifted_arr_dt = arr_dt + pd.Timedelta(hours=36)
+                    op_date_arr = shifted_arr_dt.strftime('%Y-%m-%d')
+                    arr_hour = shifted_arr_dt.strftime('%H:00')
+                except Exception:
+                    pass
 
             # Calculate Drop Type
             if op_date_fc:
@@ -1430,8 +1457,32 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         df_arr_raw = pd.DataFrame()
 
     if not df_arr_raw.empty:
+        # Default operating date for all
         df_arr_raw['Ngày vận hành'] = df_arr_raw['Arrival_time'].apply(get_operating_date)
         df_arr_raw['Scan Hour'] = pd.to_datetime(df_arr_raw['Arrival_time'], errors='coerce').dt.strftime('%Y-%m-%d %H:00')
+        
+        # Apply +36 hours shift logic for northern shipments
+        NORTH_POST_OFFICES = {
+            'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
+            'HN THƯỜNG TÍN', 'HN HOÀNG MAI', 'HD KINH MÔN', 'HY VĂN GIANG', 'HN NGỌC HỒI',
+            'HN MỸ ĐỨC', 'HN ĐÔNG ANH', 'HN HÀ ĐÔNG', 'HN THANH TRÌ', 'HN THANH LIỆT',
+            'HN HOÀI ĐỨC', 'HN MÊ LINH', 'HN AN KHÁNH', 'HN CẦU GIẤY', 'HN THANH OAI',
+            'HN ĐỐNG ĐA', 'HN CHƯƠNG MỸ', 'HN CHÚC SƠN', 'HN HẠ BẰNG', 'HN HÁT MÔN',
+            'HN LONG BIÊN', 'HN PHÚ XUYÊN', 'HN HÀ NAM', 'HN SƠN TÂY', 'HN NAM TỪ LIÊM',
+            'HN PHÚ DIỄN', 'HN TÂY HỒ', 'HN VĨNH TUY', 'HN ỨNG HÒA'
+        }
+        pkn_series = df_arr_raw['Pickup_station'].astype(str).str.strip().str.upper()
+        is_north = (
+            pkn_series.str.startswith('HN ') | 
+            pkn_series.str.startswith('HD ') | 
+            pkn_series.str.startswith('HY ') | 
+            (pkn_series == 'BN HUB') |
+            pkn_series.isin(NORTH_POST_OFFICES)
+        )
+        if is_north.any():
+            arr_dt_series = pd.to_datetime(df_arr_raw.loc[is_north, 'Arrival_time'], errors='coerce')
+            df_arr_raw.loc[is_north, 'Ngày vận hành'] = (arr_dt_series + pd.Timedelta(hours=36)).dt.strftime('%Y-%m-%d')
+            df_arr_raw.loc[is_north, 'Scan Hour'] = (arr_dt_series + pd.Timedelta(hours=36)).dt.strftime('%Y-%m-%d %H:00')
         
         df_arr_raw['Đã đến Hub'] = df_arr_raw['inbound_scanDate'].apply(lambda d: 1 if d and str(d).strip().lower() not in ('nan', 'none', '') else 0)
         df_arr_raw['Chưa đến Hub'] = 1 - df_arr_raw['Đã đến Hub']
@@ -2345,11 +2396,11 @@ def run_once(session, token_mgr, rebuild_days=None):
                 print(f"   ❌ Lỗi cấu hình Batch search: {e_setup}")
     # ================================================================
 
-    # 7b. Batch search pickup station (pickNetworkName) cho đơn Forecast/Inbound đang thiếu
+    # 7b. Batch search pickup station (pickNetworkName) cho đơn Forecast/Inbound/Arrival/Dispatch đang thiếu
     missing_pickup_wbs = [
         wb for wb, rec in db_records.items()
         if not rec.get('pickNetworkName')
-        and rec.get('data_source') in ('Forecast', 'Inbound')   # ← chỉ Forecast & Inbound
+        and rec.get('data_source') in ('Forecast', 'Inbound', 'Arrival', 'Dispatch')   # ← cả Forecast, Inbound, Arrival & Dispatch
         and rec.get('status_order') not in ('Đã rời HUB',)
         and rec.get('is_active', 1) == 1
     ]
@@ -2550,6 +2601,33 @@ def run_once(session, token_mgr, rebuild_days=None):
         
         # time_ref
         t_ref = ob_time if ob_time else (ib_time if ib_time else (pk_time if pk_time else fc_time))
+        
+        # Apply +36 hours shift for northern (BN HUB) shipments that are not yet inbound/outbound
+        pkn = str(rec.get('pickNetworkName') or '').strip().upper()
+        NORTH_POST_OFFICES = {
+            'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
+            'HN THƯỜNG TÍN', 'HN HOÀNG MAI', 'HD KINH MÔN', 'HY VĂN GIANG', 'HN NGỌC HỒI',
+            'HN MỸ ĐỨC', 'HN ĐÔNG ANH', 'HN HÀ ĐÔNG', 'HN THANH TRÌ', 'HN THANH LIỆT',
+            'HN HOÀI ĐỨC', 'HN MÊ LINH', 'HN AN KHÁNH', 'HN CẦU GIẤY', 'HN THANH OAI',
+            'HN ĐỐNG ĐA', 'HN CHƯƠNG MỸ', 'HN CHÚC SƠN', 'HN HẠ BẰNG', 'HN HÁT MÔN',
+            'HN LONG BIÊN', 'HN PHÚ XUYÊN', 'HN HÀ NAM', 'HN SƠN TÂY', 'HN NAM TỪ LIÊM',
+            'HN PHÚ DIỄN', 'HN TÂY HỒ', 'HN VĨNH TUY', 'HN ỨNG HÒA'
+        }
+        is_north = (
+            pkn.startswith('HN ') or 
+            pkn.startswith('HD ') or 
+            pkn.startswith('HY ') or 
+            pkn == 'BN HUB' or
+            pkn in NORTH_POST_OFFICES
+        )
+        if is_north and not ob_time and not ib_time and arr_time:
+            try:
+                arr_dt = pd.to_datetime(arr_time)
+                shifted_arr_dt = arr_dt + pd.Timedelta(hours=36)
+                t_ref = shifted_arr_dt.strftime('%Y-%m-%d %H:%M:%S')
+            except Exception:
+                pass
+                
         rec['time_ref'] = t_ref
         
         # pickup_label & Pickup_ontime
