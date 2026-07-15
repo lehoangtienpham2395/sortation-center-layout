@@ -201,13 +201,8 @@ export default function InboundDashboard({
   // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
   const totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
-  // KPI: số bưu cục đang trên đường (distinct Pickup_station với Chưa đến Hub > 0)
-  const totalVehicles = new Set(
-    filteredArrival
-      .filter(d => (parseInt(d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0) > 0)
-      .map(d => d['Pickup_station'])
-      .filter(Boolean)
-  ).size;
+  // KPI: số bưu cục đang trên đường (bị xóa về 0 theo yêu cầu)
+  const totalVehicles = 0;
 
   // Orders status: tổng đơn chưa đến Hub = "Đang trên đường" (loại trừ BN HUB vì BN HUB không thuộc dự báo nội vùng HCM HUB)
   let totalInTransitOrders = filteredArrival.reduce((sum, d) => {
@@ -244,9 +239,7 @@ export default function InboundDashboard({
     const chuaDenHub = parseInt(d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0;
     stationMap[key].chuaDenHub += chuaDenHub;
     stationMap[key].tongDon   += parseInt(d['Tng s n'] || d['Tổng số đơn'], 10) || 0;
-    if (chuaDenHub > 0) {
-      stationMap[key].vehicles += 1;
-    }
+    stationMap[key].vehicles = 0;
     const lt = d['Last time'] || '';
     if (lt > stationMap[key].lastTime) stationMap[key].lastTime = lt;
   });
@@ -256,7 +249,7 @@ export default function InboundDashboard({
     .filter(s => s.chuaDenHub > 0)
     .sort((a, b) => b.chuaDenHub - a.chuaDenHub);
 
-  const totalTransitVehicles = incomingVehicles.reduce((sum, v) => sum + v.vehicles, 0);
+  const totalTransitVehicles = 0;
 
   // 4. Hourly timelines
   const hours24 = [];
