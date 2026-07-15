@@ -254,6 +254,16 @@ def init_db():
     c.execute("CREATE INDEX IF NOT EXISTS idx_ship_status ON shipments(status_order)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_ship_active ON shipments(is_active)")
     
+    # 1b. Auto-add retry columns if they do not exist
+    try:
+        c.execute("ALTER TABLE shipments ADD COLUMN retry_count INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE shipments ADD COLUMN last_retry_time TEXT DEFAULT ''")
+    except Exception:
+        pass
+    
     # 2. Kiểm tra nếu bảng inventory cũ tồn tại thì migrate sang shipments
     c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='inventory'")
     if c.fetchone():
@@ -1935,6 +1945,7 @@ def run_once(session, token_mgr, rebuild_days=None):
     from zoneinfo import ZoneInfo
     tz_vn = ZoneInfo('Asia/Ho_Chi_Minh')
     now = datetime.now(tz_vn)
+    t_overall_start = time.time()
 
     is_rebuild = rebuild_days is not None
     
@@ -1949,13 +1960,18 @@ def run_once(session, token_mgr, rebuild_days=None):
         except Exception:
             pass
 
-    days_back = rebuild_days if rebuild_days is not None else 2
+    days_back = rebuild_days if rebuild_days is not None else 3
 
     if not last_run_dt:
-        last_run_dt = now - timedelta(days=days_back)
+        last_run_dt = now - timedelta(days=1)
 
     DATE_START_STANDARD = (now - timedelta(days=days_back)).strftime('%Y-%m-%d') + ' 06:00:00'
-    DATE_START_DISPATCH = (last_run_dt - timedelta(minutes=30)).strftime('%Y-%m-%d %H:%M:%S')
+    DATE_START_FORECAST = (now - timedelta(days=1)).strftime('%Y-%m-%d') + ' 06:00:00'
+    
+    min_dispatch_dt = now - timedelta(days=1)
+    effective_dispatch_start_dt = max(last_run_dt - timedelta(minutes=30), min_dispatch_dt)
+    DATE_START_DISPATCH = effective_dispatch_start_dt.strftime('%Y-%m-%d %H:%M:%S')
+    
     DATE_END   = now.strftime('%Y-%m-%d %H:%M:%S')
 
     run_outbound = True
@@ -1976,7 +1992,7 @@ def run_once(session, token_mgr, rebuild_days=None):
 
     print("\n" + "=" * 60)
     print(f"🕐 Bắt đầu : {now.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"📅 Range (Standard): {DATE_START_STANDARD} → {DATE_END}\n📅 Range (Dispatch): {DATE_START_DISPATCH} → {DATE_END}")
+    print(f"📅 Range (Standard): {DATE_START_STANDARD} → {DATE_END}\n📅 Range (Forecast): {DATE_START_FORECAST} → {DATE_END}\n📅 Range (Dispatch): {DATE_START_DISPATCH} → {DATE_END}")
     print("=" * 60)
 
     # Copy external valid.csv if exists
@@ -2031,7 +2047,7 @@ def run_once(session, token_mgr, rebuild_days=None):
 
     fh = load_json(os.path.join(BASE_DIR, "config", "forecastheaders.json"))
     fp = load_json(os.path.join(BASE_DIR, "config", "forecastpayload.json"))
-    for k in ['timeStart', 'inputTimeStart']: fp[k] = DATE_START_STANDARD
+    for k in ['timeStart', 'inputTimeStart']: fp[k] = DATE_START_FORECAST
     for k in ['timeEnd', 'inputTimeEnd']:     fp[k] = DATE_END
 
     ih = load_json(os.path.join(BASE_DIR, "config", "inboundheaders.json"))
@@ -2061,6 +2077,8 @@ def run_once(session, token_mgr, rebuild_days=None):
 
     print("\n🚀 Kéo data song song...")
     results = {}
+    task_times = {}
+    t_start_parallel = time.time()
     with ThreadPoolExecutor(max_workers=SOURCE_WORKERS) as ex:
         futures = {
             ex.submit(pull_forecast, session, token_mgr, fh, fp): 'forecast',
@@ -2077,9 +2095,11 @@ def run_once(session, token_mgr, rebuild_days=None):
             key = futures[f]
             try:
                 results[key] = f.result()
+                task_times[key] = time.time() - t_start_parallel
             except Exception as e:
                 print(f"   ⚠️ {key} lỗi: {e}")
                 results[key] = []
+                task_times[key] = time.time() - t_start_parallel
 
     print("\n🔗 Xử lý & join data...")
 
@@ -2169,7 +2189,7 @@ def run_once(session, token_mgr, rebuild_days=None):
             'Pickup_time': '', 'pickup_label': '', 'Pickup_ontime': '', 'dispatchNetworkTime': '',
             'next_station': '', 'Tuyến': '', 'Rank': '', 'inbound_network': '', 'inbound_scanDate': '',
             'outbound_scanDate': '', 'Arrival_time': '', 'dispatch_actual': '', 'status_order': '', 'time_ref': '',
-            'is_backlog': 0, 'is_active': 1
+            'is_backlog': 0, 'is_active': 1, 'retry_count': 0, 'last_retry_time': ''
         }
         db_records[wb] = rec
         return rec, True
@@ -2308,46 +2328,99 @@ def run_once(session, token_mgr, rebuild_days=None):
         rec['next_station'] = dest_mapped
         rec['changed'] = True
 
-    # 7. Batch search Dispatch time for Forecast / Inbound waybills
-    missing_disp_wbs = []
-    for wb, rec in db_records.items():
-        if (not rec.get('dispatch_plan') or not rec.get('dispatchNetworkTime')) and rec.get('status_order') != 'Đã rời HUB':
-            missing_disp_wbs.append(wb)
+    # 7. Unified Completion Sync (Vòng 2 - rolling window & retry limit)
+    t_start_completion = time.time()
+    
+    # Configuration loading
+    BATCH_SIZE = 500
+    ROLLING_SYNC_DAYS = 3
+    MAX_RETRY_COUNT = 10
+    
+    config_path = os.path.join(BASE_DIR, "config", "sync_config.json")
+    if os.path.exists(config_path):
+        try:
+            cfg = load_json(config_path)
+            BATCH_SIZE = int(cfg.get("BATCH_SIZE", 500))
+            ROLLING_SYNC_DAYS = int(cfg.get("ROLLING_SYNC_DAYS", 3))
+            MAX_RETRY_COUNT = int(cfg.get("MAX_RETRY_COUNT", 10))
+        except Exception:
+            pass
             
-    missing_disp_wbs = list(set(missing_disp_wbs))[:3500]
-    if missing_disp_wbs:
-        print(f"\n🔍 [Batch Search] Phát hiện {len(missing_disp_wbs):,} đơn Forecast/Inbound chưa có dispatch_plan hoặc dispatchNetworkTime.")
+    # Calculate rolling window date boundary
+    rolling_boundary_str = (now - timedelta(days=ROLLING_SYNC_DAYS)).strftime('%Y-%m-%d %H:%M:%S')
+    
+    pending_wbs_list = []
+    
+    for wb, rec in db_records.items():
+        # Check active Forecast / Dispatch within the rolling window
+        if (
+            rec.get('is_active', 1) == 1
+            and rec.get('status_order') != 'Đã rời HUB'
+            and rec.get('data_source') in ('Forecast', 'Dispatch')
+        ):
+            # Verify if time_ref falls within the rolling window
+            ref_val = str(rec.get('time_ref') or rec.get('last_updated') or '').strip()
+            if not ref_val or ref_val < rolling_boundary_str:
+                continue
+                
+            pkn = rec.get('pickNetworkName') or ''
+            dp_plan = rec.get('dispatch_plan') or ''
+            pk_time = rec.get('Pickup_time') or ''
+            
+            # Case A: Missing routing info (limited by MAX_RETRY_COUNT)
+            is_case_a = (not pkn or not dp_plan) and (int(rec.get('retry_count') or 0) < MAX_RETRY_COUNT)
+            
+            # Case B: Missing pickup time only (unlimited retries)
+            is_case_b = (pkn and dp_plan) and not pk_time
+            
+            if is_case_a or is_case_b:
+                # Add priority metric: (time_ref, waybillNo)
+                pending_wbs_list.append((ref_val, wb, is_case_a))
+                
+    # Prioritize newer shipments: sort DESC by time_ref
+    pending_wbs_list.sort(key=lambda x: x[0] or '', reverse=True)
+    
+    # Cap total waybills at 5000
+    pending_wbs_list = pending_wbs_list[:5000]
+    total_pending = len(pending_wbs_list)
+    
+    completion_recovered = 0
+    total_batches = (total_pending + BATCH_SIZE - 1) // BATCH_SIZE if total_pending > 0 else 0
+    
+    if total_pending > 0:
         dh_path = os.path.join(BASE_DIR, "config", "dispatchheaders.json")
         dp_path = os.path.join(BASE_DIR, "config", "dispatchpayload.json")
         if os.path.exists(dh_path) and os.path.exists(dp_path):
             try:
                 dh = load_json(dh_path)
                 dp_cfg = load_json(dp_path)
-                dispatch_session = build_session()
-                dispatch_token_mgr = TokenManager(dispatch_session, token_mgr.account, token_mgr.password, token_mgr.country_id)
                 
-                dh['authToken'] = dispatch_token_mgr.get_token()
-                dh['Authtoken'] = dispatch_token_mgr.get_token()
+                # Reuse the existing session & token_mgr to avoid invalidating each other's tokens
+                dh['authToken'] = token_mgr.get_token()
+                dh['Authtoken'] = token_mgr.get_token()
                 dh['Routename'] = 'orderScheduling'
                 dh['routeName'] = 'orderScheduling'
                 
-                chunk_size = 50
-                resolved_disp = {}
-                resolved_wbs = set()
+                print(f"\n🔍 [Completion Sync] Khởi chạy: {total_pending:,} đơn | {total_batches} batch | BATCH_SIZE: {BATCH_SIZE}")
                 
-                for i in range(0, len(missing_disp_wbs), chunk_size):
-                    chunk = missing_disp_wbs[i:i+chunk_size]
+                for b_idx in range(total_batches):
+                    t_batch_start = time.time()
+                    batch_items = pending_wbs_list[b_idx * BATCH_SIZE : (b_idx + 1) * BATCH_SIZE]
+                    chunk = [item[1] for item in batch_items]
+                    
                     payload = dp_cfg.copy()
                     payload['waybillIds'] = ",".join(chunk)
                     payload['current'] = 1
                     payload['size'] = len(chunk)
-                    
                     for k in ['startInputTime', 'endInputTime', 'startPickTime', 'endPickTime']:
                         if k in payload:
                             payload[k] = ""
                             
+                    batch_updated = 0
+                    
+                    # Wrap query in a try-except block to make Completion Sync non-blocking
                     try:
-                        r_dp = auth_post(dispatch_session, URL_DISPATCH, dispatch_token_mgr, dh, data=payload, timeout=25, label=f'Batch Dispatch {i//chunk_size}')
+                        r_dp = auth_post(session, URL_DISPATCH, token_mgr, dh, data=payload, timeout=25, max_retries=1, label=f'Completion Sync Batch {b_idx + 1}/{total_batches}')
                         dp_res = r_dp.json()
                         data_node = dp_res.get('data', {})
                         records = []
@@ -2356,137 +2429,79 @@ def run_once(session, token_mgr, rebuild_days=None):
                         elif isinstance(data_node, list):
                             records = data_node
                             
-                        if records:
-                            for item in records:
-                                if not isinstance(item, dict):
-                                    continue
-                                waybill_id = str(item.get('waybillId') or '').strip()
-                                if waybill_id:
-                                    disp_time = str(item.get('dispatchNetworkTime') or item.get('inputTime') or item.get('createTime') or '').strip()
-                                    pickup_time = str(item.get('updateTime') or '').strip()
-                                    order_status = str(item.get('orderStatusName') or '').strip()
-                                    
-                                    pk_val = pickup_time if (order_status == 'Đã lấy hàng' and pickup_time) else ''
-                                    
-                                    disp_plan = str(item.get('dispatchNetworkName') or '').strip()
-                                    if not disp_plan or disp_plan.lower() in ('nan', 'none'):
-                                        disp_plan = str(item.get('terminalDispatchCode') or item.get('transferDispatchCode') or item.get('receiverSortingCode') or '').strip()
-                                    
-                                    if disp_time and disp_time.lower() not in ('nan', 'none', 'nat', ''):
-                                        resolved_disp[waybill_id] = {
-                                            'dispatchNetworkTime': disp_time,
-                                            'Pickup_time': pk_val,
-                                            'status_order': order_status,
-                                            'dispatch_plan': disp_plan
-                                        }
-                                        resolved_wbs.add(waybill_id)
-                    except Exception as e_batch:
-                        print(f"      ⚠️ Lỗi query batch chunk {i//chunk_size}: {e_batch}")
-                        
-                print(f"   ✅ [Batch Search] Hoàn tất: Tìm thấy thông tin Dispatch cho {len(resolved_disp):,} / {len(missing_disp_wbs):,} đơn.")
-                
-                for wb, info in resolved_disp.items():
-                    if wb in db_records:
-                        db_records[wb]['dispatchNetworkTime'] = info['dispatchNetworkTime']
-                        if info['Pickup_time']:
-                            db_records[wb]['Pickup_time'] = info['Pickup_time']
-                        if info.get('dispatch_plan'):
-                            db_records[wb]['dispatch_plan'] = info['dispatch_plan']
-                        db_records[wb]['data_source'] = 'Dispatch'
-                        db_records[wb]['changed'] = True
-                        
-            except Exception as e_setup:
-                print(f"   ❌ Lỗi cấu hình Batch search: {e_setup}")
-    # ================================================================
-
-    # 7b. Batch search pickup station (pickNetworkName) cho đơn Forecast/Inbound/Arrival/Dispatch đang thiếu
-    missing_pickup_wbs = [
-        wb for wb, rec in db_records.items()
-        if not rec.get('pickNetworkName')
-        and rec.get('data_source') in ('Forecast', 'Inbound', 'Arrival', 'Dispatch')   # ← cả Forecast, Inbound, Arrival & Dispatch
-        and rec.get('status_order') not in ('Đã rời HUB',)
-        and rec.get('is_active', 1) == 1
-    ]
-    missing_pickup_wbs = list(set(missing_pickup_wbs))[:3000]
-
-
-    if missing_pickup_wbs:
-        print(f"\n🔍 [Batch Pickup] Phát hiện {len(missing_pickup_wbs):,} đơn chưa có pickup station.")
-        dh_path = os.path.join(BASE_DIR, "config", "dispatchheaders.json")
-        dp_path = os.path.join(BASE_DIR, "config", "dispatchpayload.json")
-        if os.path.exists(dh_path) and os.path.exists(dp_path):
-            try:
-                dh2     = load_json(dh_path)
-                dp_cfg2 = load_json(dp_path)
-                pickup_session   = build_session()
-                pickup_token_mgr = TokenManager(pickup_session, token_mgr.account, token_mgr.password, token_mgr.country_id)
-
-                dh2['authToken'] = pickup_token_mgr.get_token()
-                dh2['Authtoken'] = pickup_token_mgr.get_token()
-                dh2['Routename'] = 'orderScheduling'
-                dh2['routeName'] = 'orderScheduling'
-
-                chunk_size     = 50
-                resolved_pickup = {}
-
-                for i in range(0, len(missing_pickup_wbs), chunk_size):
-                    chunk   = missing_pickup_wbs[i:i + chunk_size]
-                    payload = dp_cfg2.copy()
-                    payload['waybillIds'] = ",".join(chunk)
-                    payload['current']    = 1
-                    payload['size']       = len(chunk)
-                    for k in ['startInputTime', 'endInputTime', 'startPickTime', 'endPickTime']:
-                        if k in payload:
-                            payload[k] = ""
-                    try:
-                        r2      = auth_post(pickup_session, URL_DISPATCH, pickup_token_mgr, dh2, data=payload, timeout=25, label=f'BatchPickup {i//chunk_size}')
-                        dp_res2 = r2.json()
-                        data2   = dp_res2.get('data', {})
-                        records2 = data2.get('records', []) if isinstance(data2, dict) else (data2 if isinstance(data2, list) else [])
-                        for item in records2:
+                        resolved_items = {}
+                        for item in records:
                             if not isinstance(item, dict):
                                 continue
-                            wid = str(item.get('waybillId') or '').strip()
-                            if not wid:
-                                continue
-                            # Lấy pickup network name — thử nhiều field
-                            pick_net = (
-                                str(item.get('pickNetworkName') or '').strip()
-                                or str(item.get('collectNetworkName') or '').strip()
-                                or str(item.get('sendSiteName') or '').strip()
-                            )
-                            if pick_net and pick_net.lower() not in ('nan', 'none', ''):
-                                resolved_pickup[wid] = pick_net
-                    except Exception as e_pk:
-                        print(f"      ⚠️ Lỗi BatchPickup chunk {i//chunk_size}: {e_pk}")
-
-                print(f"   ✅ [Batch Pickup] Tìm thấy pickup station cho {len(resolved_pickup):,} / {len(missing_pickup_wbs):,} đơn.")
-
-                # Cập nhật vào db_records và DB
-                if resolved_pickup:
-                    for wb, pick_name in resolved_pickup.items():
-                        if wb in db_records:
-                            db_records[wb]['pickNetworkName'] = pick_name
-                            db_records[wb]['changed'] = True
-                    # Ghi thẳng vào SQLite ngay
-                    try:
-                        conn_pk = sqlite3.connect(DB_FILE)
-                        c_pk    = conn_pk.cursor()
-                        updated_pk = 0
-                        for wb, pick_name in resolved_pickup.items():
-                            c_pk.execute("""
-                                UPDATE shipments SET pickNetworkName = ?, last_updated = CURRENT_TIMESTAMP
-                                WHERE waybillNo = ? AND (pickNetworkName = '' OR pickNetworkName IS NULL)
-                            """, (pick_name, wb))
-                            updated_pk += c_pk.rowcount
-                        conn_pk.commit()
-                        conn_pk.close()
-                        print(f"   ✅ [Batch Pickup] Đã cập nhật {updated_pk:,} đơn vào SQLite.")
-                    except Exception as e_pk_db:
-                        print(f"   ⚠️ Lỗi ghi pickup station vào DB: {e_pk_db}")
-
-            except Exception as e_pk_setup:
-                print(f"   ❌ Lỗi cấu hình Batch Pickup: {e_pk_setup}")
+                            waybill_id = str(item.get('waybillId') or item.get('waybillNo') or '').strip()
+                            if waybill_id:
+                                disp_time = str(item.get('dispatchNetworkTime') or item.get('inputTime') or item.get('createTime') or '').strip()
+                                pickup_time = str(item.get('updateTime') or '').strip()
+                                order_status = str(item.get('orderStatusName') or '').strip()
+                                
+                                pk_val = pickup_time if (order_status == 'Đã lấy hàng' and pickup_time) else ''
+                                
+                                disp_plan = str(item.get('dispatchNetworkName') or '').strip()
+                                if not disp_plan or disp_plan.lower() in ('nan', 'none'):
+                                    disp_plan = str(item.get('terminalDispatchCode') or item.get('transferDispatchCode') or item.get('receiverSortingCode') or '').strip()
+                                    
+                                pick_net = (
+                                    str(item.get('pickNetworkName') or '').strip()
+                                    or str(item.get('collectNetworkName') or '').strip()
+                                    or str(item.get('sendSiteName') or '').strip()
+                                )
+                                
+                                resolved_items[waybill_id] = {
+                                    'dispatchNetworkTime': disp_time,
+                                    'Pickup_time': pk_val,
+                                    'status_order': order_status,
+                                    'dispatch_plan': disp_plan,
+                                    'pickNetworkName': pick_net
+                                }
+                                
+                        # Apply updates to db_records and increment retry_count for Case A
+                        for item_info in batch_items:
+                            _, wb, is_case_a = item_info
+                            rec = db_records[wb]
+                            
+                            # Increment retry count for Case A only on successful API request
+                            if is_case_a:
+                                rec['retry_count'] = int(rec.get('retry_count') or 0) + 1
+                            rec['last_retry_time'] = now.strftime('%Y-%m-%d %H:%M:%S')
+                            rec['changed'] = True
+                            
+                            if wb in resolved_items:
+                                info = resolved_items[wb]
+                                
+                                # Update fields if available
+                                if info['dispatchNetworkTime'] and info['dispatchNetworkTime'].lower() not in ('nan', 'none', ''):
+                                    rec['dispatchNetworkTime'] = info['dispatchNetworkTime']
+                                if info['Pickup_time']:
+                                    rec['Pickup_time'] = info['Pickup_time']
+                                if info['dispatch_plan'] and info['dispatch_plan'].lower() not in ('nan', 'none', ''):
+                                    rec['dispatch_plan'] = info['dispatch_plan']
+                                if info['pickNetworkName'] and info['pickNetworkName'].lower() not in ('nan', 'none', ''):
+                                    rec['pickNetworkName'] = d_buucuc.get(info['pickNetworkName'], info['pickNetworkName'])
+                                    
+                                # If all three fields are now populated, we count it as fully recovered
+                                if rec.get('pickNetworkName') and rec.get('dispatch_plan') and rec.get('Pickup_time'):
+                                    batch_updated += 1
+                                    
+                        completion_recovered += batch_updated
+                        
+                    except Exception as e_batch:
+                        print(f"      ⚠️ Lỗi query batch {b_idx + 1}/{total_batches}: {e_batch}")
+                        
+                    t_batch_elapsed = time.time() - t_batch_start
+                    batch_pending_count = len(chunk) - batch_updated
+                    print(f"   Completion Sync | Batch {b_idx + 1} / {total_batches} | Processing: {len(chunk)} shipments | Updated: {batch_updated} | Still Pending: {batch_pending_count} | Elapsed: {t_batch_elapsed:.2f}s")
+                    
+            except Exception as e_setup:
+                print(f"   ❌ Lỗi cấu hình Completion Sync: {e_setup}")
+                
+    t_completion_elapsed = time.time() - t_start_completion
+    still_pending_total = total_pending - completion_recovered
+    completion_success_rate = (completion_recovered / total_pending * 100) if total_pending > 0 else 0.0
     # ================================================================
 
 
@@ -2664,7 +2679,8 @@ def run_once(session, token_mgr, rebuild_days=None):
                 rec['Pickup_time'], rec['pickup_label'], rec['Pickup_ontime'], rec['dispatchNetworkTime'],
                 rec['next_station'], rec['Tuyến'], rec['Rank'], rec['inbound_network'], rec['inbound_scanDate'],
                 rec['outbound_scanDate'], rec.get('Arrival_time', ''), rec['dispatch_actual'], rec['status_order'], rec['time_ref'],
-                int(rec.get('is_backlog', 0)), int(rec.get('is_active', 1))
+                int(rec.get('is_backlog', 0)), int(rec.get('is_active', 1)),
+                int(rec.get('retry_count', 0)), str(rec.get('last_retry_time') or '')
             ])
 
     if changed_records:
@@ -2684,8 +2700,8 @@ def run_once(session, token_mgr, rebuild_days=None):
                     Pickup_time, pickup_label, Pickup_ontime, dispatchNetworkTime,
                     next_station, Tuyến, Rank, inbound_network, inbound_scanDate,
                     outbound_scanDate, Arrival_time, dispatch_actual, status_order, time_ref,
-                    is_backlog, is_active, last_updated
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    is_backlog, is_active, retry_count, last_retry_time, last_updated
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(waybillNo) DO UPDATE SET
                     data_source        = excluded.data_source,
                     weight             = excluded.weight,
@@ -2707,6 +2723,8 @@ def run_once(session, token_mgr, rebuild_days=None):
                     time_ref           = excluded.time_ref,
                     is_backlog         = excluded.is_backlog,
                     is_active          = excluded.is_active,
+                    retry_count        = excluded.retry_count,
+                    last_retry_time    = excluded.last_retry_time,
                     last_updated       = CURRENT_TIMESTAMP
             """, changed_records)
             conn.commit()
@@ -2848,6 +2866,29 @@ def run_once(session, token_mgr, rebuild_days=None):
         print(f"   ✅ Đã ghi nhận thời gian chạy cuối: {now.strftime('%Y-%m-%d %H:%M:%S')}")
     except Exception as e_lr:
         print(f"   ⚠️ Lỗi ghi file last_run.txt / last_update.json: {e_lr}")
+
+    t_overall_elapsed = time.time() - t_overall_start
+    t_fc = task_times.get('forecast', 0.0)
+    t_dp = task_times.get('dispatch', 0.0)
+    t_ib = task_times.get('inbound', 0.0)
+    t_ob = task_times.get('outbound', 0.0)
+    t_bl = task_times.get('backlog', 0.0)
+    
+    print("\n========== ETL SUMMARY ==========")
+    print("Daily Sync")
+    print(f"  Forecast ............ {t_fc:.1f}s")
+    print(f"  Dispatch ............ {t_dp:.1f}s")
+    print(f"  Inbound ............. {t_ib:.1f}s")
+    print(f"  Outbound ............ {t_ob:.1f}s")
+    print(f"  Backlog ............. {t_bl:.1f}s")
+    print("Completion Sync")
+    print(f"  Pending Shipments ... {total_pending:,}")
+    print(f"  Batches ............. {total_batches}")
+    print(f"  Recovered ........... {completion_recovered:,}")
+    print(f"  Still Pending ....... {still_pending_total:,}")
+    print(f"  Success Rate ........ {completion_success_rate:.1f}%")
+    print(f"  Total Runtime ....... {t_overall_elapsed:.1f}s")
+    print("==================================\n")
 
 
 # ================================================================
