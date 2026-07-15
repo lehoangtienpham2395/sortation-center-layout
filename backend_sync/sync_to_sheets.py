@@ -80,7 +80,7 @@ GH_REPO      = os.environ.get("GH_REPO", "lehoangtienpham2395/sortation-center-l
 GH_TOKEN     = os.environ.get("GITHUB_TOKEN", "").strip()
 GH_DATA_PATH = "data/latest.json.gz"  # Path trong repo để lưu data
 
-RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+RETRYABLE_STATUS = {405, 429, 500, 502, 503, 504}
 
 LOGIN_HEADERS = {
     "Accept": "application/json, text/plain, */*",
@@ -454,8 +454,10 @@ def pull_pages_parallel(fetch_page, total, page_size, label, start_page=1):
 
     def execute_fetch(p):
         try:
+            time.sleep((p % 4) * 0.25)  # Tránh gửi nhiều request cùng 1 miligiây
             return fetch_page(p)
-        except Exception:
+        except Exception as e:
+            print(f"      ⚠️ Lỗi tải trang {p}: {e}")
             return None
 
     print(f"   🚀 Đang tải {len(pages)} trang cho {label}...")
