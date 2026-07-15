@@ -966,7 +966,7 @@ export default function InboundDashboard({
             <h2 style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '0.5px', color: '#fff', margin: 0 }}>Origin Station Inbound</h2>
             <span className="badge-count sky">{allSendingFCs.length} bưu cục</span>
           </div>
-          <div className="table-wrapper" style={{ overflowY: 'auto', maxHeight: '400px', position: 'relative' }}>
+          <div className="table-wrapper" style={{ overflow: 'auto', maxHeight: '400px', position: 'relative' }}>
             <table className="premium-table">
               <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
@@ -1019,7 +1019,7 @@ export default function InboundDashboard({
             <h2 style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '0.5px', color: '#fff', margin: 0 }}>Trucking in transit</h2>
             <span className="badge-count amber">{totalTransitVehicles} xe</span>
           </div>
-          <div className="table-wrapper" style={{ overflowY: 'auto', maxHeight: '400px', position: 'relative' }}>
+          <div className="table-wrapper" style={{ overflow: 'auto', maxHeight: '400px', position: 'relative' }}>
             <table className="premium-table">
               <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
