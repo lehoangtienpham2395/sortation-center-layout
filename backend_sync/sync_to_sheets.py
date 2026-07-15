@@ -1895,10 +1895,12 @@ def run_once(session, token_mgr, rebuild_days=None):
         except Exception:
             pass
 
-    if not last_run_dt:
-        last_run_dt = now - timedelta(days=2)
+    days_back = rebuild_days if rebuild_days is not None else 2
 
-    DATE_START_STANDARD = (now - timedelta(days=2)).strftime('%Y-%m-%d') + ' 06:00:00'
+    if not last_run_dt:
+        last_run_dt = now - timedelta(days=days_back)
+
+    DATE_START_STANDARD = (now - timedelta(days=days_back)).strftime('%Y-%m-%d') + ' 06:00:00'
     DATE_START_DISPATCH = (last_run_dt - timedelta(minutes=30)).strftime('%Y-%m-%d %H:%M:%S')
     DATE_END   = now.strftime('%Y-%m-%d %H:%M:%S')
 
