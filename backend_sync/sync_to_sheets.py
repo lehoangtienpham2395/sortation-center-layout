@@ -1285,7 +1285,10 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             op_date_arr = get_operating_date(arr_time) if arr_time else ""
             
             # Apply +36 hours shift for northern shipments in inbound.json
-            pkn = (row.get('pickNetworkName') or row.get('inbound_network') or '').strip()
+            if status == 'Inbound':
+                pkn = (row.get('inbound_network') or '').strip()
+            else:
+                pkn = (row.get('pickNetworkName') or row.get('inbound_network') or '').strip()
             pkn_upper = pkn.upper()
             NORTH_POST_OFFICES = {
                 'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
@@ -1862,12 +1865,8 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
 
             if not df_db_inv.empty:
                 df_db_inv['next_station_upper'] = df_db_inv['next_station'].astype(str).str.strip().str.upper()
-                df_db_inv['op_date'] = df_db_inv['time_ref'].apply(get_operating_date)
-                # Keep all 'Đang trên bãi' (accumulated backlog), and only keep today's date for other statuses
-                df_db_inv = df_db_inv[
-                    (df_db_inv['status_order'] == 'Đang trên bãi') |
-                    (df_db_inv['op_date'] == current_date_str)
-                ].copy()
+                # Keep all active pending shipments (excluding 'Đã rời HUB') to represent the full current inventory (backlog + today's new)
+                df_db_inv = df_db_inv.copy()
                 
                 df_db_inv['layout_name'] = df_db_inv['next_station_upper'].apply(map_station_to_layout_name)
                 df_db_inv['status_upper'] = df_db_inv['status_order'].astype(str).str.strip()

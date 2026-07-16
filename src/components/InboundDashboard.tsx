@@ -140,13 +140,11 @@ export default function InboundDashboard({
   const getStatus = (d: any) => d['Trng thi'] || d['Trạng thái'];
   const getDateInbound = (d: any) => d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'];
   const getDateForecast = (d: any) => d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
-  const getDatePickup = (d: any) => d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'];
-  const getDateArrival = (d: any) => d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'];
 
   const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && getDateInbound(d) === activeDate);
-  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && getDateForecast(d) === activeDate);
-  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && (getDatePickup(d) === activeDate || getDateForecast(d) === activeDate));
-  const filteredTransporting = inboundData.filter(d => getStatus(d) === 'Transporting' && (getDateArrival(d) === activeDate || getDatePickup(d) === activeDate || getDateForecast(d) === activeDate));
+  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && getDateForecast(d) <= activeDate);
+  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && getDateForecast(d) <= activeDate);
+  const filteredTransporting = inboundData.filter(d => getStatus(d) === 'Transporting' && getDateForecast(d) <= activeDate);
   const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
 
   const getLinehaulOperatingDate = (row: any) => {
@@ -196,13 +194,24 @@ export default function InboundDashboard({
     if (wt > 0) {
       stagesWithWeight[stageKey] += vol;
     }
+  });
 
-    // Phân tách đơn Forecast cho toàn bộ đơn (bao gồm cả đã về và chưa về Hub) sử dụng cột Loại rớt từ backend
-    const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
-    if (loaiRot === 'Rớt hôm trước') {
-      forecastRotHomTruoc += vol;
-    } else if (loaiRot === 'Rớt hôm nay') {
+  // Phân tách đơn Forecast cho toàn bộ dữ liệu (bảo đảm khớp số liệu BN HUB và tránh lệch lịch sử)
+  inboundData.forEach(d => {
+    const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
+    if (!fcDate) return;
+
+    const vol = parseInt(d['Volume'], 10) || 0;
+
+    if (fcDate === activeDate) {
       forecastRotHomNay += vol;
+    } else if (fcDate < activeDate) {
+      const status = d['Trng thi'] || d['Trạng thái'];
+      const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
+      // Nếu chưa nhập kho, hoặc nhập kho từ ngày activeDate trở đi -> đơn này vẫn là backlog chờ xử lý vào ngày activeDate
+      if (status !== 'Inbound' || ibDate >= activeDate) {
+        forecastRotHomTruoc += vol;
+      }
     }
   });
 
@@ -382,11 +391,8 @@ export default function InboundDashboard({
 
   const totalInbound = stages['Inbound'].orders;
   
-  // Mapping chuẩn hóa: Nếu bảng Arrival có dữ liệu Chưa đến Hub (trừ BN HUB) thì dùng làm Transporting,
-  // nếu chưa có mới fallback dùng stages['Transporting'].orders từ bảng Inbound Data (tránh cộng chồng đôi)
-  if (totalInTransitOrders === 0 && stages['Transporting'].orders > 0) {
-    totalInTransitOrders = stages['Transporting'].orders;
-  }
+  // Mapping chuẩn hóa: Lấy trực tiếp stages['Transporting'].orders để bảo đảm khớp 100% với Layout Master
+  totalInTransitOrders = stages['Transporting'].orders;
   
   const totalPickupDone = stages['Pickup Done'].orders;
   
