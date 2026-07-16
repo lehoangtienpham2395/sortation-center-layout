@@ -1493,7 +1493,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         df_arr_raw = pd.DataFrame()
 
     if not df_arr_raw.empty:
-        # Map all Northern post offices to BN HUB (instead of excluding them)
+        # Exclude other Northern post offices (keep BN HUB and Southern stations)
         NORTH_POST_OFFICES = {
             'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
             'HN THƯỜNG TÍN', 'HN HOÀNG MAI', 'HD KINH MÔN', 'HY VĂN GIANG', 'HN NGỌC HỒI',
@@ -1504,14 +1504,14 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             'HN PHÚ DIỄN', 'HN TÂY HỒ', 'HN VĨNH TUY', 'HN ỨNG HÒA'
         }
         pkn_series = df_arr_raw['Pickup_station'].astype(str).str.strip().str.upper()
-        is_north = (
-            pkn_series.str.startswith('HN ') | 
-            pkn_series.str.startswith('HD ') | 
-            pkn_series.str.startswith('HY ') | 
-            pkn_series.isin(NORTH_POST_OFFICES) |
-            (pkn_series == 'BN HUB')
+        is_other_north = (
+            (pkn_series.str.startswith('HN ') | 
+             pkn_series.str.startswith('HD ') | 
+             pkn_series.str.startswith('HY ') | 
+             pkn_series.isin(NORTH_POST_OFFICES)) & 
+            (pkn_series != 'BN HUB')
         )
-        df_arr_raw.loc[is_north, 'Pickup_station'] = 'BN HUB'
+        df_arr_raw = df_arr_raw[~is_other_north].copy()
         
         # Define scantime_dt first
         df_arr_raw['scantime_dt'] = pd.to_datetime(df_arr_raw['Arrival_time'], errors='coerce')
@@ -2333,9 +2333,13 @@ def run_once(session, token_mgr, rebuild_days=None):
         wb = str(r.get('billNo') or r.get('waybillNo') or '').strip()
         scan_time = str(r.get('scanDate') or '').strip()
         send_site = str(r.get('sendSite') or '').strip()
+        try:
+            wt = float(r.get('weight') or r.get('settlementWeight') or r.get('bulkWeight') or 0.0)
+        except (ValueError, TypeError):
+            wt = 0.0
         if wb and scan_time and scan_time.lower() not in ('nan', 'none', ''):
             if wb not in inbound_max or scan_time > inbound_max[wb]['time']:
-                inbound_max[wb] = {'time': scan_time, 'site': send_site}
+                inbound_max[wb] = {'time': scan_time, 'site': send_site, 'weight': wt}
                 
     for wb, info in inbound_max.items():
         rec, is_new = get_or_create_record(wb, conn_db)
@@ -2346,6 +2350,8 @@ def run_once(session, token_mgr, rebuild_days=None):
         if not rec.get('inbound_scanDate') or info['time'] > rec['inbound_scanDate']:
             update_if_changed(rec, 'inbound_scanDate', info['time'])
             update_if_changed(rec, 'inbound_network', d_buucuc.get(info['site'], info['site']))
+        if info.get('weight') and (rec.get('weight') is None or rec.get('weight') == 0.0):
+            update_if_changed(rec, 'weight', info['weight'])
 
     # 5. Process Outbound Scans (Max scan time per waybill)
     outbound_raw = results.get('outbound', [])
@@ -2354,9 +2360,13 @@ def run_once(session, token_mgr, rebuild_days=None):
         wb = str(r.get('billNo') or r.get('waybillNo') or '').strip()
         scan_time = str(r.get('scanDate') or '').strip()
         next_station = str(r.get('upOrNextStation') or '').strip()
+        try:
+            wt = float(r.get('weight') or r.get('settlementWeight') or r.get('bulkWeight') or 0.0)
+        except (ValueError, TypeError):
+            wt = 0.0
         if wb and scan_time and scan_time.lower() not in ('nan', 'none', ''):
             if wb not in outbound_max or scan_time > outbound_max[wb]['time']:
-                outbound_max[wb] = {'time': scan_time, 'station': next_station}
+                outbound_max[wb] = {'time': scan_time, 'station': next_station, 'weight': wt}
                 
     for wb, info in outbound_max.items():
         rec, is_new = get_or_create_record(wb, conn_db)
@@ -2365,6 +2375,8 @@ def run_once(session, token_mgr, rebuild_days=None):
         if not rec.get('outbound_scanDate') or info['time'] > rec['outbound_scanDate']:
             update_if_changed(rec, 'outbound_scanDate', info['time'])
             update_if_changed(rec, 'dispatch_actual', d_buucuc.get(info['station'], info['station']))
+        if info.get('weight') and (rec.get('weight') is None or rec.get('weight') == 0.0):
+            update_if_changed(rec, 'weight', info['weight'])
 
     # 6. Process Backlog
     BACKLOG_REDELIVER_REMARKS = {
@@ -2424,11 +2436,9 @@ def run_once(session, token_mgr, rebuild_days=None):
     pending_wbs_list = []
     
     for wb, rec in db_records.items():
-        # Check active Forecast / Dispatch within the rolling window
         if (
             rec.get('is_active', 1) == 1
             and rec.get('status_order') != 'Đã rời HUB'
-            and rec.get('data_source') in ('Forecast', 'Dispatch')
         ):
             # Verify if time_ref falls within the rolling window
             ref_val = str(rec.get('time_ref') or rec.get('last_updated') or '').strip()
@@ -2438,16 +2448,22 @@ def run_once(session, token_mgr, rebuild_days=None):
             pkn = rec.get('pickNetworkName') or ''
             dp_plan = rec.get('dispatch_plan') or ''
             pk_time = rec.get('Pickup_time') or ''
+            disp_time = rec.get('dispatchNetworkTime') or ''
+            retry_cnt = int(rec.get('retry_count') or 0)
             
-            # Case A: Missing routing info (limited by MAX_RETRY_COUNT)
-            is_case_a = (not pkn or not dp_plan) and (int(rec.get('retry_count') or 0) < MAX_RETRY_COUNT)
+            is_case_a = False
+            is_case_b = False
+            is_case_c = False
             
-            # Case B: Missing pickup time only (unlimited retries)
-            is_case_b = (pkn and dp_plan) and not pk_time
-            
-            if is_case_a or is_case_b:
-                # Add priority metric: (time_ref, waybillNo)
-                pending_wbs_list.append((ref_val, wb, is_case_a))
+            if rec.get('data_source') in ('Forecast', 'Dispatch'):
+                is_case_a = (not pkn or not dp_plan) and (retry_cnt < MAX_RETRY_COUNT)
+                is_case_b = (pkn and dp_plan) and not pk_time
+                is_case_c = not disp_time and (retry_cnt < MAX_RETRY_COUNT)
+            else:
+                is_case_c = not disp_time and (retry_cnt < MAX_RETRY_COUNT)
+                
+            if is_case_a or is_case_b or is_case_c:
+                pending_wbs_list.append((ref_val, wb, is_case_a or is_case_c))
                 
     # Prioritize newer shipments: sort DESC by time_ref
     pending_wbs_list.sort(key=lambda x: x[0] or '', reverse=True)
@@ -2518,7 +2534,7 @@ def run_once(session, token_mgr, rebuild_days=None):
                             waybill_id = str(item.get('waybillId') or item.get('waybillNo') or '').strip()
                             if waybill_id:
                                 disp_time = str(item.get('dispatchNetworkTime') or item.get('inputTime') or item.get('createTime') or '').strip()
-                                pickup_time = str(item.get('updateTime') or '').strip()
+                                pickup_time = str(item.get('pickTime') or item.get('updateTime') or '').strip()
                                 order_status = str(item.get('orderStatusName') or '').strip()
                                 
                                 pk_val = pickup_time if (order_status == 'Đã lấy hàng' and pickup_time) else ''
@@ -2533,12 +2549,18 @@ def run_once(session, token_mgr, rebuild_days=None):
                                     or str(item.get('sendSiteName') or '').strip()
                                 )
                                 
+                                try:
+                                    w_val = float(item.get('packageChargeWeight') or item.get('weight') or 0.0)
+                                except (ValueError, TypeError):
+                                    w_val = 0.0
+                                
                                 resolved_items[waybill_id] = {
                                     'dispatchNetworkTime': disp_time,
                                     'Pickup_time': pk_val,
                                     'status_order': order_status,
                                     'dispatch_plan': disp_plan,
-                                    'pickNetworkName': pick_net
+                                    'pickNetworkName': pick_net,
+                                    'weight': w_val
                                 }
                                 
                         # Apply updates to db_records and increment retry_count for Case A
@@ -2564,7 +2586,14 @@ def run_once(session, token_mgr, rebuild_days=None):
                                     rec['dispatch_plan'] = info['dispatch_plan']
                                 if info['pickNetworkName'] and info['pickNetworkName'].lower() not in ('nan', 'none', ''):
                                     rec['pickNetworkName'] = d_buucuc.get(info['pickNetworkName'], info['pickNetworkName'])
+                                if info.get('weight') and (rec.get('weight') is None or rec.get('weight') == 0.0):
+                                    rec['weight'] = info['weight']
                                     
+                                if info['status_order'] and info['status_order'].lower() not in ('nan', 'none', ''):
+                                    curr_status = rec.get('status_order', '')
+                                    if curr_status in ('', 'Forecast', 'Đã điều phối bưu cục'):
+                                        rec['status_order'] = info['status_order']
+                                        
                                 # If all three fields are now populated, we count it as fully recovered
                                 if rec.get('pickNetworkName') and rec.get('dispatch_plan') and rec.get('Pickup_time'):
                                     batch_updated += 1
@@ -2859,15 +2888,11 @@ def run_once(session, token_mgr, rebuild_days=None):
     
     def calc_fc_op_date(row):
         fc_time = row.get('dispatchNetworkTime')
-        if not fc_time or str(fc_time).strip() in ('', 'nan', 'None'):
-            fc_time = row.get('Pickup_time')
         return get_op_date_clean(fc_time)
         
     df['Ngày vận hành_Forecast'] = df.apply(calc_fc_op_date, axis=1)
     
     def calc_pk_op_date(row):
-        if row.get('status_order') == 'Đã điều phối bưu cục':
-            return ""
         return get_op_date_clean(row.get('Pickup_time'))
         
     df['Ngày vận hành_Pickup'] = df.apply(calc_pk_op_date, axis=1)
