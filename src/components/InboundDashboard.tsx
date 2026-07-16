@@ -284,18 +284,24 @@ export default function InboundDashboard({
     }
   });
 
-  // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast khớp với activeDate (không phân biệt trạng thái hiện tại)
-  inboundData.filter(d => (d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast']) === activeDate).forEach(d => {
+  // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast hoặc ngày của Forecast Time khớp với activeDate
+  inboundData.filter(d => {
+    const fcTime = d['Forecast Time'] || '';
+    const fcDate = fcTime.substring(0, 10);
+    const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
+    return opDate === activeDate || fcDate === activeDate;
+  }).forEach(d => {
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
     if (station === 'BN HUB') {
       return;
     }
-    const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
-    if (loaiRot !== 'Rớt hôm trước') {
-      const fcTime = d['Forecast Time'] !== undefined && d['Forecast Time'] !== null && d['Forecast Time'] !== ''
-        ? d['Forecast Time']
-        : undefined;
-      if (fcTime !== undefined) {
+    const fcTime = d['Forecast Time'] || '';
+    if (fcTime) {
+      const fcDate = fcTime.substring(0, 10);
+      const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
+      // Nếu là ngày forecast gốc (fcDate === activeDate), ta HIỂN THỊ bất kể loaiRot là gì để giữ đúng lịch sử ca đêm
+      // Nếu là ngày gối đầu (opDate === activeDate và fcDate !== activeDate), ta lọc bỏ 'Rớt hôm trước' để tránh lặp lại
+      if (fcDate === activeDate || loaiRot !== 'Rớt hôm trước') {
         const hrVal = getHourFromTimestamp(fcTime);
         if (hrVal >= 0 && hrVal < 24) {
           const hour = `${String(hrVal).padStart(2, '0')}:00`;
