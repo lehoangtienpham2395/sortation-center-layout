@@ -102,6 +102,7 @@ export default function InboundDashboard({
 }: InboundDashboardProps) {
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
+  const [includeBnHubInTrend, setIncludeBnHubInTrend] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<any | null>(null);
 
@@ -204,13 +205,6 @@ export default function InboundDashboard({
   // KPI: số bưu cục đang trên đường (bị xóa về 0 theo yêu cầu)
   const totalVehicles = 0;
 
-  // Orders status: tổng đơn chưa đến Hub = "Đang trên đường" (loại trừ BN HUB vì BN HUB không thuộc dự báo nội vùng HCM HUB)
-  let totalInTransitOrders = filteredArrival.reduce((sum, d) => {
-    const station = (d['Pickup_station'] || '').trim().toUpperCase();
-    if (station.includes('BN HUB') || station.includes('HCM004H')) return sum;
-    return sum + (parseInt(d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0);
-  }, 0);
-
   // Trucking in transit table: top 10 bưu cục Chưa đến Hub nhiều nhất
   const stationMap: Record<string, { station: string; chuaDenHub: number; tongDon: number; vehicles: number; lastTime: string }> = {};
   const NORTH_POST_OFFICES = new Set([
@@ -249,6 +243,10 @@ export default function InboundDashboard({
     .filter(s => s.chuaDenHub > 0)
     .sort((a, b) => b.chuaDenHub - a.chuaDenHub);
 
+  // Orders status: tổng đơn chưa đến Hub = "Đang trên đường". 
+  // Lấy trực tiếp tổng từ danh sách xe đang di chuyển (incomingVehicles) để bảo đảm 100% khớp số liệu.
+  let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.chuaDenHub, 0);
+
   const totalTransitVehicles = 0;
 
   // 4. Hourly timelines
@@ -271,6 +269,10 @@ export default function InboundDashboard({
 
   // 1. Transporting hourly: dùng Scan Hour từ Arrival → giờ xe ĐẾN HUB và quét Arrival
   filteredArrival.forEach(d => {
+    const station = (d['Pickup_station'] || '').trim().toUpperCase();
+    if (!includeBnHubInTrend && station === 'BN HUB') {
+      return;
+    }
     const scanHourStr = d['Scan Hour'] || d['Scan_Hour'] || '';
     if (scanHourStr) {
       const hrVal = getHourFromTimestamp(scanHourStr);
@@ -285,6 +287,10 @@ export default function InboundDashboard({
 
   // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast khớp với activeDate (không phân biệt trạng thái hiện tại)
   inboundData.filter(d => (d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast']) === activeDate).forEach(d => {
+    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
+    if (!includeBnHubInTrend && station === 'BN HUB') {
+      return;
+    }
     const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
     if (loaiRot !== 'Rớt hôm trước') {
       const fcTime = d['Forecast Time'] !== undefined && d['Forecast Time'] !== null && d['Forecast Time'] !== ''
@@ -304,6 +310,10 @@ export default function InboundDashboard({
 
   // 3. Pickup Time (Shipper đã lấy): Hiển thị tất cả đơn có Ngày vận hành_Pickup khớp với activeDate (không phân biệt trạng thái hiện tại)
   inboundData.filter(d => (d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup']) === activeDate).forEach(d => {
+    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
+    if (!includeBnHubInTrend && station === 'BN HUB') {
+      return;
+    }
     const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
       ? d['Pickup Time']
       : undefined;
@@ -320,6 +330,10 @@ export default function InboundDashboard({
 
   // 4. Inbound (Nhập kho HUB): Hiển thị các đơn nhập kho trong ngày activeDate
   filteredInbound.forEach(d => {
+    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
+    if (!includeBnHubInTrend && station === 'BN HUB') {
+      return;
+    }
     if ((d['Trng thi'] || d['Trạng thái']) === 'Inbound') {
       const ibTime = d['Inbound Hour'] !== undefined && d['Inbound Hour'] !== null && d['Inbound Hour'] !== '' 
         ? d['Inbound Hour'] 
@@ -622,7 +636,7 @@ export default function InboundDashboard({
         });
       }
     }
-  }, [activeDate, inboundData, linehaulData, totalOrders, totalInTransitOrders, pendingOrders, forecastTrendData, arrivedTrendData, pickupTrendData, inboundTrendData]);
+  }, [activeDate, inboundData, linehaulData, totalOrders, totalInTransitOrders, pendingOrders, forecastTrendData, arrivedTrendData, pickupTrendData, inboundTrendData, includeBnHubInTrend]);
 
   const toggleDropdown = () => setDateDropdownOpen(!dateDropdownOpen);
   const selectPreset = (preset: 'today' | 'yesterday') => {
@@ -799,8 +813,19 @@ export default function InboundDashboard({
       <section className="charts-grid">
         {/* Line Chart */}
         <div className="chart-container-card dual-line-wrapper">
-          <div className="chart-header">
-            <h2>Hourly Processing Trend</h2>
+          <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <h2>Hourly Processing Trend</h2>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#9aa7c2', cursor: 'pointer', userSelect: 'none' }}>
+                <input 
+                  type="checkbox" 
+                  checked={includeBnHubInTrend} 
+                  onChange={(e) => setIncludeBnHubInTrend(e.target.checked)}
+                  style={{ accentColor: '#38bdf8', cursor: 'pointer' }}
+                />
+                Bao gồm BN HUB
+              </label>
+            </div>
             <div className="chart-legend-custom">
               <span className="legend-item"><span className="dot orange"></span>Created</span>
               <span className="legend-item"><span className="dot blue"></span>Pickup Volume</span>

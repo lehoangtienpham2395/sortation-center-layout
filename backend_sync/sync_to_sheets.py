@@ -1997,8 +1997,11 @@ def run_once(session, token_mgr, rebuild_days=None):
     DATE_START_STANDARD = (now - timedelta(days=days_back)).strftime('%Y-%m-%d') + ' 06:00:00'
     DATE_START_FORECAST = (now - timedelta(days=1)).strftime('%Y-%m-%d') + ' 06:00:00'
     
-    min_dispatch_dt = now - timedelta(days=1)
-    effective_dispatch_start_dt = max(last_run_dt - timedelta(minutes=30), min_dispatch_dt)
+    min_dispatch_dt = now - timedelta(days=days_back)
+    if is_rebuild:
+        effective_dispatch_start_dt = min_dispatch_dt
+    else:
+        effective_dispatch_start_dt = max(last_run_dt - timedelta(minutes=30), min_dispatch_dt)
     DATE_START_DISPATCH = effective_dispatch_start_dt.strftime('%Y-%m-%d %H:%M:%S')
     
     DATE_END   = now.strftime('%Y-%m-%d %H:%M:%S')
@@ -2428,7 +2431,7 @@ def run_once(session, token_mgr, rebuild_days=None):
     
     # Configuration loading
     BATCH_SIZE = 500
-    ROLLING_SYNC_DAYS = 3
+    ROLLING_SYNC_DAYS = 7
     MAX_RETRY_COUNT = 10
     
     config_path = os.path.join(BASE_DIR, "config", "sync_config.json")
@@ -2447,9 +2450,10 @@ def run_once(session, token_mgr, rebuild_days=None):
     pending_wbs_list = []
     
     for wb, rec in db_records.items():
+        is_missing_dispatch = not rec.get('dispatchNetworkTime') or str(rec.get('dispatchNetworkTime')).strip().lower() in ('nan', 'none', '')
         if (
             rec.get('is_active', 1) == 1
-            and rec.get('status_order') != 'Đã rời HUB'
+            and (rec.get('status_order') != 'Đã rời HUB' or is_missing_dispatch)
         ):
             # Verify if time_ref falls within the rolling window
             ref_val = str(rec.get('time_ref') or rec.get('last_updated') or '').strip()
@@ -2479,8 +2483,8 @@ def run_once(session, token_mgr, rebuild_days=None):
     # Prioritize newer shipments: sort DESC by time_ref
     pending_wbs_list.sort(key=lambda x: x[0] or '', reverse=True)
     
-    # Cap total waybills at 5000
-    pending_wbs_list = pending_wbs_list[:5000]
+    # Cap total waybills at 10000
+    pending_wbs_list = pending_wbs_list[:10000]
     total_pending = len(pending_wbs_list)
     
     completion_recovered = 0
@@ -2527,10 +2531,25 @@ def run_once(session, token_mgr, rebuild_days=None):
                             
                     batch_updated = 0
                     
-                    # Wrap query in a try-except block to make Completion Sync non-blocking
+                    # Wrap query in a try-except block with batch-level retries
+                    dp_res = None
+                    max_batch_attempts = 3
+                    for attempt in range(max_batch_attempts):
+                        try:
+                            r_dp = auth_post(session, URL_DISPATCH, token_mgr, dh, data=payload, timeout=25, max_retries=2, label=f'Completion Sync Batch {b_idx + 1}/{total_batches} (Attempt {attempt + 1})')
+                            dp_res = r_dp.json()
+                            break
+                        except Exception as e_api:
+                            if attempt == max_batch_attempts - 1:
+                                print(f"      ❌ Lỗi kết nối API đợt {b_idx + 1} sau {max_batch_attempts} lần thử: {e_api}")
+                            else:
+                                print(f"      ⚠️ Lỗi kết nối API đợt {b_idx + 1}: {e_api}. Đang thử lại sau {(attempt + 1) * 2}s...")
+                                time.sleep((attempt + 1) * 2)
+                    
+                    if dp_res is None:
+                        continue
+                        
                     try:
-                        r_dp = auth_post(session, URL_DISPATCH, token_mgr, dh, data=payload, timeout=25, max_retries=3, label=f'Completion Sync Batch {b_idx + 1}/{total_batches}')
-                        dp_res = r_dp.json()
                         data_node = dp_res.get('data', {})
                         records = []
                         if isinstance(data_node, dict):
@@ -2612,7 +2631,10 @@ def run_once(session, token_mgr, rebuild_days=None):
                         completion_recovered += batch_updated
                         
                     except Exception as e_batch:
-                        print(f"      ⚠️ Lỗi query batch {b_idx + 1}/{total_batches}: {e_batch}")
+                        print(f"      ⚠️ Lỗi xử lý dữ liệu batch {b_idx + 1}/{total_batches}: {e_batch}")
+                        
+                    # Thêm độ trễ nhỏ để tránh rate-limit JFS API
+                    time.sleep(0.5)
                         
                     t_batch_elapsed = time.time() - t_batch_start
                     batch_pending_count = len(chunk) - batch_updated
