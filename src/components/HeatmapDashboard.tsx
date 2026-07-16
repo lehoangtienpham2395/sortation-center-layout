@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import heatmapData from '../data/heatmap.json';
-import { Filter, Layers, Sparkles, Package, Truck, Inbox, ExternalLink, ChevronDown } from 'lucide-react';
+import { Filter, Layers, Sparkles, Package, Truck, Inbox, ExternalLink } from 'lucide-react';
 
 interface HeatCell {
   date: string;
@@ -20,8 +20,10 @@ interface HeatmapDashboardProps {
 }
 
 export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpdate }: HeatmapDashboardProps) {
-  const [statusFilter, setStatusFilter] = useState<'all' | 'created' | 'pickup' | 'transporting' | 'inbound' | 'outbound'>('all');
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  // Checkbox state: active selected statuses
+  const allOptions = ['created', 'pickup', 'transporting', 'inbound', 'outbound'];
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(allOptions);
+
   const [hoveredCell, setHoveredCell] = useState<{
     date: string;
     dayName: string;
@@ -50,20 +52,28 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
     Sun: 'Chủ nhật'
   };
 
-  const filterOptions = [
-    { value: 'all', label: 'Tất cả trạng thái (Total)', icon: 'Layers' },
-    { value: 'created', label: 'Created (Dự báo)', icon: 'Sparkles' },
-    { value: 'pickup', label: 'Pickup Done (Đã lấy hàng)', icon: 'Package' },
-    { value: 'transporting', label: 'Transporting (Đang trung chuyển)', icon: 'Truck' },
-    { value: 'inbound', label: 'Inbound (Nhập kho)', icon: 'Inbox' },
-    { value: 'outbound', label: 'Outbound (Xuất kho)', icon: 'ExternalLink' }
-  ];
+  const isAllSelected = selectedStatuses.length === allOptions.length;
 
-  const selectedOption = useMemo(() => {
-    return filterOptions.find(opt => opt.value === statusFilter) || filterOptions[0];
-  }, [statusFilter]);
+  const handleToggleAll = () => {
+    if (isAllSelected) {
+      // Clear all except created to avoid blank view
+      setSelectedStatuses(['created']);
+    } else {
+      setSelectedStatuses(allOptions);
+    }
+  };
 
-  const renderOptionIcon = (iconName: string, size = 16, className = "") => {
+  const handleToggleStatus = (val: string) => {
+    if (selectedStatuses.includes(val)) {
+      if (selectedStatuses.length > 1) {
+        setSelectedStatuses(selectedStatuses.filter(s => s !== val));
+      }
+    } else {
+      setSelectedStatuses([...selectedStatuses, val]);
+    }
+  };
+
+  const renderOptionIcon = (iconName: string, size = 14, className = "") => {
     if (iconName === 'Layers') return <Layers size={size} className={className} />;
     if (iconName === 'Sparkles') return <Sparkles size={size} className={className} />;
     if (iconName === 'Package') return <Package size={size} className={className} />;
@@ -108,34 +118,38 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
     return map;
   }, []);
 
-  // Max values for normalization based on actual daily values
-  const maxCreated = useMemo(() => Math.max(...heatmapData.map((d: any) => d.created), 1), []);
-  const maxPickup = useMemo(() => Math.max(...heatmapData.map((d: any) => d.pickup), 1), []);
-  const maxTransporting = useMemo(() => Math.max(...heatmapData.map((d: any) => d.transporting), 1), []);
-  const maxInbound = useMemo(() => Math.max(...heatmapData.map((d: any) => d.inbound), 1), []);
-  const maxOutbound = useMemo(() => Math.max(...heatmapData.map((d: any) => d.outbound || 0), 1), []);
-  const maxAll = useMemo(() => {
-    const sums = heatmapData.map((d: any) => d.created + d.pickup + d.transporting + d.inbound + (d.outbound || 0));
-    return Math.max(...sums, 1);
-  }, []);
-
-  const getCellValueAndMax = (cell: HeatCell, filter: typeof statusFilter) => {
-    if (filter === 'created') return { val: cell.created, max: maxCreated };
-    if (filter === 'pickup') return { val: cell.pickup, max: maxPickup };
-    if (filter === 'transporting') return { val: cell.transporting, max: maxTransporting };
-    if (filter === 'inbound') return { val: cell.inbound, max: maxInbound };
-    if (filter === 'outbound') return { val: cell.outbound || 0, max: maxOutbound };
-    
-    const sum = cell.created + cell.pickup + cell.transporting + cell.inbound + (cell.outbound || 0);
-    return { val: sum, max: maxAll };
+  // Calculate cell value dynamically based on checked checkboxes
+  const getCellValue = (cell: HeatCell) => {
+    let sum = 0;
+    if (selectedStatuses.includes('created')) sum += cell.created;
+    if (selectedStatuses.includes('pickup')) sum += cell.pickup;
+    if (selectedStatuses.includes('transporting')) sum += cell.transporting;
+    if (selectedStatuses.includes('inbound')) sum += cell.inbound;
+    if (selectedStatuses.includes('outbound')) sum += cell.outbound || 0;
+    return sum;
   };
 
-  const getCellColor = (cell: HeatCell, filter: typeof statusFilter) => {
-    const { val, max } = getCellValueAndMax(cell, filter);
+  // Max value dynamically recalculated for normalization
+  const maxVal = useMemo(() => {
+    let currentMax = 1;
+    heatmapData.forEach((d: any) => {
+      let sum = 0;
+      if (selectedStatuses.includes('created')) sum += d.created;
+      if (selectedStatuses.includes('pickup')) sum += d.pickup;
+      if (selectedStatuses.includes('transporting')) sum += d.transporting;
+      if (selectedStatuses.includes('inbound')) sum += d.inbound;
+      if (selectedStatuses.includes('outbound')) sum += d.outbound || 0;
+      if (sum > currentMax) currentMax = sum;
+    });
+    return currentMax;
+  }, [selectedStatuses]);
+
+  const getCellColor = (cell: HeatCell) => {
+    const val = getCellValue(cell);
     if (val === 0) return 'rgba(255, 255, 255, 0.02)';
     
     // Scale opacity between 0.08 and 0.95
-    const ratio = val / max;
+    const ratio = val / maxVal;
     const finalOpacity = Math.max(0.08, Math.min(0.95, ratio));
 
     // Lấy 1 màu chủ đạo (Emerald Green matching J&T accent #10b981)
@@ -206,68 +220,85 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
         </div>
       </header>
 
-      {/* 2. Filter Bar - High-tech glassmorphism style matching concept image */}
-      <div className="jt-glowing-card p-4 flex justify-between items-center relative z-40">
-        {/* Left Side: Glowing Filter Icon + Title */}
+      {/* 2. Filter Bar - Inline checkboxes styled with 12px border radius */}
+      <div className="jt-glowing-card p-4 flex flex-col md:flex-row justify-between items-center gap-4" style={{ borderRadius: '12px' }}>
+        {/* Left Side: Glowing Filter Icon + Title Status */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-teal-500/10 border border-teal-500/35 shadow-[0_0_12px_rgba(20,184,166,0.25)] shrink-0">
-            <Filter size={18} className="text-teal-400 animate-pulse" />
+          <div className="w-9 h-9 rounded-full flex items-center justify-center bg-teal-500/10 border border-teal-500/35 shadow-[0_0_10px_rgba(20,184,166,0.25)] shrink-0">
+            <Filter size={16} className="text-teal-400 animate-pulse" />
           </div>
           <span className="text-[13px] text-slate-100 font-extrabold tracking-widest uppercase">
-            THIẾT LẬP BỘ LỌC
+            STATUS
           </span>
         </div>
 
-        {/* Right Side: Custom Dropdown Trigger */}
-        <div className="relative">
-          <button
-            onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center justify-between gap-3 min-w-[260px] px-4 py-2.5 rounded-xl border border-white/10 text-white text-xs font-bold transition-all shadow-[0_4px_15px_rgba(0,0,0,0.3)] hover:scale-[1.02] cursor-pointer"
-            style={{
-              background: 'linear-gradient(90deg, rgba(20, 184, 166, 0.75) 0%, rgba(13, 148, 136, 0.75) 100%)',
-              boxShadow: '0 0 15px rgba(20, 184, 166, 0.15)'
+        {/* Right Side: Inline Checkbox Toggles (No Vietnamese) */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Toggle All (Total) Option */}
+          <div
+            onClick={handleToggleAll}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer select-none transition-all ${
+              isAllSelected 
+                ? 'border-teal-500/30 text-white shadow-[0_0_10px_rgba(20,184,166,0.2)]'
+                : 'border-white/[0.04] text-slate-400 hover:text-slate-200 hover:border-white/20 hover:bg-white/[0.02]'
+            }`}
+            style={isAllSelected ? {
+              background: 'linear-gradient(90deg, rgba(20, 184, 166, 0.75) 0%, rgba(13, 148, 136, 0.75) 100%)'
+            } : {
+              background: 'rgba(255, 255, 255, 0.02)'
             }}
           >
-            <div className="flex items-center gap-2.5">
-              {renderOptionIcon(selectedOption.icon, 15, "text-white")}
-              <span>{selectedOption.label}</span>
+            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${
+              isAllSelected ? 'border-teal-300 bg-teal-300 text-slate-900' : 'border-white/20 bg-black/30'
+            }`}>
+              {isAllSelected && (
+                <svg className="w-2.5 h-2.5 text-slate-900 stroke-[3.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
             </div>
-            <ChevronDown size={14} className={`text-white/80 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
-          </button>
+            {renderOptionIcon('Layers', 13, isAllSelected ? "text-white" : "text-slate-400")}
+            <span>Total</span>
+          </div>
 
-          {/* Custom Dropdown List */}
-          {dropdownOpen && (
-            <div 
-              className="absolute right-0 mt-2 min-w-[280px] bg-[#0c101c]/95 border border-white/10 rounded-xl p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.65)] backdrop-blur-xl z-50 space-y-1 animate-fade-in"
-              style={{ boxShadow: '0 0 20px rgba(20, 184, 166, 0.08)' }}
-            >
-              {filterOptions.map((opt) => {
-                const isActive = opt.value === statusFilter;
-                return (
-                  <button
-                    key={opt.value}
-                    onClick={() => {
-                      setStatusFilter(opt.value as any);
-                      setDropdownOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg border text-left text-xs font-semibold transition-all cursor-pointer ${
-                      isActive 
-                        ? 'border-teal-500/30 text-white shadow-[0_0_12px_rgba(20,184,166,0.2)]'
-                        : 'border-white/[0.04] text-slate-300 hover:text-white hover:border-teal-500/20 hover:bg-teal-500/[0.04] hover:shadow-[0_0_8px_rgba(20,184,166,0.1)]'
-                    }`}
-                    style={isActive ? {
-                      background: 'linear-gradient(90deg, rgba(20, 184, 166, 0.8) 0%, rgba(13, 148, 136, 0.8) 100%)'
-                    } : {
-                      background: 'rgba(255, 255, 255, 0.02)'
-                    }}
-                  >
-                    {renderOptionIcon(opt.icon, 14, isActive ? "text-white" : "text-slate-400")}
-                    <span>{opt.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          {/* Individual Status Checkboxes */}
+          {[
+            { value: 'created', label: 'Created', icon: 'Sparkles' },
+            { value: 'pickup', label: 'Pickup Done', icon: 'Package' },
+            { value: 'transporting', label: 'Transporting', icon: 'Truck' },
+            { value: 'inbound', label: 'Inbound', icon: 'Inbox' },
+            { value: 'outbound', label: 'Outbound', icon: 'ExternalLink' }
+          ].map((opt) => {
+            const isActive = selectedStatuses.includes(opt.value);
+            return (
+              <div
+                key={opt.value}
+                onClick={() => handleToggleStatus(opt.value)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer select-none transition-all ${
+                  isActive 
+                    ? 'border-teal-500/30 text-white shadow-[0_0_10px_rgba(20,184,166,0.2)]'
+                    : 'border-white/[0.04] text-slate-400 hover:text-slate-200 hover:border-white/20 hover:bg-white/[0.02]'
+                }`}
+                style={isActive ? {
+                  background: 'linear-gradient(90deg, rgba(20, 184, 166, 0.75) 0%, rgba(13, 148, 136, 0.75) 100%)'
+                } : {
+                  background: 'rgba(255, 255, 255, 0.02)'
+                }}
+              >
+                <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${
+                  isActive ? 'border-teal-300 bg-teal-300 text-slate-900' : 'border-white/20 bg-black/30'
+                }`}>
+                  {isActive && (
+                    <svg className="w-2.5 h-2.5 text-slate-900 stroke-[3.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                {renderOptionIcon(opt.icon, 13, isActive ? "text-white" : "text-slate-400")}
+                <span>{opt.label}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -338,7 +369,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
                         outbound: 0
                       };
 
-                      const color = getCellColor(cell, statusFilter);
+                      const color = getCellColor(cell);
 
                       return (
                         <div
@@ -365,7 +396,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
         </div>
       </div>
 
-      {/* Floating Tooltip Component - Dynamically synced with statusFilter */}
+      {/* Floating Tooltip Component - Dynamically synced with selectedStatuses */}
       {hoveredCell && (
         <div
           className="absolute z-50 pointer-events-none bg-[#090D16]/95 border border-emerald-500/20 rounded-xl p-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md min-w-[220px]"
@@ -382,71 +413,52 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
             <span>{hoveredCell.date.split('-')[2]}/{hoveredCell.date.split('-')[1]} - {String(hoveredCell.hour).padStart(2, '0')}:00</span>
           </div>
           
-          {/* Tooltip Content - Aligned key-value structure matching Master Layout panel */}
+          {/* Tooltip Content - Aligned key-value structure of selected active options */}
           <div className="space-y-1">
-            {statusFilter === 'all' ? (
-              <>
-                <div className="flex justify-between items-center py-0.5">
-                  <span className="text-[11px] text-slate-400 font-bold">Created (Dự báo):</span>
-                  <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.created.toLocaleString()} đơn</span>
-                </div>
-                <div className="flex justify-between items-center py-0.5">
-                  <span className="text-[11px] text-slate-400 font-bold">Pickup Done (Đã lấy):</span>
-                  <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.pickup.toLocaleString()} đơn</span>
-                </div>
-                <div className="flex justify-between items-center py-0.5">
-                  <span className="text-[11px] text-slate-400 font-bold">Transporting (Trung chuyển):</span>
-                  <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.transporting.toLocaleString()} đơn</span>
-                </div>
-                <div className="flex justify-between items-center py-0.5">
-                  <span className="text-[11px] text-slate-400 font-bold">Inbound (Nhập kho):</span>
-                  <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.inbound.toLocaleString()} đơn</span>
-                </div>
-                <div className="flex justify-between items-center py-0.5">
-                  <span className="text-[11px] text-slate-400 font-bold">Outbound (Xuất kho):</span>
-                  <span className="text-[11px] text-slate-200 font-extrabold font-mono">{(hoveredCell.outbound || 0).toLocaleString()} đơn</span>
-                </div>
-                <div className="border-t border-white/[0.08] pt-1.5 mt-1.5 flex justify-between items-center font-bold">
-                  <span className="text-[11px] text-slate-200">Total (Tổng số):</span>
-                  <span className="text-[12px] text-emerald-400 font-extrabold font-mono">
-                    {Math.round(hoveredCell.created + hoveredCell.pickup + hoveredCell.transporting + hoveredCell.inbound + (hoveredCell.outbound || 0)).toLocaleString()} đơn
-                  </span>
-                </div>
-              </>
-            ) : (
-              <>
-                {statusFilter === 'created' && (
-                  <div className="flex justify-between items-center py-0.5">
-                    <span className="text-[11px] text-slate-400 font-bold">Created (Dự báo):</span>
-                    <span className="text-[11px] text-emerald-400 font-extrabold font-mono">{hoveredCell.created.toLocaleString()} đơn</span>
-                  </div>
-                )}
-                {statusFilter === 'pickup' && (
-                  <div className="flex justify-between items-center py-0.5">
-                    <span className="text-[11px] text-slate-400 font-bold">Pickup Done (Đã lấy):</span>
-                    <span className="text-[11px] text-emerald-400 font-extrabold font-mono">{hoveredCell.pickup.toLocaleString()} đơn</span>
-                  </div>
-                )}
-                {statusFilter === 'transporting' && (
-                  <div className="flex justify-between items-center py-0.5">
-                    <span className="text-[11px] text-slate-400 font-bold">Transporting (Trung chuyển):</span>
-                    <span className="text-[11px] text-emerald-400 font-extrabold font-mono">{hoveredCell.transporting.toLocaleString()} đơn</span>
-                  </div>
-                )}
-                {statusFilter === 'inbound' && (
-                  <div className="flex justify-between items-center py-0.5">
-                    <span className="text-[11px] text-slate-400 font-bold">Inbound (Nhập kho):</span>
-                    <span className="text-[11px] text-emerald-400 font-extrabold font-mono">{hoveredCell.inbound.toLocaleString()} đơn</span>
-                  </div>
-                )}
-                {statusFilter === 'outbound' && (
-                  <div className="flex justify-between items-center py-0.5">
-                    <span className="text-[11px] text-slate-400 font-bold">Outbound (Xuất kho):</span>
-                    <span className="text-[11px] text-emerald-400 font-extrabold font-mono">{(hoveredCell.outbound || 0).toLocaleString()} đơn</span>
-                  </div>
-                )}
-              </>
+            {selectedStatuses.includes('created') && (
+              <div className="flex justify-between items-center py-0.5">
+                <span className="text-[11px] text-slate-400 font-bold">Created:</span>
+                <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.created.toLocaleString()} đơn</span>
+              </div>
             )}
+            {selectedStatuses.includes('pickup') && (
+              <div className="flex justify-between items-center py-0.5">
+                <span className="text-[11px] text-slate-400 font-bold">Pickup Done:</span>
+                <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.pickup.toLocaleString()} đơn</span>
+              </div>
+            )}
+            {selectedStatuses.includes('transporting') && (
+              <div className="flex justify-between items-center py-0.5">
+                <span className="text-[11px] text-slate-400 font-bold">Transporting:</span>
+                <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.transporting.toLocaleString()} đơn</span>
+              </div>
+            )}
+            {selectedStatuses.includes('inbound') && (
+              <div className="flex justify-between items-center py-0.5">
+                <span className="text-[11px] text-slate-400 font-bold">Inbound:</span>
+                <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.inbound.toLocaleString()} đơn</span>
+              </div>
+            )}
+            {selectedStatuses.includes('outbound') && (
+              <div className="flex justify-between items-center py-0.5">
+                <span className="text-[11px] text-slate-400 font-bold">Outbound:</span>
+                <span className="text-[11px] text-slate-200 font-extrabold font-mono">{(hoveredCell.outbound || 0).toLocaleString()} đơn</span>
+              </div>
+            )}
+            
+            {/* Divider and Total Sum of checked items */}
+            <div className="border-t border-white/[0.08] pt-1.5 mt-1.5 flex justify-between items-center font-bold">
+              <span className="text-[11px] text-slate-200">Total Selected:</span>
+              <span className="text-[12px] text-emerald-400 font-extrabold font-mono">
+                {Math.round(
+                  (selectedStatuses.includes('created') ? hoveredCell.created : 0) +
+                  (selectedStatuses.includes('pickup') ? hoveredCell.pickup : 0) +
+                  (selectedStatuses.includes('transporting') ? hoveredCell.transporting : 0) +
+                  (selectedStatuses.includes('inbound') ? hoveredCell.inbound : 0) +
+                  (selectedStatuses.includes('outbound') ? (hoveredCell.outbound || 0) : 0)
+                ).toLocaleString()} đơn
+              </span>
+            </div>
           </div>
         </div>
       )}
