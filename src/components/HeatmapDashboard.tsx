@@ -313,7 +313,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
       {/* Floating Tooltip Component - Dynamically synced with statusFilter */}
       {hoveredCell && (
         <div
-          className="absolute z-50 pointer-events-none bg-[#090D16]/95 border border-emerald-500/20 rounded-xl p-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md"
+          className="absolute z-50 pointer-events-none bg-[#090D16]/95 border border-emerald-500/20 rounded-xl p-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md min-w-[220px]"
           style={{
             left: `${hoveredCell.x}px`,
             top: `${hoveredCell.y}px`,
@@ -322,50 +322,75 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
           }}
         >
           {/* Tooltip Title */}
-          <div className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider mb-1.5">
-            {MAP_DAY_VN[hoveredCell.dayName] || hoveredCell.dayName},{' '}
-            {hoveredCell.date.split('-')[2]}/{hoveredCell.date.split('-')[1]}, {String(hoveredCell.hour).padStart(2, '0')}:00
+          <div className="text-[10px] text-emerald-400 font-extrabold uppercase tracking-wider mb-2 border-b border-white/[0.08] pb-1.5 flex justify-between items-center">
+            <span>{MAP_DAY_VN[hoveredCell.dayName] || hoveredCell.dayName}</span>
+            <span>{hoveredCell.date.split('-')[2]}/{hoveredCell.date.split('-')[1]} - {String(hoveredCell.hour).padStart(2, '0')}:00</span>
           </div>
           
-          {/* Tooltip Content - Dynamically shows only active filtered status */}
-          <div className="text-xs">
-            {statusFilter === 'all' && (
-              <div className="flex justify-between gap-4 font-bold text-white">
-                <span className="text-slate-300">Tổng sản lượng (Total):</span>
-                <span className="text-emerald-400 text-[13px]">
-                  {Math.round(hoveredCell.created + hoveredCell.pickup + hoveredCell.transporting + hoveredCell.inbound + (hoveredCell.outbound || 0)).toLocaleString()} đơn
-                </span>
-              </div>
-            )}
-            {statusFilter === 'created' && (
-              <div className="flex justify-between gap-4 font-semibold text-white">
-                <span className="text-slate-400">Created (Dự báo):</span>
-                <span className="text-emerald-400">{hoveredCell.created.toLocaleString()} đơn</span>
-              </div>
-            )}
-            {statusFilter === 'pickup' && (
-              <div className="flex justify-between gap-4 font-semibold text-white">
-                <span className="text-slate-400">Pickup Done (Đã lấy):</span>
-                <span className="text-emerald-400">{hoveredCell.pickup.toLocaleString()} đơn</span>
-              </div>
-            )}
-            {statusFilter === 'transporting' && (
-              <div className="flex justify-between gap-4 font-semibold text-white">
-                <span className="text-slate-400">Transporting (Trung chuyển):</span>
-                <span className="text-emerald-400">{hoveredCell.transporting.toLocaleString()} đơn</span>
-              </div>
-            )}
-            {statusFilter === 'inbound' && (
-              <div className="flex justify-between gap-4 font-semibold text-white">
-                <span className="text-slate-400">Inbound (Nhập kho):</span>
-                <span className="text-emerald-400">{hoveredCell.inbound.toLocaleString()} đơn</span>
-              </div>
-            )}
-            {statusFilter === 'outbound' && (
-              <div className="flex justify-between gap-4 font-semibold text-white">
-                <span className="text-slate-400">Outbound (Xuất kho):</span>
-                <span className="text-emerald-400 font-bold">{(hoveredCell.outbound || 0).toLocaleString()} đơn</span>
-              </div>
+          {/* Tooltip Content - Aligned key-value structure matching Master Layout panel */}
+          <div className="space-y-1">
+            {statusFilter === 'all' ? (
+              <>
+                <div className="flex justify-between items-center py-0.5">
+                  <span className="text-[11px] text-slate-400 font-bold">Created (Dự báo):</span>
+                  <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.created.toLocaleString()} đơn</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5">
+                  <span className="text-[11px] text-slate-400 font-bold">Pickup Done (Đã lấy):</span>
+                  <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.pickup.toLocaleString()} đơn</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5">
+                  <span className="text-[11px] text-slate-400 font-bold">Transporting (Trung chuyển):</span>
+                  <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.transporting.toLocaleString()} đơn</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5">
+                  <span className="text-[11px] text-slate-400 font-bold">Inbound (Nhập kho):</span>
+                  <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.inbound.toLocaleString()} đơn</span>
+                </div>
+                <div className="flex justify-between items-center py-0.5">
+                  <span className="text-[11px] text-slate-400 font-bold">Outbound (Xuất kho):</span>
+                  <span className="text-[11px] text-slate-200 font-extrabold font-mono">{(hoveredCell.outbound || 0).toLocaleString()} đơn</span>
+                </div>
+                <div className="border-t border-white/[0.08] pt-1.5 mt-1.5 flex justify-between items-center font-bold">
+                  <span className="text-[11px] text-slate-200">Total (Tổng số):</span>
+                  <span className="text-[12px] text-emerald-400 font-extrabold font-mono">
+                    {Math.round(hoveredCell.created + hoveredCell.pickup + hoveredCell.transporting + hoveredCell.inbound + (hoveredCell.outbound || 0)).toLocaleString()} đơn
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                {statusFilter === 'created' && (
+                  <div className="flex justify-between items-center py-0.5">
+                    <span className="text-[11px] text-slate-400 font-bold">Created (Dự báo):</span>
+                    <span className="text-[11px] text-emerald-400 font-extrabold font-mono">{hoveredCell.created.toLocaleString()} đơn</span>
+                  </div>
+                )}
+                {statusFilter === 'pickup' && (
+                  <div className="flex justify-between items-center py-0.5">
+                    <span className="text-[11px] text-slate-400 font-bold">Pickup Done (Đã lấy):</span>
+                    <span className="text-[11px] text-emerald-400 font-extrabold font-mono">{hoveredCell.pickup.toLocaleString()} đơn</span>
+                  </div>
+                )}
+                {statusFilter === 'transporting' && (
+                  <div className="flex justify-between items-center py-0.5">
+                    <span className="text-[11px] text-slate-400 font-bold">Transporting (Trung chuyển):</span>
+                    <span className="text-[11px] text-emerald-400 font-extrabold font-mono">{hoveredCell.transporting.toLocaleString()} đơn</span>
+                  </div>
+                )}
+                {statusFilter === 'inbound' && (
+                  <div className="flex justify-between items-center py-0.5">
+                    <span className="text-[11px] text-slate-400 font-bold">Inbound (Nhập kho):</span>
+                    <span className="text-[11px] text-emerald-400 font-extrabold font-mono">{hoveredCell.inbound.toLocaleString()} đơn</span>
+                  </div>
+                )}
+                {statusFilter === 'outbound' && (
+                  <div className="flex justify-between items-center py-0.5">
+                    <span className="text-[11px] text-slate-400 font-bold">Outbound (Xuất kho):</span>
+                    <span className="text-[11px] text-emerald-400 font-extrabold font-mono">{(hoveredCell.outbound || 0).toLocaleString()} đơn</span>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
