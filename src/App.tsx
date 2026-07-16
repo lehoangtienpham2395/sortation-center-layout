@@ -1981,7 +1981,11 @@ export default function App() {
             {currentView === 'master' ? (
               renderSVG()
             ) : currentView === 'heatmap' ? (
-              <HeatmapDashboard />
+              <HeatmapDashboard
+                loading={loading}
+                fetchAndUpdateData={fetchAndUpdateData}
+                lastUpdate={lastUpdate}
+              />
             ) : (
               <InboundDashboard
                 inboundData={inboundData}
@@ -2230,7 +2234,11 @@ export default function App() {
 
             {activeTab === 'heatmap' && (
               <div className="w-full h-full overflow-y-auto space-y-4 px-1 pt-2 pb-6">
-                <HeatmapDashboard />
+                <HeatmapDashboard
+                  loading={loading}
+                  fetchAndUpdateData={fetchAndUpdateData}
+                  lastUpdate={lastUpdate}
+                />
               </div>
             )}
 
