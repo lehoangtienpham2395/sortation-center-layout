@@ -5,19 +5,21 @@ import { Filter, Info } from 'lucide-react';
 interface HeatCell {
   day: number;
   hour: number;
-  active: number;
-  pending: number;
-  completed: number;
+  created: number;
+  pickup: number;
+  transporting: number;
+  inbound: number;
 }
 
 export default function HeatmapDashboard() {
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'pending' | 'completed'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'created' | 'pickup' | 'transporting' | 'inbound'>('all');
   const [hoveredCell, setHoveredCell] = useState<{
     day: number;
     hour: number;
-    active: number;
-    pending: number;
-    completed: number;
+    created: number;
+    pickup: number;
+    transporting: number;
+    inbound: number;
     x: number;
     y: number;
   } | null>(null);
@@ -27,48 +29,36 @@ export default function HeatmapDashboard() {
   const HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
 
   // Max values for normalization
-  const maxActive = useMemo(() => Math.max(...heatmapData.map((d: any) => d.active), 1), []);
-  const maxPending = useMemo(() => Math.max(...heatmapData.map((d: any) => d.pending), 1), []);
-  const maxCompleted = useMemo(() => Math.max(...heatmapData.map((d: any) => d.completed), 1), []);
-  
-  const getCellOpacity = (cell: HeatCell, filter: typeof statusFilter) => {
-    if (filter === 'active') return cell.active / maxActive;
-    if (filter === 'pending') return cell.pending / maxPending;
-    if (filter === 'completed') return cell.completed / maxCompleted;
+  const maxCreated = useMemo(() => Math.max(...heatmapData.map((d: any) => d.created), 1), []);
+  const maxPickup = useMemo(() => Math.max(...heatmapData.map((d: any) => d.pickup), 1), []);
+  const maxTransporting = useMemo(() => Math.max(...heatmapData.map((d: any) => d.transporting), 1), []);
+  const maxInbound = useMemo(() => Math.max(...heatmapData.map((d: any) => d.inbound), 1), []);
+  const maxAll = useMemo(() => {
+    const sums = heatmapData.map((d: any) => d.created + d.pickup + d.transporting + d.inbound);
+    return Math.max(...sums, 1);
+  }, []);
+
+  const getCellValueAndMax = (cell: HeatCell, filter: typeof statusFilter) => {
+    if (filter === 'created') return { val: cell.created, max: maxCreated };
+    if (filter === 'pickup') return { val: cell.pickup, max: maxPickup };
+    if (filter === 'transporting') return { val: cell.transporting, max: maxTransporting };
+    if (filter === 'inbound') return { val: cell.inbound, max: maxInbound };
     
-    // For 'all', find dominant status and return opacity based on that
-    const maxVal = Math.max(cell.active, cell.pending, cell.completed);
-    if (maxVal === 0) return 0;
-    if (maxVal === cell.active) return cell.active / maxActive;
-    if (maxVal === cell.pending) return cell.pending / maxPending;
-    return cell.completed / maxCompleted;
+    // For 'all', sum all stages
+    const sum = cell.created + cell.pickup + cell.transporting + cell.inbound;
+    return { val: sum, max: maxAll };
   };
 
-  const getCellColor = (cell: HeatCell, filter: typeof statusFilter, opacity: number) => {
-    if (opacity === 0) return 'rgba(255, 255, 255, 0.02)';
+  const getCellColor = (cell: HeatCell, filter: typeof statusFilter) => {
+    const { val, max } = getCellValueAndMax(cell, filter);
+    if (val === 0) return 'rgba(255, 255, 255, 0.02)';
     
-    // Smooth minimum opacity for visibility
-    const finalOpacity = Math.max(0.12, opacity);
+    // Scale opacity between 0.08 and 0.95
+    const ratio = val / max;
+    const finalOpacity = Math.max(0.08, Math.min(0.95, ratio));
 
-    if (filter === 'active') {
-      return `rgba(34, 197, 94, ${finalOpacity})`; // Green Emerald
-    }
-    if (filter === 'pending') {
-      return `rgba(56, 189, 248, ${finalOpacity})`; // Blue Sky
-    }
-    if (filter === 'completed') {
-      return `rgba(148, 163, 184, ${finalOpacity})`; // Grey Slate
-    }
-
-    // For 'all', color based on dominant status
-    const maxVal = Math.max(cell.active, cell.pending, cell.completed);
-    if (maxVal === cell.active) {
-      return `rgba(34, 197, 94, ${finalOpacity})`;
-    }
-    if (maxVal === cell.pending) {
-      return `rgba(56, 189, 248, ${finalOpacity})`;
-    }
-    return `rgba(148, 163, 184, ${finalOpacity})`;
+    // Lấy 1 màu chủ đạo làm chủ đạo (Emerald Green matching J&T accent #10b981)
+    return `rgba(16, 185, 129, ${finalOpacity})`;
   };
 
   const handleMouseEnter = (cell: HeatCell, e: React.MouseEvent<HTMLDivElement>) => {
@@ -81,7 +71,7 @@ export default function HeatmapDashboard() {
   };
 
   return (
-    <div className="w-full h-full overflow-y-auto space-y-6 px-1 pt-2 pb-12 font-sans select-none text-white">
+    <div className="w-full h-full overflow-y-auto space-y-6 px-1 pt-2 pb-12 font-sans select-none text-white animate-fade-in">
       {/* Header card with glassmorphism */}
       <div className="table-container-card glass-card p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -103,9 +93,10 @@ export default function HeatmapDashboard() {
               className="w-full appearance-none bg-slate-900/60 border border-white/[0.08] hover:border-white/20 text-slate-200 text-xs px-3 py-2 pr-10 rounded-xl focus:outline-none cursor-pointer transition-colors shadow-lg"
             >
               <option value="all">Tất cả trạng thái</option>
-              <option value="active">Hoạt động</option>
-              <option value="pending">Chờ</option>
-              <option value="completed">Đã hoàn thành</option>
+              <option value="created">Created (Dự báo)</option>
+              <option value="pickup">Pickup Done (Đã lấy hàng)</option>
+              <option value="transporting">Transporting (Đang trung chuyển)</option>
+              <option value="inbound">Inbound (Nhập kho)</option>
             </select>
             <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -128,57 +119,26 @@ export default function HeatmapDashboard() {
           <div className="flex items-center gap-6 text-xs">
             {/* Color Gradient Legend */}
             <div className="flex items-center gap-2">
-              <span className="text-slate-500">Low Activity</span>
+              <span className="text-slate-500">Màu nhạt (Low)</span>
               <div 
                 className="w-24 h-2.5 rounded-full"
                 style={{
-                  background: statusFilter === 'active'
-                    ? 'linear-gradient(90deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 1))'
-                    : statusFilter === 'pending'
-                    ? 'linear-gradient(90deg, rgba(56, 189, 248, 0.1), rgba(56, 189, 248, 1))'
-                    : statusFilter === 'completed'
-                    ? 'linear-gradient(90deg, rgba(148, 163, 184, 0.1), rgba(148, 163, 184, 1))'
-                    : 'linear-gradient(90deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 1))'
+                  background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.95))'
                 }}
               />
-              <span className="text-slate-300">100 (Max)</span>
+              <span className="text-slate-300 font-bold">Màu đậm (High)</span>
             </div>
 
-            {/* Status indicators */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded bg-emerald-500" />
-                <span className="text-slate-400">Active</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded bg-sky-400" />
-                <span className="text-slate-400">Pending</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded bg-slate-400" />
-                <span className="text-slate-400">Completed</span>
-              </div>
+            {/* Stage legend info */}
+            <div className="flex items-center gap-2.5">
+              <div className="w-2 h-2 rounded bg-emerald-500" />
+              <span className="text-slate-400 text-[11px] font-bold">Chủ đạo: Emerald Green</span>
             </div>
           </div>
         </div>
 
         {/* Heatmap Grid Wrapper */}
         <div className="min-w-[960px] pb-4">
-          {/* Hours Header Row */}
-          <div className="grid grid-cols-[80px_repeat(24,_1fr)] gap-1 mb-2">
-            <div className="text-[10px] text-slate-500 font-bold uppercase select-none flex items-center justify-center">
-              Thứ / Giờ
-            </div>
-            {HOURS.map((hr, idx) => (
-              <div 
-                key={idx}
-                className="text-[9px] text-slate-400 font-medium text-center select-none py-1 hover:text-white transition-colors"
-              >
-                {hr.split(':')[0]}
-              </div>
-            ))}
-          </div>
-
           {/* Grid Rows for Days */}
           <div className="space-y-1">
             {DAYS.map((day, dIdx) => (
@@ -192,17 +152,16 @@ export default function HeatmapDashboard() {
                 {HOURS.map((_, hIdx) => {
                   const cell = heatmapData.find(
                     (item: any) => item.day === dIdx && item.hour === hIdx
-                  ) || { day: dIdx, hour: hIdx, active: 0, pending: 0, completed: 0 };
+                  ) || { day: dIdx, hour: hIdx, created: 0, pickup: 0, transporting: 0, inbound: 0 };
 
-                  const opacity = getCellOpacity(cell, statusFilter);
-                  const color = getCellColor(cell, statusFilter, opacity);
+                  const color = getCellColor(cell as any, statusFilter);
 
                   return (
                     <div
                       key={hIdx}
-                      onMouseEnter={(e) => handleMouseEnter(cell, e)}
+                      onMouseEnter={(e) => handleMouseEnter(cell as any, e)}
                       onMouseLeave={() => setHoveredCell(null)}
-                      className="h-8 rounded-md transition-all duration-150 cursor-crosshair border border-white/[0.01] hover:scale-[1.08] hover:border-white/20 hover:shadow-[0_0_8px_rgba(255,255,255,0.1)] relative"
+                      className="h-8 rounded-md transition-all duration-150 cursor-crosshair border border-white/[0.01] hover:scale-[1.08] hover:border-white/20 hover:shadow-[0_0_8px_rgba(16,185,129,0.35)] relative"
                       style={{
                         backgroundColor: color,
                       }}
@@ -212,9 +171,24 @@ export default function HeatmapDashboard() {
               </div>
             ))}
           </div>
+
+          {/* Hours Header Row - MOVED TO THE BOTTOM & FONT SIZE INCREASED */}
+          <div className="grid grid-cols-[80px_repeat(24,_1fr)] gap-1 mt-4 pt-2 border-t border-white/[0.04]">
+            <div className="text-xs text-slate-500 font-extrabold uppercase select-none flex items-center justify-end pr-3">
+              Giờ
+            </div>
+            {HOURS.map((hr, idx) => (
+              <div 
+                key={idx}
+                className="text-xs font-bold text-slate-300 text-center select-none py-1 hover:text-white transition-colors"
+              >
+                {hr.split(':')[0]}
+              </div>
+            ))}
+          </div>
           
           {/* Bottom Hour-Axis title */}
-          <div className="text-center text-xs text-slate-500 font-bold mt-4 tracking-wider">
+          <div className="text-center text-xs text-slate-500 font-bold mt-3 tracking-wider uppercase">
             Chuỗi giờ 0-23
           </div>
         </div>
@@ -223,7 +197,7 @@ export default function HeatmapDashboard() {
       {/* Floating Tooltip Component */}
       {hoveredCell && (
         <div
-          className="absolute z-50 pointer-events-none bg-[#090D16]/95 border border-white/[0.08] rounded-xl p-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md"
+          className="absolute z-50 pointer-events-none bg-[#090D16]/95 border border-emerald-500/20 rounded-xl p-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md"
           style={{
             left: `${hoveredCell.x}px`,
             top: `${hoveredCell.y}px`,
@@ -237,21 +211,25 @@ export default function HeatmapDashboard() {
           
           <div className="space-y-1 text-xs">
             <div className="flex justify-between gap-4">
-              <span className="text-slate-400">Hoạt động (Active):</span>
-              <span className="font-semibold text-emerald-400">{hoveredCell.active} đơn/h</span>
+              <span className="text-slate-400">Created (Dự báo):</span>
+              <span className="font-semibold text-slate-200">{hoveredCell.created} đơn/h</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-slate-400">Chờ (Pending):</span>
-              <span className="font-semibold text-sky-400">{hoveredCell.pending} đơn/h</span>
+              <span className="text-slate-400">Pickup Done (Đã lấy):</span>
+              <span className="font-semibold text-slate-200">{hoveredCell.pickup} đơn/h</span>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-slate-400">Đã xong (Completed):</span>
-              <span className="font-semibold text-slate-300">{hoveredCell.completed} đơn/h</span>
+              <span className="text-slate-400">Transporting (Trung chuyển):</span>
+              <span className="font-semibold text-slate-200">{hoveredCell.transporting} đơn/h</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-slate-400">Inbound (Nhập kho):</span>
+              <span className="font-semibold text-emerald-400 font-bold">{hoveredCell.inbound} đơn/h</span>
             </div>
             <div className="border-t border-white/[0.06] pt-1 mt-1 flex justify-between gap-4 font-bold">
               <span className="text-slate-200">Tổng sản lượng:</span>
-              <span className="text-white">
-                {Math.round(hoveredCell.active + hoveredCell.pending + hoveredCell.completed)} đơn/h
+              <span className="text-emerald-400 text-[13px]">
+                {Math.round(hoveredCell.created + hoveredCell.pickup + hoveredCell.transporting + hoveredCell.inbound)} đơn/h
               </span>
             </div>
           </div>

@@ -1174,7 +1174,7 @@ def export_heatmap_json():
     try:
         conn = sqlite3.connect(DB_FILE)
         df = pd.read_sql_query(
-            """SELECT inbound_scanDate, Arrival_time, outbound_scanDate 
+            """SELECT dispatchNetworkTime, Pickup_time, Arrival_time, inbound_scanDate 
                FROM shipments""",
             conn
         )
@@ -1184,56 +1184,64 @@ def export_heatmap_json():
             print("   ⚠️ Không có dữ liệu trong shipments để tính Heatmap.")
             return
 
-        # Convert columns to datetime
-        df['inbound_dt'] = pd.to_datetime(df['inbound_scanDate'], errors='coerce')
-        df['arrival_dt'] = pd.to_datetime(df['Arrival_time'], errors='coerce')
-        df['outbound_dt'] = pd.to_datetime(df['outbound_scanDate'], errors='coerce')
+        # Helper to parse dates
+        for col in ['dispatchNetworkTime', 'Pickup_time', 'Arrival_time', 'inbound_scanDate']:
+            df[col + '_dt'] = pd.to_datetime(df[col], errors='coerce')
 
-        # Count unique dates for each day of week to compute averages
+        # Count unique dates for each day of week for each event type to divide correctly
         unique_dates = {}
-        for col in ['inbound_dt', 'arrival_dt', 'outbound_dt']:
+        for col in ['dispatchNetworkTime_dt', 'Pickup_time_dt', 'Arrival_time_dt', 'inbound_scanDate_dt']:
             dates = df[col].dropna().dt.date
             for d in dates:
                 dow = d.weekday()
-                if dow not in unique_dates:
-                    unique_dates[dow] = set()
-                unique_dates[dow].add(d)
+                if (col, dow) not in unique_dates:
+                    unique_dates[(col, dow)] = set()
+                unique_dates[(col, dow)].add(d)
 
-        unique_days_count = {dow: len(dates) for dow, dates in unique_dates.items()}
+        unique_days_count = { (col, dow): len(dates) for (col, dow), dates in unique_dates.items() }
 
-        # Initialize grid: 7 days (0=Mon, ..., 6=Sun) x 24 hours
+        # Initialize grid: 7 days x 24 hours
         grid = {}
         for dow in range(7):
             for hr in range(24):
-                grid[(dow, hr)] = {'active': 0, 'pending': 0, 'completed': 0}
+                grid[(dow, hr)] = {'created': 0, 'pickup': 0, 'transporting': 0, 'inbound': 0}
 
-        # Populate active (inbound)
-        df_active = df[df['inbound_dt'].notna()]
-        for dow, hr in zip(df_active['inbound_dt'].dt.weekday, df_active['inbound_dt'].dt.hour):
-            grid[(dow, hr)]['active'] += 1
+        # Populate grid
+        # Created (dispatchNetworkTime)
+        df_fc = df[df['dispatchNetworkTime_dt'].notna()]
+        for dow, hr in zip(df_fc['dispatchNetworkTime_dt'].dt.weekday, df_fc['dispatchNetworkTime_dt'].dt.hour):
+            grid[(dow, hr)]['created'] += 1
 
-        # Populate pending (arrival)
-        df_pending = df[df['arrival_dt'].notna()]
-        for dow, hr in zip(df_pending['arrival_dt'].dt.weekday, df_pending['arrival_dt'].dt.hour):
-            grid[(dow, hr)]['pending'] += 1
+        # Pickup Done (Pickup_time)
+        df_pk = df[df['Pickup_time_dt'].notna()]
+        for dow, hr in zip(df_pk['Pickup_time_dt'].dt.weekday, df_pk['Pickup_time_dt'].dt.hour):
+            grid[(dow, hr)]['pickup'] += 1
 
-        # Populate completed (outbound)
-        df_completed = df[df['outbound_dt'].notna()]
-        for dow, hr in zip(df_completed['outbound_dt'].dt.weekday, df_completed['outbound_dt'].dt.hour):
-            grid[(dow, hr)]['completed'] += 1
+        # Transporting (Arrival_time)
+        df_arr = df[df['Arrival_time_dt'].notna()]
+        for dow, hr in zip(df_arr['Arrival_time_dt'].dt.weekday, df_arr['Arrival_time_dt'].dt.hour):
+            grid[(dow, hr)]['transporting'] += 1
 
-        # Convert to list and compute averages
+        # Inbound (inbound_scanDate)
+        df_ib = df[df['inbound_scanDate_dt'].notna()]
+        for dow, hr in zip(df_ib['inbound_scanDate_dt'].dt.weekday, df_ib['inbound_scanDate_dt'].dt.hour):
+            grid[(dow, hr)]['inbound'] += 1
+
+        # Normalize and convert to list
         heatmap_data = []
         for (dow, hr), counts in grid.items():
-            cnt = unique_days_count.get(dow, 1)
-            if cnt == 0:
-                cnt = 1
+            # helper to get divider
+            def get_cnt(col):
+                cnt = unique_days_count.get((col, dow), 1)
+                return cnt if cnt > 0 else 1
+
             heatmap_data.append({
                 'day': dow,
                 'hour': hr,
-                'active': round(counts['active'] / cnt, 1),
-                'pending': round(counts['pending'] / cnt, 1),
-                'completed': round(counts['completed'] / cnt, 1)
+                'created': round(counts['created'] / get_cnt('dispatchNetworkTime_dt'), 1),
+                'pickup': round(counts['pickup'] / get_cnt('Pickup_time_dt'), 1),
+                'transporting': round(counts['transporting'] / get_cnt('Arrival_time_dt'), 1),
+                'inbound': round(counts['inbound'] / get_cnt('inbound_scanDate_dt'), 1)
             })
 
         os.makedirs("data", exist_ok=True)
