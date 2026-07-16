@@ -966,7 +966,7 @@ export default function InboundDashboard({
                   <th>Bưu cục</th>
                   <th style={{ textAlign: 'right' }}>Xe</th>
                   <th style={{ textAlign: 'right' }}>Inbound</th>
-                  <th style={{ textAlign: 'right' }}>Trọng lượng</th>
+                  <th style={{ textAlign: 'right' }}>Trọng lượng (tấn)</th>
                   <th style={{ textAlign: 'right' }}>Tỉ lệ</th>
                 </tr>
               </thead>
@@ -977,7 +977,7 @@ export default function InboundDashboard({
                     <td className="table-buucuc" style={{ color: '#38bdf8' }}>TỔNG CỘNG</td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{totalSendingVehicles} xe</td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{totalSendingOrders.toLocaleString()}</td>
-                    <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{totalSendingWeight.toLocaleString()}</td>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{(totalSendingWeight / 1000).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>100%</td>
                   </tr>
                 )}
@@ -989,7 +989,7 @@ export default function InboundDashboard({
                       <span className="badge-count violet">{fc.vehicles} xe</span>
                     </td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#10b981', fontWeight: 600 }}>{fc.orders.toLocaleString()}</td>
-                    <td className="num-tabular" style={{ textAlign: 'right' }}>{fc.weight.toLocaleString()}</td>
+                    <td className="num-tabular" style={{ textAlign: 'right' }}>{(fc.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
                     <td className="num-tabular" style={{ textAlign: 'right', fontWeight: '600', color: '#38bdf8' }}>
                       {totalSendingOrders > 0 ? ((fc.orders / totalSendingOrders) * 100).toFixed(1) : '0.0'}%
                     </td>
