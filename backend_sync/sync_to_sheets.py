@@ -1326,7 +1326,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             arr_hour = safe_hour_format(arr_time)
 
             unique_rows.append({
-                'Bưu cục': row.get('pickNetworkName') or '',
+                'Bưu cục': 'BN HUB' if is_north else (row.get('pickNetworkName') or ''),
                 'Trạng thái': status,
                 'weight': float(row.get('weight') or 0.0),
                 'Ngày vận hành_Inbound': op_date_ib,
@@ -1493,7 +1493,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         df_arr_raw = pd.DataFrame()
 
     if not df_arr_raw.empty:
-        # Exclude other Northern post offices (keep BN HUB and Southern stations)
+        # Map all Northern post offices to BN HUB (instead of excluding them)
         NORTH_POST_OFFICES = {
             'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
             'HN THƯỜNG TÍN', 'HN HOÀNG MAI', 'HD KINH MÔN', 'HY VĂN GIANG', 'HN NGỌC HỒI',
@@ -1504,29 +1504,33 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             'HN PHÚ DIỄN', 'HN TÂY HỒ', 'HN VĨNH TUY', 'HN ỨNG HÒA'
         }
         pkn_series = df_arr_raw['Pickup_station'].astype(str).str.strip().str.upper()
-        is_other_north = (
-            (pkn_series.str.startswith('HN ') | 
-             pkn_series.str.startswith('HD ') | 
-             pkn_series.str.startswith('HY ') | 
-             pkn_series.isin(NORTH_POST_OFFICES)) & 
-            (pkn_series != 'BN HUB')
+        is_north = (
+            pkn_series.str.startswith('HN ') | 
+            pkn_series.str.startswith('HD ') | 
+            pkn_series.str.startswith('HY ') | 
+            pkn_series.isin(NORTH_POST_OFFICES) |
+            (pkn_series == 'BN HUB')
         )
-        df_arr_raw = df_arr_raw[~is_other_north].copy()
+        df_arr_raw.loc[is_north, 'Pickup_station'] = 'BN HUB'
+        
+        # Define scantime_dt first
+        df_arr_raw['scantime_dt'] = pd.to_datetime(df_arr_raw['Arrival_time'], errors='coerce')
         
         # Default operating date for all
         df_arr_raw['Ngày vận hành'] = df_arr_raw['Arrival_time'].apply(get_operating_date)
-        df_arr_raw['Scan Hour'] = pd.to_datetime(df_arr_raw['Arrival_time'], errors='coerce').dt.strftime('%Y-%m-%d %H:00')
+        df_arr_raw['Scan Hour'] = df_arr_raw['scantime_dt'].dt.strftime('%Y-%m-%d %H:00')
         
-        # Apply +36 hours shift logic for BN HUB
+        # Apply +36 hours shift logic for BN HUB in transit
         pkn_series = df_arr_raw['Pickup_station'].astype(str).str.strip().str.upper()
         ib_series = df_arr_raw['inbound_scanDate'].astype(str).str.strip().str.lower()
         is_not_ib = ib_series.isin(('', 'nan', 'none'))
         is_bn_hub = (pkn_series == 'BN HUB') & is_not_ib
         
         if is_bn_hub.any():
-            arr_dt_series = pd.to_datetime(df_arr_raw.loc[is_bn_hub, 'Arrival_time'], errors='coerce')
-            df_arr_raw.loc[is_bn_hub, 'Ngày vận hành'] = (arr_dt_series + pd.Timedelta(hours=36)).dt.strftime('%Y-%m-%d')
-            df_arr_raw.loc[is_bn_hub, 'Scan Hour'] = (arr_dt_series + pd.Timedelta(hours=36)).dt.strftime('%Y-%m-%d %H:00')
+            shifted_dts = df_arr_raw.loc[is_bn_hub, 'scantime_dt'] + pd.Timedelta(hours=36)
+            df_arr_raw.loc[is_bn_hub, 'Ngày vận hành'] = shifted_dts.dt.strftime('%Y-%m-%d')
+            df_arr_raw.loc[is_bn_hub, 'Scan Hour'] = shifted_dts.dt.strftime('%Y-%m-%d %H:00')
+            df_arr_raw.loc[is_bn_hub, 'scantime_dt'] = shifted_dts
             
         # Only keep records of the current operating day for Southern, or keep BN HUB records
         pkn_clean = df_arr_raw['Pickup_station'].astype(str).str.strip().str.upper()
@@ -1539,7 +1543,6 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         df_arr_raw['Chưa đến Hub'] = 1 - df_arr_raw['Đã đến Hub']
         
         try:
-            df_arr_raw['scantime_dt'] = pd.to_datetime(df_arr_raw['Arrival_time'], errors='coerce')
             df_pivot = df_arr_raw.groupby(['Ngày vận hành', 'Pickup_station', 'Scan Hour']).agg(
                 **{
                     'Tổng số đơn':  ('waybillNo', 'size'),
@@ -2857,14 +2860,13 @@ def run_once(session, token_mgr, rebuild_days=None):
     def calc_fc_op_date(row):
         fc_time = row.get('dispatchNetworkTime')
         if not fc_time or str(fc_time).strip() in ('', 'nan', 'None'):
-            if row.get('status_order') == 'Forecast':
-                fc_time = row.get('Pickup_time')
+            fc_time = row.get('Pickup_time')
         return get_op_date_clean(fc_time)
         
     df['Ngày vận hành_Forecast'] = df.apply(calc_fc_op_date, axis=1)
     
     def calc_pk_op_date(row):
-        if row.get('status_order') == 'Forecast':
+        if row.get('status_order') == 'Đã điều phối bưu cục':
             return ""
         return get_op_date_clean(row.get('Pickup_time'))
         
