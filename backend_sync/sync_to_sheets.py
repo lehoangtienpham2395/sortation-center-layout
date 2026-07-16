@@ -1169,6 +1169,81 @@ def update_inventory_sheet(ss, master_chutes, inventory_volumes, current_date_st
             print(f"   ⚠️ Lỗi ghi sheet Inventory: {e}")
 
 
+def export_heatmap_json():
+    print("\n📊 Bắt đầu tính toán và xuất dữ liệu Heatmap...")
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        df = pd.read_sql_query(
+            """SELECT inbound_scanDate, Arrival_time, outbound_scanDate 
+               FROM shipments""",
+            conn
+        )
+        conn.close()
+
+        if df.empty:
+            print("   ⚠️ Không có dữ liệu trong shipments để tính Heatmap.")
+            return
+
+        # Convert columns to datetime
+        df['inbound_dt'] = pd.to_datetime(df['inbound_scanDate'], errors='coerce')
+        df['arrival_dt'] = pd.to_datetime(df['Arrival_time'], errors='coerce')
+        df['outbound_dt'] = pd.to_datetime(df['outbound_scanDate'], errors='coerce')
+
+        # Count unique dates for each day of week to compute averages
+        unique_dates = {}
+        for col in ['inbound_dt', 'arrival_dt', 'outbound_dt']:
+            dates = df[col].dropna().dt.date
+            for d in dates:
+                dow = d.weekday()
+                if dow not in unique_dates:
+                    unique_dates[dow] = set()
+                unique_dates[dow].add(d)
+
+        unique_days_count = {dow: len(dates) for dow, dates in unique_dates.items()}
+
+        # Initialize grid: 7 days (0=Mon, ..., 6=Sun) x 24 hours
+        grid = {}
+        for dow in range(7):
+            for hr in range(24):
+                grid[(dow, hr)] = {'active': 0, 'pending': 0, 'completed': 0}
+
+        # Populate active (inbound)
+        df_active = df[df['inbound_dt'].notna()]
+        for dow, hr in zip(df_active['inbound_dt'].dt.weekday, df_active['inbound_dt'].dt.hour):
+            grid[(dow, hr)]['active'] += 1
+
+        # Populate pending (arrival)
+        df_pending = df[df['arrival_dt'].notna()]
+        for dow, hr in zip(df_pending['arrival_dt'].dt.weekday, df_pending['arrival_dt'].dt.hour):
+            grid[(dow, hr)]['pending'] += 1
+
+        # Populate completed (outbound)
+        df_completed = df[df['outbound_dt'].notna()]
+        for dow, hr in zip(df_completed['outbound_dt'].dt.weekday, df_completed['outbound_dt'].dt.hour):
+            grid[(dow, hr)]['completed'] += 1
+
+        # Convert to list and compute averages
+        heatmap_data = []
+        for (dow, hr), counts in grid.items():
+            cnt = unique_days_count.get(dow, 1)
+            if cnt == 0:
+                cnt = 1
+            heatmap_data.append({
+                'day': dow,
+                'hour': hr,
+                'active': round(counts['active'] / cnt, 1),
+                'pending': round(counts['pending'] / cnt, 1),
+                'completed': round(counts['completed'] / cnt, 1)
+            })
+
+        os.makedirs("data", exist_ok=True)
+        with open("data/heatmap.json", "w", encoding="utf-8") as f:
+            json.dump(heatmap_data, f, ensure_ascii=False, indent=2)
+        print(f"   💾 Đã xuất file 'data/heatmap.json' với {len(heatmap_data)} dòng.")
+    except Exception as e_heat:
+        print(f"   ⚠️ Lỗi xuất dữ liệu Heatmap: {e_heat}")
+
+
 def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
     print("\n📥 Bắt đầu cập nhật dữ liệu Inbound gom nhóm theo trạng thái & khùng giờ lên Google Sheets...")
     
@@ -3002,6 +3077,8 @@ def run_once(session, token_mgr, rebuild_days=None):
     # Data chính (100k rows) đã được push lên Github — không cần ghi vào Sheet nữa
     update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound, run_backlog_inv, now.strftime('%Y-%m-%d'), results, d_buucuc, session, token_mgr, fh, fp)
     
+    export_heatmap_json()
+
     # Write last successful run timestamp
     try:
         with open(last_run_file, "w") as f:
