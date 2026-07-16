@@ -142,9 +142,9 @@ export default function InboundDashboard({
   const getDateForecast = (d: any) => d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
   const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && getDateInbound(d) === activeDate);
-  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && getDateForecast(d) <= activeDate);
-  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && getDateForecast(d) <= activeDate);
-  const filteredTransporting = inboundData.filter(d => getStatus(d) === 'Transporting' && getDateForecast(d) <= activeDate);
+  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && getDateForecast(d) <= activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
+  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && getDateForecast(d) <= activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
+  const filteredTransporting = inboundData.filter(d => getStatus(d) === 'Transporting' && getDateForecast(d) <= activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
   const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
 
   const getLinehaulOperatingDate = (row: any) => {
@@ -201,12 +201,19 @@ export default function InboundDashboard({
     const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     if (!fcDate) return;
 
+    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
+    const status = d['Trng thi'] || d['Trạng thái'];
+
+    // Bỏ BN HUB đang trên đường về (chưa Inbound) khỏi Forecast
+    if (station === 'BN HUB' && status !== 'Inbound') {
+      return;
+    }
+
     const vol = parseInt(d['Volume'], 10) || 0;
 
     if (fcDate === activeDate) {
       forecastRotHomNay += vol;
     } else if (fcDate < activeDate) {
-      const status = d['Trng thi'] || d['Trạng thái'];
       const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
       // Nếu chưa nhập kho, hoặc nhập kho từ ngày activeDate trở đi -> đơn này vẫn là backlog chờ xử lý vào ngày activeDate
       if (status !== 'Inbound' || ibDate >= activeDate) {
