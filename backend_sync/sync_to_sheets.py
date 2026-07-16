@@ -1231,7 +1231,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         conn = sqlite3.connect(DB_FILE)
         df_ship = pd.read_sql_query("""
             SELECT pickNetworkName, status_order, weight, 
-                   inbound_scanDate, dispatchNetworkTime, Pickup_time, Arrival_time
+                   inbound_scanDate, dispatchNetworkTime, Pickup_time, Arrival_time, inbound_network
             FROM shipments
             WHERE is_active = 1
                OR (time_ref != '' AND time_ref >= date('now', '+7 hours', '-5 days'))
@@ -1279,13 +1279,14 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
 
                 
             op_date_ib = get_operating_date(ib_time) if ib_time else ""
-            fc_time_temp = fc_time if fc_time else pk_time
+            fc_time_temp = fc_time if fc_time else (pk_time if pk_time else (arr_time if arr_time else ib_time))
             op_date_fc = get_operating_date(fc_time_temp) if fc_time_temp else ""
             op_date_pk = get_operating_date(pk_time) if pk_time else ""
             op_date_arr = get_operating_date(arr_time) if arr_time else ""
             
             # Apply +36 hours shift for northern shipments in inbound.json
-            pkn_upper = (row.get('pickNetworkName') or '').strip().upper()
+            pkn = (row.get('pickNetworkName') or row.get('inbound_network') or '').strip()
+            pkn_upper = pkn.upper()
             NORTH_POST_OFFICES = {
                 'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
                 'HN THƯỜNG TÍN', 'HN HOÀNG MAI', 'HD KINH MÔN', 'HY VĂN GIANG', 'HN NGỌC HỒI',
@@ -1326,7 +1327,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             arr_hour = safe_hour_format(arr_time)
 
             unique_rows.append({
-                'Bưu cục': 'BN HUB' if is_north else (row.get('pickNetworkName') or ''),
+                'Bưu cục': 'BN HUB' if is_north else pkn,
                 'Trạng thái': status,
                 'weight': float(row.get('weight') or 0.0),
                 'Ngày vận hành_Inbound': op_date_ib,
@@ -1472,7 +1473,17 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
 
         df_lh = df_lh_raw.groupby('traceSubCode', as_index=False).apply(aggregate_lh)
         df_lh.rename(columns={'traceSubCode': 'Phiếu nhiệm vụ con'}, inplace=True)
-        df_lh = df_lh[df_lh['nextNetworkName'].astype(str).str.strip() != '']
+        # Lọc bỏ các xe chưa thực tế xuống hàng tại HUB (chưa có unloadingStartTime hoặc unloadingEndTime)
+        def is_valid_val(v):
+            if v is None or pd.isna(v):
+                return False
+            v_str = str(v).strip().lower()
+            return v_str not in ('', 'none', 'nan', 'null')
+            
+        df_lh = df_lh[
+            df_lh['nextNetworkName'].apply(is_valid_val) &
+            (df_lh['unloadingStartTime'].apply(is_valid_val) | df_lh['unloadingEndTime'].apply(is_valid_val))
+        ]
 
     write_sheet("Linehaul", df_lh, ["Phiếu nhiệm vụ", "Phiếu nhiệm vụ con", "sendTime", "loadingEndTime", "nextNetworkName", "unloadingStartTime", "unloadingEndTime", "unloadingBillPiece", "unloadingWeight", "billPiece", "weight", "Ngày vận hành"])
 
