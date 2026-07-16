@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import heatmapData from '../data/heatmap.json';
+import staticHeatmapData from '../data/heatmap.json';
 import { Filter, Layers, Sparkles, Package, Truck, Inbox, ExternalLink } from 'lucide-react';
 
 interface HeatCell {
@@ -17,9 +17,13 @@ interface HeatmapDashboardProps {
   loading?: boolean;
   fetchAndUpdateData?: () => void;
   lastUpdate?: string;
+  heatmapData?: any[];
 }
 
-export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpdate }: HeatmapDashboardProps) {
+export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpdate, heatmapData: dynamicHeatmapData }: HeatmapDashboardProps) {
+  const heatmapData = useMemo(() => {
+    return dynamicHeatmapData && dynamicHeatmapData.length > 0 ? dynamicHeatmapData : staticHeatmapData;
+  }, [dynamicHeatmapData]);
   // Checkbox state: active selected statuses
   const allOptions = ['created', 'pickup', 'transporting', 'inbound', 'outbound'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(allOptions);

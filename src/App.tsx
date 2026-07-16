@@ -216,6 +216,9 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
     if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
     const data = await response.json();
     if (!Array.isArray(data)) return [];
+    if (sheetType.toLowerCase() === 'heatmap') {
+      return data;
+    }
 
     const rows: SheetRow[] = [];
 
@@ -365,6 +368,7 @@ export default function App() {
 
   // State variables for historic date/type filter
   const [rawSheetRows, setRawSheetRows] = useState<SheetRow[]>([]);
+  const [heatmapRows, setHeatmapRows] = useState<any[]>([]);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Outbound');
@@ -429,7 +433,7 @@ export default function App() {
     setLoading(true);
     const [
       outboundRows, backlogRows, inventoryRows,
-      ibRows, lhRows, arrivalRows
+      ibRows, lhRows, arrivalRows, heatmapData
     ] = await Promise.all([
       fetchSheetData('Outbound'),
       fetchSheetData('Backlog'),
@@ -437,11 +441,15 @@ export default function App() {
       fetchInboundSheetData('Inbound'),
       fetchInboundSheetData('Linehaul'),
       fetchInboundSheetData('Arrival'),
+      fetchSheetData('Heatmap'),
     ]);
 
     setInboundData(ibRows ?? []);
     setLinehaulData(lhRows ?? []);
     setArrivalData(arrivalRows ?? []);
+    if (heatmapData) {
+      setHeatmapRows(heatmapData);
+    }
 
     if (ibRows && ibRows.length > 0) {
       const ibDates = Array.from(
@@ -1985,6 +1993,7 @@ export default function App() {
                 loading={loading}
                 fetchAndUpdateData={fetchAndUpdateData}
                 lastUpdate={lastUpdate}
+                heatmapData={heatmapRows}
               />
             ) : (
               <InboundDashboard
@@ -2238,6 +2247,7 @@ export default function App() {
                   loading={loading}
                   fetchAndUpdateData={fetchAndUpdateData}
                   lastUpdate={lastUpdate}
+                  heatmapData={heatmapRows}
                 />
               </div>
             )}
