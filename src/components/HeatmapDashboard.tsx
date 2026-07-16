@@ -128,7 +128,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
   };
 
   return (
-    <div className="w-full h-full overflow-y-auto space-y-6 px-4 pt-2 pb-12 font-sans select-none text-white animate-fade-in max-w-7xl mx-auto">
+    <div className="w-full h-full overflow-y-auto space-y-3 px-4 pt-2 pb-12 font-sans select-none text-white animate-fade-in max-w-7xl mx-auto">
       {/* 1. Header Control Block - Aligned with Inbound Dashboard style */}
       <header className="dashboard-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', minHeight: '100px' }}>
         
@@ -183,7 +183,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
       </header>
 
       {/* 2. Filter Bar - Styled like Layout Master control panels */}
-      <div className="jt-glowing-card p-4 flex flex-col md:flex-row justify-between items-center gap-4 mt-6">
+      <div className="jt-glowing-card p-4 flex flex-col md:flex-row justify-between items-center gap-4">
         <div className="flex items-center gap-2.5 text-xs text-slate-400">
           <Info size={14} className="text-emerald-400" />
           <span>Di chuột vào từng ô để xem chi tiết sản lượng của ngày đó theo trạng thái lọc</span>
@@ -217,7 +217,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
       </div>
 
       {/* 3. Main Heatmap block - Styled like Layout Master tables inside jt-glowing-card */}
-      <div className="jt-glowing-card p-6 flex flex-col h-[650px] relative">
+      <div className="jt-glowing-card p-6 relative">
         {/* Legends Row */}
         <div className="flex flex-wrap justify-between items-center gap-4 mb-4 border-b border-white/[0.06] pb-4 flex-shrink-0">
           <div className="flex items-center gap-6 text-xs">
@@ -240,8 +240,8 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
           </div>
         </div>
 
-        {/* Heatmap Grid Wrapper with internal scroll */}
-        <div className="overflow-auto flex-1 min-w-full scrollbar-thin">
+        {/* Heatmap Grid Wrapper with horizontal scroll */}
+        <div className="overflow-x-auto min-w-full scrollbar-thin">
           <div className="min-w-[960px] pb-4 relative">
             {/* Hours Header Row - STICKY AT THE TOP with premium background matching card */}
             <div className="grid grid-cols-[80px_repeat(24,_1fr)] gap-1 sticky top-0 z-30 bg-[#16181e]/95 backdrop-blur-md py-3 mb-3 border-b border-white/[0.06]">
