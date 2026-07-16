@@ -1418,7 +1418,7 @@ export default function App() {
                 {[
                   { id: 'master', label: 'Layout Master', desc: 'Toàn bộ thông tin tổng thể', icon: LayoutDashboard, color: '#4F8CFF', active: currentView === 'master', onClick: () => setCurrentView('master') },
                   { id: 'inbound', label: 'Inbound', desc: 'Thống kê chi tiết luồng nhập', icon: Inbox, color: '#4F8CFF', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
-                  { id: 'heatmap', label: 'Biểu đồ nhiệt', desc: 'Lưu lượng hoạt động hàng tuần', icon: Calendar, color: '#10B981', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
+                  { id: 'heatmap', label: 'Heatmap', desc: 'Lưu lượng hoạt động theo giờ', icon: Calendar, color: '#10B981', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
                 ].map(item => {
                   const Icon = item.icon;
                   return (
@@ -2256,7 +2256,7 @@ export default function App() {
             </div>
             <div className={`mobile-nav-item ${activeTab === 'heatmap' ? 'active' : ''}`} onClick={() => setActiveTab('heatmap')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              <span>Nhiệt</span>
+              <span>Heatmap</span>
             </div>
             <div className={`mobile-nav-item ${activeTab === 'top10' ? 'active' : ''}`} onClick={() => setActiveTab('top10')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>

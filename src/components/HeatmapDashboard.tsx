@@ -167,11 +167,11 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
 
   return (
     <div className="w-full h-full overflow-y-auto px-4 pt-2 pb-12 font-sans select-none text-white animate-fade-in max-w-7xl mx-auto flex flex-col" style={{ gap: '10px' }}>
-      {/* 1. Header Control Block - Aligned with Inbound Dashboard style */}
-      <header className="dashboard-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', minHeight: '100px' }}>
+      {/* 1. Header Control Block - Responsive layout matching Inbound Dashboard */}
+      <header className="dashboard-header flex flex-col md:flex-row items-center justify-between gap-4 relative" style={{ padding: '14px 24px', minHeight: '100px' }}>
         
         {/* LEFT: Sync Button + Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
+        <div className="flex items-center gap-3.5 w-full md:w-auto justify-between md:justify-start">
           {fetchAndUpdateData && (
             <button
               className="google-sync-btn"
@@ -186,18 +186,18 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
           <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '80px', borderRadius: '10px', display: 'block' }} />
         </div>
 
-        {/* CENTER: Title — absolute center of header */}
-        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', pointerEvents: 'none' }}>
-          <h1 style={{ fontSize: '36px', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', lineHeight: '1.1', textShadow: '0 2px 20px rgba(16, 185, 129, 0.5)', margin: 0, whiteSpace: 'nowrap' }}>
+        {/* CENTER: Title — absolute center of header on desktop, stacked on mobile */}
+        <div className="text-center md:absolute md:left-1/2 md:-translate-x-1/2 pointer-events-none my-2 md:my-0 w-full md:w-auto">
+          <h1 className="text-xl md:text-3xl lg:text-[36px] font-black tracking-tight leading-tight text-white" style={{ textShadow: '0 2px 20px rgba(16, 185, 129, 0.5)' }}>
             HCM HUB Status Heatmap
           </h1>
-          <p className="subtitle text-xs text-slate-400" style={{ marginTop: '4px', textAlign: 'center', display: 'block' }}>
+          <p className="subtitle text-[10px] md:text-xs text-slate-400 mt-1">
             Hourly operational volume heatmap by operating date
           </p>
         </div>
 
         {/* RIGHT: Status Update */}
-        <div className="header-right" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+        <div className="header-right w-full md:w-auto flex justify-end md:block" style={{ flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ 
               fontSize: '11px', 
