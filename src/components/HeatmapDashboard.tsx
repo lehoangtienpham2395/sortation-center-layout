@@ -26,7 +26,10 @@ export default function HeatmapDashboard() {
 
   const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const DAYS_FULL = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
-  const HOURS = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+  const HOURS = [
+    '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
+    '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00', '05:00'
+  ];
 
   // Max values for normalization
   const maxCreated = useMemo(() => Math.max(...heatmapData.map((d: any) => d.created), 1), []);
@@ -149,10 +152,11 @@ export default function HeatmapDashboard() {
                 </div>
 
                 {/* 24 Cells */}
-                {HOURS.map((_, hIdx) => {
+                {HOURS.map((hr, hIdx) => {
+                  const hourNum = parseInt(hr.split(':')[0], 10);
                   const cell = heatmapData.find(
-                    (item: any) => item.day === dIdx && item.hour === hIdx
-                  ) || { day: dIdx, hour: hIdx, created: 0, pickup: 0, transporting: 0, inbound: 0 };
+                    (item: any) => item.day === dIdx && item.hour === hourNum
+                  ) || { day: dIdx, hour: hourNum, created: 0, pickup: 0, transporting: 0, inbound: 0 };
 
                   const color = getCellColor(cell as any, statusFilter);
 
@@ -189,7 +193,7 @@ export default function HeatmapDashboard() {
           
           {/* Bottom Hour-Axis title */}
           <div className="text-center text-xs text-slate-500 font-bold mt-3 tracking-wider uppercase">
-            Chuỗi giờ 0-23
+            Chuỗi giờ ca vận hành (06:00 - 05:00)
           </div>
         </div>
       </div>

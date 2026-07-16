@@ -1184,19 +1184,24 @@ def export_heatmap_json():
             print("   ⚠️ Không có dữ liệu trong shipments để tính Heatmap.")
             return
 
-        # Helper to parse dates
+        # Helper to parse datetime
         for col in ['dispatchNetworkTime', 'Pickup_time', 'Arrival_time', 'inbound_scanDate']:
             df[col + '_dt'] = pd.to_datetime(df[col], errors='coerce')
 
-        # Count unique dates for each day of week for each event type to divide correctly
+        # Count unique operating dates for each day of week for each event type to divide correctly
         unique_dates = {}
         for col in ['dispatchNetworkTime_dt', 'Pickup_time_dt', 'Arrival_time_dt', 'inbound_scanDate_dt']:
-            dates = df[col].dropna().dt.date
-            for d in dates:
-                dow = d.weekday()
+            dates = df[col].dropna()
+            for dt in dates:
+                # calculate operating date
+                if dt.hour < 6:
+                    op_date = (dt - pd.Timedelta(days=1)).date()
+                else:
+                    op_date = dt.date()
+                dow = op_date.weekday()
                 if (col, dow) not in unique_dates:
                     unique_dates[(col, dow)] = set()
-                unique_dates[(col, dow)].add(d)
+                unique_dates[(col, dow)].add(op_date)
 
         unique_days_count = { (col, dow): len(dates) for (col, dow), dates in unique_dates.items() }
 
@@ -1206,31 +1211,25 @@ def export_heatmap_json():
             for hr in range(24):
                 grid[(dow, hr)] = {'created': 0, 'pickup': 0, 'transporting': 0, 'inbound': 0}
 
-        # Populate grid
-        # Created (dispatchNetworkTime)
-        df_fc = df[df['dispatchNetworkTime_dt'].notna()]
-        for dow, hr in zip(df_fc['dispatchNetworkTime_dt'].dt.weekday, df_fc['dispatchNetworkTime_dt'].dt.hour):
-            grid[(dow, hr)]['created'] += 1
-
-        # Pickup Done (Pickup_time)
-        df_pk = df[df['Pickup_time_dt'].notna()]
-        for dow, hr in zip(df_pk['Pickup_time_dt'].dt.weekday, df_pk['Pickup_time_dt'].dt.hour):
-            grid[(dow, hr)]['pickup'] += 1
-
-        # Transporting (Arrival_time)
-        df_arr = df[df['Arrival_time_dt'].notna()]
-        for dow, hr in zip(df_arr['Arrival_time_dt'].dt.weekday, df_arr['Arrival_time_dt'].dt.hour):
-            grid[(dow, hr)]['transporting'] += 1
-
-        # Inbound (inbound_scanDate)
-        df_ib = df[df['inbound_scanDate_dt'].notna()]
-        for dow, hr in zip(df_ib['inbound_scanDate_dt'].dt.weekday, df_ib['inbound_scanDate_dt'].dt.hour):
-            grid[(dow, hr)]['inbound'] += 1
+        # Populate grid using operating weekday and hour
+        for col, key in [
+            ('dispatchNetworkTime_dt', 'created'),
+            ('Pickup_time_dt', 'pickup'),
+            ('Arrival_time_dt', 'transporting'),
+            ('inbound_scanDate_dt', 'inbound')
+        ]:
+            df_valid = df[df[col].notna()]
+            for dt in df_valid[col]:
+                if dt.hour < 6:
+                    op_dow = (dt - pd.Timedelta(days=1)).weekday()
+                else:
+                    op_dow = dt.weekday()
+                hr = dt.hour
+                grid[(op_dow, hr)][key] += 1
 
         # Normalize and convert to list
         heatmap_data = []
         for (dow, hr), counts in grid.items():
-            # helper to get divider
             def get_cnt(col):
                 cnt = unique_days_count.get((col, dow), 1)
                 return cnt if cnt > 0 else 1
