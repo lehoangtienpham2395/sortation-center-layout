@@ -358,7 +358,7 @@ def auth_post(session, url, token_mgr, base_headers, *,
             time.sleep(BACKOFF_BASE * attempt)
             continue
 
-        if r.status_code == 401 and not refreshed:
+        if (r.status_code == 401 or r.status_code == 405) and not refreshed:
             token_mgr.refresh(token)
             refreshed = True
             attempt -= 1
@@ -397,7 +397,7 @@ def auth_get(session, url, token_mgr, base_headers, params=None, label=''):
             wait = BACKOFF_BASE * attempt
             time.sleep(wait)
             continue
-        if r.status_code == 401 and not refreshed:
+        if (r.status_code == 401 or r.status_code == 405) and not refreshed:
             token_mgr.refresh(token)
             refreshed = True
             attempt  -= 1
@@ -1543,10 +1543,21 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             df_arr_raw.loc[is_bn_hub, 'Scan Hour'] = shifted_dts.dt.strftime('%Y-%m-%d %H:00')
             df_arr_raw.loc[is_bn_hub, 'scantime_dt'] = shifted_dts
             
-        # Only keep records of the current operating day for Southern, or keep BN HUB records
+        # Keep records of the last 3 days of operating window for all stations (including future shifted BN HUB scans)
+        try:
+            op_dt = datetime.strptime(current_op_date, '%Y-%m-%d')
+            rolling_dates = [
+                (op_dt + timedelta(days=1)).strftime('%Y-%m-%d'),  # tomorrow (shifted BN scans)
+                current_op_date,                                   # today
+                (op_dt - timedelta(days=1)).strftime('%Y-%m-%d'),  # yesterday
+                (op_dt - timedelta(days=2)).strftime('%Y-%m-%d')   # day before
+            ]
+        except Exception:
+            rolling_dates = [current_op_date]
+
         pkn_clean = df_arr_raw['Pickup_station'].astype(str).str.strip().str.upper()
         df_arr_raw = df_arr_raw[
-            (df_arr_raw['Ngày vận hành'] == current_op_date) | 
+            df_arr_raw['Ngày vận hành'].isin(rolling_dates) | 
             (pkn_clean == 'BN HUB')
         ]
         
@@ -3467,6 +3478,27 @@ def run_realtime_sync(session, token_mgr):
 
 
 def main():
+    # ── Singleton lock để tránh chạy chồng chéo gây xung đột token (405) ──
+    lock_file = os.path.join(BASE_DIR, "sync.lock")
+    try:
+        if os.name == 'nt':
+            import msvcrt
+            lock_fp = open(lock_file, 'w')
+            try:
+                msvcrt.locking(lock_fp.fileno(), msvcrt.LK_NBLCK, 1)
+            except IOError:
+                print("❌ Lỗi: Script đang chạy ở một tiến trình khác (Windows lock). Thoát để tránh xung đột token (405).")
+                sys.exit(0)
+        else:
+            import fcntl
+            lock_fp = open(lock_file, 'w')
+            try:
+                fcntl.flock(lock_fp, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except IOError:
+                print("❌ Lỗi: Script đang chạy ở một tiến trình khác (Unix lock). Thoát để tránh xung đột token (405).")
+                sys.exit(0)
+    except Exception:
+        pass
 
     parser = argparse.ArgumentParser(description="J&T Cargo HCM HUB — Unified Sync + Giam sat phat hang")
     parser.add_argument("--rebuild", type=int, help="Rebuild data for the last N operating days")

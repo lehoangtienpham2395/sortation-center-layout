@@ -102,7 +102,6 @@ export default function InboundDashboard({
 }: InboundDashboardProps) {
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
-  const [includeBnHubInTrend, setIncludeBnHubInTrend] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<any | null>(null);
 
@@ -270,7 +269,7 @@ export default function InboundDashboard({
   // 1. Transporting hourly: dùng Scan Hour từ Arrival → giờ xe ĐẾN HUB và quét Arrival
   filteredArrival.forEach(d => {
     const station = (d['Pickup_station'] || '').trim().toUpperCase();
-    if (!includeBnHubInTrend && station === 'BN HUB') {
+    if (station === 'BN HUB') {
       return;
     }
     const scanHourStr = d['Scan Hour'] || d['Scan_Hour'] || '';
@@ -288,7 +287,7 @@ export default function InboundDashboard({
   // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast khớp với activeDate (không phân biệt trạng thái hiện tại)
   inboundData.filter(d => (d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast']) === activeDate).forEach(d => {
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    if (!includeBnHubInTrend && station === 'BN HUB') {
+    if (station === 'BN HUB') {
       return;
     }
     const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
@@ -311,7 +310,7 @@ export default function InboundDashboard({
   // 3. Pickup Time (Shipper đã lấy): Hiển thị tất cả đơn có Ngày vận hành_Pickup khớp với activeDate (không phân biệt trạng thái hiện tại)
   inboundData.filter(d => (d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup']) === activeDate).forEach(d => {
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    if (!includeBnHubInTrend && station === 'BN HUB') {
+    if (station === 'BN HUB') {
       return;
     }
     const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
@@ -331,7 +330,7 @@ export default function InboundDashboard({
   // 4. Inbound (Nhập kho HUB): Hiển thị các đơn nhập kho trong ngày activeDate
   filteredInbound.forEach(d => {
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    if (!includeBnHubInTrend && station === 'BN HUB') {
+    if (station === 'BN HUB') {
       return;
     }
     if ((d['Trng thi'] || d['Trạng thái']) === 'Inbound') {
@@ -636,7 +635,7 @@ export default function InboundDashboard({
         });
       }
     }
-  }, [activeDate, inboundData, linehaulData, totalOrders, totalInTransitOrders, pendingOrders, forecastTrendData, arrivedTrendData, pickupTrendData, inboundTrendData, includeBnHubInTrend]);
+  }, [activeDate, inboundData, linehaulData, totalOrders, totalInTransitOrders, pendingOrders, forecastTrendData, arrivedTrendData, pickupTrendData, inboundTrendData]);
 
   const toggleDropdown = () => setDateDropdownOpen(!dateDropdownOpen);
   const selectPreset = (preset: 'today' | 'yesterday') => {
@@ -813,19 +812,8 @@ export default function InboundDashboard({
       <section className="charts-grid">
         {/* Line Chart */}
         <div className="chart-container-card dual-line-wrapper">
-          <div className="chart-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <h2>Hourly Processing Trend</h2>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#9aa7c2', cursor: 'pointer', userSelect: 'none' }}>
-                <input 
-                  type="checkbox" 
-                  checked={includeBnHubInTrend} 
-                  onChange={(e) => setIncludeBnHubInTrend(e.target.checked)}
-                  style={{ accentColor: '#38bdf8', cursor: 'pointer' }}
-                />
-                Bao gồm BN HUB
-              </label>
-            </div>
+          <div className="chart-header">
+            <h2>Hourly Processing Trend</h2>
             <div className="chart-legend-custom">
               <span className="legend-item"><span className="dot orange"></span>Created</span>
               <span className="legend-item"><span className="dot blue"></span>Pickup Volume</span>
