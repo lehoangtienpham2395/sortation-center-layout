@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import heatmapData from '../data/heatmap.json';
-import { Filter, Info } from 'lucide-react';
+import { Filter, Layers, Sparkles, Package, Truck, Inbox, ExternalLink, ChevronDown } from 'lucide-react';
 
 interface HeatCell {
   date: string;
@@ -21,6 +21,7 @@ interface HeatmapDashboardProps {
 
 export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpdate }: HeatmapDashboardProps) {
   const [statusFilter, setStatusFilter] = useState<'all' | 'created' | 'pickup' | 'transporting' | 'inbound' | 'outbound'>('all');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<{
     date: string;
     dayName: string;
@@ -47,6 +48,29 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
     Fri: 'Thứ 6',
     Sat: 'Thứ 7',
     Sun: 'Chủ nhật'
+  };
+
+  const filterOptions = [
+    { value: 'all', label: 'Tất cả trạng thái (Total)', icon: 'Layers' },
+    { value: 'created', label: 'Created (Dự báo)', icon: 'Sparkles' },
+    { value: 'pickup', label: 'Pickup Done (Đã lấy hàng)', icon: 'Package' },
+    { value: 'transporting', label: 'Transporting (Đang trung chuyển)', icon: 'Truck' },
+    { value: 'inbound', label: 'Inbound (Nhập kho)', icon: 'Inbox' },
+    { value: 'outbound', label: 'Outbound (Xuất kho)', icon: 'ExternalLink' }
+  ];
+
+  const selectedOption = useMemo(() => {
+    return filterOptions.find(opt => opt.value === statusFilter) || filterOptions[0];
+  }, [statusFilter]);
+
+  const renderOptionIcon = (iconName: string, size = 16, className = "") => {
+    if (iconName === 'Layers') return <Layers size={size} className={className} />;
+    if (iconName === 'Sparkles') return <Sparkles size={size} className={className} />;
+    if (iconName === 'Package') return <Package size={size} className={className} />;
+    if (iconName === 'Truck') return <Truck size={size} className={className} />;
+    if (iconName === 'Inbox') return <Inbox size={size} className={className} />;
+    if (iconName === 'ExternalLink') return <ExternalLink size={size} className={className} />;
+    return null;
   };
 
   // 1. Get unique operating dates in descending order (newest first)
@@ -128,7 +152,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
   };
 
   return (
-    <div className="w-full h-full overflow-y-auto space-y-3 px-4 pt-2 pb-12 font-sans select-none text-white animate-fade-in max-w-7xl mx-auto">
+    <div className="w-full h-full overflow-y-auto px-4 pt-2 pb-12 font-sans select-none text-white animate-fade-in max-w-7xl mx-auto flex flex-col" style={{ gap: '10px' }}>
       {/* 1. Header Control Block - Aligned with Inbound Dashboard style */}
       <header className="dashboard-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', minHeight: '100px' }}>
         
@@ -182,37 +206,68 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
         </div>
       </header>
 
-      {/* 2. Filter Bar - Styled like Layout Master control panels */}
-      <div className="jt-glowing-card p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div className="flex items-center gap-2.5 text-xs text-slate-400">
-          <Info size={14} className="text-emerald-400" />
-          <span>Di chuột vào từng ô để xem chi tiết sản lượng của ngày đó theo trạng thái lọc</span>
+      {/* 2. Filter Bar - High-tech glassmorphism style matching concept image */}
+      <div className="jt-glowing-card p-4 flex justify-between items-center relative z-40">
+        {/* Left Side: Glowing Filter Icon + Title */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-teal-500/10 border border-teal-500/35 shadow-[0_0_12px_rgba(20,184,166,0.25)] shrink-0">
+            <Filter size={18} className="text-teal-400 animate-pulse" />
+          </div>
+          <span className="text-[13px] text-slate-100 font-extrabold tracking-widest uppercase">
+            THIẾT LẬP BỘ LỌC
+          </span>
         </div>
 
-        {/* Filter Selector */}
-        <div className="flex items-center gap-3">
-          <span className="text-[10px] text-slate-400 font-bold tracking-wider uppercase flex items-center gap-1.5">
-            <Filter size={11} /> Bộ lọc hiển thị:
-          </span>
-          <div className="relative min-w-[200px]">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as any)}
-              className="w-full appearance-none bg-slate-900/60 border border-white/[0.08] hover:border-white/20 text-slate-200 text-xs px-3 py-2 pr-10 rounded-xl focus:outline-none cursor-pointer transition-colors shadow-lg"
-            >
-              <option value="all">Tất cả trạng thái (Total)</option>
-              <option value="created">Created (Dự báo)</option>
-              <option value="pickup">Pickup Done (Đã lấy hàng)</option>
-              <option value="transporting">Transporting (Đang trung chuyển)</option>
-              <option value="inbound">Inbound (Nhập kho)</option>
-              <option value="outbound">Outbound (Xuất kho)</option>
-            </select>
-            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M19 9l-7 7-7-7" />
-              </svg>
+        {/* Right Side: Custom Dropdown Trigger */}
+        <div className="relative">
+          <button
+            onClick={() => setDropdownOpen(!dropdownOpen)}
+            className="flex items-center justify-between gap-3 min-w-[260px] px-4 py-2.5 rounded-xl border border-white/10 text-white text-xs font-bold transition-all shadow-[0_4px_15px_rgba(0,0,0,0.3)] hover:scale-[1.02] cursor-pointer"
+            style={{
+              background: 'linear-gradient(90deg, rgba(20, 184, 166, 0.75) 0%, rgba(13, 148, 136, 0.75) 100%)',
+              boxShadow: '0 0 15px rgba(20, 184, 166, 0.15)'
+            }}
+          >
+            <div className="flex items-center gap-2.5">
+              {renderOptionIcon(selectedOption.icon, 15, "text-white")}
+              <span>{selectedOption.label}</span>
             </div>
-          </div>
+            <ChevronDown size={14} className={`text-white/80 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Custom Dropdown List */}
+          {dropdownOpen && (
+            <div 
+              className="absolute right-0 mt-2 min-w-[280px] bg-[#0c101c]/95 border border-white/10 rounded-xl p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.65)] backdrop-blur-xl z-50 space-y-1 animate-fade-in"
+              style={{ boxShadow: '0 0 20px rgba(20, 184, 166, 0.08)' }}
+            >
+              {filterOptions.map((opt) => {
+                const isActive = opt.value === statusFilter;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => {
+                      setStatusFilter(opt.value as any);
+                      setDropdownOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg border text-left text-xs font-semibold transition-all cursor-pointer ${
+                      isActive 
+                        ? 'border-teal-500/30 text-white shadow-[0_0_12px_rgba(20,184,166,0.2)]'
+                        : 'border-white/[0.04] text-slate-300 hover:text-white hover:border-teal-500/20 hover:bg-teal-500/[0.04] hover:shadow-[0_0_8px_rgba(20,184,166,0.1)]'
+                    }`}
+                    style={isActive ? {
+                      background: 'linear-gradient(90deg, rgba(20, 184, 166, 0.8) 0%, rgba(13, 148, 136, 0.8) 100%)'
+                    } : {
+                      background: 'rgba(255, 255, 255, 0.02)'
+                    }}
+                  >
+                    {renderOptionIcon(opt.icon, 14, isActive ? "text-white" : "text-slate-400")}
+                    <span>{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
