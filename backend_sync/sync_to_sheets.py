@@ -1200,7 +1200,7 @@ def export_heatmap_json():
                     op_date = (dt - pd.Timedelta(days=1)).strftime('%Y-%m-%d')
                 else:
                     op_date = dt.strftime('%Y-%m-%d')
-                if op_date >= '2026-07-01':
+                if op_date >= '2026-07-05':
                     all_op_dates.add(op_date)
 
         sorted_op_dates = sorted(list(all_op_dates), reverse=True)
