@@ -126,7 +126,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
   return (
     <div className="w-full h-full overflow-y-auto space-y-6 px-4 pt-2 pb-12 font-sans select-none text-white animate-fade-in max-w-7xl mx-auto">
       {/* 1. Header Control Block - Aligned with Inbound Dashboard style */}
-      <header className="dashboard-header flex items-center justify-between relative p-4 mb-4" style={{ minHeight: '100px' }}>
+      <header className="dashboard-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', minHeight: '100px' }}>
         
         {/* LEFT: Sync Button + Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
@@ -147,7 +147,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
         {/* CENTER: Title — absolute center of header */}
         <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', pointerEvents: 'none' }}>
           <h1 style={{ fontSize: '36px', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', lineHeight: '1.1', textShadow: '0 2px 20px rgba(16, 185, 129, 0.5)', margin: 0, whiteSpace: 'nowrap' }}>
-            HCM HUB Inbound Heatmap
+            HCM HUB Status Heatmap
           </h1>
           <p className="subtitle text-xs text-slate-400" style={{ marginTop: '4px', textAlign: 'center', display: 'block' }}>
             Hourly operational volume heatmap by operating date
@@ -179,7 +179,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
       </header>
 
       {/* 2. Filter Bar - Styled like Layout Master control panels */}
-      <div className="jt-glowing-card p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+      <div className="jt-glowing-card p-4 flex flex-col md:flex-row justify-between items-center gap-4 mt-6">
         <div className="flex items-center gap-2.5 text-xs text-slate-400">
           <Info size={14} className="text-emerald-400" />
           <span>Di chuột vào từng ô để xem chi tiết sản lượng của ngày đó theo trạng thái lọc</span>
