@@ -65,6 +65,26 @@ function getHourFromTimestamp(val: any): number {
   return -1;
 }
 
+/**
+ * Trích xuất ngày vận hành từ chuỗi timestamp (ví dụ: "2026-07-16 02:00" -> "2026-07-15")
+ * dựa trên giờ vận hành J&T (< 06h sáng tính cho ngày hôm trước)
+ */
+function getOperatingDateFromTimestamp(timestamp: string): string {
+  if (!timestamp) return '';
+  const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
+  if (match) {
+    const datePart = match[1];
+    const hour = parseInt(match[2], 10);
+    if (hour < 6) {
+      const d = new Date(datePart);
+      d.setDate(d.getDate() - 1);
+      return d.toISOString().split('T')[0];
+    }
+    return datePart;
+  }
+  return '';
+}
+
 const getSvgArcPath = (cx: number, cy: number, rIn: number, rOut: number, startAngle: number, endAngle: number) => {
   const s = startAngle;
   const e = endAngle;
@@ -284,10 +304,10 @@ export default function InboundDashboard({
     }
   });
 
-  // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast hoặc ngày của Forecast Time khớp với activeDate
+  // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast hoặc ngày vận hành của Forecast Time khớp với activeDate
   inboundData.filter(d => {
     const fcTime = d['Forecast Time'] || '';
-    const fcDate = fcTime.substring(0, 10);
+    const fcDate = getOperatingDateFromTimestamp(fcTime);
     const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     return opDate === activeDate || fcDate === activeDate;
   }).forEach(d => {
@@ -297,7 +317,7 @@ export default function InboundDashboard({
     }
     const fcTime = d['Forecast Time'] || '';
     if (fcTime) {
-      const fcDate = fcTime.substring(0, 10);
+      const fcDate = getOperatingDateFromTimestamp(fcTime);
       const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
       // Nếu là ngày forecast gốc (fcDate === activeDate), ta HIỂN THỊ bất kể loaiRot là gì để giữ đúng lịch sử ca đêm
       // Nếu là ngày gối đầu (opDate === activeDate và fcDate !== activeDate), ta lọc bỏ 'Rớt hôm trước' để tránh lặp lại
