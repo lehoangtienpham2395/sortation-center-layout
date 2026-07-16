@@ -10,6 +10,7 @@ interface HeatCell {
   pickup: number;
   transporting: number;
   inbound: number;
+  outbound: number;
 }
 
 interface HeatmapDashboardProps {
@@ -19,7 +20,7 @@ interface HeatmapDashboardProps {
 }
 
 export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpdate }: HeatmapDashboardProps) {
-  const [statusFilter, setStatusFilter] = useState<'all' | 'created' | 'pickup' | 'transporting' | 'inbound'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'created' | 'pickup' | 'transporting' | 'inbound' | 'outbound'>('all');
   const [hoveredCell, setHoveredCell] = useState<{
     date: string;
     dayName: string;
@@ -28,6 +29,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
     pickup: number;
     transporting: number;
     inbound: number;
+    outbound: number;
     x: number;
     y: number;
   } | null>(null);
@@ -87,8 +89,9 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
   const maxPickup = useMemo(() => Math.max(...heatmapData.map((d: any) => d.pickup), 1), []);
   const maxTransporting = useMemo(() => Math.max(...heatmapData.map((d: any) => d.transporting), 1), []);
   const maxInbound = useMemo(() => Math.max(...heatmapData.map((d: any) => d.inbound), 1), []);
+  const maxOutbound = useMemo(() => Math.max(...heatmapData.map((d: any) => d.outbound || 0), 1), []);
   const maxAll = useMemo(() => {
-    const sums = heatmapData.map((d: any) => d.created + d.pickup + d.transporting + d.inbound);
+    const sums = heatmapData.map((d: any) => d.created + d.pickup + d.transporting + d.inbound + (d.outbound || 0));
     return Math.max(...sums, 1);
   }, []);
 
@@ -97,8 +100,9 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
     if (filter === 'pickup') return { val: cell.pickup, max: maxPickup };
     if (filter === 'transporting') return { val: cell.transporting, max: maxTransporting };
     if (filter === 'inbound') return { val: cell.inbound, max: maxInbound };
+    if (filter === 'outbound') return { val: cell.outbound || 0, max: maxOutbound };
     
-    const sum = cell.created + cell.pickup + cell.transporting + cell.inbound;
+    const sum = cell.created + cell.pickup + cell.transporting + cell.inbound + (cell.outbound || 0);
     return { val: sum, max: maxAll };
   };
 
@@ -201,6 +205,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
               <option value="pickup">Pickup Done (Đã lấy hàng)</option>
               <option value="transporting">Transporting (Đang trung chuyển)</option>
               <option value="inbound">Inbound (Nhập kho)</option>
+              <option value="outbound">Outbound (Xuất kho)</option>
             </select>
             <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-slate-400">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -212,9 +217,9 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
       </div>
 
       {/* 3. Main Heatmap block - Styled like Layout Master tables inside jt-glowing-card */}
-      <div className="jt-glowing-card p-6 overflow-x-auto relative">
+      <div className="jt-glowing-card p-6 flex flex-col h-[650px] relative">
         {/* Legends Row */}
-        <div className="flex flex-wrap justify-between items-center gap-4 mb-6 border-b border-white/[0.06] pb-4">
+        <div className="flex flex-wrap justify-between items-center gap-4 mb-4 border-b border-white/[0.06] pb-4 flex-shrink-0">
           <div className="flex items-center gap-6 text-xs">
             {/* Color Gradient Legend */}
             <div className="flex items-center gap-2">
@@ -235,69 +240,72 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
           </div>
         </div>
 
-        {/* Heatmap Grid Wrapper */}
-        <div className="min-w-[960px] pb-4 relative">
-          {/* Hours Header Row - STICKY AT THE TOP with premium background matching card */}
-          <div className="grid grid-cols-[80px_repeat(24,_1fr)] gap-1 sticky top-0 z-30 bg-[#16181e]/95 backdrop-blur-md py-3 mb-3 border-b border-white/[0.06]">
-            <div className="text-xs text-slate-500 font-extrabold uppercase select-none flex items-center justify-end pr-3">
-              Giờ
-            </div>
-            {HOURS.map((hr, idx) => (
-              <div 
-                key={idx}
-                className="text-xs font-bold text-slate-300 text-center select-none hover:text-white transition-colors"
-              >
-                {hr.split(':')[0]}
+        {/* Heatmap Grid Wrapper with internal scroll */}
+        <div className="overflow-auto flex-1 min-w-full scrollbar-thin">
+          <div className="min-w-[960px] pb-4 relative">
+            {/* Hours Header Row - STICKY AT THE TOP with premium background matching card */}
+            <div className="grid grid-cols-[80px_repeat(24,_1fr)] gap-1 sticky top-0 z-30 bg-[#16181e]/95 backdrop-blur-md py-3 mb-3 border-b border-white/[0.06]">
+              <div className="text-xs text-slate-500 font-extrabold uppercase select-none flex items-center justify-end pr-3">
+                Giờ
               </div>
-            ))}
-          </div>
-
-          {/* Grid Rows for Days (Newest first) */}
-          <div className="space-y-1">
-            {uniqueDates.map((dateStr) => {
-              const formattedLabel = formatDateLabel(dateStr);
-              return (
-                <div key={dateStr} className="grid grid-cols-[80px_repeat(24,_1fr)] gap-1 items-center">
-                  {/* Y Axis Label */}
-                  <div className="text-[11px] text-slate-400 font-bold select-none text-right pr-3 h-8 flex items-center justify-end">
-                    {formattedLabel}
-                  </div>
-
-                  {/* 24 Cells */}
-                  {HOURS.map((hr, hIdx) => {
-                    const hourNum = parseInt(hr.split(':')[0], 10);
-                    const cell = cellMap[`${dateStr}-${hourNum}`] || {
-                      date: dateStr,
-                      dayName: dateToDayName[dateStr] || '',
-                      hour: hourNum,
-                      created: 0,
-                      pickup: 0,
-                      transporting: 0,
-                      inbound: 0
-                    };
-
-                    const color = getCellColor(cell, statusFilter);
-
-                    return (
-                      <div
-                        key={hIdx}
-                        onMouseEnter={(e) => handleMouseEnter(cell, e)}
-                        onMouseLeave={() => setHoveredCell(null)}
-                        className="h-8 rounded-md transition-all duration-150 cursor-crosshair border border-white/[0.01] hover:scale-[1.08] hover:border-white/20 hover:shadow-[0_0_8px_rgba(16,185,129,0.45)] relative"
-                        style={{
-                          backgroundColor: color,
-                        }}
-                      />
-                    );
-                  })}
+              {HOURS.map((hr, idx) => (
+                <div 
+                  key={idx}
+                  className="text-xs font-bold text-slate-300 text-center select-none hover:text-white transition-colors"
+                >
+                  {hr.split(':')[0]}
                 </div>
-              );
-            })}
-          </div>
-          
-          {/* Bottom Hour-Axis title */}
-          <div className="text-center text-xs text-slate-500 font-bold mt-4 tracking-wider uppercase">
-            Chuỗi giờ ca vận hành (06:00 - 05:00)
+              ))}
+            </div>
+
+            {/* Grid Rows for Days (Newest first) */}
+            <div className="space-y-1">
+              {uniqueDates.map((dateStr) => {
+                const formattedLabel = formatDateLabel(dateStr);
+                return (
+                  <div key={dateStr} className="grid grid-cols-[80px_repeat(24,_1fr)] gap-1 items-center">
+                    {/* Y Axis Label */}
+                    <div className="text-[11px] text-slate-400 font-bold select-none text-right pr-3 h-8 flex items-center justify-end">
+                      {formattedLabel}
+                    </div>
+
+                    {/* 24 Cells */}
+                    {HOURS.map((hr, hIdx) => {
+                      const hourNum = parseInt(hr.split(':')[0], 10);
+                      const cell = cellMap[`${dateStr}-${hourNum}`] || {
+                        date: dateStr,
+                        dayName: dateToDayName[dateStr] || '',
+                        hour: hourNum,
+                        created: 0,
+                        pickup: 0,
+                        transporting: 0,
+                        inbound: 0,
+                        outbound: 0
+                      };
+
+                      const color = getCellColor(cell, statusFilter);
+
+                      return (
+                        <div
+                          key={hIdx}
+                          onMouseEnter={(e) => handleMouseEnter(cell, e)}
+                          onMouseLeave={() => setHoveredCell(null)}
+                          className="h-8 rounded-md transition-all duration-150 cursor-crosshair border border-white/[0.01] hover:scale-[1.08] hover:border-white/20 hover:shadow-[0_0_8px_rgba(16,185,129,0.45)] relative"
+                          style={{
+                            backgroundColor: color,
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Bottom Hour-Axis title */}
+            <div className="text-center text-xs text-slate-500 font-bold mt-4 tracking-wider uppercase">
+              Chuỗi giờ ca vận hành (06:00 - 05:00)
+            </div>
           </div>
         </div>
       </div>
@@ -325,7 +333,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
               <div className="flex justify-between gap-4 font-bold text-white">
                 <span className="text-slate-300">Tổng sản lượng (Total):</span>
                 <span className="text-emerald-400 text-[13px]">
-                  {Math.round(hoveredCell.created + hoveredCell.pickup + hoveredCell.transporting + hoveredCell.inbound).toLocaleString()} đơn
+                  {Math.round(hoveredCell.created + hoveredCell.pickup + hoveredCell.transporting + hoveredCell.inbound + (hoveredCell.outbound || 0)).toLocaleString()} đơn
                 </span>
               </div>
             )}
@@ -351,6 +359,12 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
               <div className="flex justify-between gap-4 font-semibold text-white">
                 <span className="text-slate-400">Inbound (Nhập kho):</span>
                 <span className="text-emerald-400">{hoveredCell.inbound.toLocaleString()} đơn</span>
+              </div>
+            )}
+            {statusFilter === 'outbound' && (
+              <div className="flex justify-between gap-4 font-semibold text-white">
+                <span className="text-slate-400">Outbound (Xuất kho):</span>
+                <span className="text-emerald-400 font-bold">{(hoveredCell.outbound || 0).toLocaleString()} đơn</span>
               </div>
             )}
           </div>

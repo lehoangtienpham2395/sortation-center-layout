@@ -1174,7 +1174,7 @@ def export_heatmap_json():
     try:
         conn = sqlite3.connect(DB_FILE)
         df = pd.read_sql_query(
-            """SELECT dispatchNetworkTime, Pickup_time, Arrival_time, inbound_scanDate 
+            """SELECT dispatchNetworkTime, Pickup_time, Arrival_time, inbound_scanDate, outbound_scanDate 
                FROM shipments""",
             conn
         )
@@ -1185,15 +1185,15 @@ def export_heatmap_json():
             return
 
         # Helper to parse datetime
-        for col in ['dispatchNetworkTime', 'Pickup_time', 'Arrival_time', 'inbound_scanDate']:
+        for col in ['dispatchNetworkTime', 'Pickup_time', 'Arrival_time', 'inbound_scanDate', 'outbound_scanDate']:
             df[col + '_dt'] = pd.to_datetime(df[col], errors='coerce')
 
         # Day names list
         DAYS_ENG = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-        # We want to find all unique operating dates >= 2026-07-01
+        # We want to find all unique operating dates >= 2026-07-05
         all_op_dates = set()
-        for col in ['dispatchNetworkTime_dt', 'Pickup_time_dt', 'Arrival_time_dt', 'inbound_scanDate_dt']:
+        for col in ['dispatchNetworkTime_dt', 'Pickup_time_dt', 'Arrival_time_dt', 'inbound_scanDate_dt', 'outbound_scanDate_dt']:
             dates = df[col].dropna()
             for dt in dates:
                 if dt.hour < 6:
@@ -1218,7 +1218,8 @@ def export_heatmap_json():
                     'created': 0,
                     'pickup': 0,
                     'transporting': 0,
-                    'inbound': 0
+                    'inbound': 0,
+                    'outbound': 0
                 }
 
         # Populate grid
@@ -1261,6 +1262,16 @@ def export_heatmap_json():
                 op_date = dt.strftime('%Y-%m-%d')
             if (op_date, dt.hour) in grid:
                 grid[(op_date, dt.hour)]['inbound'] += 1
+
+        # Outbound (outbound_scanDate)
+        df_ob = df[df['outbound_scanDate_dt'].notna()]
+        for dt in df_ob['outbound_scanDate_dt']:
+            if dt.hour < 6:
+                op_date = (dt - pd.Timedelta(days=1)).strftime('%Y-%m-%d')
+            else:
+                op_date = dt.strftime('%Y-%m-%d')
+            if (op_date, dt.hour) in grid:
+                grid[(op_date, dt.hour)]['outbound'] += 1
 
         heatmap_data = list(grid.values())
 
