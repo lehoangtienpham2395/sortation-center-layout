@@ -109,8 +109,12 @@ def main():
          "data/linehaul.json",
          "data/config.json",
          "data/last_update.json",
+         "data/heatmap.json",
+         "data/latest.json.gz",
          "src/data/config.json",
          "src/data/last_update.json",
+         "src/data/heatmap.json",
+         "src/data/latest.json.gz",
          "backend_sync/config/valid.csv"])
 
     # Kiểm tra có thay đổi không
