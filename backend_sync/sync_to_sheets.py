@@ -1969,7 +1969,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             conn = sqlite3.connect(DB_FILE)
             # ✅ Chỉ đọc đơn đang active (is_active=1) và chưa rời HUB
             df_db_inv = pd.read_sql_query(
-                """SELECT next_station, status_order, weight, waybillNo, time_ref
+                """SELECT next_station, pickNetworkName, status_order, weight, waybillNo, time_ref
                    FROM shipments
                    WHERE is_active = 1
                      AND status_order != 'Đã rời HUB'""",
@@ -1985,8 +1985,25 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
                 df_db_inv['layout_name'] = df_db_inv['next_station_upper'].apply(map_station_to_layout_name)
                 df_db_inv['status_upper'] = df_db_inv['status_order'].astype(str).str.strip()
                 
-                # Loại bỏ BN HUB khỏi trạng thái "Đang trên đường" theo yêu cầu để đồng bộ
-                df_db_inv = df_db_inv[~((df_db_inv['layout_name'] == 'BN HUB') & (df_db_inv['status_upper'] == 'Đang trên đường'))]
+                # Loại bỏ các đơn có nguồn gốc (pickNetworkName) từ miền Bắc/BN HUB ở trạng thái "Đang trên đường"
+                NORTH_POST_OFFICES = {
+                    'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
+                    'HN THƯỜNG TÍN', 'HN HOÀNG MAI', 'HD KINH MÔN', 'HY VĂN GIANG', 'HN NGỌC HỒI',
+                    'HN MỸ ĐỨC', 'HN ĐÔNG ANH', 'HN HÀ ĐÔNG', 'HN THANH TRÌ', 'HN THANH LIỆT',
+                    'HN HOÀI ĐỨC', 'HN MÊ LINH', 'HN AN KHÁNH', 'HN CẦU GIẤY', 'HN THANH OAI',
+                    'HN ĐỐNG ĐA', 'HN CHƯƠNG MỸ', 'HN CHÚC SƠN', 'HN HẠ BẰNG', 'HN HÁT MÔN',
+                    'HN LONG BIÊN', 'HN PHÚ XUYÊN', 'HN HÀ NAM', 'HN SƠN TÂY', 'HN NAM TỪ LIÊM',
+                    'HN PHÚ DIỄN', 'HN TÂY HỒ', 'HN VĨNH TUY', 'HN ỨNG HÒA'
+                }
+                pkn_series = df_db_inv['pickNetworkName'].astype(str).str.strip().str.upper()
+                is_north_origin = (
+                    pkn_series.str.startswith('HN ') |
+                    pkn_series.str.startswith('HD ') |
+                    pkn_series.str.startswith('HY ') |
+                    (pkn_series == 'BN HUB') |
+                    pkn_series.isin(NORTH_POST_OFFICES)
+                )
+                df_db_inv = df_db_inv[~((is_north_origin) & (df_db_inv['status_upper'] == 'Đang trên đường'))]
                 
                 inventory_volumes = df_db_inv.groupby(['layout_name', 'status_upper']).agg(
                     volume=('waybillNo', 'size'),
