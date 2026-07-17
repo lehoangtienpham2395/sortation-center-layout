@@ -308,27 +308,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
 
       {/* 3. Main Heatmap block - Styled like Layout Master tables inside jt-glowing-card */}
       <div className="jt-glowing-card p-6 relative">
-        {/* Legends Row */}
-        <div className="flex flex-wrap justify-between items-center gap-4 mb-4 border-b border-white/[0.06] pb-4 flex-shrink-0">
-          <div className="flex items-center gap-6 text-xs">
-            {/* Color Gradient Legend */}
-            <div className="flex items-center gap-2">
-              <span className="text-slate-500">Màu nhạt (Thấp)</span>
-              <div 
-                className="w-24 h-2.5 rounded-full"
-                style={{
-                  background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.08), rgba(16, 185, 129, 0.95))'
-                }}
-              />
-              <span className="text-slate-300 font-bold">Màu đậm (Cao)</span>
-            </div>
 
-            <div className="flex items-center gap-2.5">
-              <div className="w-2 h-2 rounded bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-              <span className="text-slate-400 text-[11px] font-bold">Chủ đạo: Emerald Green</span>
-            </div>
-          </div>
-        </div>
 
         {/* Heatmap Grid Wrapper with horizontal scroll */}
         <div className="overflow-x-auto min-w-full scrollbar-thin">
