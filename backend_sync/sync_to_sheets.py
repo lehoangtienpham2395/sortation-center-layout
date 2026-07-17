@@ -1984,6 +1984,10 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
                 
                 df_db_inv['layout_name'] = df_db_inv['next_station_upper'].apply(map_station_to_layout_name)
                 df_db_inv['status_upper'] = df_db_inv['status_order'].astype(str).str.strip()
+                
+                # Loại bỏ BN HUB khỏi trạng thái "Đang trên đường" theo yêu cầu để đồng bộ
+                df_db_inv = df_db_inv[~((df_db_inv['layout_name'] == 'BN HUB') & (df_db_inv['status_upper'] == 'Đang trên đường'))]
+                
                 inventory_volumes = df_db_inv.groupby(['layout_name', 'status_upper']).agg(
                     volume=('waybillNo', 'size'),
                     weight=('weight', 'sum')
