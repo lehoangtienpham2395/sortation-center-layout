@@ -3683,6 +3683,8 @@ def main():
             if files_to_add:
                 print("   🔄 Tự động stage, commit và push dữ liệu mới lên GitHub...")
                 subprocess.run(["git", "add"] + files_to_add, cwd="..", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                # Pull remote changes with rebase to avoid push rejection due to concurrent GitHub Actions commits
+                subprocess.run(["git", "pull", "--rebase"], cwd="..", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 res_commit = subprocess.run(["git", "commit", "-m", "Auto-sync local data update from sync_to_sheets.py"], cwd="..", capture_output=True, text=True)
                 if "nothing to commit" not in res_commit.stdout and "no changes added" not in res_commit.stdout:
                     subprocess.run(["git", "push"], cwd="..", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
