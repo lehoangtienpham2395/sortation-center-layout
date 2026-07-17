@@ -3671,6 +3671,27 @@ def main():
     except Exception as e_mir:
         print(f"   ⚠️ Lỗi mirror data: {e_mir}")
 
+    # Auto git commit & push for local synchronization runs
+    try:
+        import subprocess
+        root_data_dir = os.path.join("..", "data")
+        if os.path.exists(root_data_dir):
+            files_to_add = []
+            for fn in os.listdir(root_data_dir):
+                if fn.endswith(".json") or fn.endswith(".gz"):
+                    files_to_add.append(os.path.join("data", fn))
+            if files_to_add:
+                print("   🔄 Tự động stage, commit và push dữ liệu mới lên GitHub...")
+                subprocess.run(["git", "add"] + files_to_add, cwd="..", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                res_commit = subprocess.run(["git", "commit", "-m", "Auto-sync local data update from sync_to_sheets.py"], cwd="..", capture_output=True, text=True)
+                if "nothing to commit" not in res_commit.stdout and "no changes added" not in res_commit.stdout:
+                    subprocess.run(["git", "push"], cwd="..", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    print("   ✅ Đã đẩy dữ liệu mới lên GitHub thành công!")
+                else:
+                    print("   ℹ️ Không có thay đổi dữ liệu nào cần push.")
+    except Exception as e_git:
+        print(f"   ⚠️ Lỗi tự động Git push: {e_git}")
+
 
 if __name__ == "__main__":
     main()
