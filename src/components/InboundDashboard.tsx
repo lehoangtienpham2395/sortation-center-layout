@@ -261,11 +261,21 @@ export default function InboundDashboard({
     .map(d => {
       const orders = parseInt(d['Orders'] || d['Tng s n'] || d['Tổng số đơn'] || d['Chua dn Hub'] || d['Chưa đến Hub'] || 0, 10);
       const weight = parseFloat(d['weight'] || d['package_charge_weight'] || 0);
-      const truckingCode = (d['Trucking'] || d['transfercode'] || '').trim();
-      const hasVehicle = (truckingCode !== '' && truckingCode.toLowerCase() !== 'nan');
+      let truckingCount = 0;
+      if (typeof d['Trucking'] === 'number') {
+        truckingCount = d['Trucking'];
+      } else if (d['Trucking']) {
+        const val = String(d['Trucking']).trim();
+        // Check if it's a number string
+        if (/^\d+$/.test(val)) {
+          truckingCount = parseInt(val, 10);
+        } else if (val !== '' && val.toLowerCase() !== 'nan') {
+          truckingCount = 1;
+        }
+      }
       return {
         station: d['Station'] || d['Pickup_station'] || '',
-        trucking: truckingCode,
+        trucking: truckingCount,
         orders: orders,
         weight: weight,
         eta: d['ETA'] || d['Last time'] || '',
@@ -273,7 +283,7 @@ export default function InboundDashboard({
         // Backwards compatibility keys:
         chuaDenHub: orders,
         tongDon: orders,
-        vehicles: hasVehicle ? 1 : 0,
+        vehicles: truckingCount,
         lastTime: d['ETA'] || d['Last time'] || ''
       };
     })
@@ -1113,7 +1123,7 @@ export default function InboundDashboard({
                   <tr key={v.station + '-' + v.trucking}>
                      <td className="table-index">{idx + 1}</td>
                      <td className="table-buucuc">{v.station}</td>
-                     <td className="num-tabular" style={{ textAlign: 'left', color: '#38bdf8', fontWeight: 500 }}>{v.trucking || '-'}</td>
+                     <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8', fontWeight: 500 }}>{v.trucking} xe</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.orders.toLocaleString()}</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{(v.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tấn</td>
                      <td className="num-tabular" style={{ textAlign: 'center', color: '#64748b' }}>{v.eta ? v.eta : '--:--'}</td>
