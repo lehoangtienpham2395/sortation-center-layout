@@ -269,7 +269,7 @@ export default function InboundDashboard({
         orders: orders,
         weight: weight,
         eta: d['ETA'] || d['Last time'] || '',
-        rank: d['Rank'] || 'Shuttle',
+        rank: ((d['Station'] || d['Pickup_station'] || '').trim().toUpperCase() === 'BN HUB') ? 'Linehaul' : (d['Rank'] || 'Shuttle'),
         // Backwards compatibility keys:
         chuaDenHub: orders,
         tongDon: orders,
