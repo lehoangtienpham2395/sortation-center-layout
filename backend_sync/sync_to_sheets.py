@@ -1642,118 +1642,136 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             
     if not df_enriched.empty:
         try:
-            # Xử lý kiểu dữ liệu số
-            df_enriched['package_charge_weight'] = pd.to_numeric(df_enriched['package_charge_weight'], errors='coerce').fillna(0)
+            # 1. TẠO DATASET A: QUÉT LỊCH SỬ ĐỂ XEM TREND (DÀNH CHO BIỂU ĐỒ HOURLY PROCESSING TREND)
+            df_arr = df_enriched.copy()
+            df_arr['scantime_dt'] = pd.to_datetime(df_arr['scantime'], errors='coerce')
+            df_arr['Scan Hour'] = df_arr['scantime_dt'].dt.strftime('%Y-%m-%d %H:00').fillna('')
             
-            # Chuẩn hóa transfercode (thay thế NaN bằng rỗng)
-            df_enriched['transfercode'] = df_enriched['transfercode'].fillna('').astype(str).str.strip()
-            df_enriched.loc[df_enriched['transfercode'].str.lower() == 'nan', 'transfercode'] = ''
+            # Tính Đã đến Hub / Chưa đến Hub
+            df_arr['Đã đến Hub'] = df_arr['arrival_time'].notna() & (df_arr['arrival_time'].astype(str).str.strip() != '') & (df_arr['arrival_time'].astype(str).str.strip().str.lower() != 'nan')
+            df_arr['Đã đến Hub'] = df_arr['Đã đến Hub'].astype(int)
+            df_arr['Chưa đến Hub'] = 1 - df_arr['Đã đến Hub']
             
-            # Xác định Rank cho từng dòng
-            def get_arrival_rank(row):
-                nguon = str(row.get('nguon_anh_xa', '')).strip().lower()
-                station = str(row.get('last_dept_name', '')).strip().upper()
-                if station == 'BN HUB' or nguon == 'linehaul':
-                    return 'Linehaul'
-                mapped_rank = d_rank.get(station, '')
-                if mapped_rank == 'BN HUB':
-                    return 'Linehaul'
-                return 'Shuttle'
-                
-            df_enriched['Rank'] = df_enriched.apply(get_arrival_rank, axis=1)
+            # Groupby theo Ngày vận hành, Pickup_station (last_dept_name), Scan Hour
+            df_pivot_arr = (df_arr.groupby(['Ngày vận hành', 'last_dept_name', 'Scan Hour'])
+                            .agg(
+                                Tong_don=('billcode', 'count'),
+                                Da_den=('Đã đến Hub', 'sum'),
+                                Chua_den=('Chưa đến Hub', 'sum'),
+                                Last_time_dt=('scantime_dt', 'max')
+                            ).reset_index())
             
-            # Pivot nhóm theo Ngày vận hành + Station (last_dept_name) + Trucking (transfercode) + Rank
-            df_pivot = (df_enriched.groupby(['Ngày vận hành', 'last_dept_name', 'transfercode', 'Rank'])
-                        .agg(
-                            Orders=('billcode', 'count'),
-                            weight=('package_charge_weight', 'sum'),
-                            ETA=('ETA Incoming', 'first')
-                        ).reset_index())
-            
-            df_pivot.rename(columns={
-                'last_dept_name': 'Station',
-                'transfercode': 'Trucking'
+            df_pivot_arr.rename(columns={
+                'last_dept_name': 'Pickup_station',
+                'Tong_don': 'Tổng số đơn',
+                'Da_den': 'Đã đến Hub',
+                'Chua_den': 'Chưa đến Hub'
             }, inplace=True)
             
-            df_pivot['ETA'] = df_pivot['ETA'].fillna('')
-        except Exception as e_piv:
-            print(f'   ⚠️ Arrival pivot lỗi: {e_piv}')
-            df_pivot = pd.DataFrame()
+            df_pivot_arr['Last time'] = df_pivot_arr['Last_time_dt'].dt.strftime('%Y-%m-%d %H:%M:%S').fillna('')
+            df_pivot_arr = df_pivot_arr.drop(columns=['Last_time_dt'])
             
-        if not df_pivot.empty:
-            arrival_cols = ['Ngày vận hành', 'Station', 'Trucking', 'Orders', 'weight', 'ETA', 'Rank']
-            df_old = pd.DataFrame()
+            # Lưu lịch sử 7 ngày cho arrival.json
+            arrival_cols = ['Ngày vận hành', 'Pickup_station', 'Scan Hour', 'Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub', 'Last time']
             
-            # Read from local json first
+            df_old_arr = pd.DataFrame()
             arrival_json_path = "data/arrival.json"
             if os.path.exists(arrival_json_path):
                 try:
-                    df_old = pd.read_json(arrival_json_path)
+                    df_old_arr = pd.read_json(arrival_json_path)
                 except Exception:
                     pass
-                    
-            # Read from Google Sheets if empty and not disabled
-            if df_old.empty and not DISABLE_GOOGLE_SHEETS and ss:
+            
+            if df_old_arr.empty and not DISABLE_GOOGLE_SHEETS and ss:
                 try:
-                    arr_sheet = ss.worksheet('Inbound Truck ETA - HCM HUB')
+                    arr_sheet = ss.worksheet('Arrival')
                     old_vals = arr_sheet.get_all_values()
                     if len(old_vals) > 1:
-                        df_old = pd.DataFrame(old_vals[1:], columns=old_vals[0])
+                        df_old_arr = pd.DataFrame(old_vals[1:], columns=old_vals[0])
                 except Exception:
                     pass
-                    
-            # Kiểm tra xem cấu trúc cột cũ có khớp định dạng mới không
-            if not df_old.empty and not all(c in df_old.columns for c in arrival_cols):
-                print("   ⚠️ Định dạng cột cũ không khớp định dạng mới, tiến hành ghi đè mới...")
-                df_old = pd.DataFrame()
+            
+            if not df_old_arr.empty and not all(c in df_old_arr.columns for c in arrival_cols):
+                df_old_arr = pd.DataFrame()
                 
-            if not df_old.empty:
-                for col in ['Orders', 'weight']:
-                    if col in df_old.columns:
-                        df_old[col] = pd.to_numeric(df_old[col], errors='coerce').fillna(0)
-                # Xóa dữ liệu cùng ngày để ghi đè dữ liệu mới nhất
-                today_dates = set(df_pivot['Ngày vận hành'].unique())
-                df_old = df_old[~df_old['Ngày vận hành'].isin(today_dates)]
-                df_final = pd.concat([df_old, df_pivot[arrival_cols]], ignore_index=True)
+            if not df_old_arr.empty:
+                for col in ['Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub']:
+                    if col in df_old_arr.columns:
+                        df_old_arr[col] = pd.to_numeric(df_old_arr[col], errors='coerce').fillna(0)
+                today_dates = set(df_pivot_arr['Ngày vận hành'].unique())
+                df_old_arr = df_old_arr[~df_old_arr['Ngày vận hành'].isin(today_dates)]
+                df_final_arr = pd.concat([df_old_arr, df_pivot_arr[arrival_cols]], ignore_index=True)
             else:
-                df_final = df_pivot[arrival_cols].copy()
+                df_final_arr = df_pivot_arr[arrival_cols].copy()
                 
-            # Sắp xếp: ngày mới nhất lên đầu, sau đó theo trạm và xe
-            df_final = df_final.sort_values(
-                by=['Ngày vận hành', 'Station', 'Trucking'],
+            df_final_arr = df_final_arr.sort_values(
+                by=['Ngày vận hành', 'Pickup_station', 'Scan Hour'],
                 ascending=[False, True, True]
             )
-            # Giới hạn 7 ngày gần nhất
-            all_dates = sorted(df_final['Ngày vận hành'].unique(), reverse=True)
-            df_final = df_final[df_final['Ngày vận hành'].isin(all_dates[:7])]
+            all_dates_arr = sorted(df_final_arr['Ngày vận hành'].unique(), reverse=True)
+            df_final_arr = df_final_arr[df_final_arr['Ngày vận hành'].isin(all_dates_arr[:7])]
             
-            # Write to local JSON
+            # Lưu arrival.json
             os.makedirs("data", exist_ok=True)
-            df_final_json = df_final.copy()
-            df_final_json.rename(columns={
-                'Ngày vận hành': 'Ngy vn hnh'
-            }, inplace=True)
-            df_final_json.to_json(arrival_json_path, orient="records", force_ascii=False)
-            print(f"   💾 Đã lưu file 'data/arrival.json' với {len(df_final)} dòng.")
+            df_final_arr_json = df_final_arr.copy()
+            df_final_arr_json.rename(columns={'Ngày vận hành': 'Ngy vn hnh', 'Tổng số đơn': 'Tng s n'}, inplace=True)
+            df_final_arr_json.to_json(arrival_json_path, orient="records", force_ascii=False)
+            print(f"   💾 Đã lưu file 'data/arrival.json' với {len(df_final_arr)} dòng.")
             
-            # Write to Google Sheet if not disabled
-            if not DISABLE_GOOGLE_SHEETS and ss:
-                try:
-                    try:
-                        arr_sheet = ss.worksheet('Inbound Truck ETA - HCM HUB')
-                    except Exception:
-                        arr_sheet = ss.add_worksheet('Inbound Truck ETA - HCM HUB', rows=5000, cols=len(arrival_cols) + 1)
+            # Ghi sheet Arrival (Đã bỏ qua theo yêu cầu để tối ưu hiệu năng)
+            pass
                     
-                    # Thêm chỉ số thứ tự dòng # trước khi ghi lên Sheet
-                    df_write = df_final[arrival_cols].copy()
-                    df_write.insert(0, '#', range(1, len(df_write) + 1))
+            # ----------------------------------------------------
+            # 2. TẠO DATASET B: CHỈ HIỂN THỊ CÁC XE TRÊN ĐƯỜNG VỀ (CHƯA XẢ HÀNG XONG)
+            # Chỉ giữ các đơn hàng chưa đến Hub (arrival_time rỗng/nan)
+            df_active = df_enriched[
+                df_enriched['arrival_time'].isna() | 
+                (df_enriched['arrival_time'].astype(str).str.strip() == '') | 
+                (df_enriched['arrival_time'].astype(str).str.strip().str.lower() == 'nan')
+            ].copy()
+            
+            # Hàm đếm số lượng xe (số lượng transfercode duy nhất không rỗng)
+            def count_unique_trucks(series):
+                valid_trucks = series.dropna().astype(str).str.strip()
+                valid_trucks = valid_trucks[(valid_trucks != '') & (valid_trucks.str.lower() != 'nan')]
+                return int(valid_trucks.nunique())
+            
+            # Nếu không có xe nào trên đường, tạo df_pivot_truck rỗng
+            if not df_active.empty:
+                df_pivot_truck = (df_active.groupby(['Ngày vận hành', 'last_dept_name', 'Rank'])
+                                  .agg(
+                                      Trucking=('transfercode', count_unique_trucks),
+                                      Orders=('billcode', 'count'),
+                                      weight=('package_charge_weight', 'sum'),
+                                      ETA=('ETA Incoming', 'first')
+                                  ).reset_index())
+                df_pivot_truck.rename(columns={'last_dept_name': 'Station'}, inplace=True)
+                df_pivot_truck['ETA'] = df_pivot_truck['ETA'].fillna('')
+            else:
+                df_pivot_truck = pd.DataFrame(columns=['Ngày vận hành', 'Station', 'Rank', 'Trucking', 'Orders', 'weight', 'ETA'])
+                
+            truck_cols = ['Ngày vận hành', 'Station', 'Trucking', 'Orders', 'weight', 'ETA', 'Rank']
+            df_final_truck = df_pivot_truck[truck_cols].copy() if not df_pivot_truck.empty else pd.DataFrame(columns=truck_cols)
+            
+            # Sắp xếp theo ngày vận hành, trạm
+            if not df_final_truck.empty:
+                df_final_truck = df_final_truck.sort_values(
+                    by=['Ngày vận hành', 'Station'],
+                    ascending=[False, True]
+                )
+            
+            # Ghi đè file truck_eta.json (không lưu lịch sử tĩnh vì xe xả hàng xong sẽ tự biến mất khỏi live snapshot)
+            truck_json_path = "data/truck_eta.json"
+            df_final_truck_json = df_final_truck.copy()
+            df_final_truck_json.rename(columns={'Ngày vận hành': 'Ngy vn hnh'}, inplace=True)
+            df_final_truck_json.to_json(truck_json_path, orient="records", force_ascii=False)
+            print(f"   💾 Đã lưu file 'data/truck_eta.json' với {len(df_final_truck)} dòng (xe đang về).")
+            
+            # Ghi sheet Inbound Truck ETA - HCM HUB (Đã bỏ qua theo yêu cầu để tối ưu hiệu năng)
+            pass
                     
-                    rows_to_write = [['#'] + arrival_cols] + df_write.fillna('').values.tolist()
-                    arr_sheet.clear()
-                    arr_sheet.update(range_name='A1', values=rows_to_write)
-                    print(f'   ✅ Sheet Inbound Truck ETA - HCM HUB: {len(rows_to_write)-1} dòng (lịch sử 7 ngày).')
-                except Exception as e_write:
-                    print(f'   ❌ Lỗi ghi sheet Inbound Truck ETA - HCM HUB: {e_write}')
+        except Exception as e_piv:
+            print(f'   ⚠️ Lỗi xử lý dữ liệu Arrival / Truck ETA: {e_piv}')
     else:
         print('   ⚠️ Không có dữ liệu Arrival để ghi sheet.')
 
