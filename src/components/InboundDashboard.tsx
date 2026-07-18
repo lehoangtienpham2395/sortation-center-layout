@@ -37,6 +37,7 @@ interface InboundDashboardProps {
   inboundData: any[];
   linehaulData: any[];
   arrivalData: any[];
+  truckEtaData: any[];
   selectedInboundDate: string;
   setSelectedInboundDate: (date: string) => void;
   loading: boolean;
@@ -114,6 +115,7 @@ export default function InboundDashboard({
   inboundData,
   linehaulData,
   arrivalData,
+  truckEtaData,
   selectedInboundDate,
   setSelectedInboundDate,
   loading,
@@ -228,6 +230,10 @@ export default function InboundDashboard({
     return (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
   });
 
+  const filteredTruckEta = (truckEtaData || []).filter(d => {
+    return (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
+  });
+
   let totalOrders = stages['Inbound'].orders;
   let totalWeight = stages['Inbound'].weight;
   // Số đơn có weight thực tế > 0 → dùng để tính avg chính xác
@@ -237,7 +243,7 @@ export default function InboundDashboard({
 
 
 
-  // Trucking in transit: map directly from filteredArrival and apply exclusions
+  // Trucking in transit: map directly from filteredTruckEta and apply exclusions
   const NORTH_POST_OFFICES = new Set([
     'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
     'HN THƯỜNG TÍN', 'HN HOÀNG MAI', 'HD KINH MÔN', 'HY VĂN GIANG', 'HN NGỌC HỒI',
@@ -248,7 +254,7 @@ export default function InboundDashboard({
     'HN PHÚ DIỄN', 'HN TÂY HỒ', 'HN VĨNH TUY', 'HN ỨNG HÒA'
   ]);
 
-  const incomingVehicles = filteredArrival
+  const incomingVehicles = filteredTruckEta
     .filter(d => {
       const key = (d['Station'] || d['Pickup_station'] || '').trim();
       if (!key) return false;
@@ -694,7 +700,7 @@ export default function InboundDashboard({
         });
       }
     }
-  }, [activeDate, inboundData, linehaulData, totalOrders, totalInTransitOrders, pendingOrders, forecastTrendData, arrivedTrendData, pickupTrendData, inboundTrendData]);
+  }, [activeDate, inboundData, linehaulData, totalOrders, totalInTransitOrders, pendingOrders, forecastTrendData, arrivedTrendData, pickupTrendData, inboundTrendData, truckEtaData]);
 
   const toggleDropdown = () => setDateDropdownOpen(!dateDropdownOpen);
   const selectPreset = (preset: 'today' | 'yesterday') => {

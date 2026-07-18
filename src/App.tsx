@@ -170,7 +170,7 @@ interface SheetRow {
 
 
 
-async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival'): Promise<any[] | null> {
+async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival' | 'Truck_ETA'): Promise<any[] | null> {
   try {
 
 
@@ -344,6 +344,7 @@ export default function App() {
   const [inboundData, setInboundData] = useState<any[]>([]);
   const [linehaulData, setLinehaulData] = useState<any[]>([]);
   const [arrivalData, setArrivalData] = useState<any[]>([]);
+  const [truckEtaData, setTruckEtaData] = useState<any[]>([]);
   const [selectedInboundDate, setSelectedInboundDate] = useState<string>('');
   const [showMonitor, setShowMonitor] = useState(true);
   const [showTelemetry, setShowTelemetry] = useState(true);
@@ -433,7 +434,7 @@ export default function App() {
     setLoading(true);
     const [
       outboundRows, backlogRows, inventoryRows,
-      ibRows, lhRows, arrivalRows, heatmapData
+      ibRows, lhRows, arrivalRows, truckEtaRows, heatmapData
     ] = await Promise.all([
       fetchSheetData('Outbound'),
       fetchSheetData('Backlog'),
@@ -441,12 +442,14 @@ export default function App() {
       fetchInboundSheetData('Inbound'),
       fetchInboundSheetData('Linehaul'),
       fetchInboundSheetData('Arrival'),
+      fetchInboundSheetData('Truck_ETA'),
       fetchSheetData('Heatmap'),
     ]);
 
     setInboundData(ibRows ?? []);
     setLinehaulData(lhRows ?? []);
     setArrivalData(arrivalRows ?? []);
+    setTruckEtaData(truckEtaRows ?? []);
     if (heatmapData) {
       setHeatmapRows(heatmapData);
     }
@@ -2000,6 +2003,7 @@ export default function App() {
                 inboundData={inboundData}
                 linehaulData={linehaulData}
                 arrivalData={arrivalData}
+                truckEtaData={truckEtaData}
                 selectedInboundDate={selectedInboundDate}
                 setSelectedInboundDate={setSelectedInboundDate}
                 loading={loading}
@@ -2233,6 +2237,7 @@ export default function App() {
                   inboundData={inboundData}
                   linehaulData={linehaulData}
                   arrivalData={arrivalData}
+                  truckEtaData={truckEtaData}
                   selectedInboundDate={selectedInboundDate}
                   setSelectedInboundDate={setSelectedInboundDate}
                   loading={loading}
