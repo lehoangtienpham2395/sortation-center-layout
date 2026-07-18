@@ -1642,6 +1642,9 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             
     if not df_enriched.empty:
         try:
+            # Tải cấu trúc phân hạng d_rank từ file valid.csv
+            _, _, _, d_rank = load_valid(VALID_FILE)
+            
             # Xử lý kiểu dữ liệu số & Rank cho df_enriched
             df_enriched['package_charge_weight'] = pd.to_numeric(df_enriched['package_charge_weight'], errors='coerce').fillna(0)
             
