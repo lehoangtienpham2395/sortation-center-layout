@@ -21,8 +21,7 @@ from auth import get_valid_token, handle_401
 
 # ============================================================
 # CONFIG
-# ============================================================
-BASE_DIR = r"C:\Users\lehoa\OneDrive\Desktop\testing"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 INCOMING_DIR = os.path.join(BASE_DIR, "Exportauto", "IncomingCargo")
 VALID_DIR = os.path.join(BASE_DIR, "Exportauto", "Valid")
 
@@ -182,6 +181,8 @@ def pull_linehaul(token):
 def load_stations():
     csv_path = os.path.join(BASE_DIR, "stations_master.csv")
     if not os.path.exists(csv_path):
+        csv_path = os.path.join(BASE_DIR, "config", "stations_master.csv")
+    if not os.path.exists(csv_path):
         raise FileNotFoundError(f"Không tìm thấy file bưu cục tại: {csv_path}")
         
     df_stations = pd.read_csv(csv_path)
@@ -220,105 +221,8 @@ def load_stations():
     return stations
 
 def pull_giam_sat_phat_hang(token, stations):
-    print("\n🚚 [3/4] Đang tải dữ liệu Phát hàng từ các bưu cục về HCM HUB...")
-    
-    ph_headers = {
-        "Accept": "application/json, text/plain, */*",
-        "Content-Type": "application/json;charset=utf-8",
-        "Origin": "https://jfs.jtcargo.com.vn",
-        "Referer": "https://jfs.jtcargo.com.vn/",
-        "Routename": "Bd-theme-1d2e14d9-6dcc-437e-afb2-0afc668d7d50|businessIndicatorIndex",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
-        "authToken": token,
-        "Authtoken": token
-    }
-    
-    url = 'https://gw.jtcargo.com.vn/jfs-report-leader/report/dynamicReport/findByPagination'
-    params = {
-        'sqlCode': 'realtime_sca_sen_mon_dtl',
-        'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693'
-    }
-    
-    all_data = []
-    lock = threading.Lock()
-    
-    def fetch_station_data(station):
-        nonlocal ph_headers
-        payload = {
-            "beginDate": START_TIME,
-            "endDate": END_TIME,
-            "nextStationCode": "HCM004H",
-            "nextStationCodeId": 11888,
-            "nextStationCodeName": "HCM HUB",
-            "nextStationCodeTypeId": 335,
-            "scanSiteCode": station["code"],
-            "scanSiteCodeId": "",
-            "scanSiteCodeName": station["name"],
-            "scanSiteCodeTypeId": "",
-            "paginationSearchType": "list",
-            "size": 1000
-        }
-        
-        station_data = []
-        page = 1
-        while True:
-            list_payload = {**payload, 'current': page}
-            max_retries = 3
-            records = []
-            
-            for attempt in range(1, max_retries + 1):
-                try:
-                    r = requests.post(
-                        url,
-                        params=params,
-                        headers=ph_headers,
-                        json=list_payload,
-                        timeout=30
-                    )
-                    if r.status_code in [401, 405] or r.json().get('code') in [401, 405]:
-                        _, new_token = handle_401(ph_headers)
-                        ph_headers['authToken'] = new_token
-                        ph_headers['Authtoken'] = new_token
-                        r = requests.post(
-                            url,
-                            params=params,
-                            headers=ph_headers,
-                            json=list_payload,
-                            timeout=30
-                        )
-                    r.raise_for_status()
-                    res_json = r.json()
-                    data_node = res_json.get('data')
-                    if isinstance(data_node, dict):
-                        records = data_node.get('records', []) or []
-                    elif isinstance(data_node, list):
-                        records = data_node
-                    break
-                except Exception:
-                    if attempt == max_retries:
-                        break
-                    time.sleep(attempt * 2)
-                    
-            if not records:
-                break
-                
-            station_data.extend(records)
-            if len(records) < 1000:
-                break
-            page += 1
-            time.sleep(0.1)
-            
-        if station_data:
-            with lock:
-                all_data.extend(station_data)
-                
-    if stations:
-        with ThreadPoolExecutor(max_workers=6) as executor:
-            executor.map(fetch_station_data, stations)
-            
-    df_ph = pd.DataFrame(all_data)
-    print(f"   ➔ Hoàn tất Giám sát phát hàng: {len(df_ph)} dòng.")
-    return df_ph
+    print("\n🚚 [3/4] Bỏ qua tải dữ liệu Phát hàng theo yêu cầu tối ưu của user...")
+    return pd.DataFrame()
 
 def pull_incoming_cargo(token):
     print("\n🚚 [4/4] Đang tải dữ liệu Giám sát hàng đến (Đã đến + Chưa đến)...")
@@ -540,95 +444,117 @@ def main():
             
     df_inc['ETA Incoming'] = col_eta_incoming
 
-    # 6. Kết hợp (Merge) với dữ liệu Phát hàng
-    supplemented = 0
-    if not df_ph.empty:
-        print("\n🔗 Đang kết hợp với dữ liệu Phát hàng để bổ sung 'arrival_time'...")
-        try:
-            # A. Chuẩn bị bảng phát hàng sạch để merge (Giữ scansitename để bổ sung khi thiếu)
-            df_ph_clean = df_ph[['billcode', 'scantime', 'package_charge_weight', 'scansitename']].copy()
-            df_ph_clean.rename(columns={
-                'scantime': 'arrival_time',
-                'package_charge_weight': 'ph_weight',
-                'scansitename': 'last_dept_name_ph'
-            }, inplace=True)
+    # 6. Kết hợp (Merge) với dữ liệu Phát hàng (được tối ưu hóa chạy bất kể df_ph rỗng)
+    if df_ph.empty:
+        df_ph = pd.DataFrame(columns=['billcode', 'scantime', 'package_charge_weight', 'scansitename'])
+        
+    print("\n🔗 Xử lý dữ liệu Giám sát hàng đến...")
+    try:
+        # A. Chuẩn bị bảng phát hàng sạch để merge (Giữ scansitename để bổ sung khi thiếu)
+        df_ph_clean = df_ph[['billcode', 'scantime', 'package_charge_weight', 'scansitename']].copy()
+        df_ph_clean.rename(columns={
+            'scantime': 'arrival_time',
+            'package_charge_weight': 'ph_weight',
+            'scansitename': 'last_dept_name_ph'
+        }, inplace=True)
+        
+        # Chuẩn bị các khóa để merge
+        df_inc['billcode_clean'] = df_inc['billcode'].astype(str).str.strip().str.upper()
+        df_ph_clean['billcode_clean'] = df_ph_clean['billcode'].astype(str).str.strip().str.upper()
+        
+        # B. Tính Ngày vận hành cho Phát hàng (Cycle 6h-6h)
+        dt_ph_arr = pd.to_datetime(df_ph_clean['arrival_time'], errors='coerce')
+        df_ph_clean['Ngày vận hành'] = (dt_ph_arr - pd.Timedelta(hours=6)).dt.strftime('%Y-%m-%d')
+        
+        # Khử trùng lặp trong phát hàng theo billcode_clean & Ngày vận hành (giữ quét mới nhất trong ngày)
+        df_ph_clean['sort_time_ph'] = dt_ph_arr
+        df_ph_clean.sort_values(by='sort_time_ph', ascending=True, inplace=True)
+        df_ph_clean.drop_duplicates(subset=['billcode_clean', 'Ngày vận hành'], keep='last', inplace=True)
+        df_ph_clean.drop(columns=['sort_time_ph'], errors='ignore', inplace=True)
+        
+        # C. Tính Ngày vận hành cho Giám sát hàng đến (Cycle 6h-6h)
+        dt_eta = pd.to_datetime(df_inc['ETA Incoming'], errors='coerce')
+        
+        scan_series = df_inc.get('scantime')
+        if scan_series is None or scan_series.isna().all():
+            scan_series = df_inc.get('gio_bat_dau_xep')
+        if scan_series is None or scan_series.isna().all():
+            scan_series = df_inc.get('gio_di_thuc_te')
             
-            # Chuẩn bị các khóa để merge
-            df_inc['billcode_clean'] = df_inc['billcode'].astype(str).str.strip().str.upper()
-            df_ph_clean['billcode_clean'] = df_ph_clean['billcode'].astype(str).str.strip().str.upper()
+        dt_scan = pd.to_datetime(scan_series, errors='coerce')
+        base_time_inc = dt_eta.fillna(dt_scan)
+        df_inc['Ngày vận hành'] = (base_time_inc - pd.Timedelta(hours=6)).dt.strftime('%Y-%m-%d')
+        
+        # Merge Full Outer dựa trên cả billcode_clean & Ngày vận hành
+        df_merged = pd.merge(
+            df_inc,
+            df_ph_clean,
+            on=['billcode_clean', 'Ngày vận hành'],
+            how='outer',
+            suffixes=('', '_ph')
+        )
+        
+        # Điền các cột cho những đơn chỉ có ở phát hàng
+        only_ph_mask = df_merged['billcode'].isna()
+        
+        # ✂️ Chỉ giữ lại các đơn từ Phát hàng NẾU có Scantime (gio_bat_dau_xep)
+        # Các đơn không có scantime = không xác định được giờ quét → bỏ ra khỏi dataset
+        if 'gio_bat_dau_xep' in df_merged.columns:
+            has_scantime = df_merged['gio_bat_dau_xep'].notna() & (df_merged['gio_bat_dau_xep'].astype(str).str.strip() != '') & (df_merged['gio_bat_dau_xep'].astype(str).str.strip().str.lower() != 'nan')
+            only_ph_mask = only_ph_mask & has_scantime
+            print(f"   ✂️ Lọc Phát hàng: chỉ giữ {only_ph_mask.sum()} dòng có Scantime (bỏ {(df_merged['billcode'].isna() & ~has_scantime).sum()} dòng thiếu scantime).")
+        
+        df_merged.loc[only_ph_mask, 'billcode'] = df_merged.loc[only_ph_mask, 'billcode_clean']
+        df_merged.loc[only_ph_mask, 'package_charge_weight'] = df_merged.loc[only_ph_mask, 'ph_weight']
+        df_merged.loc[only_ph_mask, 'scansitename'] = 'HCM HUB'
+        df_merged.loc[only_ph_mask, 'ngay_tai_file'] = now.strftime('%Y-%m-%d %H:%M:%S')
+        df_merged.loc[only_ph_mask, 'last_dept_name'] = df_merged.loc[only_ph_mask, 'last_dept_name_ph']
+        
+        # Loại bỏ các đơn từ Phát hàng không có scantime (billcode vẫn còn là NaN sau bộ lọc)
+        df_merged = df_merged[df_merged['billcode'].notna()]
+        
+        df_inc = df_merged
+        
+        # --- CUSTOM DEDUPLICATION LOGIC ---
+        print("\n⚙️ Đang thực hiện loại bỏ trùng lặp dựa trên mã vận đơn + Ngày vận hành (Chu kỳ 6h-6h)...")
+        
+        # Chuyển đổi lại các cột thời gian sang datetime để tính toán lại base_time hoàn chỉnh sau merge
+        dt_eta_new = pd.to_datetime(df_inc['ETA Incoming'], errors='coerce')
+        dt_arr_new = pd.to_datetime(df_inc['arrival_time'], errors='coerce')
+        
+        scan_series_new = df_inc.get('scantime')
+        if scan_series_new is None or scan_series_new.isna().all():
+            scan_series_new = df_inc.get('gio_bat_dau_xep')
+        if scan_series_new is None or scan_series_new.isna().all():
+            scan_series_new = df_inc.get('gio_di_thuc_te')
             
-            # B. Tính Ngày vận hành cho Phát hàng (Cycle 6h-6h)
-            dt_ph_arr = pd.to_datetime(df_ph_clean['arrival_time'], errors='coerce')
-            df_ph_clean['Ngày vận hành'] = (dt_ph_arr - pd.Timedelta(hours=6)).dt.strftime('%Y-%m-%d')
-            
-            # Khử trùng lặp trong phát hàng theo billcode_clean & Ngày vận hành (giữ quét mới nhất trong ngày)
-            df_ph_clean['sort_time_ph'] = dt_ph_arr
-            df_ph_clean.sort_values(by='sort_time_ph', ascending=True, inplace=True)
-            df_ph_clean.drop_duplicates(subset=['billcode_clean', 'Ngày vận hành'], keep='last', inplace=True)
-            df_ph_clean.drop(columns=['sort_time_ph'], errors='ignore', inplace=True)
-            
-            # C. Tính Ngày vận hành cho Giám sát hàng đến (Cycle 6h-6h)
-            dt_eta = pd.to_datetime(df_inc['ETA Incoming'], errors='coerce')
-            dt_scan = pd.to_datetime(df_inc['scantime'], errors='coerce')
-            # Vì lúc này chưa merge phát hàng nên thời gian tham chiếu là ETA Incoming -> scantime
-            base_time_inc = dt_eta.fillna(dt_scan)
-            df_inc['Ngày vận hành'] = (base_time_inc - pd.Timedelta(hours=6)).dt.strftime('%Y-%m-%d')
-            
-            # Merge Full Outer dựa trên cả billcode_clean & Ngày vận hành
-            df_merged = pd.merge(
-                df_inc,
-                df_ph_clean,
-                on=['billcode_clean', 'Ngày vận hành'],
-                how='outer',
-                suffixes=('', '_ph')
-            )
-            
-            # Điền các cột cho những đơn chỉ có ở phát hàng
-            only_ph_mask = df_merged['billcode'].isna()
-            df_merged.loc[only_ph_mask, 'billcode'] = df_merged.loc[only_ph_mask, 'billcode_clean']
-            df_merged.loc[only_ph_mask, 'package_charge_weight'] = df_merged.loc[only_ph_mask, 'ph_weight']
-            df_merged.loc[only_ph_mask, 'scansitename'] = 'HCM HUB'
-            df_merged.loc[only_ph_mask, 'ngay_tai_file'] = now.strftime('%Y-%m-%d %H:%M:%S')
-            df_merged.loc[only_ph_mask, 'last_dept_name'] = df_merged.loc[only_ph_mask, 'last_dept_name_ph']
-            
-            df_inc = df_merged
-            
-            # --- CUSTOM DEDUPLICATION LOGIC ---
-            print("\n⚙️ Đang thực hiện loại bỏ trùng lặp dựa trên mã vận đơn + Ngày vận hành (Chu kỳ 6h-6h)...")
-            
-            # Chuyển đổi lại các cột thời gian sang datetime để tính toán lại base_time hoàn chỉnh sau merge
-            dt_eta_new = pd.to_datetime(df_inc['ETA Incoming'], errors='coerce')
-            dt_arr_new = pd.to_datetime(df_inc['arrival_time'], errors='coerce')
-            dt_scan_new = pd.to_datetime(df_inc['scantime'], errors='coerce')
-            
-            # Thời gian tham chiếu theo thứ tự ưu tiên: ETA Incoming -> arrival_time -> scantime
-            base_time_new = dt_eta_new.fillna(dt_arr_new).fillna(dt_scan_new)
-            
-            # Tính lại Ngày vận hành chuẩn xác
-            df_inc['Ngày vận hành'] = (base_time_new - pd.Timedelta(hours=6)).dt.strftime('%Y-%m-%d')
-            
-            # Tạo khóa ghép: billcode + Ngày vận hành
-            df_inc['bill_date_key'] = df_inc['billcode'].astype(str).str.strip().str.upper() + '|' + df_inc['Ngày vận hành'].fillna('')
-            
-            # Sắp xếp theo base_time_new tăng dần để khi drop_duplicates keep='last' sẽ giữ lại quét mới nhất
-            df_inc['sort_time_temp'] = base_time_new
-            df_inc.sort_values(by='sort_time_temp', ascending=True, inplace=True)
-            
-            # Loại bỏ các dòng trùng lặp cùng khóa bill_date_key
-            df_inc.drop_duplicates(subset=['bill_date_key'], keep='last', inplace=True)
-            
-            # Xóa các cột phụ dùng để de-dup và merge (Giữ lại cột Ngày vận hành)
-            df_inc.drop(columns=['sort_time_temp', 'bill_date_key', 'billcode_clean', 'billcode_ph', 'ph_weight', 'last_dept_name_ph'], errors='ignore', inplace=True)
-            # --- END CUSTOM DEDUPLICATION LOGIC ---
-            
-            supplemented = only_ph_mask.sum()
-            print(f"   ✅ Đã gộp thành công! Bổ sung thêm {supplemented} đơn mới chỉ có ở Phát hàng.")
-        except Exception as e:
-            print(f"   ⚠️ Lỗi khi merge với dữ liệu Phát hàng: {e}")
-            import traceback
-            traceback.print_exc()
-    else:
-        print("   ⚠️ Không có dữ liệu Phát hàng để gộp.")
+        dt_scan_new = pd.to_datetime(scan_series_new, errors='coerce')
+        
+        # Thời gian tham chiếu theo thứ tự ưu tiên: ETA Incoming -> arrival_time -> scantime
+        base_time_new = dt_eta_new.fillna(dt_arr_new).fillna(dt_scan_new)
+        
+        # Tính lại Ngày vận hành chuẩn xác
+        df_inc['Ngày vận hành'] = (base_time_new - pd.Timedelta(hours=6)).dt.strftime('%Y-%m-%d')
+        
+        # Tạo khóa ghép: billcode + Ngày vận hành
+        df_inc['bill_date_key'] = df_inc['billcode'].astype(str).str.strip().str.upper() + '|' + df_inc['Ngày vận hành'].fillna('')
+        
+        # Sắp xếp theo base_time_new tăng dần để khi drop_duplicates keep='last' sẽ giữ lại quét mới nhất
+        df_inc['sort_time_temp'] = base_time_new
+        df_inc.sort_values(by='sort_time_temp', ascending=True, inplace=True)
+        
+        # Loại bỏ các dòng trùng lặp cùng khóa bill_date_key
+        df_inc.drop_duplicates(subset=['bill_date_key'], keep='last', inplace=True)
+        
+        # Xóa các cột phụ dùng để de-dup và merge (Giữ lại cột Ngày vận hành)
+        df_inc.drop(columns=['sort_time_temp', 'bill_date_key', 'billcode_clean', 'billcode_ph', 'ph_weight', 'last_dept_name_ph'], errors='ignore', inplace=True)
+        # --- END CUSTOM DEDUPLICATION LOGIC ---
+        
+        print(f"   ✅ Đã xử lý xong dữ liệu Giám sát hàng đến!")
+    except Exception as e:
+        print(f"   ⚠️ Lỗi khi xử lý dữ liệu Giám sát hàng đến: {e}")
+        import traceback
+        traceback.print_exc()
 
     # Sắp xếp thời gian xuất phát thực tế mới nhất lên đầu
     if 'gio_di_thuc_te' in df_inc.columns:
@@ -636,6 +562,10 @@ def main():
         temp_date = pd.to_datetime(df_inc['gio_di_thuc_te'], errors='coerce')
         df_inc = df_inc.iloc[temp_date.sort_values(ascending=False, na_position='last').index]
         df_inc = df_inc.reset_index(drop=True)
+
+    # Bảo đảm cột arrival_time luôn tồn tại để tránh KeyError khi sync
+    if 'arrival_time' not in df_inc.columns:
+        df_inc['arrival_time'] = None
 
     # 7. Xuất file kết quả duy nhất
     now_save = datetime.now()
@@ -650,6 +580,7 @@ def main():
         print(f"\n⚠️ Cảnh báo: Tệp gốc bị khóa (do Excel đang mở?), tự động lưu sang tệp: {output_filename}")
         df_inc.to_csv(output_file, index=False, encoding='utf-8-sig')
 
+    supplemented = 0
     print("\n=======================================================")
     print("🎉 HOÀN THÀNH PIPELINE XỬ LÝ!")
     print("=======================================================")
