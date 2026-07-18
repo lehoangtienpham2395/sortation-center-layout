@@ -235,8 +235,7 @@ export default function InboundDashboard({
   // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
   const totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
-  // KPI: số bưu cục đang trên đường (bị xóa về 0 theo yêu cầu)
-  const totalVehicles = 0;
+
 
   // Trucking in transit: map directly from filteredArrival and apply exclusions
   const NORTH_POST_OFFICES = new Set([
@@ -262,27 +261,38 @@ export default function InboundDashboard({
     .map(d => {
       const orders = parseInt(d['Orders'] || d['Tng s n'] || d['Tổng số đơn'] || d['Chua dn Hub'] || d['Chưa đến Hub'] || 0, 10);
       const weight = parseFloat(d['weight'] || d['package_charge_weight'] || 0);
+      const truckingCode = (d['Trucking'] || d['transfercode'] || '').trim();
+      const hasVehicle = (truckingCode !== '' && truckingCode.toLowerCase() !== 'nan');
       return {
         station: d['Station'] || d['Pickup_station'] || '',
-        trucking: d['Trucking'] || d['transfercode'] || '',
+        trucking: truckingCode,
         orders: orders,
         weight: weight,
         eta: d['ETA'] || d['Last time'] || '',
+        rank: d['Rank'] || 'Shuttle',
         // Backwards compatibility keys:
         chuaDenHub: orders,
         tongDon: orders,
-        vehicles: 1, // each record corresponds to 1 vehicle/trucking code
+        vehicles: hasVehicle ? 1 : 0,
         lastTime: d['ETA'] || d['Last time'] || ''
       };
     })
     .filter(v => v.orders > 0)
     .sort((a, b) => b.orders - a.orders);
 
+  // Split by Shuttle and Linehaul ranks
+  const shuttleVehicles = incomingVehicles.filter(v => v.rank === 'Shuttle');
+  const linehaulVehicles = incomingVehicles.filter(v => v.rank === 'Linehaul');
+
+  // Counts of actual vehicles (having non-empty transfercodes)
+  const totalShuttleVehicles = shuttleVehicles.reduce((sum, v) => sum + v.vehicles, 0);
+  const totalLinehaulVehicles = linehaulVehicles.reduce((sum, v) => sum + v.vehicles, 0);
+
   // Orders status: tổng đơn chưa đến Hub = "Đang trên đường". 
   // Lấy trực tiếp tổng từ danh sách xe đang di chuyển (incomingVehicles) để bảo đảm 100% khớp số liệu.
   let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
 
-  const totalTransitVehicles = incomingVehicles.length;
+  const totalTransitVehicles = totalShuttleVehicles + totalLinehaulVehicles;
 
   // 4. Hourly timelines
   const hours24 = [];
@@ -786,7 +796,7 @@ export default function InboundDashboard({
       {/* Row 1: KPI Cards */}
       <section className="kpi-grid">
         {/* KPI 1: Inbound (orders) */}
-        <div className="kpi-card accent-green glass-card">
+        <div className="kpi-card accent-purple glass-card">
           <div className="kpi-card-header">
             <span className="kpi-title">Inbound (orders)</span>
             <i className="fa-solid fa-warehouse kpi-icon"></i>
@@ -811,15 +821,24 @@ export default function InboundDashboard({
           <div className="kpi-glow"></div>
         </div>
 
-        {/* KPI 3: Trucking in Transit */}
+        {/* KPI 3: Inbound Truck ETA - HCM HUB */}
         <div className="kpi-card accent-lime glass-card">
           <div className="kpi-card-header">
             <span className="kpi-title">Inbound Truck ETA - HCM HUB</span>
             <i className="fa-solid fa-truck-fast kpi-icon"></i>
           </div>
-          <div className="kpi-card-body">
-            <span className="kpi-value"><NumberTicker value={totalVehicles} /></span>
-            <span className="kpi-sub">Tổng lượng xe sắp về HUB</span>
+          <div className="kpi-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span className="kpi-value"><NumberTicker value={totalTransitVehicles} /> xe</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5px', fontSize: '0.95rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', marginTop: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Shuttle:</span>
+                <strong style={{ color: '#a3e635' }}><NumberTicker value={totalShuttleVehicles} /> xe</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Linehaul:</span>
+                <strong style={{ color: '#f97316' }}><NumberTicker value={totalLinehaulVehicles} /> xe</strong>
+              </div>
+            </div>
           </div>
           <div className="kpi-glow"></div>
         </div>
@@ -1094,7 +1113,7 @@ export default function InboundDashboard({
                   <tr key={v.station + '-' + v.trucking}>
                      <td className="table-index">{idx + 1}</td>
                      <td className="table-buucuc">{v.station}</td>
-                     <td className="num-tabular" style={{ textAlign: 'left', color: '#38bdf8', fontWeight: 500 }}>{v.trucking}</td>
+                     <td className="num-tabular" style={{ textAlign: 'left', color: '#38bdf8', fontWeight: 500 }}>{v.trucking || '-'}</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.orders.toLocaleString()}</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{(v.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tấn</td>
                      <td className="num-tabular" style={{ textAlign: 'center', color: '#64748b' }}>{v.eta ? v.eta : '--:--'}</td>

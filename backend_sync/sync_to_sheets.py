@@ -1642,16 +1642,28 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             
     if not df_enriched.empty:
         try:
-            # Loại bỏ các dòng không có mã chuyến xe (transfercode rỗng/nan) - chỉ giữ các đơn hàng trên xe đang trung chuyển
-            df_enriched = df_enriched.dropna(subset=['transfercode'])
-            df_enriched = df_enriched[df_enriched['transfercode'].astype(str).str.strip() != '']
-            df_enriched = df_enriched[df_enriched['transfercode'].astype(str).str.strip().str.lower() != 'nan']
-            
             # Xử lý kiểu dữ liệu số
             df_enriched['package_charge_weight'] = pd.to_numeric(df_enriched['package_charge_weight'], errors='coerce').fillna(0)
             
-            # Pivot nhóm theo Ngày vận hành + Station (last_dept_name) + Trucking (transfercode)
-            df_pivot = (df_enriched.groupby(['Ngày vận hành', 'last_dept_name', 'transfercode'])
+            # Chuẩn hóa transfercode (thay thế NaN bằng rỗng)
+            df_enriched['transfercode'] = df_enriched['transfercode'].fillna('').astype(str).str.strip()
+            df_enriched.loc[df_enriched['transfercode'].str.lower() == 'nan', 'transfercode'] = ''
+            
+            # Xác định Rank cho từng dòng
+            def get_arrival_rank(row):
+                nguon = str(row.get('nguon_anh_xa', '')).strip().lower()
+                station = str(row.get('last_dept_name', '')).strip().upper()
+                if station == 'BN HUB' or nguon == 'linehaul':
+                    return 'Linehaul'
+                mapped_rank = d_rank.get(station, '')
+                if mapped_rank == 'BN HUB':
+                    return 'Linehaul'
+                return 'Shuttle'
+                
+            df_enriched['Rank'] = df_enriched.apply(get_arrival_rank, axis=1)
+            
+            # Pivot nhóm theo Ngày vận hành + Station (last_dept_name) + Trucking (transfercode) + Rank
+            df_pivot = (df_enriched.groupby(['Ngày vận hành', 'last_dept_name', 'transfercode', 'Rank'])
                         .agg(
                             Orders=('billcode', 'count'),
                             weight=('package_charge_weight', 'sum'),
@@ -1669,7 +1681,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             df_pivot = pd.DataFrame()
             
         if not df_pivot.empty:
-            arrival_cols = ['Ngày vận hành', 'Station', 'Trucking', 'Orders', 'weight', 'ETA']
+            arrival_cols = ['Ngày vận hành', 'Station', 'Trucking', 'Orders', 'weight', 'ETA', 'Rank']
             df_old = pd.DataFrame()
             
             # Read from local json first
