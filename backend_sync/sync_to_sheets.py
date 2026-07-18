@@ -3697,13 +3697,19 @@ def main():
     # Mirror data/ files to root data/ and src/data/ for frontend and GitHub raw access
     try:
         import shutil
-        for dest_dir in [os.path.join("..", "data"), os.path.join("..", "src", "data")]:
+        dest_dirs = [os.path.join("..", "data"), os.path.join("..", "src", "data")]
+        repo_base = r"C:\Users\lehoa\.gemini\antigravity\scratch\sortation-center-layout"
+        if os.path.exists(repo_base):
+            dest_dirs.append(os.path.join(repo_base, "data"))
+            dest_dirs.append(os.path.join(repo_base, "src", "data"))
+            
+        for dest_dir in dest_dirs:
             os.makedirs(dest_dir, exist_ok=True)
             if os.path.exists("data"):
                 for fn in os.listdir("data"):
                     if fn.endswith(".json") or fn.endswith(".gz"):
                         shutil.copy2(os.path.join("data", fn), os.path.join(dest_dir, fn))
-        print("   📂 Đã đồng bộ tất cả file JSON ra thư mục gốc '../data/' và '../src/data/'.")
+        print("   📂 Đã đồng bộ tất cả file JSON ra các thư mục data/ và src/data/ (Desktop & Git repo).")
     except Exception as e_mir:
         print(f"   ⚠️ Lỗi mirror data: {e_mir}")
 
