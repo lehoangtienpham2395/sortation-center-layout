@@ -1642,6 +1642,22 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             
     if not df_enriched.empty:
         try:
+            # Xử lý kiểu dữ liệu số & Rank cho df_enriched
+            df_enriched['package_charge_weight'] = pd.to_numeric(df_enriched['package_charge_weight'], errors='coerce').fillna(0)
+            
+            # Xác định Rank cho từng dòng
+            def get_arrival_rank(row):
+                nguon = str(row.get('nguon_anh_xa', '')).strip().lower()
+                station = str(row.get('last_dept_name', '')).strip().upper()
+                if station == 'BN HUB' or nguon == 'linehaul':
+                    return 'Linehaul'
+                mapped_rank = d_rank.get(station, '')
+                if mapped_rank == 'BN HUB':
+                    return 'Linehaul'
+                return 'Shuttle'
+                
+            df_enriched['Rank'] = df_enriched.apply(get_arrival_rank, axis=1)
+
             # 1. TẠO DATASET A: QUÉT LỊCH SỬ ĐỂ XEM TREND (DÀNH CHO BIỂU ĐỒ HOURLY PROCESSING TREND)
             df_arr = df_enriched.copy()
             df_arr['scantime_dt'] = pd.to_datetime(df_arr['scantime'], errors='coerce')
