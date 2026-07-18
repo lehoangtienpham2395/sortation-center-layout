@@ -226,7 +226,9 @@ export default function InboundDashboard({
   // Filter by active date
   const filteredArrival = arrivalData.filter(d => {
     const isToday = (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
-    const isBnHubInTransit = (d['Pickup_station'] || '').trim().toUpperCase() === 'BN HUB' && (parseInt(d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0) > 0;
+    const station = (d['Station'] || d['Pickup_station'] || '').trim().toUpperCase();
+    const orders = parseInt(d['Orders'] || d['Chua dn Hub'] || d['Chưa đến Hub'] || 0, 10);
+    const isBnHubInTransit = station === 'BN HUB' && orders > 0;
     return isToday || isBnHubInTransit;
   });
 
@@ -240,8 +242,7 @@ export default function InboundDashboard({
   // KPI: số bưu cục đang trên đường (bị xóa về 0 theo yêu cầu)
   const totalVehicles = 0;
 
-  // Trucking in transit table: top 10 bưu cục Chưa đến Hub nhiều nhất
-  const stationMap: Record<string, { station: string; chuaDenHub: number; tongDon: number; vehicles: number; lastTime: string }> = {};
+  // Trucking in transit: map directly from filteredArrival and apply exclusions
   const NORTH_POST_OFFICES = new Set([
     'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
     'HN THƯỜNG TÍN', 'HN HOÀNG MAI', 'HD KINH MÔN', 'HY VĂN GIANG', 'HN NGỌC HỒI',
@@ -252,37 +253,40 @@ export default function InboundDashboard({
     'HN PHÚ DIỄN', 'HN TÂY HỒ', 'HN VĨNH TUY', 'HN ỨNG HÒA'
   ]);
 
-  filteredArrival.forEach(d => {
-    let key = (d['Pickup_station'] || '').trim();
-    if (!key) return;
-
-    const cleanKey = key.toUpperCase();
-    // Exclude northern post offices (except BN HUB itself)
-    if (cleanKey !== 'BN HUB' && (NORTH_POST_OFFICES.has(cleanKey) || cleanKey.startsWith('HN ') || cleanKey.startsWith('HD ') || cleanKey.startsWith('HY '))) {
-      return;
-    }
-
-    if (!stationMap[key]) {
-      stationMap[key] = { station: key, chuaDenHub: 0, tongDon: 0, vehicles: 0, lastTime: '' };
-    }
-    const chuaDenHub = parseInt(d['Chua dn Hub'] || d['Chưa đến Hub'], 10) || 0;
-    stationMap[key].chuaDenHub += chuaDenHub;
-    stationMap[key].tongDon   += parseInt(d['Tng s n'] || d['Tổng số đơn'], 10) || 0;
-    stationMap[key].vehicles = 0;
-    const lt = d['Last time'] || '';
-    if (lt > stationMap[key].lastTime) stationMap[key].lastTime = lt;
-  });
-
-  // Chỉ hiển thị xe ĐANG trên đường (chưa về HUB)
-  const incomingVehicles = Object.values(stationMap)
-    .filter(s => s.chuaDenHub > 0)
-    .sort((a, b) => b.chuaDenHub - a.chuaDenHub);
+  const incomingVehicles = filteredArrival
+    .filter(d => {
+      const key = (d['Station'] || d['Pickup_station'] || '').trim();
+      if (!key) return false;
+      const cleanKey = key.toUpperCase();
+      if (cleanKey !== 'BN HUB' && (NORTH_POST_OFFICES.has(cleanKey) || cleanKey.startsWith('HN ') || cleanKey.startsWith('HD ') || cleanKey.startsWith('HY '))) {
+        return false;
+      }
+      return true;
+    })
+    .map(d => {
+      const orders = parseInt(d['Orders'] || d['Tng s n'] || d['Tổng số đơn'] || d['Chua dn Hub'] || d['Chưa đến Hub'] || 0, 10);
+      const weight = parseFloat(d['weight'] || d['package_charge_weight'] || 0);
+      return {
+        station: d['Station'] || d['Pickup_station'] || '',
+        trucking: d['Trucking'] || d['transfercode'] || '',
+        orders: orders,
+        weight: weight,
+        eta: d['ETA'] || d['Last time'] || '',
+        // Backwards compatibility keys:
+        chuaDenHub: orders,
+        tongDon: orders,
+        vehicles: 1, // each record corresponds to 1 vehicle/trucking code
+        lastTime: d['ETA'] || d['Last time'] || ''
+      };
+    })
+    .filter(v => v.orders > 0)
+    .sort((a, b) => b.orders - a.orders);
 
   // Orders status: tổng đơn chưa đến Hub = "Đang trên đường". 
   // Lấy trực tiếp tổng từ danh sách xe đang di chuyển (incomingVehicles) để bảo đảm 100% khớp số liệu.
-  let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.chuaDenHub, 0);
+  let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
 
-  const totalTransitVehicles = 0;
+  const totalTransitVehicles = incomingVehicles.length;
 
   // 4. Hourly timelines
   const hours24 = [];
@@ -304,17 +308,17 @@ export default function InboundDashboard({
 
   // 1. Transporting hourly: dùng Scan Hour từ Arrival → giờ xe ĐẾN HUB và quét Arrival
   filteredArrival.forEach(d => {
-    const station = (d['Pickup_station'] || '').trim().toUpperCase();
+    const station = (d['Pickup_station'] || d['Station'] || '').trim().toUpperCase();
     if (station === 'BN HUB') {
       return;
     }
-    const scanHourStr = d['Scan Hour'] || d['Scan_Hour'] || '';
+    const scanHourStr = d['Scan Hour'] || d['Scan_Hour'] || d['ETA'] || '';
     if (scanHourStr) {
       const hrVal = getHourFromTimestamp(scanHourStr);
       if (hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
         if (hourlyArrived[hour] !== undefined) {
-          hourlyArrived[hour] += parseInt(d['Tng s n'] || d['Tổng số đơn'] || d['Volume'] || 0, 10);
+          hourlyArrived[hour] += parseInt(d['Tng s n'] || d['Tổng số đơn'] || d['Orders'] || d['Volume'] || 0, 10);
         }
       }
     }
@@ -1068,12 +1072,11 @@ export default function InboundDashboard({
               <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
                   <th style={{ width: '50px' }}>#</th>
-                  <th>Bưu cục</th>
-                  <th style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>Xe</th>
-                  <th style={{ textAlign: 'right' }}>Chưa đến</th>
-                  <th style={{ textAlign: 'right' }}>Đã đến</th>
-                  <th style={{ textAlign: 'right' }}>Tổng đơn</th>
-                  <th style={{ textAlign: 'center' }}>Cập nhật</th>
+                  <th>Station</th>
+                  <th>Trucking</th>
+                  <th style={{ textAlign: 'right' }}>Orders</th>
+                  <th style={{ textAlign: 'right' }}>Weight</th>
+                  <th style={{ textAlign: 'center' }}>ETA</th>
                 </tr>
               </thead>
               <tbody>
@@ -1081,30 +1084,24 @@ export default function InboundDashboard({
                   <tr className="total-row" style={{ fontWeight: 'bold', position: 'sticky', top: '41px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', zIndex: 9, backdropFilter: 'blur(8px)' }}>
                     <td className="table-index">-</td>
                     <td className="table-buucuc" style={{ color: '#f59e0b' }}>TỔNG CỘNG</td>
-                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', whiteSpace: 'nowrap' }}>
-                      {totalTransitVehicles} xe
+                    <td className="table-buucuc" style={{ color: '#f59e0b' }}>{totalTransitVehicles} xe</td>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
+                      {incomingVehicles.reduce((a, b) => a + b.orders, 0).toLocaleString()}
                     </td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
-                      {incomingVehicles.reduce((a, b) => a + b.chuaDenHub, 0).toLocaleString()}
-                    </td>
-                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
-                      {incomingVehicles.reduce((a, b) => a + (b.tongDon - b.chuaDenHub), 0).toLocaleString()}
-                    </td>
-                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
-                      {incomingVehicles.reduce((a, b) => a + b.tongDon, 0).toLocaleString()}
+                      {incomingVehicles.reduce((a, b) => a + b.weight, 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
                     </td>
                     <td style={{ textAlign: 'center', color: '#f59e0b' }}>-</td>
                   </tr>
                 )}
                 {incomingVehicles.map((v, idx) => (
-                  <tr key={v.station}>
+                  <tr key={v.station + '-' + v.trucking}>
                      <td className="table-index">{idx + 1}</td>
                      <td className="table-buucuc">{v.station}</td>
-                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600, whiteSpace: 'nowrap' }}>{v.vehicles} xe</td>
-                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.chuaDenHub.toLocaleString()}</td>
-                     <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{(v.tongDon - v.chuaDenHub).toLocaleString()}</td>
-                     <td className="num-tabular" style={{ textAlign: 'right' }}>{v.tongDon.toLocaleString()}</td>
-                     <td className="num-tabular" style={{ textAlign: 'center', color: '#64748b' }}>{v.lastTime ? v.lastTime.split(' ')[1] : '--:--'}</td>
+                     <td className="num-tabular" style={{ textAlign: 'left', color: '#38bdf8', fontWeight: 500 }}>{v.trucking}</td>
+                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.orders.toLocaleString()}</td>
+                     <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{v.weight.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</td>
+                     <td className="num-tabular" style={{ textAlign: 'center', color: '#64748b' }}>{v.eta ? v.eta : '--:--'}</td>
                   </tr>
                 ))}
                 {incomingVehicles.length === 0 && (
