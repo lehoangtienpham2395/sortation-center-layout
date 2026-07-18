@@ -1662,26 +1662,42 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             df_enriched['Rank'] = df_enriched.apply(get_arrival_rank, axis=1)
 
             # 1. TẠO DATASET A: QUÉT LỊCH SỬ ĐỂ XEM TREND (DÀNH CHO BIỂU ĐỒ HOURLY PROCESSING TREND)
-            df_arr = df_enriched.copy()
-            df_arr['scantime_dt'] = pd.to_datetime(df_arr['scantime'], errors='coerce')
-            df_arr['Scan Hour'] = df_arr['scantime_dt'].dt.strftime('%Y-%m-%d %H:00').fillna('')
+            # Truy vấn trực tiếp từ SQLite table 'shipments' thay vì CSV để có scantime đầy đủ
+            conn = sqlite3.connect(DB_FILE)
+            df_ship_sql = pd.read_sql_query("""
+                SELECT pickNetworkName, dispatchNetworkTime, inbound_scanDate
+                FROM shipments
+                WHERE (dispatchNetworkTime IS NOT NULL AND dispatchNetworkTime != '')
+                   OR (inbound_scanDate IS NOT NULL AND inbound_scanDate != '')
+            """, conn)
+            conn.close()
+            
+            # Tính các cột cho arrival.json
+            df_ship_sql['scantime_dt'] = pd.to_datetime(df_ship_sql['dispatchNetworkTime'], errors='coerce')
+            df_ship_sql['Scan Hour'] = df_ship_sql['scantime_dt'].dt.strftime('%Y-%m-%d %H:00').fillna('')
+            
+            # Bỏ các dòng không có Scan Hour (đơn chưa được dispatch/pickup)
+            df_ship_sql = df_ship_sql[df_ship_sql['Scan Hour'] != '']
+            
+            # Tính Ngày vận hành cho dispatch (sử dụng hàm get_operating_date)
+            df_ship_sql['Ngày vận hành'] = df_ship_sql['dispatchNetworkTime'].apply(lambda x: get_operating_date(x) if x else '')
             
             # Tính Đã đến Hub / Chưa đến Hub
-            df_arr['Đã đến Hub'] = df_arr['arrival_time'].notna() & (df_arr['arrival_time'].astype(str).str.strip() != '') & (df_arr['arrival_time'].astype(str).str.strip().str.lower() != 'nan')
-            df_arr['Đã đến Hub'] = df_arr['Đã đến Hub'].astype(int)
-            df_arr['Chưa đến Hub'] = 1 - df_arr['Đã đến Hub']
+            df_ship_sql['Đã đến Hub'] = df_ship_sql['inbound_scanDate'].notna() & (df_ship_sql['inbound_scanDate'].astype(str).str.strip() != '') & (df_ship_sql['inbound_scanDate'].astype(str).str.strip().str.lower() != 'nan')
+            df_ship_sql['Đã đến Hub'] = df_ship_sql['Đã đến Hub'].astype(int)
+            df_ship_sql['Chưa đến Hub'] = 1 - df_ship_sql['Đã đến Hub']
             
-            # Groupby theo Ngày vận hành, Pickup_station (last_dept_name), Scan Hour
-            df_pivot_arr = (df_arr.groupby(['Ngày vận hành', 'last_dept_name', 'Scan Hour'])
+            # Groupby theo Ngày vận hành, pickNetworkName (Station), Scan Hour
+            df_pivot_arr = (df_ship_sql.groupby(['Ngày vận hành', 'pickNetworkName', 'Scan Hour'])
                             .agg(
-                                Tong_don=('billcode', 'count'),
+                                Tong_don=('dispatchNetworkTime', 'count'),
                                 Da_den=('Đã đến Hub', 'sum'),
                                 Chua_den=('Chưa đến Hub', 'sum'),
                                 Last_time_dt=('scantime_dt', 'max')
                             ).reset_index())
             
             df_pivot_arr.rename(columns={
-                'last_dept_name': 'Pickup_station',
+                'pickNetworkName': 'Pickup_station',
                 'Tong_don': 'Tổng số đơn',
                 'Da_den': 'Đã đến Hub',
                 'Chua_den': 'Chưa đến Hub'
