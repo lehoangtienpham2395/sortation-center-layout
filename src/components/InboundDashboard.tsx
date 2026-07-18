@@ -223,13 +223,9 @@ export default function InboundDashboard({
   });
 
   // --- Arrival data (from the new Arrival Google Sheet) ---
-  // Filter by active date
+  // Filter strictly by active operating date filter
   const filteredArrival = arrivalData.filter(d => {
-    const isToday = (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
-    const station = (d['Station'] || d['Pickup_station'] || '').trim().toUpperCase();
-    const orders = parseInt(d['Orders'] || d['Chua dn Hub'] || d['Chưa đến Hub'] || 0, 10);
-    const isBnHubInTransit = station === 'BN HUB' && orders > 0;
-    return isToday || isBnHubInTransit;
+    return (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
   });
 
   let totalOrders = stages['Inbound'].orders;
