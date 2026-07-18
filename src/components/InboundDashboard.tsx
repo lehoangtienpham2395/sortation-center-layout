@@ -806,7 +806,7 @@ export default function InboundDashboard({
       {/* Row 1: KPI Cards */}
       <section className="kpi-grid">
         {/* KPI 1: Inbound (orders) */}
-        <div className="kpi-card accent-purple glass-card">
+        <div className="kpi-card accent-green glass-card">
           <div className="kpi-card-header">
             <span className="kpi-title">Inbound (orders)</span>
             <i className="fa-solid fa-warehouse kpi-icon"></i>
