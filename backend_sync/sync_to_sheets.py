@@ -1663,7 +1663,13 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
 
             # 1. TẠO DATASET A: QUÉT LỊCH SỬ ĐỂ XEM TREND (DÀNH CHO BIỂU ĐỒ HOURLY PROCESSING TREND)
             df_arr = df_enriched.copy()
-            df_arr['scantime_dt'] = pd.to_datetime(df_arr['scantime'], errors='coerce')
+            # Lấy scantime từ các trường thời gian khả dụng của df_enriched theo thứ tự ưu tiên
+            df_arr['scantime_dt'] = pd.to_datetime(df_arr.get('arrival_time'), errors='coerce')
+            df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('gio_di_thuc_te'), errors='coerce')
+            df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('gio_bat_dau_xep'), errors='coerce')
+            df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('ETA Incoming'), errors='coerce')
+            df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('scantime'), errors='coerce')
+            
             df_arr['Scan Hour'] = df_arr['scantime_dt'].dt.strftime('%Y-%m-%d %H:00').fillna('')
             
             # Tính Đã đến Hub / Chưa đến Hub
