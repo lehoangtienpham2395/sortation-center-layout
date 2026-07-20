@@ -328,12 +328,10 @@ export default function InboundDashboard({
     hourlyPickup[l] = 0;
   });
 
-  // 1. Transporting hourly: dùng Scan Hour từ Arrival → giờ xe ĐẾN HUB và quét Arrival
+  // 1a. Transporting hourly: xe ĐÃ VỀ HUB → dùng Scan Hour từ Arrival
   filteredArrival.forEach(d => {
     const station = (d['Pickup_station'] || d['Station'] || '').trim().toUpperCase();
-    if (station === 'BN HUB') {
-      return;
-    }
+    if (station === 'BN HUB') return;
     const scanHourStr = d['Scan Hour'] || d['Scan_Hour'] || d['ETA'] || '';
     if (scanHourStr) {
       const hrVal = getHourFromTimestamp(scanHourStr);
@@ -342,6 +340,22 @@ export default function InboundDashboard({
         if (hourlyArrived[hour] !== undefined) {
           hourlyArrived[hour] += parseInt(d['Tng s n'] || d['Tổng số đơn'] || d['Orders'] || d['Volume'] || 0, 10);
         }
+      }
+    }
+  });
+
+  // 1b. Transporting hourly: xe ĐANG TRÊN ĐƯỜNG → dùng ETA từ truck_eta.json (nếu có)
+  filteredTruckEta.forEach(d => {
+    const station = (d['Station'] || d['Pickup_station'] || '').trim().toUpperCase();
+    if (station === 'BN HUB') return;
+    const eta = d['ETA'] || d['Last time'] || '';
+    if (!eta) return;
+    const hrVal = getHourFromTimestamp(eta);
+    if (hrVal >= 0 && hrVal < 24) {
+      const hour = `${String(hrVal).padStart(2, '0')}:00`;
+      if (hourlyArrived[hour] !== undefined) {
+        const orders = parseInt(d['Orders'] || d['Tng s n'] || d['Tổng số đơn'] || d['Chua dn Hub'] || 0, 10);
+        hourlyArrived[hour] += orders;
       }
     }
   });
