@@ -1345,11 +1345,11 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         conn = sqlite3.connect(DB_FILE)
         df_ship = pd.read_sql_query("""
             SELECT pickNetworkName, status_order, weight, 
-                   inbound_scanDate, dispatchNetworkTime, Pickup_time, Arrival_time, inbound_network
+                   inbound_scanDate, dispatchNetworkTime, Pickup_time, Arrival_time, inbound_network, is_active
             FROM shipments
             WHERE is_active = 1
-               OR (time_ref != '' AND time_ref >= date('now', '+7 hours', '-5 days'))
-               OR (Arrival_time != '' AND Arrival_time >= date('now', '+7 hours', '-5 days'))
+               OR (time_ref != '' AND time_ref >= '2026-07-05 00:00:00')
+               OR (Arrival_time != '' AND Arrival_time >= '2026-07-05 00:00:00')
         """, conn)
         conn.close()
     except Exception as e_db:
@@ -1367,37 +1367,32 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             pk_time = str(row.get('Pickup_time') or '').strip()
             fc_time = str(row.get('dispatchNetworkTime') or '').strip()
             arr_time = str(row.get('Arrival_time') or '').strip()
-            
-            # Mapping Status directly to English for Inbound Sheet
-            status_map = {
-                'Đang trên bãi': 'Inbound',
-                'Đang trên đường': 'Transporting',
-                'Đã lấy hàng': 'Pickup Done',
-                'Đã điều phối bưu cục': 'Created'
-            }
-
+            is_active = bool(row.get('is_active'))
             current_status = row.get('status_order', '')
 
-            # ✅ Fix: Đơn "Đã rời HUB" có inbound_scanDate vẫn phải được
-            # tính vào Inbound để báo cáo lịch sử đúng.
-            # Chỉ skip nếu chưa có inbound_scanDate (đơn chưa vào HUB bao giờ).
-            if current_status == 'Đã rời HUB':
-                if ib_time:
-                    # Đã qua HUB rồi ra → vẫn tính là Inbound
-                    status = 'Inbound'
-                else:
-                    # Chưa từng inbound → bỏ qua
-                    continue
-            else:
+            # Dùng trạng thái hiện tại trong DB để map
+            if ib_time:
+                status = 'Inbound'
+            elif is_active:
+                status_map = {
+                    'Đang trên bãi': 'Inbound',
+                    'Đang trên đường': 'Transporting',
+                    'Đã lấy hàng': 'Pickup Done',
+                    'Đã điều phối bưu cục': 'Created',
+                    'Đang trung chuyển': 'Transporting'
+                }
                 status = status_map.get(current_status, 'Created')
+            else:
+                continue
 
-                
+
+            # Tính toán ngày vận hành theo từng mốc thời gian
             op_date_ib = get_operating_date(ib_time) if ib_time else ""
             fc_time_temp = fc_time if fc_time else (pk_time if pk_time else (arr_time if arr_time else ib_time))
             op_date_fc = get_operating_date(fc_time_temp) if fc_time_temp else ""
             op_date_pk = get_operating_date(pk_time) if pk_time else ""
             op_date_arr = get_operating_date(arr_time) if arr_time else ""
-            
+
             # Apply +36 hours shift for northern shipments in inbound.json
             if status == 'Inbound':
                 pkn = (row.get('inbound_network') or '').strip()
@@ -1662,86 +1657,78 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             df_enriched['Rank'] = df_enriched.apply(get_arrival_rank, axis=1)
 
             # 1. TẠO DATASET A: QUÉT LỊCH SỬ ĐỂ XEM TREND (DÀNH CHO BIỂU ĐỒ HOURLY PROCESSING TREND)
-            df_arr = df_enriched.copy()
-            # Lấy scantime từ các trường thời gian khả dụng của df_enriched theo thứ tự ưu tiên
-            df_arr['scantime_dt'] = pd.to_datetime(df_arr.get('arrival_time'), errors='coerce')
-            df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('gio_di_thuc_te'), errors='coerce')
-            df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('gio_bat_dau_xep'), errors='coerce')
-            df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('ETA Incoming'), errors='coerce')
-            df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('scantime'), errors='coerce')
-            
-            df_arr['Scan Hour'] = df_arr['scantime_dt'].dt.strftime('%Y-%m-%d %H:00').fillna('')
-            
-            # Tính Đã đến Hub / Chưa đến Hub
-            df_arr['Đã đến Hub'] = df_arr['arrival_time'].notna() & (df_arr['arrival_time'].astype(str).str.strip() != '') & (df_arr['arrival_time'].astype(str).str.strip().str.lower() != 'nan')
-            df_arr['Đã đến Hub'] = df_arr['Đã đến Hub'].astype(int)
-            df_arr['Chưa đến Hub'] = 1 - df_arr['Đã đến Hub']
-            
-            # Groupby theo Ngày vận hành, Pickup_station (last_dept_name), Scan Hour
-            df_pivot_arr = (df_arr.groupby(['Ngày vận hành', 'last_dept_name', 'Scan Hour'])
-                            .agg(
-                                Tong_don=('billcode', 'count'),
-                                Da_den=('Đã đến Hub', 'sum'),
-                                Chua_den=('Chưa đến Hub', 'sum'),
-                                Last_time_dt=('scantime_dt', 'max')
-                            ).reset_index())
-            
-            df_pivot_arr.rename(columns={
-                'last_dept_name': 'Pickup_station',
-                'Tong_don': 'Tổng số đơn',
-                'Da_den': 'Đã đến Hub',
-                'Chua_den': 'Chưa đến Hub'
-            }, inplace=True)
-            
-            df_pivot_arr['Last time'] = df_pivot_arr['Last_time_dt'].dt.strftime('%Y-%m-%d %H:%M:%S').fillna('')
-            df_pivot_arr = df_pivot_arr.drop(columns=['Last_time_dt'])
-            
-            # Lưu lịch sử 7 ngày cho arrival.json
-            arrival_cols = ['Ngày vận hành', 'Pickup_station', 'Scan Hour', 'Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub', 'Last time']
-            
-            df_old_arr = pd.DataFrame()
-            arrival_json_path = "data/arrival.json"
-            if os.path.exists(arrival_json_path):
-                try:
-                    df_old_arr = pd.read_json(arrival_json_path)
-                except Exception:
-                    pass
-            
-            if df_old_arr.empty and not DISABLE_GOOGLE_SHEETS and ss:
-                try:
-                    arr_sheet = ss.worksheet('Arrival')
-                    old_vals = arr_sheet.get_all_values()
-                    if len(old_vals) > 1:
-                        df_old_arr = pd.DataFrame(old_vals[1:], columns=old_vals[0])
-                except Exception:
-                    pass
-            
-            if not df_old_arr.empty and not all(c in df_old_arr.columns for c in arrival_cols):
-                df_old_arr = pd.DataFrame()
+            # Truy vấn SQLite để lấy toàn bộ dữ liệu quét gửi về từ 05/07 đến nay
+            df_final_arr = pd.DataFrame()
+            try:
+                conn_arr = sqlite3.connect(DB_FILE)
+                query_arr = """
+                    SELECT waybillNo, pickNetworkName AS Pickup_station, Arrival_time, inbound_scanDate, Rank
+                    FROM shipments
+                    WHERE Arrival_time IS NOT NULL AND Arrival_time != ''
+                      AND datetime(Arrival_time) >= datetime('2026-07-05 00:00:00')
+                """
+                df_arr_db = pd.read_sql_query(query_arr, conn_arr)
+                conn_arr.close()
+            except Exception as e_db_arr:
+                print(f"   ⚠️ Lỗi truy vấn SQLite cho Arrival Trend: {e_db_arr}")
+                df_arr_db = pd.DataFrame()
+
+            if not df_arr_db.empty:
+                df_arr_db['scantime_dt'] = pd.to_datetime(df_arr_db['Arrival_time'], errors='coerce')
                 
-            if not df_old_arr.empty:
-                for col in ['Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub']:
-                    if col in df_old_arr.columns:
-                        df_old_arr[col] = pd.to_numeric(df_old_arr[col], errors='coerce').fillna(0)
-                today_dates = set(df_pivot_arr['Ngày vận hành'].unique())
-                df_old_arr = df_old_arr[~df_old_arr['Ngày vận hành'].isin(today_dates)]
-                df_final_arr = pd.concat([df_old_arr, df_pivot_arr[arrival_cols]], ignore_index=True)
+                # Tính Ngày vận hành (Cycle 6h-6h)
+                def get_op_date(dt):
+                    if pd.isna(dt):
+                        return ""
+                    if dt.hour < 6:
+                        return (dt - timedelta(days=1)).strftime('%Y-%m-%d')
+                    return dt.strftime('%Y-%m-%d')
+                
+                df_arr_db['Ngày vận hành'] = df_arr_db['scantime_dt'].apply(get_op_date)
+                df_arr_db['Scan Hour'] = df_arr_db['scantime_dt'].dt.strftime('%Y-%m-%d %H:00').fillna('')
+                df_arr_db['Pickup_station'] = df_arr_db['Pickup_station'].fillna('').str.strip()
+                
+                # Tính Đã đến Hub / Chưa đến Hub
+                df_arr_db['Đã đến Hub'] = df_arr_db['inbound_scanDate'].notna() & (df_arr_db['inbound_scanDate'].astype(str).str.strip() != '') & (df_arr_db['inbound_scanDate'].astype(str).str.strip().str.lower() != 'nan') & (df_arr_db['inbound_scanDate'].astype(str).str.strip().str.lower() != 'backlog')
+                df_arr_db['Đã đến Hub'] = df_arr_db['Đã đến Hub'].astype(int)
+                df_arr_db['Chưa đến Hub'] = 1 - df_arr_db['Đã đến Hub']
+                
+                df_pivot_arr = (df_arr_db.groupby(['Ngày vận hành', 'Pickup_station', 'Scan Hour'])
+                                .agg(
+                                    Tong_don=('waybillNo', 'count'),
+                                    Da_den=('Đã đến Hub', 'sum'),
+                                    Chua_den=('Chưa đến Hub', 'sum'),
+                                    Last_time_dt=('scantime_dt', 'max')
+                                ).reset_index())
+                
+                df_pivot_arr.rename(columns={
+                    'Tong_don': 'Tổng số đơn',
+                    'Da_den': 'Đã đến Hub',
+                    'Chua_den': 'Chưa đến Hub'
+                }, inplace=True)
+                
+                df_pivot_arr['Last time'] = df_pivot_arr['Last_time_dt'].dt.strftime('%Y-%m-%d %H:%M:%S').fillna('')
+                df_pivot_arr = df_pivot_arr.drop(columns=['Last_time_dt'])
+                df_final_arr = df_pivot_arr.sort_values(
+                    by=['Ngày vận hành', 'Pickup_station', 'Scan Hour'],
+                    ascending=[False, True, True]
+                )
             else:
-                df_final_arr = df_pivot_arr[arrival_cols].copy()
-                
-            df_final_arr = df_final_arr.sort_values(
-                by=['Ngày vận hành', 'Pickup_station', 'Scan Hour'],
-                ascending=[False, True, True]
-            )
-            all_dates_arr = sorted(df_final_arr['Ngày vận hành'].unique(), reverse=True)
-            df_final_arr = df_final_arr[df_final_arr['Ngày vận hành'].isin(all_dates_arr[:7])]
+                df_final_arr = pd.DataFrame(columns=['Ngày vận hành', 'Pickup_station', 'Scan Hour', 'Tổng số đơn', 'Đã đến Hub', 'Chưa đến Hub', 'Last time'])
             
             # Lưu arrival.json
+            arrival_json_path = "data/arrival.json"
             os.makedirs("data", exist_ok=True)
             df_final_arr_json = df_final_arr.copy()
             df_final_arr_json.rename(columns={'Ngày vận hành': 'Ngy vn hnh', 'Tổng số đơn': 'Tng s n'}, inplace=True)
             df_final_arr_json.to_json(arrival_json_path, orient="records", force_ascii=False)
             print(f"   💾 Đã lưu file 'data/arrival.json' với {len(df_final_arr)} dòng.")
+            
+            # Đồng bộ ra src/data/arrival.json cho UI development
+            src_arrival_json_path = "src/data/arrival.json"
+            os.makedirs("src/data", exist_ok=True)
+            df_final_arr_json.to_json(src_arrival_json_path, orient="records", force_ascii=False)
+            print(f"   💾 Đã đồng bộ file 'src/data/arrival.json'.")
             
             # Ghi sheet Arrival (Đã bỏ qua theo yêu cầu để tối ưu hiệu năng)
             pass
