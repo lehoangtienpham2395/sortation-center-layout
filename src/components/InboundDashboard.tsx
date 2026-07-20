@@ -180,16 +180,15 @@ export default function InboundDashboard({
   });
 
   // Forecast = đơn CHƯA Inbound (Created + Pickup Done + Transporting)
-  // Phải bỏ qua status Inbound — nếu không, các ngày cũ (17/18/19) có ~36k Inbound sẽ bị tính vào Rớt hôm trước
+  // BN HUB: chỉ bỏ qua khi đã Inbound — "Đang trên đường" của BN HUB vẫn được tính vào Forecast
   inboundData.forEach(d => {
     const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     if (!fcDate) return;
 
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    if (station === 'BN HUB') return;
-
     const status = d['Trng thi'] || d['Trạng thái'] || '';
     if (status === 'Inbound') return; // Bỏ qua đơn đã nhập kho — tránh double-count lịch sử
+    // BN HUB Inbound đã được lọc ở trên; BN HUB Transporting/Created được tính vào Forecast
 
     const vol = parseInt(d['Volume'], 10) || 0;
     const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
@@ -327,16 +326,17 @@ export default function InboundDashboard({
     }
   });
 
-  // 2b. Transporting hourly: dùng Pickup Time (giờ xe rời bưu cục chạy về HUB)
-  //    Lý do: đơn đang trên đường chưa đến HUB nên Arrival Time chưa có - dùng Pickup Time là mốc sử dụng được
+  // 2b. Transporting hourly: dùng Arrival Time (giờ xe đến HUB)
+  //    - Khác với Pickup Volume (dùng Pickup Time = giờ shipper lấy hàng)
+  //    - Transporting = giờ xe thực sự về đến HUB → dùng Arrival Time + Ngy vn hnh_Arrival
   inboundData.filter(d => {
-    const pkDate = d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || '';
+    const arrDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || '';
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    return pkDate === activeDate && station !== 'BN HUB';
+    return arrDate === activeDate && station !== 'BN HUB';
   }).forEach(d => {
-    const pkTime = d['Pickup Time'] || '';
-    if (pkTime) {
-      const hrVal = getHourFromTimestamp(pkTime);
+    const arrTime = d['Arrival Time'] || '';
+    if (arrTime) {
+      const hrVal = getHourFromTimestamp(arrTime);
       if (hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
         if (hourlyArrived[hour] !== undefined) {
