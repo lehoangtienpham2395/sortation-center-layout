@@ -144,9 +144,9 @@ export default function InboundDashboard({
   const getDateForecast = (d: any) => d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
   const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && getDateInbound(d) === activeDate);
-  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && getDateForecast(d) <= activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
-  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && getDateForecast(d) <= activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
-  const filteredTransporting = inboundData.filter(d => getStatus(d) === 'Transporting' && getDateForecast(d) <= activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
+  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && getDateForecast(d) === activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
+  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && getDateForecast(d) === activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
+  const filteredTransporting = inboundData.filter(d => getStatus(d) === 'Transporting' && getDateForecast(d) === activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
   const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
 
   const getLinehaulOperatingDate = (row: any) => {
