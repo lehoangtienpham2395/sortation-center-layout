@@ -107,10 +107,18 @@ def main():
          "data/backlog.json",
          "data/arrival.json",
          "data/linehaul.json",
+         "data/truck_eta.json",
          "data/config.json",
          "data/last_update.json",
          "data/heatmap.json",
          "data/latest.json.gz",
+         "src/data/inventory.json",
+         "src/data/inbound.json",
+         "src/data/outbound.json",
+         "src/data/backlog.json",
+         "src/data/arrival.json",
+         "src/data/linehaul.json",
+         "src/data/truck_eta.json",
          "src/data/config.json",
          "src/data/last_update.json",
          "src/data/heatmap.json",
@@ -123,7 +131,12 @@ def main():
     if r_status.returncode == 0:
         log("✅ [3/4] Không có thay đổi mới — bỏ qua commit.")
     else:
+        # Stash any remaining unstaged changes to avoid rebase conflict
+        subprocess.run(["git", "stash", "--include-untracked", "-m", "auto-stash before pull"],
+                       cwd=BASE_DIR, capture_output=True)
         run(["git", "pull", "--rebase", "origin", "main"], timeout=30)
+        # Restore stashed changes (ignore errors if nothing stashed)
+        subprocess.run(["git", "stash", "pop"], cwd=BASE_DIR, capture_output=True)
         run(["git", "commit", "-m",
              f"chore(data): auto-sync {ts_str} ICT [skip ci]"])
         ok = run(["git", "push", "origin", "main"], timeout=60)
