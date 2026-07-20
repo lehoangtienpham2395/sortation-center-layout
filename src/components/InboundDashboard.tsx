@@ -114,7 +114,7 @@ const getSvgArcPath = (cx: number, cy: number, rIn: number, rOut: number, startA
 export default function InboundDashboard({
   inboundData,
   linehaulData,
-  arrivalData,
+  arrivalData: _arrivalData,
   truckEtaData,
   selectedInboundDate,
   setSelectedInboundDate,
@@ -225,12 +225,6 @@ export default function InboundDashboard({
     }
   });
 
-  // --- Arrival data (from the new Arrival Google Sheet) ---
-  // Filter strictly by active operating date filter
-  const filteredArrival = arrivalData.filter(d => {
-    return (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
-  });
-
   const filteredTruckEta = (truckEtaData || []).filter(d => {
     return (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
   });
@@ -329,35 +323,29 @@ export default function InboundDashboard({
     hourlyPickup[l] = 0;
   });
 
-  // Transporting hourly: dùng arrival.json — "Giám Sát Hàng Đến"
-  //   - Đã đến Hub  → đã scan thực tế (Đã đến Hub > 0), dùng Scan Hour
-  //   - Chưa đến Hub → đang trên đường, dùng Last time (lần ping cuối ≈ ước tính giờ về)
-  filteredArrival.forEach(d => {
-    const station = (d['Pickup_station'] || d['Station'] || '').trim().toUpperCase();
+  // 1. Transporting hourly: tính từ mốc thời gian phát hàng (Arrival Time / scantime) trong inboundData
+  //    - Lấy theo cycle 6-6 (mốc thời gian < 06:00 sáng thuộc ngày vận hành hôm trước)
+  //    - Gắn trực tiếp lên bộ lọc ngày activeDate
+  inboundData.forEach(d => {
+    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
     if (station === 'BN HUB') return;
 
-    const arrived   = parseInt(d['Đã đến Hub']   || d['Da den Hub']   || 0, 10);
-    const pending   = parseInt(d['Chưa đến Hub'] || d['Chua den Hub'] || 0, 10);
-    const total     = parseInt(d['Tng s n'] || d['Tổng số đơn'] || d['Orders'] || d['Volume'] || 0, 10);
+    const arrTime = d['Arrival Time'] || d['Arrival_time'] || '';
+    if (!arrTime) return;
 
-    // Đã về HUB → plot theo Scan Hour (giờ thực tế)
-    const scanTime = d['Scan Hour'] || d['Scan_Hour'] || '';
-    if (arrived > 0 && scanTime) {
-      const hrVal = getHourFromTimestamp(scanTime);
-      if (hrVal >= 0 && hrVal < 24) {
-        const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyArrived[hour] !== undefined) hourlyArrived[hour] += arrived;
-      }
-    }
+    // Tính ngày vận hành (cycle 6-6) từ Arrival Time
+    const arrOpDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || getOperatingDateFromTimestamp(arrTime);
 
-    // Chưa về HUB → plot theo Last time (ping cuối = ước tính giờ đến)
-    const lastTime = d['Last time'] || d['Last_time'] || '';
-    const plotVol  = pending > 0 ? pending : (arrived === 0 ? total : 0);
-    if (plotVol > 0 && lastTime) {
-      const hrVal = getHourFromTimestamp(lastTime);
-      if (hrVal >= 0 && hrVal < 24) {
-        const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyArrived[hour] !== undefined) hourlyArrived[hour] += plotVol;
+    // Gắn lên bộ lọc ngày activeDate
+    if (arrOpDate !== activeDate) return;
+
+    // Lấy giờ thực tế (00-23h) từ Arrival Time
+    const hrVal = getHourFromTimestamp(arrTime);
+    if (hrVal >= 0 && hrVal < 24) {
+      const hour = `${String(hrVal).padStart(2, '0')}:00`;
+      const vol = parseInt(d['Volume'] || 1, 10);
+      if (hourlyArrived[hour] !== undefined) {
+        hourlyArrived[hour] += vol;
       }
     }
   });
@@ -643,6 +631,22 @@ export default function InboundDashboard({
                 pointHoverBorderWidth: 3
               },
               {
+                label: 'Transporting',
+                data: arrivedTrendData,
+                borderColor: '#C8FF3D',
+                backgroundColor: arrivedGrad,
+                borderWidth: 3,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#05030a',
+                pointBorderColor: '#C8FF3D',
+                pointBorderWidth: 2,
+                pointHoverRadius: 8,
+                pointRadius: 4,
+                pointHoverBackgroundColor: '#C8FF3D',
+                pointHoverBorderWidth: 3
+              },
+              {
                 label: 'Inbound',
                 data: inboundTrendData,
                 borderColor: '#B8F7E4',
@@ -891,6 +895,7 @@ export default function InboundDashboard({
             <div className="chart-legend-custom">
               <span className="legend-item"><span className="dot orange"></span>Created</span>
               <span className="legend-item"><span className="dot blue"></span>Pickup Volume</span>
+              <span className="legend-item"><span className="dot green"></span>Transporting</span>
               <span className="legend-item"><span className="dot cyan"></span>Inbound</span>
             </div>
           </div>
