@@ -306,36 +306,37 @@ export default function InboundDashboard({
 
   // 1. (Removed - Transporting now calculated from inboundData below)
 
-  // 2. Forecast Time (Created line): Vẽ TẤT CẢ đơn theo giờ Forecast Time,
-  //    KHÔNG filter theo status hiện tại — đơn chuyển sang Pickup Done/Transporting vẫn giữ nguyên trên line Created
+  // 2. Forecast Time (Created line): Vẽ tất cả đơn theo giờ Forecast Time
+  //    Chỉ lấy đơn có Forecast Time nằm trong ngày activeDate (tránh spike tối/đêm do rớt hôm trước)
   inboundData.filter(d => {
     const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    return opDate === activeDate && station !== 'BN HUB';
+    if (opDate !== activeDate || station === 'BN HUB') return false;
+    // Chỉ vẽ khi Forecast Time thực sự thuộc activeDate (không phải giờ tối hôm trước rớt sang)
+    const fcTime = d['Forecast Time'] || '';
+    if (!fcTime) return false;
+    return fcTime.startsWith(activeDate);
   }).forEach(d => {
     const fcTime = d['Forecast Time'] || '';
-    if (fcTime) {
-      const hrVal = getHourFromTimestamp(fcTime);
-      if (hrVal >= 0 && hrVal < 24) {
-        const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyForecast[hour] !== undefined) {
-          hourlyForecast[hour] += parseInt(d['Volume'], 10) || 0;
-        }
+    const hrVal = getHourFromTimestamp(fcTime);
+    if (hrVal >= 0 && hrVal < 24) {
+      const hour = `${String(hrVal).padStart(2, '0')}:00`;
+      if (hourlyForecast[hour] !== undefined) {
+        hourlyForecast[hour] += parseInt(d['Volume'], 10) || 0;
       }
     }
   });
 
-  // 2b. Transporting hourly: Vẽ theo giờ Arrival Time (xe đến HUB), KHÔNG filter theo status
-  //    Đơn nào có Ngy vn hnh_Arrival = activeDate → plot theo Arrival Time thực tế
+  // 2b. Transporting hourly: dùng Pickup Time (giờ xe rời bưu cục chạy về HUB)
+  //    Lý do: đơn đang trên đường chưa đến HUB nên Arrival Time chưa có - dùng Pickup Time là mốc sử dụng được
   inboundData.filter(d => {
-    const arrDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || '';
+    const pkDate = d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || '';
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    return arrDate === activeDate && station !== 'BN HUB';
+    return pkDate === activeDate && station !== 'BN HUB';
   }).forEach(d => {
-    // Dùng Arrival Time (giờ xe đến HUB) làm mốc cho Transporting
-    const arrTime = d['Arrival Time'] || '';
-    if (arrTime) {
-      const hrVal = getHourFromTimestamp(arrTime);
+    const pkTime = d['Pickup Time'] || '';
+    if (pkTime) {
+      const hrVal = getHourFromTimestamp(pkTime);
       if (hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
         if (hourlyArrived[hour] !== undefined) {
