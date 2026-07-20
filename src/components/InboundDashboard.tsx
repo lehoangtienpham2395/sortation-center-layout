@@ -1067,7 +1067,7 @@ export default function InboundDashboard({
               <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
                   <th style={{ width: '50px' }}>#</th>
-                  <th>Bưu cục</th>
+                  <th>BƯU CỤC</th>
                   <th style={{ textAlign: 'right' }}>Xe</th>
                   <th style={{ textAlign: 'right' }}>Inbound</th>
                   <th style={{ textAlign: 'right' }}>Trọng lượng (tấn)</th>
@@ -1121,7 +1121,7 @@ export default function InboundDashboard({
                 <tr>
                   <th style={{ width: '50px' }}>#</th>
                   <th>Station</th>
-                  <th>Trucking</th>
+                  <th style={{ textAlign: 'left' }}>Trucking</th>
                   <th style={{ textAlign: 'right' }}>Orders</th>
                   <th style={{ textAlign: 'right' }}>Weight</th>
                   <th style={{ textAlign: 'center' }}>ETA</th>
@@ -1132,7 +1132,7 @@ export default function InboundDashboard({
                   <tr className="total-row" style={{ fontWeight: 'bold', position: 'sticky', top: '41px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', zIndex: 9, backdropFilter: 'blur(8px)' }}>
                     <td className="table-index">-</td>
                     <td className="table-buucuc" style={{ color: '#f59e0b' }}>TỔNG CỘNG</td>
-                    <td className="table-buucuc" style={{ color: '#f59e0b' }}>{totalTransitVehicles} xe</td>
+                    <td className="table-buucuc" style={{ textAlign: 'left', color: '#f59e0b' }}>{totalTransitVehicles} xe</td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
                       {incomingVehicles.reduce((a, b) => a + b.orders, 0).toLocaleString()}
                     </td>
@@ -1146,7 +1146,7 @@ export default function InboundDashboard({
                   <tr key={v.station + '-' + v.trucking}>
                      <td className="table-index">{idx + 1}</td>
                      <td className="table-buucuc">{v.station}</td>
-                     <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8', fontWeight: 500 }}>{v.trucking} xe</td>
+                     <td className="num-tabular" style={{ textAlign: 'left', color: '#38bdf8', fontWeight: 500 }}>{v.trucking} xe</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.orders.toLocaleString()}</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{(v.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tấn</td>
                      <td className="num-tabular" style={{ textAlign: 'center', color: '#64748b' }}>{v.eta ? v.eta : '--:--'}</td>
