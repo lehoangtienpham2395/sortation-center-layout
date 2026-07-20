@@ -66,6 +66,25 @@ function getHourFromTimestamp(val: any): number {
   return -1;
 }
 
+/**
+ * Trích xuất ngày vận hành từ chuỗi timestamp (ví dụ: "2026-07-16 02:00" -> "2026-07-15")
+ * dựa trên giờ vận hành J&T (< 06h sáng tính cho ngày hôm trước)
+ */
+function getOperatingDateFromTimestamp(timestamp: string): string {
+  if (!timestamp) return '';
+  const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
+  if (match) {
+    const datePart = match[1];
+    const hour = parseInt(match[2], 10);
+    if (hour < 6) {
+      const d = new Date(datePart);
+      d.setDate(d.getDate() - 1);
+      return d.toISOString().split('T')[0];
+    }
+    return datePart;
+  }
+  return '';
+}
 
 const getSvgArcPath = (cx: number, cy: number, rIn: number, rOut: number, startAngle: number, endAngle: number) => {
   const s = startAngle;
@@ -95,7 +114,7 @@ const getSvgArcPath = (cx: number, cy: number, rIn: number, rOut: number, startA
 export default function InboundDashboard({
   inboundData,
   linehaulData,
-  arrivalData: _arrivalData,
+  arrivalData,
   truckEtaData,
   selectedInboundDate,
   setSelectedInboundDate,
@@ -179,31 +198,37 @@ export default function InboundDashboard({
     }
   });
 
-  // Forecast = đơn CHƯA Inbound (Created + Pickup Done + Transporting)
-  // BN HUB: chỉ bỏ qua khi đã Inbound — "Đang trên đường" của BN HUB vẫn được tính vào Forecast
+  // Phân tách đơn Forecast cho toàn bộ dữ liệu (bảo đảm khớp số liệu BN HUB và tránh lệch lịch sử)
   inboundData.forEach(d => {
     const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     if (!fcDate) return;
 
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    const status = d['Trng thi'] || d['Trạng thái'] || '';
-    if (status === 'Inbound') return; // Bỏ qua đơn đã nhập kho — tránh double-count lịch sử
-    // BN HUB Inbound đã được lọc ở trên; BN HUB Transporting/Created được tính vào Forecast
+    const status = d['Trng thi'] || d['Trạng thái'];
+
+    // Bỏ BN HUB đang trên đường về (chưa Inbound) khỏi Forecast
+    if (station === 'BN HUB' && status !== 'Inbound') {
+      return;
+    }
 
     const vol = parseInt(d['Volume'], 10) || 0;
-    const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
 
     if (fcDate === activeDate) {
-      if (loaiRot === 'Rớt hôm trước') {
-        forecastRotHomTruoc += vol;
-      } else {
-        forecastRotHomNay += vol;
-      }
+      forecastRotHomNay += vol;
     } else if (fcDate < activeDate) {
-      forecastRotHomTruoc += vol;
+      const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
+      // Nếu chưa nhập kho, hoặc nhập kho từ ngày activeDate trở đi -> đơn này vẫn là backlog chờ xử lý vào ngày activeDate
+      if (status !== 'Inbound' || ibDate >= activeDate) {
+        forecastRotHomTruoc += vol;
+      }
     }
   });
 
+  // --- Arrival data (from the new Arrival Google Sheet) ---
+  // Filter strictly by active operating date filter
+  const filteredArrival = arrivalData.filter(d => {
+    return (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
+  });
 
   const filteredTruckEta = (truckEtaData || []).filter(d => {
     return (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
@@ -268,7 +293,7 @@ export default function InboundDashboard({
         lastTime: d['ETA'] || d['Last time'] || ''
       };
     })
-    .filter(v => v.orders >= 30)
+    .filter(v => v.orders > 0)
     .sort((a, b) => b.orders - a.orders);
 
   // Split by Shuttle and Linehaul ranks
@@ -303,49 +328,52 @@ export default function InboundDashboard({
     hourlyPickup[l] = 0;
   });
 
-  // 1. (Removed - Transporting now calculated from inboundData below)
-
-  // 2. Forecast Time (Created line): Vẽ tất cả đơn theo giờ Forecast Time
-  //    Chỉ lấy đơn có Forecast Time nằm trong ngày activeDate (tránh spike tối/đêm do rớt hôm trước)
-  inboundData.filter(d => {
-    const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
-    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    if (opDate !== activeDate || station === 'BN HUB') return false;
-    // Chỉ vẽ khi Forecast Time thực sự thuộc activeDate (không phải giờ tối hôm trước rớt sang)
-    const fcTime = d['Forecast Time'] || '';
-    if (!fcTime) return false;
-    return fcTime.startsWith(activeDate);
-  }).forEach(d => {
-    const fcTime = d['Forecast Time'] || '';
-    const hrVal = getHourFromTimestamp(fcTime);
-    if (hrVal >= 0 && hrVal < 24) {
-      const hour = `${String(hrVal).padStart(2, '0')}:00`;
-      if (hourlyForecast[hour] !== undefined) {
-        hourlyForecast[hour] += parseInt(d['Volume'], 10) || 0;
-      }
+  // 1. Transporting hourly: dùng Scan Hour từ Arrival → giờ xe ĐẾN HUB và quét Arrival
+  filteredArrival.forEach(d => {
+    const station = (d['Pickup_station'] || d['Station'] || '').trim().toUpperCase();
+    if (station === 'BN HUB') {
+      return;
     }
-  });
-
-  // 2b. Transporting hourly: dùng Arrival Time (giờ xe đến HUB)
-  //    - Khác với Pickup Volume (dùng Pickup Time = giờ shipper lấy hàng)
-  //    - Transporting = giờ xe thực sự về đến HUB → dùng Arrival Time + Ngy vn hnh_Arrival
-  inboundData.filter(d => {
-    const arrDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || '';
-    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    return arrDate === activeDate && station !== 'BN HUB';
-  }).forEach(d => {
-    const arrTime = d['Arrival Time'] || '';
-    if (arrTime) {
-      const hrVal = getHourFromTimestamp(arrTime);
+    const scanHourStr = d['Scan Hour'] || d['Scan_Hour'] || d['ETA'] || '';
+    if (scanHourStr) {
+      const hrVal = getHourFromTimestamp(scanHourStr);
       if (hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
         if (hourlyArrived[hour] !== undefined) {
-          hourlyArrived[hour] += parseInt(d['Volume'], 10) || 0;
+          hourlyArrived[hour] += parseInt(d['Tng s n'] || d['Tổng số đơn'] || d['Orders'] || d['Volume'] || 0, 10);
         }
       }
     }
   });
 
+  // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast hoặc ngày vận hành của Forecast Time khớp với activeDate
+  inboundData.filter(d => {
+    const fcTime = d['Forecast Time'] || '';
+    const fcDate = getOperatingDateFromTimestamp(fcTime);
+    const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
+    return opDate === activeDate || fcDate === activeDate;
+  }).forEach(d => {
+    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
+    if (station === 'BN HUB') {
+      return;
+    }
+    const fcTime = d['Forecast Time'] || '';
+    if (fcTime) {
+      const fcDate = getOperatingDateFromTimestamp(fcTime);
+      const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
+      // Nếu là ngày forecast gốc (fcDate === activeDate), ta HIỂN THỊ bất kể loaiRot là gì để giữ đúng lịch sử ca đêm
+      // Nếu là ngày gối đầu (opDate === activeDate và fcDate !== activeDate), ta lọc bỏ 'Rớt hôm trước' để tránh lặp lại
+      if (fcDate === activeDate || loaiRot !== 'Rớt hôm trước') {
+        const hrVal = getHourFromTimestamp(fcTime);
+        if (hrVal >= 0 && hrVal < 24) {
+          const hour = `${String(hrVal).padStart(2, '0')}:00`;
+          if (hourlyForecast[hour] !== undefined) {
+            hourlyForecast[hour] += parseInt(d['Volume'], 10) || 0;
+          }
+        }
+      }
+    }
+  });
 
   // 3. Pickup Time (Shipper đã lấy): Hiển thị tất cả đơn có Ngày vận hành_Pickup khớp với activeDate (không phân biệt trạng thái hiện tại)
   inboundData.filter(d => (d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup']) === activeDate).forEach(d => {
@@ -1101,7 +1129,7 @@ export default function InboundDashboard({
                   <tr key={v.station + '-' + v.trucking}>
                      <td className="table-index">{idx + 1}</td>
                      <td className="table-buucuc">{v.station}</td>
-                     <td className="num-tabular" style={{ textAlign: 'left', color: '#38bdf8', fontWeight: 500 }}>{v.trucking} xe</td>
+                     <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8', fontWeight: 500 }}>{v.trucking} xe</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.orders.toLocaleString()}</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{(v.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tấn</td>
                      <td className="num-tabular" style={{ textAlign: 'center', color: '#64748b' }}>{v.eta ? v.eta : '--:--'}</td>
