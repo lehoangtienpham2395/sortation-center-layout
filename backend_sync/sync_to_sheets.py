@@ -2541,7 +2541,7 @@ def run_once(session, token_mgr, rebuild_days=None):
     arrival_max = {}
     for r in arrival_raw:
         wb = str(r.get('billcode') or r.get('waybillNo') or r.get('billNo') or '').strip()
-        scan_time = str(r.get('scantime') or '').strip()
+        scan_time = str(r.get('gio_di_thuc_te') or r.get('gio_bat_dau_xep') or r.get('scantime') or r.get('arrival_time') or r.get('ETA Incoming') or '').strip()
         if wb and scan_time and scan_time.lower() not in ('nan', 'none', ''):
             if wb not in arrival_max or scan_time > arrival_max[wb]:
                 arrival_max[wb] = scan_time
