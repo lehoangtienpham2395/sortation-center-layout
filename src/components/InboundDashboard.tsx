@@ -179,14 +179,17 @@ export default function InboundDashboard({
     }
   });
 
-  // Forecast = TỔNG TẤT CẢ đơn hôm nay (Created + Pickup Done + Transporting + Inbound)
-  // = toàn bộ kế hoạch ngày hôm nay, bao gồm cả đã nhập kho
+  // Forecast = đơn CHƯA Inbound (Created + Pickup Done + Transporting)
+  // Phải bỏ qua status Inbound — nếu không, các ngày cũ (17/18/19) có ~36k Inbound sẽ bị tính vào Rớt hôm trước
   inboundData.forEach(d => {
     const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     if (!fcDate) return;
 
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
     if (station === 'BN HUB') return;
+
+    const status = d['Trng thi'] || d['Trạng thái'] || '';
+    if (status === 'Inbound') return; // Bỏ qua đơn đã nhập kho — tránh double-count lịch sử
 
     const vol = parseInt(d['Volume'], 10) || 0;
     const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
