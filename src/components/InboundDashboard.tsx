@@ -293,7 +293,7 @@ export default function InboundDashboard({
         lastTime: d['ETA'] || d['Last time'] || ''
       };
     })
-    .filter(v => v.orders > 0)
+    .filter(v => v.orders >= 30)
     .sort((a, b) => b.orders - a.orders);
 
   // Split by Shuttle and Linehaul ranks
