@@ -1348,8 +1348,8 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                    inbound_scanDate, dispatchNetworkTime, Pickup_time, Arrival_time, inbound_network
             FROM shipments
             WHERE is_active = 1
-               OR (time_ref != '' AND time_ref >= date('now', '+7 hours', '-5 days'))
-               OR (Arrival_time != '' AND Arrival_time >= date('now', '+7 hours', '-5 days'))
+               OR (time_ref != '' AND time_ref >= '2026-07-05')
+               OR (Arrival_time != '' AND Arrival_time >= '2026-07-05')
         """, conn)
         conn.close()
     except Exception as e_db:
@@ -1615,30 +1615,23 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
     # 5. Arrival sheet (giám sát hàng đến trung chuyển – tích lũy theo ngày, trạm, xe)
     print("\n📋 Xử lý sheet Arrival...")
     df_enriched = pd.DataFrame()
-    import glob
-    import time
-    csv_pattern = os.path.join(BASE_DIR, "Exportauto", "IncomingCargo", "BaoCao_GiamSatHangDen_ChiTiet_Enriched_*.csv")
-    csv_files = sorted(glob.glob(csv_pattern))
-    if csv_files:
-        latest_csv = csv_files[-1]
-        mtime = os.path.getmtime(latest_csv)
-        if time.time() - mtime < 7200:
-            print(f"   📂 Đọc dữ liệu Enriched từ tệp mới nhất: {latest_csv}")
-            try:
-                df_enriched = pd.read_csv(latest_csv, dtype=str)
-            except Exception as e_read:
-                print(f"   ⚠️ Lỗi đọc tệp CSV: {e_read}")
-                
+    arrival_raw = results.get('arrival', [])
+    if arrival_raw:
+        df_enriched = pd.DataFrame(arrival_raw)
+        if 'scansitename' in df_enriched.columns and 'last_dept_name' not in df_enriched.columns:
+            df_enriched['last_dept_name'] = df_enriched['scansitename']
+        if 'package_charge_weight' not in df_enriched.columns:
+            df_enriched['package_charge_weight'] = 0
+            
     if df_enriched.empty:
-        print("   ⚠️ Không có tệp CSV mới nhất hoặc tệp quá cũ. Đang tự động chạy run_pipeline để làm mới...")
-        try:
-            import run_pipeline
-            run_pipeline.main()
-            csv_files = sorted(glob.glob(csv_pattern))
-            if csv_files:
+        import glob
+        csv_pattern = os.path.join(BASE_DIR, "Exportauto", "IncomingCargo", "BaoCao_GiamSatHangDen_ChiTiet_Enriched_*.csv")
+        csv_files = sorted(glob.glob(csv_pattern))
+        if csv_files:
+            try:
                 df_enriched = pd.read_csv(csv_files[-1], dtype=str)
-        except Exception as e_run:
-            print(f"   ❌ Không thể tự chạy run_pipeline: {e_run}")
+            except Exception:
+                pass
             
     if not df_enriched.empty:
         try:
@@ -1733,8 +1726,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                 by=['Ngày vận hành', 'Pickup_station', 'Scan Hour'],
                 ascending=[False, True, True]
             )
-            all_dates_arr = sorted(df_final_arr['Ngày vận hành'].unique(), reverse=True)
-            df_final_arr = df_final_arr[df_final_arr['Ngày vận hành'].isin(all_dates_arr[:7])]
+            df_final_arr = df_final_arr[df_final_arr['Ngày vận hành'] >= '2026-07-05']
             
             # Lưu arrival.json
             os.makedirs("data", exist_ok=True)
