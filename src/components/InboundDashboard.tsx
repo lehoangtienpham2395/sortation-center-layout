@@ -144,7 +144,7 @@ export default function InboundDashboard({
   const getDateInbound = (d: any) => d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'];
   const getDateForecast = (d: any) => d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
-  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && getDateInbound(d) === activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
+  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && getDateInbound(d) === activeDate);
   const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && getDateForecast(d) === activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
   const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && getDateForecast(d) === activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
   const filteredTransporting = inboundData.filter(d => getStatus(d) === 'Transporting' && getDateForecast(d) === activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
@@ -207,8 +207,8 @@ export default function InboundDashboard({
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
     const status = d['Trng thi'] || d['Trạng thái'];
 
-    // Bỏ BN HUB đang trên đường về (chưa Inbound) khỏi Forecast
-    if (station === 'BN HUB' && status !== 'Inbound') {
+    // Bỏ qua BN HUB khỏi Forecast (BN HUB không nằm trong kế hoạch sản lượng của các bưu cục)
+    if (station === 'BN HUB') {
       return;
     }
 
