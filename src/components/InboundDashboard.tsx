@@ -66,8 +66,6 @@ function getHourFromTimestamp(val: any): number {
   return -1;
 }
 
-/**
-
 
 const getSvgArcPath = (cx: number, cy: number, rIn: number, rOut: number, startAngle: number, endAngle: number) => {
   const s = startAngle;
