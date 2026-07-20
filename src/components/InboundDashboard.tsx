@@ -356,21 +356,19 @@ export default function InboundDashboard({
     }
   });
 
-  // 2b. Transporting hourly: chỉ vẽ đơn có Forecast Time gốc thuộc ngày hôm nay (tránh roll-over vẽ sai giờ)
+  // 2b. Transporting hourly: dùng giờ của các đơn Transporting đang chạy hôm nay (dùng Pickup Time hoặc Forecast Time làm fallback)
   inboundData.filter(d => {
-    const status = d['Trng thi'] || d['Tr\u1ea1ng th\u00e1i'];
+    const status = d['Trng thi'] || d['Trạng thái'];
     if (status !== 'Transporting') return false;
-    const fcTime = d['Forecast Time'] || '';
-    if (!fcTime) return false;
-    const fcDate = getOperatingDateFromTimestamp(fcTime);
-    // Chỉ lấy đơn có Forecast Time gốc = hôm nay, bỏ roll-over từ ngày trước
-    return fcDate === activeDate;
+    const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
+    return opDate === activeDate;
   }).forEach(d => {
-    const station = (d['Bu cc'] || d['B\u01b0u c\u1ee5c'] || '').trim().toUpperCase();
+    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
     if (station === 'BN HUB') return;
-    const fcTime = d['Forecast Time'] || '';
-    if (fcTime) {
-      const hrVal = getHourFromTimestamp(fcTime);
+    // Ưu tiên dùng Pickup Time (thời điểm xe bắt đầu chạy gom về HUB) để làm mốc giờ
+    const timeVal = d['Pickup Time'] || d['Forecast Time'] || '';
+    if (timeVal) {
+      const hrVal = getHourFromTimestamp(timeVal);
       if (hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
         if (hourlyArrived[hour] !== undefined) {
