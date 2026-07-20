@@ -211,8 +211,7 @@ export default function InboundDashboard({
       return;
     }
 
-    // Bỏ qua đơn đã Inbound (đã nhập kho HUB) — tránh đếm vào Forecast những đơn xử lý xong
-    if (status === 'Inbound') return;
+    const vol = parseInt(d['Volume'], 10) || 0;
 
     if (fcDate === activeDate) {
       forecastRotHomNay += vol;
