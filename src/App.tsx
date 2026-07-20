@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import InboundDashboard from './components/InboundDashboard';
 import HeatmapDashboard from './components/HeatmapDashboard';
+import KpiDashboard from './components/KpiDashboard';
 import { 
   LayoutDashboard, 
   Activity, 
@@ -341,7 +342,7 @@ function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, onEnter, onLeave
 export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [sidebarHovered, setSidebarHovered] = useState(false);
-  const [currentView, setCurrentView] = useState<'master' | 'inbound' | 'heatmap'>('inbound');
+  const [currentView, setCurrentView] = useState<'master' | 'inbound' | 'heatmap' | 'kpi'>('inbound');
   const [inboundData, setInboundData] = useState<any[]>([]);
   const [linehaulData, setLinehaulData] = useState<any[]>([]);
   const [arrivalData, setArrivalData] = useState<any[]>([]);
@@ -351,7 +352,7 @@ export default function App() {
   const [showTelemetry, setShowTelemetry] = useState(true);
   const [showControls, setShowControls] = useState(true);
   const [showTop10, setShowTop10] = useState(true);
-  const [activeTab, setActiveTab] = useState<'layout' | 'inbound' | 'top10' | 'stats' | 'heatmap'>('inbound');
+  const [activeTab, setActiveTab] = useState<'layout' | 'inbound' | 'top10' | 'stats' | 'heatmap' | 'kpi'>('inbound');
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
   const [data,       setData]       = useState<any>(generateMockData());
   const [utilTotal,  setUtilTotal]  = useState('0.0');
@@ -1431,6 +1432,7 @@ export default function App() {
                   { id: 'master', label: 'Layout Master', desc: 'Toàn bộ thông tin tổng thể', icon: LayoutDashboard, color: '#4F8CFF', active: currentView === 'master', onClick: () => setCurrentView('master') },
                   { id: 'inbound', label: 'Inbound', desc: 'Thống kê chi tiết luồng nhập', icon: Inbox, color: '#4F8CFF', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
                   { id: 'heatmap', label: 'Heatmap', desc: 'Lưu lượng hoạt động theo giờ', icon: Calendar, color: '#10B981', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
+                  { id: 'kpi', label: 'KPI Dashboard', desc: 'Thống kê KPI và SLA vận hành', icon: TrendingUp, color: '#10B981', active: currentView === 'kpi', onClick: () => setCurrentView('kpi') },
                 ].map(item => {
                   const Icon = item.icon;
                   return (
@@ -1999,6 +2001,18 @@ export default function App() {
                 lastUpdate={lastUpdate}
                 heatmapData={heatmapRows}
               />
+            ) : currentView === 'kpi' ? (
+              <KpiDashboard
+                inboundData={inboundData}
+                linehaulData={linehaulData}
+                arrivalData={arrivalData}
+                truckEtaData={truckEtaData}
+                selectedInboundDate={selectedInboundDate}
+                setSelectedInboundDate={setSelectedInboundDate}
+                loading={loading}
+                fetchAndUpdateData={fetchAndUpdateData}
+                lastUpdate={lastUpdate}
+              />
             ) : (
               <InboundDashboard
                 inboundData={inboundData}
@@ -2258,6 +2272,22 @@ export default function App() {
               </div>
             )}
 
+            {activeTab === 'kpi' && (
+              <div className="w-full h-full overflow-y-auto space-y-4 px-1 pt-2 pb-6">
+                <KpiDashboard
+                  inboundData={inboundData}
+                  linehaulData={linehaulData}
+                  arrivalData={arrivalData}
+                  truckEtaData={truckEtaData}
+                  selectedInboundDate={selectedInboundDate}
+                  setSelectedInboundDate={setSelectedInboundDate}
+                  loading={loading}
+                  fetchAndUpdateData={fetchAndUpdateData}
+                  lastUpdate={lastUpdate}
+                />
+              </div>
+            )}
+
           </div>
 
           {/* Bottom Navigation Bar */}
@@ -2277,6 +2307,10 @@ export default function App() {
             <div className={`mobile-nav-item ${activeTab === 'top10' ? 'active' : ''}`} onClick={() => setActiveTab('top10')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
               <span>Top 10</span>
+            </div>
+            <div className={`mobile-nav-item ${activeTab === 'kpi' ? 'active' : ''}`} onClick={() => setActiveTab('kpi')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              <span>KPI</span>
             </div>
             <div className={`mobile-nav-item ${activeTab === 'stats' ? 'active' : ''}`} onClick={() => setActiveTab('stats')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
