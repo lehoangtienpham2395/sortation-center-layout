@@ -354,16 +354,17 @@ export default function InboundDashboard({
     }
   });
 
-  // 2b. Transporting hourly: dùng Forecast Time của các đơn status Transporting
+  // 2b. Transporting hourly: chỉ vẽ đơn có Forecast Time gốc thuộc ngày hôm nay (tránh roll-over vẽ sai giờ)
   inboundData.filter(d => {
-    const status = d['Trng thi'] || d['Trạng thái'];
+    const status = d['Trng thi'] || d['Tr\u1ea1ng th\u00e1i'];
     if (status !== 'Transporting') return false;
-    const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     const fcTime = d['Forecast Time'] || '';
+    if (!fcTime) return false;
     const fcDate = getOperatingDateFromTimestamp(fcTime);
-    return opDate === activeDate || fcDate === activeDate;
+    // Chỉ lấy đơn có Forecast Time gốc = hôm nay, bỏ roll-over từ ngày trước
+    return fcDate === activeDate;
   }).forEach(d => {
-    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
+    const station = (d['Bu cc'] || d['B\u01b0u c\u1ee5c'] || '').trim().toUpperCase();
     if (station === 'BN HUB') return;
     const fcTime = d['Forecast Time'] || '';
     if (fcTime) {
@@ -376,6 +377,7 @@ export default function InboundDashboard({
       }
     }
   });
+
 
   // 3. Pickup Time (Shipper đã lấy): Hiển thị tất cả đơn có Ngày vận hành_Pickup khớp với activeDate (không phân biệt trạng thái hiện tại)
   inboundData.filter(d => (d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup']) === activeDate).forEach(d => {
