@@ -350,6 +350,7 @@ def auth_post(session, url, token_mgr, base_headers, *,
             raise RuntimeError(f"{label}: không lấy được token")
         headers = dict(base_headers)
         headers['authToken'] = token
+        headers['Authtoken'] = token
         try:
             r = session.post(url, params=params, headers=headers,
                              json=json_body, data=data, timeout=timeout)
@@ -1343,13 +1344,18 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
     df_inbound_aggregated = pd.DataFrame()
     try:
         conn = sqlite3.connect(DB_FILE)
-        df_ship = pd.read_sql_query("""
+        # ✅ GUARD: Chỉ lấy đơn is_active=1 (đang sống).
+        # Không dùng OR override vì sẽ kéo vào cả đơn đã rời HUB/đã kết (is_active=0)
+        # khiến Forecast bị phình lên sai số.
+        # Đơn lịch sử (đã inbound) vẫn được giữ qua cột inbound_scanDate >= cutoff.
+        from datetime import timedelta as _td
+        _cutoff = (datetime.now() - _td(days=5)).strftime('%Y-%m-%d')  # dynamic, không hardcode
+        df_ship = pd.read_sql_query(f"""
             SELECT pickNetworkName, status_order, weight, 
                    inbound_scanDate, dispatchNetworkTime, Pickup_time, Arrival_time, inbound_network
             FROM shipments
             WHERE is_active = 1
-               OR (time_ref != '' AND time_ref >= '2026-07-05')
-               OR (Arrival_time != '' AND Arrival_time >= '2026-07-05')
+               OR (inbound_scanDate != '' AND inbound_scanDate >= '{_cutoff}')
         """, conn)
         conn.close()
     except Exception as e_db:
@@ -1508,11 +1514,48 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             })
         df_inbound_aggregated = pd.DataFrame(final_rows)
 
+    # ================================================================
+    # ✅ SANITY GUARD: Kiểm tra Forecast tổng bất thường trước khi ghi
+    # Nếu Forecast thay đổi > 30% so với lần trước → log cảnh báo rõ ràng
+    # ================================================================
+    if not df_inbound_aggregated.empty:
+        fc_total_now = len(df_inbound_aggregated[
+            df_inbound_aggregated['Trạng thái'].isin(['Created'])
+            & (df_inbound_aggregated['Ngày vận hành_Forecast'] != '')
+        ])
+        # Đọc giá trị Forecast lần trước từ DB meta (nếu có)
+        try:
+            _meta_conn = sqlite3.connect(DB_FILE)
+            _meta = _meta_conn.execute("SELECT value FROM meta WHERE key='last_forecast_total'").fetchone()
+            _meta_conn.close()
+            if _meta:
+                fc_prev = int(_meta[0])
+                if fc_prev > 0:
+                    pct_change = abs(fc_total_now - fc_prev) / fc_prev
+                    if pct_change > 0.30:
+                        print(f"\n{'='*60}")
+                        print(f"   ⚠️  CẢNH BÁO: Forecast thay đổi bất thường!")
+                        print(f"   ⚠️  Lần trước: {fc_prev:,}  |  Lần này: {fc_total_now:,}  |  Thay đổi: {pct_change:.0%}")
+                        print(f"   ⚠️  Kiểm tra lại: date range, is_active filter, dedup logic!")
+                        print(f"{'='*60}\n")
+        except Exception:
+            pass
+        # Ghi lại giá trị hiện tại vào meta để so sánh lần sau
+        try:
+            _meta_conn = sqlite3.connect(DB_FILE)
+            _meta_conn.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
+            _meta_conn.execute("INSERT OR REPLACE INTO meta VALUES ('last_forecast_total', ?)", (str(fc_total_now),))
+            _meta_conn.commit()
+            _meta_conn.close()
+        except Exception:
+            pass
+
     write_sheet("Inbound", df_inbound_aggregated, [
         "Bưu cục", "Trạng thái", "Volume", "Weight",
         "Ngày vận hành_Inbound", "Ngày vận hành_Forecast", "Ngày vận hành_Pickup", "Ngày vận hành_Arrival",
         "Inbound Hour", "Forecast Time", "Pickup Time", "Arrival Time", "Loại rớt" 
     ])
+
 
     # 2. Linehaul processing (remains direct from results)
     df_lh_raw = pd.DataFrame(results.get('linehaul', []))
@@ -1740,6 +1783,35 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                     
             # ----------------------------------------------------
             # 2. TẠO DATASET B: CHỈ HIỂN THỊ CÁC XE TRÊN ĐƯỜNG VỀ (CHƯA XẢ HÀNG XONG)
+            # Bảo đảm cột arrival_time luôn tồn tại để tránh KeyError khi sync
+            if 'arrival_time' not in df_enriched.columns:
+                df_enriched['arrival_time'] = None
+
+            # Nếu arrival_time rỗng hoặc chưa được điền (khi chạy sync API trực tiếp không qua file Enriched)
+            # Chúng ta sẽ map arrival_time từ cột Arrival_time trong SQLite để biết đơn nào đã đến HUB
+            if not df_enriched.empty and (df_enriched['arrival_time'].isna().all() or (df_enriched['arrival_time'].astype(str).str.strip() == '').all()):
+                try:
+                    conn = sqlite3.connect(DB_FILE)
+                    df_ship_arr = pd.read_sql_query("""
+                        SELECT waybillNo, Arrival_time
+                        FROM shipments
+                        WHERE Arrival_time IS NOT NULL AND Arrival_time != ''
+                    """, conn)
+                    conn.close()
+
+                    if not df_ship_arr.empty:
+                        df_ship_arr['waybillNo'] = df_ship_arr['waybillNo'].astype(str).str.strip().str.upper()
+                        wb_col = None
+                        for col in ['billcode', 'waybillNo', 'billNo']:
+                            if col in df_enriched.columns:
+                                wb_col = col
+                                break
+                        if wb_col:
+                            arr_map = dict(zip(df_ship_arr['waybillNo'], df_ship_arr['Arrival_time']))
+                            df_enriched['arrival_time'] = df_enriched[wb_col].astype(str).str.strip().str.upper().map(arr_map)
+                except Exception as e_db_arr:
+                    print(f"   ⚠️ Lỗi map arrival_time từ SQLite: {e_db_arr}")
+
             # Chỉ giữ các đơn hàng chưa đến Hub (arrival_time rỗng/nan)
             df_active = df_enriched[
                 df_enriched['arrival_time'].isna() | 
