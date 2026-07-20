@@ -132,7 +132,8 @@ export default function InboundDashboard({
     new Set([
       ...inboundData.map(d => d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound']),
       ...inboundData.map(d => d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast']),
-      ...inboundData.map(d => d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Pickup'])
+      ...inboundData.map(d => d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Pickup']),
+      ...inboundData.map(d => d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Arrival'])
     ].filter(Boolean))
   ) as string[];
   inboundDates.sort((a, b) => b.localeCompare(a));
@@ -142,6 +143,7 @@ export default function InboundDashboard({
   const getStatus = (d: any) => d['Trng thi'] || d['Trạng thái'];
   const getDateInbound = (d: any) => d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'];
   const getDateForecast = (d: any) => d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
+  const getDateArrival = (d: any) => d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'];
 
   const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && getDateInbound(d) === activeDate);
   const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && getDateForecast(d) === activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');

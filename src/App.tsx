@@ -187,6 +187,7 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
       'Ngy vn hnh_Inbound': 'Ngày vận hành_Inbound',
       'Ngy vn hnh_Forecast': 'Ngày vận hành_Forecast',
       'Ngy vn hnh_Pickup': 'Ngày vận hành_Pickup',
+      'Ngy vn hnh_Arrival': 'Ngày vận hành_Arrival',
       'Loi rt': 'Loại rớt',
       'Ngy vn hnh': 'Ngày vận hành',
       'Tng s n': 'Tổng số đơn',
