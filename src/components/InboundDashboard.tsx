@@ -130,9 +130,9 @@ export default function InboundDashboard({
   // 1. Extract and sort available dates
   const inboundDates = Array.from(
     new Set([
-      ...inboundData.map(d => d['Ngày vận hành_Inbound']),
-      ...inboundData.map(d => d['Ngày vận hành_Forecast']),
-      ...inboundData.map(d => d['Ngày vận hành_Pickup'])
+      ...inboundData.map(d => d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound']),
+      ...inboundData.map(d => d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast']),
+      ...inboundData.map(d => d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Pickup'])
     ].filter(Boolean))
   ) as string[];
   inboundDates.sort((a, b) => b.localeCompare(a));
