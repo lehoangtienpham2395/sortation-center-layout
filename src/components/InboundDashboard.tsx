@@ -198,28 +198,28 @@ export default function InboundDashboard({
     }
   });
 
-  // Phân tách đơn Forecast cho toàn bộ dữ liệu (bảo đảm khớp số liệu BN HUB và tránh lệch lịch sử)
+  // Forecast = chỉ tính đơn Created (chưa pickup) - bao gồm rớt từ các ngày trước roll-over vào hôm nay
   inboundData.forEach(d => {
-    const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
+    const fcDate = d['Ngy vn hnh_Forecast'] || d['Ng\u00e0y v\u1eadn h\u00e0nh_Forecast'] || '';
     if (!fcDate) return;
 
-    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    const status = d['Trng thi'] || d['Trạng thái'];
+    const station = (d['Bu cc'] || d['B\u01b0u c\u1ee5c'] || '').trim().toUpperCase();
+    const status = d['Trng thi'] || d['Tr\u1ea1ng th\u00e1i'];
 
-    // Bỏ BN HUB đang trên đường về (chưa Inbound) khỏi Forecast
-    if (station === 'BN HUB' && status !== 'Inbound') {
-      return;
-    }
+    // Ch\u1ec9 t\u00ednh \u0111\u01a1n ch\u01b0a \u0111\u01b0\u1ee3c pickup (Created)
+    if (status !== 'Created') return;
+
+    // B\u1ecf BN HUB
+    if (station === 'BN HUB') return;
 
     const vol = parseInt(d['Volume'], 10) || 0;
+    const loaiRot = d['Loi rt'] || d['Lo\u1ea1i r\u1edbt'] || '';
 
     if (fcDate === activeDate) {
-      forecastRotHomNay += vol;
-    } else if (fcDate < activeDate) {
-      const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
-      // Nếu chưa nhập kho, hoặc nhập kho từ ngày activeDate trở đi -> đơn này vẫn là backlog chờ xử lý vào ngày activeDate
-      if (status !== 'Inbound' || ibDate >= activeDate) {
+      if (loaiRot === 'R\u1edbt h\u00f4m tr\u01b0\u1edbc') {
         forecastRotHomTruoc += vol;
+      } else {
+        forecastRotHomNay += vol;
       }
     }
   });
