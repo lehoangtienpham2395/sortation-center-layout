@@ -226,6 +226,7 @@ export default function InboundDashboard({
 
   // --- Arrival data (from the new Arrival Google Sheet) ---
   // Filter strictly by active operating date filter
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const filteredArrival = arrivalData.filter(d => {
     return (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
   });
