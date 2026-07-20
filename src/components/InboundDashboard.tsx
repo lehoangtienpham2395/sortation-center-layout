@@ -328,26 +328,12 @@ export default function InboundDashboard({
     hourlyPickup[l] = 0;
   });
 
-  // 1. Transporting hourly: dùng Scan Hour từ Arrival → giờ xe ĐẾN HUB và quét Arrival
-  filteredArrival.forEach(d => {
-    const station = (d['Pickup_station'] || d['Station'] || '').trim().toUpperCase();
-    if (station === 'BN HUB') {
-      return;
-    }
-    const scanHourStr = d['Scan Hour'] || d['Scan_Hour'] || d['ETA'] || '';
-    if (scanHourStr) {
-      const hrVal = getHourFromTimestamp(scanHourStr);
-      if (hrVal >= 0 && hrVal < 24) {
-        const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyArrived[hour] !== undefined) {
-          hourlyArrived[hour] += parseInt(d['Tng s n'] || d['Tổng số đơn'] || d['Orders'] || d['Volume'] || 0, 10);
-        }
-      }
-    }
-  });
+  // 1. (Removed - Transporting now calculated from inboundData below)
 
-  // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast hoặc ngày vận hành của Forecast Time khớp với activeDate
+  // 2. Forecast Time (Created only): Chỉ tính đơn có status Created
   inboundData.filter(d => {
+    const status = d['Trng thi'] || d['Trạng thái'];
+    if (status !== 'Created') return false;
     const fcTime = d['Forecast Time'] || '';
     const fcDate = getOperatingDateFromTimestamp(fcTime);
     const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
@@ -361,8 +347,6 @@ export default function InboundDashboard({
     if (fcTime) {
       const fcDate = getOperatingDateFromTimestamp(fcTime);
       const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
-      // Nếu là ngày forecast gốc (fcDate === activeDate), ta HIỂN THỊ bất kể loaiRot là gì để giữ đúng lịch sử ca đêm
-      // Nếu là ngày gối đầu (opDate === activeDate và fcDate !== activeDate), ta lọc bỏ 'Rớt hôm trước' để tránh lặp lại
       if (fcDate === activeDate || loaiRot !== 'Rớt hôm trước') {
         const hrVal = getHourFromTimestamp(fcTime);
         if (hrVal >= 0 && hrVal < 24) {
@@ -370,6 +354,29 @@ export default function InboundDashboard({
           if (hourlyForecast[hour] !== undefined) {
             hourlyForecast[hour] += parseInt(d['Volume'], 10) || 0;
           }
+        }
+      }
+    }
+  });
+
+  // 2b. Transporting hourly: dùng Forecast Time của các đơn status Transporting
+  inboundData.filter(d => {
+    const status = d['Trng thi'] || d['Trạng thái'];
+    if (status !== 'Transporting') return false;
+    const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
+    const fcTime = d['Forecast Time'] || '';
+    const fcDate = getOperatingDateFromTimestamp(fcTime);
+    return opDate === activeDate || fcDate === activeDate;
+  }).forEach(d => {
+    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
+    if (station === 'BN HUB') return;
+    const fcTime = d['Forecast Time'] || '';
+    if (fcTime) {
+      const hrVal = getHourFromTimestamp(fcTime);
+      if (hrVal >= 0 && hrVal < 24) {
+        const hour = `${String(hrVal).padStart(2, '0')}:00`;
+        if (hourlyArrived[hour] !== undefined) {
+          hourlyArrived[hour] += parseInt(d['Volume'], 10) || 0;
         }
       }
     }
