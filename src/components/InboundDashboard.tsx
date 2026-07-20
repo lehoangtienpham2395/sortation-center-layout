@@ -127,8 +127,14 @@ export default function InboundDashboard({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<any | null>(null);
 
-  // 1. Extract and sort available dates
-  const inboundDates = Array.from(
+  // 1. Extract and sort available dates (excluding future dates > today)
+  const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+  const padStr = (n: number) => String(n).padStart(2, '0');
+  const todayOpDate = getOperatingDateFromTimestamp(
+    `${nowVN.getFullYear()}-${padStr(nowVN.getMonth() + 1)}-${padStr(nowVN.getDate())} ${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}`
+  );
+
+  const rawInboundDates = Array.from(
     new Set([
       ...inboundData.map(d => d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound']),
       ...inboundData.map(d => d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast']),
@@ -136,8 +142,10 @@ export default function InboundDashboard({
       ...inboundData.map(d => d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Arrival'])
     ].filter(Boolean))
   ) as string[];
+
+  const inboundDates = rawInboundDates.filter(d => !todayOpDate || d <= todayOpDate);
   inboundDates.sort((a, b) => b.localeCompare(a));
-  const activeDate = selectedInboundDate || inboundDates[0] || '';
+  const activeDate = selectedInboundDate || inboundDates[0] || rawInboundDates[0] || '';
 
   // 2. Filter datasets by active date
   const getStatus = (d: any) => d['Trng thi'] || d['Trạng thái'];
