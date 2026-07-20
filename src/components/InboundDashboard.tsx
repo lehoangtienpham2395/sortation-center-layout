@@ -67,24 +67,7 @@ function getHourFromTimestamp(val: any): number {
 }
 
 /**
- * Trích xuất ngày vận hành từ chuỗi timestamp (ví dụ: "2026-07-16 02:00" -> "2026-07-15")
- * dựa trên giờ vận hành J&T (< 06h sáng tính cho ngày hôm trước)
- */
-function getOperatingDateFromTimestamp(timestamp: string): string {
-  if (!timestamp) return '';
-  const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
-  if (match) {
-    const datePart = match[1];
-    const hour = parseInt(match[2], 10);
-    if (hour < 6) {
-      const d = new Date(datePart);
-      d.setDate(d.getDate() - 1);
-      return d.toISOString().split('T')[0];
-    }
-    return datePart;
-  }
-  return '';
-}
+
 
 const getSvgArcPath = (cx: number, cy: number, rIn: number, rOut: number, startAngle: number, endAngle: number) => {
   const s = startAngle;
@@ -198,18 +181,14 @@ export default function InboundDashboard({
     }
   });
 
-  // Forecast = tất cả đơn chưa có Inbound scan (Created + Pickup Done + Transporting)
-  // Đã xác nhận qua DB: 100% các đơn này không có inbound_scanDate
+  // Forecast = TỔNG TẤT CẢ đơn hôm nay (Created + Pickup Done + Transporting + Inbound)
+  // = toàn bộ kế hoạch ngày hôm nay, bao gồm cả đã nhập kho
   inboundData.forEach(d => {
     const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     if (!fcDate) return;
 
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    const status = d['Trng thi'] || d['Trạng thái'];
-
-    // Bỏ BN HUB và đơn đã Inbound
     if (station === 'BN HUB') return;
-    if (status === 'Inbound') return;
 
     const vol = parseInt(d['Volume'], 10) || 0;
     const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
@@ -221,7 +200,6 @@ export default function InboundDashboard({
         forecastRotHomNay += vol;
       }
     } else if (fcDate < activeDate) {
-      // Rớt hôm trước chưa roll-over (edge case)
       forecastRotHomTruoc += vol;
     }
   });
