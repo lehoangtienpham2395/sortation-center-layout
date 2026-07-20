@@ -328,34 +328,35 @@ export default function InboundDashboard({
     hourlyPickup[l] = 0;
   });
 
-  // 1a. Transporting hourly: xe ĐÃ VỀ HUB → dùng Scan Hour từ Arrival
+  // Transporting hourly: dùng arrival.json — "Giám Sát Hàng Đến"
+  //   - Đã đến Hub  → đã scan thực tế (Đã đến Hub > 0), dùng Scan Hour
+  //   - Chưa đến Hub → đang trên đường, dùng Last time (lần ping cuối ≈ ước tính giờ về)
   filteredArrival.forEach(d => {
     const station = (d['Pickup_station'] || d['Station'] || '').trim().toUpperCase();
     if (station === 'BN HUB') return;
-    const scanHourStr = d['Scan Hour'] || d['Scan_Hour'] || d['ETA'] || '';
-    if (scanHourStr) {
-      const hrVal = getHourFromTimestamp(scanHourStr);
+
+    const arrived   = parseInt(d['Đã đến Hub']   || d['Da den Hub']   || 0, 10);
+    const pending   = parseInt(d['Chưa đến Hub'] || d['Chua den Hub'] || 0, 10);
+    const total     = parseInt(d['Tng s n'] || d['Tổng số đơn'] || d['Orders'] || d['Volume'] || 0, 10);
+
+    // Đã về HUB → plot theo Scan Hour (giờ thực tế)
+    const scanTime = d['Scan Hour'] || d['Scan_Hour'] || '';
+    if (arrived > 0 && scanTime) {
+      const hrVal = getHourFromTimestamp(scanTime);
       if (hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyArrived[hour] !== undefined) {
-          hourlyArrived[hour] += parseInt(d['Tng s n'] || d['Tổng số đơn'] || d['Orders'] || d['Volume'] || 0, 10);
-        }
+        if (hourlyArrived[hour] !== undefined) hourlyArrived[hour] += arrived;
       }
     }
-  });
 
-  // 1b. Transporting hourly: xe ĐANG TRÊN ĐƯỜNG → dùng ETA từ truck_eta.json (nếu có)
-  filteredTruckEta.forEach(d => {
-    const station = (d['Station'] || d['Pickup_station'] || '').trim().toUpperCase();
-    if (station === 'BN HUB') return;
-    const eta = d['ETA'] || d['Last time'] || '';
-    if (!eta) return;
-    const hrVal = getHourFromTimestamp(eta);
-    if (hrVal >= 0 && hrVal < 24) {
-      const hour = `${String(hrVal).padStart(2, '0')}:00`;
-      if (hourlyArrived[hour] !== undefined) {
-        const orders = parseInt(d['Orders'] || d['Tng s n'] || d['Tổng số đơn'] || d['Chua dn Hub'] || 0, 10);
-        hourlyArrived[hour] += orders;
+    // Chưa về HUB → plot theo Last time (ping cuối = ước tính giờ đến)
+    const lastTime = d['Last time'] || d['Last_time'] || '';
+    const plotVol  = pending > 0 ? pending : (arrived === 0 ? total : 0);
+    if (plotVol > 0 && lastTime) {
+      const hrVal = getHourFromTimestamp(lastTime);
+      if (hrVal >= 0 && hrVal < 24) {
+        const hour = `${String(hrVal).padStart(2, '0')}:00`;
+        if (hourlyArrived[hour] !== undefined) hourlyArrived[hour] += plotVol;
       }
     }
   });
