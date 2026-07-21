@@ -317,11 +317,12 @@ function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, onEnter, onLeave
   { c:any, d:any, bx:number, by:number, bw:number, bh:number, midLabelY:number,
     isHovered:boolean, onEnter:()=>void, onLeave:()=>void, onClick?:()=>void, addCenterLine?:boolean, isTruck?:boolean }) {
   const zoneColors: Record<number, string> = {
+    4: 'var(--inbound)',
     3: 'var(--green)',
     2: 'var(--yellow)',
     1: 'var(--orange)'
   };
-  const col = isTruck ? 'rgba(255,255,255,0.2)' : (zoneColors[c.zone] || '#374151');
+  const col = isTruck ? (c.zone === 4 ? 'rgba(96,165,250,0.4)' : 'rgba(255,255,255,0.2)') : (zoneColors[c.zone] || '#374151');
   const fillH = (bh - 2) * Math.min(d.utilization, 110) / 110;
   return (
     <g onMouseEnter={onEnter} onMouseLeave={onLeave} onClick={onClick} className="cursor-pointer">
@@ -1298,11 +1299,12 @@ export default function App() {
               const d = data[c.areaId] || { current: 0, capacity: 780, remaining: 780, utilization: 0, bucket: 'green', name: c.name };
               const bx = c.bx;
               const by = 563; // Ngoài mặt DOCK
+              const isTrHovered = hoveredRack?.areaId===c.areaId || hoveredZone===4;
               return (
                 <g key={c.areaId}>
                   <ZoneCell c={c} d={d} bx={bx} by={by}
                             bw={TR_BAY_W} bh={Z_H} midLabelY={by+Z_H/2}
-                            isHovered={hoveredRack?.areaId===c.areaId}
+                            isHovered={isTrHovered}
                             onEnter={() => {
                               setHoveredRack({...c,...d});
                               setHoveredZone(4);
@@ -1319,9 +1321,15 @@ export default function App() {
                   <g pointerEvents="none" opacity="0.8">
                     {/* Quay đầu hướng ra: cabin ở dưới, thùng hàng ở trên */}
                     <rect x={bx+4} y={by+4} width={TR_BAY_W-8} height={Z_H-22}
-                          rx="1" fill="rgba(96,165,250,0.15)" stroke="rgba(96,165,250,0.4)" strokeWidth="0.6"/>
+                          rx="1" 
+                          fill={hoveredZone === 4 ? "rgba(96,165,250,0.3)" : "rgba(96,165,250,0.15)"} 
+                          stroke={hoveredZone === 4 ? "rgba(96,165,250,0.8)" : "rgba(96,165,250,0.4)"} 
+                          strokeWidth={hoveredZone === 4 ? 1.0 : 0.6}/>
                     <rect x={bx+3} y={by+Z_H-16} width={TR_BAY_W-6} height={10}
-                          rx="1.5" fill="rgba(96,165,250,0.25)" stroke="rgba(96,165,250,0.5)" strokeWidth="0.7"/>
+                          rx="1.5" 
+                          fill={hoveredZone === 4 ? "rgba(96,165,250,0.45)" : "rgba(96,165,250,0.25)"} 
+                          stroke={hoveredZone === 4 ? "rgba(96,165,250,0.9)" : "rgba(96,165,250,0.5)"} 
+                          strokeWidth={hoveredZone === 4 ? 1.1 : 0.7}/>
                   </g>
                 </g>
               );
@@ -1330,7 +1338,9 @@ export default function App() {
                   {...getZoneBorderProps(4, '--inbound')}/>
           </g>
 
-          <g>
+          <g onMouseEnter={() => setHoveredZone(4)}
+             onMouseLeave={() => setHoveredZone(null)}
+             className="cursor-pointer">
             <text x={(IB_XL1+IB_XL2+IB_LW)/2} y={IB_Y-6} textAnchor="middle"
                   fill="var(--inbound)" className="disp text-[7.5px] font-bold tracking-wider">
               INBOUND SORT L1
@@ -1397,7 +1407,9 @@ export default function App() {
               { id: 'A17', x: 833, w: 25, type: 'inbound' },
               { id: 'A18', x: 869, w: 25, type: 'inbound' }
             ].map(g => (
-              <g key={g.id} className="cursor-pointer hover:opacity-80">
+              <g key={g.id} className="cursor-pointer hover:opacity-80"
+                 onMouseEnter={() => setHoveredZone(g.type === 'inbound' ? 4 : 1)}
+                 onMouseLeave={() => setHoveredZone(null)}>
                 <rect x={g.x} y={DOCK_Y+8} width={g.w} height={DOCK_H-16}
                       rx="1"
                       fill={g.type==='inbound'?(g.id==='A18'?'rgba(96,165,250,0.22)':'rgba(96,165,250,0.12)'):'rgba(249,115,22,0.12)'}
