@@ -2078,14 +2078,26 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
                 c_id = info["area_id"]
                 if c_id in area_to_bc:
                     info["name"] = area_to_bc[c_id][0]
-                    
+
+        # --- Layout-critical overrides: take priority over valid.csv ---
+        # BN HUB đã dời sang ô A06 (gộp), AG LONG XUYÊN → A19, AG CẦN ĐĂNG → A20
+        FORCED_AREA_NAMES = {
+            "A06": "BN HUB",
+            "A19": "AG LONG XUYÊN",
+            "A20": "AG CẦN ĐĂNG",
+        }
+        for key, info in master_chutes.items():
+            c_id = info["area_id"]
+            if c_id in FORCED_AREA_NAMES:
+                info["name"] = FORCED_AREA_NAMES[c_id]
+
         # 2. Build d_station_to_chute and d_chute_to_name mapping dictionaries
         for key, info in master_chutes.items():
             c_id = info["area_id"]
             c_name = info["name"].strip().upper()
             d_chute_to_name[c_id] = c_name
             d_station_to_chute[c_name] = c_id
-            
+
         # 3. Add alternative names from valid.csv
         STATIC_CHUTE_IDS = {item["area_id"].strip().upper() for item in STATIC_CHUTES}
         if 'Bưu cục final' in df_valid.columns and 'area' in df_valid.columns:
@@ -2094,6 +2106,12 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
                 ar = str(row['area']).strip().upper()
                 if bc and ar and ar in STATIC_CHUTE_IDS:
                     d_station_to_chute[bc] = ar
+
+        # --- Force station→chute lookup for volume matching (MUST RUN LAST) ---
+        # Đảm bảo volume từ JFS của BN HUB, AG LONG XUYÊN, AG CẦN ĐĂNG khớp đúng ô layout mới, ghi đè hoàn toàn valid.csv
+        d_station_to_chute["BN HUB"] = "A06"
+        d_station_to_chute["AG LONG XUYÊN"] = "A19"
+        d_station_to_chute["AG CẦN ĐĂNG"] = "A20"
                     
     except Exception as e_dynamic_rename:
         print(f"   ⚠️ Lỗi dynamic renaming hoặc build maps từ valid.csv: {e_dynamic_rename}")
