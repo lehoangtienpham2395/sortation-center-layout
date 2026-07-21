@@ -2027,8 +2027,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
         {"zone": "2", "area_id": "B15", "name": "SG TÂN HƯNG", "capacity": 780},
         {"zone": "2", "area_id": "B16", "name": "SG BÀ ĐIỂM", "capacity": 780},
         # Zone 1
-        {"zone": "1", "area_id": "A05", "name": "AG LONG XUYÊN", "capacity": 780},
-        {"zone": "1", "area_id": "A06", "name": "AG CẦN ĐĂNG", "capacity": 780},
+        {"zone": "1", "area_id": "A06", "name": "BN HUB", "capacity": 1400},
         {"zone": "1", "area_id": "A07", "name": "CT Ô MÔN", "capacity": 780},
         {"zone": "1", "area_id": "A08", "name": "CT BÌNH THỦY", "capacity": 780},
         {"zone": "1", "area_id": "A09", "name": "CT NINH KIỀU", "capacity": 780},
@@ -2041,7 +2040,8 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
         {"zone": "1", "area_id": "A16", "name": "TG MỸ THO", "capacity": 780},
         {"zone": "1", "area_id": "A17", "name": "TG TRUNG AN", "capacity": 780},
         {"zone": "1", "area_id": "A18", "name": "VT VŨNG TÀU", "capacity": 780},
-        {"zone": "1", "area_id": "A19", "name": "BN HUB", "capacity": 780}
+        {"zone": "1", "area_id": "A19", "name": "AG LONG XUYÊN", "capacity": 780},
+        {"zone": "1", "area_id": "A20", "name": "AG CẦN ĐĂNG", "capacity": 780}
     ]
     for item in STATIC_CHUTES:
         key = (item["zone"], item["area_id"])
