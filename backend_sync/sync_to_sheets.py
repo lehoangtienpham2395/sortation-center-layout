@@ -1699,17 +1699,23 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
 
             # 1. TẠO DATASET A: QUÉT LỊCH SỬ ĐỂ XEM TREND (DÀNH CHO BIỂU ĐỒ HOURLY PROCESSING TREND)
             df_arr = df_enriched.copy()
-            # Lấy scantime từ các trường thời gian khả dụng của df_enriched theo thứ tự ưu tiên
-            df_arr['scantime_dt'] = pd.to_datetime(df_arr.get('arrival_time'), errors='coerce')
+            # Lấy scantime từ các trường thời gian khả dụng của df_enriched theo thứ tự ưu tiên (ưu tiên giờ DỠ HÀNG tại HUB)
+            df_arr['scantime_dt'] = pd.to_datetime(df_arr.get('unloadingStartTime'), errors='coerce')
+            df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('unloadingEndTime'), errors='coerce')
+            df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('arrival_time'), errors='coerce')
+            df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('ETA Incoming'), errors='coerce')
             df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('gio_di_thuc_te'), errors='coerce')
             df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('gio_bat_dau_xep'), errors='coerce')
-            df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('ETA Incoming'), errors='coerce')
             df_arr.loc[df_arr['scantime_dt'].isna(), 'scantime_dt'] = pd.to_datetime(df_arr.get('scantime'), errors='coerce')
             
             df_arr['Scan Hour'] = df_arr['scantime_dt'].dt.strftime('%Y-%m-%d %H:00').fillna('')
             
             # Tính Đã đến Hub / Chưa đến Hub
-            df_arr['Đã đến Hub'] = df_arr['arrival_time'].notna() & (df_arr['arrival_time'].astype(str).str.strip() != '') & (df_arr['arrival_time'].astype(str).str.strip().str.lower() != 'nan')
+            if 'arrival_time' not in df_arr.columns:
+                df_arr['arrival_time'] = df_arr.get('unloadingStartTime')
+            
+            arr_series = df_arr['arrival_time'].fillna('').astype(str).str.strip().str.lower() if 'arrival_time' in df_arr.columns else pd.Series([''] * len(df_arr))
+            df_arr['Đã đến Hub'] = (arr_series != '') & (arr_series != 'nan') & (arr_series != 'none')
             df_arr['Đã đến Hub'] = df_arr['Đã đến Hub'].astype(int)
             df_arr['Chưa đến Hub'] = 1 - df_arr['Đã đến Hub']
             
@@ -1783,42 +1789,41 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                     
             # ----------------------------------------------------
             # 2. TẠO DATASET B: CHỈ HIỂN THỊ CÁC XE TRÊN ĐƯỜNG VỀ (CHƯA XẢ HÀNG XONG)
-            # Bảo đảm cột arrival_time luôn tồn tại để tránh KeyError khi sync
-            if 'arrival_time' not in df_enriched.columns:
-                df_enriched['arrival_time'] = None
+            # Xe được coi là đã về nếu trên xe có ít nhất 1 đơn đã được Inbound scan hôm nay
+            inbound_today_wbs = set()
+            for r in results.get('inbound', []):
+                wb = str(r.get('billNo') or r.get('waybillNo') or '').strip().upper()
+                if wb:
+                    inbound_today_wbs.add(wb)
 
-            # Nếu arrival_time rỗng hoặc chưa được điền (khi chạy sync API trực tiếp không qua file Enriched)
-            # Chúng ta sẽ map arrival_time từ cột Arrival_time trong SQLite để biết đơn nào đã đến HUB
-            if not df_enriched.empty and (df_enriched['arrival_time'].isna().all() or (df_enriched['arrival_time'].astype(str).str.strip() == '').all()):
-                try:
-                    conn = sqlite3.connect(DB_FILE)
-                    df_ship_arr = pd.read_sql_query("""
-                        SELECT waybillNo, Arrival_time
-                        FROM shipments
-                        WHERE Arrival_time IS NOT NULL AND Arrival_time != ''
-                    """, conn)
-                    conn.close()
+            from zoneinfo import ZoneInfo
+            now_vn_eta = datetime.now(ZoneInfo('Asia/Ho_Chi_Minh'))
+            today_op_date = get_operating_date(now_vn_eta.strftime('%Y-%m-%d %H:%M:%S'))
 
-                    if not df_ship_arr.empty:
-                        df_ship_arr['waybillNo'] = df_ship_arr['waybillNo'].astype(str).str.strip().str.upper()
-                        wb_col = None
-                        for col in ['billcode', 'waybillNo', 'billNo']:
-                            if col in df_enriched.columns:
-                                wb_col = col
-                                break
-                        if wb_col:
-                            arr_map = dict(zip(df_ship_arr['waybillNo'], df_ship_arr['Arrival_time']))
-                            df_enriched['arrival_time'] = df_enriched[wb_col].astype(str).str.strip().str.upper().map(arr_map)
-                except Exception as e_db_arr:
-                    print(f"   ⚠️ Lỗi map arrival_time từ SQLite: {e_db_arr}")
+            if 'Ngày vận hành' not in df_enriched.columns:
+                df_enriched['Ngày vận hành'] = today_op_date
 
-            # Chỉ giữ các đơn hàng chưa đến Hub (arrival_time rỗng/nan)
-            df_active = df_enriched[
-                df_enriched['arrival_time'].isna() | 
-                (df_enriched['arrival_time'].astype(str).str.strip() == '') | 
-                (df_enriched['arrival_time'].astype(str).str.strip().str.lower() == 'nan')
+            df_enriched_today = df_enriched[
+                df_enriched['Ngày vận hành'].astype(str).str.strip() == today_op_date
             ].copy()
-            
+
+            # Tìm các xe (transfercode) có ít nhất 1 đơn đã được Inbound tại HUB hôm nay
+            arrived_trucks = set()
+            if not df_enriched_today.empty:
+                for _, row in df_enriched_today.iterrows():
+                    bill = str(row.get('billcode') or row.get('waybillNo') or '').strip().upper()
+                    truck_code = str(row.get('transfercode') or '').strip()
+                    if bill in inbound_today_wbs and truck_code and truck_code.lower() != 'nan':
+                        arrived_trucks.add(truck_code)
+
+            # df_active là các xe chưa thuộc arrived_trucks
+            if not df_enriched_today.empty:
+                df_active = df_enriched_today[
+                    ~df_enriched_today['transfercode'].astype(str).str.strip().isin(arrived_trucks)
+                ].copy()
+            else:
+                df_active = pd.DataFrame()
+
             # Hàm đếm số lượng xe (số lượng transfercode duy nhất không rỗng)
             def count_unique_trucks(series):
                 valid_trucks = series.dropna().astype(str).str.strip()
@@ -2605,7 +2610,16 @@ def run_once(session, token_mgr, rebuild_days=None):
     arrival_max = {}
     for r in arrival_raw:
         wb = str(r.get('billcode') or r.get('waybillNo') or r.get('billNo') or '').strip()
-        scan_time = str(r.get('gio_di_thuc_te') or r.get('gio_bat_dau_xep') or r.get('scantime') or r.get('arrival_time') or r.get('ETA Incoming') or '').strip()
+        scan_time = str(
+            r.get('unloadingStartTime') or
+            r.get('unloadingEndTime') or
+            r.get('arrival_time') or
+            r.get('gio_di_thuc_te') or
+            r.get('gio_bat_dau_xep') or
+            r.get('scantime') or
+            r.get('ETA Incoming') or
+            ''
+        ).strip()
         if wb and scan_time and scan_time.lower() not in ('nan', 'none', ''):
             if wb not in arrival_max or scan_time > arrival_max[wb]:
                 arrival_max[wb] = scan_time
