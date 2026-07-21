@@ -933,9 +933,6 @@ export default function App() {
           <line x1={A23_X} y1={280} x2={A23_X} y2={392} stroke="#8da0c4" strokeWidth="3"/>
           <line x1={A23_X} y1={452} x2={A23_X} y2={WB}  stroke="#8da0c4" strokeWidth="3"/>
 
-          <text x={A23_X+4} y={93} fill="rgba(141,160,196,0.6)" className="mono text-[6px]">Lối 6m</text>
-          <text x={A23_X+4} y={247} fill="rgba(141,160,196,0.6)" className="mono text-[6px]">Lối 6m</text>
-          <text x={A23_X+4} y={405} fill="rgba(141,160,196,0.6)" className="mono text-[6px]">Lối 6m</text>
 
           <text x={(WL+A12_X)/2} y={WT-8} textAnchor="middle"
                 fill="#8da0c4" className="disp text-[11px] font-extrabold tracking-wider">A1 (47.2M)</text>
@@ -1159,8 +1156,7 @@ export default function App() {
             })}
             <rect x={192} y={Z1_Y} width={448} height={Z_H} rx="2"
                   {...getZoneBorderProps(1, '--orange')}/>
-            <text x={192} y={Z1_Y-6} fill="rgba(234, 67, 53, 0.75)"
-                  className="mono text-[6.5px] font-bold tracking-wide">KHU CHỜ XUẤT TẢI (ZONE 1)</text>
+
           </g>
  
           {/* Render C26 (Zone 3) separately next to BN HUB on the left */}
@@ -1242,8 +1238,7 @@ export default function App() {
                           filter: isHubHovered ? 'drop-shadow(0 3px 6px rgba(0,0,0,0.4)) drop-shadow(0 3px 6px var(--orange))' : 'none'
                         }}
                         pointerEvents="none"/>
-                  <text x={bx} y={by-6} fill="rgba(234, 67, 53, 0.75)"
-                        className="mono text-[6.5px] font-bold tracking-wide">BN HUB</text>
+
                 </>
               );
             })()}
@@ -1285,8 +1280,7 @@ export default function App() {
             })}
             <rect x={181} y={563} width={448} height={Z_H} rx="2"
                   {...getZoneBorderProps(1, '--orange')}/>
-            <text x={181} y={632} fill="rgba(234, 67, 53, 0.75)"
-                  className="mono text-[6.5px] font-bold tracking-wide">BÃI CHỜ XE TẢI (ZONE 1) - QUAY ĐẦU HƯỚNG RA</text>
+
           </g>
 
           <g>
@@ -1370,11 +1364,7 @@ export default function App() {
           <text x={NS_X-2} y={WB+25} fill="rgba(96,165,250,0.75)"
                 className="mono text-[5px] font-bold">VÀO ĐƯỜNG ĐI (A18)</text>
 
-          {/* ── Footer note ── */}
-          <text x={(WL+WR)/2} y={650} textAnchor="middle"
-                fill="var(--muted)" className="font-sans text-[7.5px] tracking-wide">
-            A1–A12: Cổng xuất (Outbound) | A13–A18: Cổng nhập hàng (Inbound)
-          </text>
+          
           </g>
         </svg>
     );
