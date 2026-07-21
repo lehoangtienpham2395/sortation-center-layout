@@ -1662,7 +1662,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
     if arrival_raw:
         df_enriched = pd.DataFrame(arrival_raw)
         if 'last_dept_name' not in df_enriched.columns:
-            for col in ['scansitename', 'sendSite', 'sendSiteName', 'startSiteName', 'bưu_cục_gửi']:
+            for col in ['scansitename', 'Pickup_station', 'sendSite', 'sendSiteName', 'startSiteName', 'bưu_cục_gửi']:
                 if col in df_enriched.columns:
                     df_enriched['last_dept_name'] = df_enriched[col]
                     break
@@ -1858,7 +1858,10 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             def count_unique_trucks(series):
                 valid_trucks = series.dropna().astype(str).str.strip()
                 valid_trucks = valid_trucks[(valid_trucks != '') & (valid_trucks.str.lower() != 'nan')]
-                return int(valid_trucks.nunique())
+                val = int(valid_trucks.nunique())
+                if val == 0 and not series.empty:
+                    return 1
+                return val
             
             # Nếu không có xe nào trên đường, tạo df_pivot_truck rỗng
             if not df_active.empty:
