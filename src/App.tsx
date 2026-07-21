@@ -131,8 +131,17 @@ const ZONE1_TRUCKS = Array.from({ length: 16 }, (_, i) => ({
   zone: 1
 }));
 
+const INBOUND_TRUCKS = [
+  { areaId: 'TI-01', name: 'XE NHẬP BD', zone: 1, bx: 663 },
+  { areaId: 'TI-02', name: 'XE NHẬP LA', zone: 1, bx: 695 },
+  { areaId: 'TI-03', name: 'XE NHẬP TG', zone: 1, bx: 748 },
+  { areaId: 'TI-04', name: 'XE NHẬP CT', zone: 1, bx: 780 },
+  { areaId: 'TI-05', name: 'XE NHẬP VL', zone: 1, bx: 833 },
+  { areaId: 'TI-06', name: 'XE NHẬP AG', zone: 1, bx: 869 }
+];
+
 const CHUTE_RACKS = [...ZONE3_LIST, ...ZONE2_LIST, ...ZONE1_LIST];
-const ALL_RACKS = [...CHUTE_RACKS, ...ZONE3_TRUCKS, ...ZONE2_TRUCKS, ...ZONE1_TRUCKS];
+const ALL_RACKS = [...CHUTE_RACKS, ...ZONE3_TRUCKS, ...ZONE2_TRUCKS, ...ZONE1_TRUCKS, ...INBOUND_TRUCKS];
 
 ALL_RACKS.forEach(item => {
   if (MASTER_CONFIG_MAP[item.areaId]) {
@@ -1281,6 +1290,51 @@ export default function App() {
             <rect x={181} y={563} width={448} height={Z_H} rx="2"
                   {...getZoneBorderProps(1, '--orange')}/>
 
+          </g>
+
+          {/* Inbound Trucks (Xe chờ xuống tải đối diện cổng A13-A18) */}
+          <g>
+            {INBOUND_TRUCKS.map((c) => {
+              const d = data[c.areaId] || { current: 0, capacity: 780, remaining: 780, utilization: 0, bucket: 'green', name: c.name };
+              const bx = c.bx;
+              const by = 563; // Ngoài mặt DOCK
+              return (
+                <g key={c.areaId}>
+                  <ZoneCell c={c} d={d} bx={bx} by={by}
+                            bw={TR_BAY_W} bh={Z_H} midLabelY={by+Z_H/2}
+                            isHovered={hoveredRack?.areaId===c.areaId}
+                            onEnter={() => {
+                              setHoveredRack({...c,...d});
+                              setHoveredZone(1);
+                            }}
+                            onLeave={() => {
+                              setHoveredRack(null);
+                              setHoveredZone(null);
+                            }}
+                            onClick={() => {
+                              setHoveredRack({...c,...d});
+                              if (isMobile) setBottomSheetOpen(true);
+                            }}
+                            isTruck={true}/>
+                  <g pointerEvents="none" opacity="0.8">
+                    {/* Quay đầu hướng ra: cabin ở dưới, thùng hàng ở trên */}
+                    <rect x={bx+4} y={by+4} width={TR_BAY_W-8} height={Z_H-22}
+                          rx="1" fill="rgba(96,165,250,0.15)" stroke="rgba(96,165,250,0.4)" strokeWidth="0.6"/>
+                    <rect x={bx+3} y={by+Z_H-16} width={TR_BAY_W-6} height={10}
+                          rx="1.5" fill="rgba(96,165,250,0.25)" stroke="rgba(96,165,250,0.5)" strokeWidth="0.7"/>
+                  </g>
+                </g>
+              );
+            })}
+            <rect x={653} y={563} width={251} height={Z_H} rx="2"
+                  fill="none"
+                  stroke="var(--inbound)"
+                  strokeWidth={hoveredZone === 1 ? 1.2 : 0.8}
+                  strokeOpacity={hoveredZone === 1 ? 0.7 : 0.4}
+                  style={{
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  }}
+                  pointerEvents="none"/>
           </g>
 
           <g>
