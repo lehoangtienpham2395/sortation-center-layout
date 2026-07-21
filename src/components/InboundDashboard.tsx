@@ -260,9 +260,9 @@ export default function InboundDashboard({
   const incomingVehicles = filteredTruckEta
     .filter(d => {
       const key = (d['Station'] || d['Pickup_station'] || '').trim();
-      // Không lọc bỏ Station rỗng — đây là các chuyến Shuttle nội thành chưa có tên bưu cục
+      if (!key) return false;
       const cleanKey = key.toUpperCase();
-      if (key && cleanKey !== 'BN HUB' && (NORTH_POST_OFFICES.has(cleanKey) || cleanKey.startsWith('HN ') || cleanKey.startsWith('HD ') || cleanKey.startsWith('HY '))) {
+      if (cleanKey !== 'BN HUB' && (NORTH_POST_OFFICES.has(cleanKey) || cleanKey.startsWith('HN ') || cleanKey.startsWith('HD ') || cleanKey.startsWith('HY '))) {
         return false;
       }
       return true;
@@ -282,15 +282,13 @@ export default function InboundDashboard({
           truckingCount = 1;
         }
       }
-      const stationRaw = (d['Station'] || d['Pickup_station'] || '').trim();
-      const rankRaw = (d['Rank'] || 'Shuttle');
       return {
-        station: stationRaw || `[${rankRaw}]`,
+        station: d['Station'] || d['Pickup_station'] || '',
         trucking: truckingCount,
         orders: orders,
         weight: weight,
         eta: d['ETA'] || d['Last time'] || '',
-        rank: (stationRaw.toUpperCase() === 'BN HUB') ? 'Linehaul' : rankRaw,
+        rank: ((d['Station'] || d['Pickup_station'] || '').trim().toUpperCase() === 'BN HUB') ? 'Linehaul' : (d['Rank'] || 'Shuttle'),
         // Backwards compatibility keys:
         chuaDenHub: orders,
         tongDon: orders,
