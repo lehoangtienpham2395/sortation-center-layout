@@ -132,12 +132,12 @@ const ZONE1_TRUCKS = Array.from({ length: 16 }, (_, i) => ({
 }));
 
 const INBOUND_TRUCKS = [
-  { areaId: 'TI-01', name: 'Bãi chờ nhập 01', zone: 1, bx: 663 },
-  { areaId: 'TI-02', name: 'Bãi chờ nhập 02', zone: 1, bx: 691 },
-  { areaId: 'TI-03', name: 'Bãi chờ nhập 03', zone: 1, bx: 719 },
-  { areaId: 'TI-04', name: 'Bãi chờ nhập 04', zone: 1, bx: 747 },
-  { areaId: 'TI-05', name: 'Bãi chờ nhập 05', zone: 1, bx: 775 },
-  { areaId: 'TI-06', name: 'Bãi chờ nhập 06', zone: 1, bx: 803 }
+  { areaId: 'TI-01', name: 'Bãi chờ nhập 01', zone: 4, bx: 663 },
+  { areaId: 'TI-02', name: 'Bãi chờ nhập 02', zone: 4, bx: 691 },
+  { areaId: 'TI-03', name: 'Bãi chờ nhập 03', zone: 4, bx: 719 },
+  { areaId: 'TI-04', name: 'Bãi chờ nhập 04', zone: 4, bx: 747 },
+  { areaId: 'TI-05', name: 'Bãi chờ nhập 05', zone: 4, bx: 775 },
+  { areaId: 'TI-06', name: 'Bãi chờ nhập 06', zone: 4, bx: 803 }
 ];
 
 const CHUTE_RACKS = [...ZONE3_LIST, ...ZONE2_LIST, ...ZONE1_LIST];
@@ -1305,7 +1305,7 @@ export default function App() {
                             isHovered={hoveredRack?.areaId===c.areaId}
                             onEnter={() => {
                               setHoveredRack({...c,...d});
-                              setHoveredZone(1);
+                              setHoveredZone(4);
                             }}
                             onLeave={() => {
                               setHoveredRack(null);
@@ -1327,14 +1327,7 @@ export default function App() {
               );
             })}
             <rect x={653} y={563} width={188} height={Z_H} rx="2"
-                  fill="none"
-                  stroke="var(--inbound)"
-                  strokeWidth={hoveredZone === 1 ? 1.2 : 0.8}
-                  strokeOpacity={hoveredZone === 1 ? 0.7 : 0.4}
-                  style={{
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  }}
-                  pointerEvents="none"/>
+                  {...getZoneBorderProps(4, '--inbound')}/>
           </g>
 
           <g>
@@ -1344,11 +1337,16 @@ export default function App() {
             </text>
 
             {[IB_XL1, IB_XL2].map((lx, li) => {
+              const isL1Hovered = hoveredZone === 4;
               return (
                 <g key={li}>
                   <rect x={lx} y={IB_Y} width={IB_LW} height={IB_H}
                         rx="2" fill="rgba(96,165,250,0.05)"
-                        stroke="var(--inbound)" strokeWidth="1.1" strokeDasharray="3 2"/>
+                        stroke="var(--inbound)" 
+                        strokeWidth={isL1Hovered ? 1.8 : 1.1} 
+                        strokeOpacity={isL1Hovered ? 1.0 : 0.6}
+                        strokeDasharray={isL1Hovered ? "none" : "3 2"}
+                        style={{ transition: 'all 0.25s ease' }}/>
 
                   {IB_NAMES.map((name, si) => {
                     const sx = lx + si * IB_SW;
