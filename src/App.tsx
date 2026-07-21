@@ -132,12 +132,12 @@ const ZONE1_TRUCKS = Array.from({ length: 16 }, (_, i) => ({
 }));
 
 const INBOUND_TRUCKS = [
-  { areaId: 'TI-01', name: 'XE NHẬP BD', zone: 1, bx: 663 },
-  { areaId: 'TI-02', name: 'XE NHẬP LA', zone: 1, bx: 695 },
-  { areaId: 'TI-03', name: 'XE NHẬP TG', zone: 1, bx: 748 },
-  { areaId: 'TI-04', name: 'XE NHẬP CT', zone: 1, bx: 780 },
-  { areaId: 'TI-05', name: 'XE NHẬP VL', zone: 1, bx: 833 },
-  { areaId: 'TI-06', name: 'XE NHẬP AG', zone: 1, bx: 869 }
+  { areaId: 'TI-01', name: 'Bãi chờ nhập 01', zone: 1, bx: 663 },
+  { areaId: 'TI-02', name: 'Bãi chờ nhập 02', zone: 1, bx: 691 },
+  { areaId: 'TI-03', name: 'Bãi chờ nhập 03', zone: 1, bx: 719 },
+  { areaId: 'TI-04', name: 'Bãi chờ nhập 04', zone: 1, bx: 747 },
+  { areaId: 'TI-05', name: 'Bãi chờ nhập 05', zone: 1, bx: 775 },
+  { areaId: 'TI-06', name: 'Bãi chờ nhập 06', zone: 1, bx: 803 }
 ];
 
 const CHUTE_RACKS = [...ZONE3_LIST, ...ZONE2_LIST, ...ZONE1_LIST];
@@ -1326,7 +1326,7 @@ export default function App() {
                 </g>
               );
             })}
-            <rect x={653} y={563} width={251} height={Z_H} rx="2"
+            <rect x={653} y={563} width={188} height={Z_H} rx="2"
                   fill="none"
                   stroke="var(--inbound)"
                   strokeWidth={hoveredZone === 1 ? 1.2 : 0.8}
