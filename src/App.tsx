@@ -114,15 +114,15 @@ const ZONE2_TRUCKS = Array.from({ length: 21 }, (_, i) => {
 });
 
 const ZONE1_LIST = [
-  // 15 ô chutes bên trái vách ngăn (A05 -> A19, loại bỏ A03, A04 để tránh trùng lặp với Zone 2)
-  { areaId: 'A05', name: 'AG LONG XUYÊN', zone: 1 },  { areaId: 'A06', name: 'AG CẦN ĐĂNG', zone: 1 },
+  // 15 ô chutes bên trái vách ngăn (A06 -> A20, loại bỏ A03, A04 để tránh trùng lặp với Zone 2)
+  { areaId: 'A06', name: 'BN HUB', zone: 1 },
   { areaId: 'A07', name: 'CT Ô MÔN', zone: 1 },       { areaId: 'A08', name: 'CT BÌNH THỦY', zone: 1 },
   { areaId: 'A09', name: 'CT NINH KIỀU', zone: 1 },   { areaId: 'A10', name: 'DT CAO LÃNH', zone: 1 },
   { areaId: 'A11', name: 'DT SA ĐÉC', zone: 1 },      { areaId: 'A12', name: 'TG HÒA KHÁNH', zone: 1 },
   { areaId: 'A13', name: 'VL VĨNH LONG', zone: 1 },   { areaId: 'A14', name: 'TG AN HỮU', zone: 1 },
   { areaId: 'A15', name: 'LA TÂN AN', zone: 1 },      { areaId: 'A16', name: 'TG MỸ THO', zone: 1 },
   { areaId: 'A17', name: 'TG TRUNG AN', zone: 1 },    { areaId: 'A18', name: 'VT VŨNG TÀU', zone: 1 },
-  { areaId: 'A19', name: 'BN HUB', zone: 1 }
+  { areaId: 'A19', name: 'AG LONG XUYÊN', zone: 1 },  { areaId: 'A20', name: 'AG CẦN ĐĂNG', zone: 1 }
 ];
 
 const ZONE1_TRUCKS = Array.from({ length: 16 }, (_, i) => ({
@@ -644,7 +644,7 @@ export default function App() {
         }
       }
 
-      if (curr.areaId === 'A19') {
+      if (curr.areaId === 'A06') {
         capacity = 1400;
         if (!isMocked) {
           util = Math.floor((current / capacity) * 100);
@@ -1137,9 +1137,9 @@ export default function App() {
                 fill="rgba(234,179,8,0.65)" className="mono text-[5.5px] font-bold">XE TẢI CHỤM ĐẦU</text>
 
           <g>
-            {ZONE1_LIST.filter(c => c.areaId !== 'A19').map((c, i) => {
+            {ZONE1_LIST.filter(c => c.areaId !== 'A06').map((c, i) => {
               const d = data[c.areaId]; if (!d) return null;
-              const bx = 612 - i * TR_BAY_W;
+              const bx = 556 - i * TR_BAY_W;
               return <ZoneCell key={c.areaId} c={c} d={d} bx={bx} by={Z1_Y}
                                bw={TR_BAY_W} bh={Z_H} midLabelY={Z1_Y+Z_H/2}
                                isHovered={hoveredRack?.areaId===c.areaId}
@@ -1150,16 +1150,16 @@ export default function App() {
                                onLeave={() => {
                                  setHoveredRack(null);
                                  setHoveredZone(null);
-                                }}
+                               }}
                                onClick={() => {
                                  setHoveredRack({...c,...d});
                                  if (isMobile) setBottomSheetOpen(true);
                                }}
                                addCenterLine={true}/>;
             })}
-            <rect x={248} y={Z1_Y} width={392} height={Z_H} rx="2"
+            <rect x={192} y={Z1_Y} width={448} height={Z_H} rx="2"
                   {...getZoneBorderProps(1, '--orange')}/>
-            <text x={248} y={Z1_Y-6} fill="rgba(234, 67, 53, 0.75)"
+            <text x={192} y={Z1_Y-6} fill="rgba(234, 67, 53, 0.75)"
                   className="mono text-[6.5px] font-bold tracking-wide">KHU CHỜ XUẤT TẢI (ZONE 1)</text>
           </g>
  
@@ -1207,17 +1207,17 @@ export default function App() {
             })()}
           </g>
 
-          {/* Render A19 (BN HUB) separately at A1-A2 with double cell width */}
+          {/* Render A06 (BN HUB) separately next to A07 with double cell width */}
           <g>
             {(() => {
-              const c = ZONE1_LIST.find(item => item.areaId === 'A19');
+              const c = ZONE1_LIST.find(item => item.areaId === 'A06');
               if (!c) return null;
               const d = data[c.areaId];
               if (!d) return null;
-              const bx = 181;
+              const bx = 584;
               const by = Z1_Y;
               const bw = 56; // 2 cells wide
-              const isHubHovered = hoveredRack?.areaId === 'A19';
+              const isHubHovered = hoveredRack?.areaId === 'A06';
               return (
                 <>
                   <ZoneCell c={c} d={d} bx={bx} by={by}
