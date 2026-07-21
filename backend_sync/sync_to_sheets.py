@@ -3835,23 +3835,46 @@ def main():
     # Auto git commit & push for local synchronization runs
     try:
         import subprocess
-        root_data_dir = os.path.join("..", "data")
+        git_dir = repo_base if (os.path.exists(repo_base) and os.path.exists(os.path.join(repo_base, ".git"))) else (".." if os.path.exists(os.path.join("..", ".git")) else ".")
+        root_data_dir = os.path.join(git_dir, "data")
+        files_to_add = []
         if os.path.exists(root_data_dir):
-            files_to_add = []
             for fn in os.listdir(root_data_dir):
                 if fn.endswith(".json") or fn.endswith(".gz"):
                     files_to_add.append(os.path.join("data", fn))
-            if files_to_add:
-                print("   🔄 Tự động stage, commit và push dữ liệu mới lên GitHub...")
-                subprocess.run(["git", "add"] + files_to_add, cwd="..", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                # Pull remote changes with rebase to avoid push rejection due to concurrent GitHub Actions commits
-                subprocess.run(["git", "pull", "--rebase"], cwd="..", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                res_commit = subprocess.run(["git", "commit", "-m", "Auto-sync local data update from sync_to_sheets.py"], cwd="..", capture_output=True, text=True)
-                if "nothing to commit" not in res_commit.stdout and "no changes added" not in res_commit.stdout:
-                    subprocess.run(["git", "push"], cwd="..", stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        src_data_dir = os.path.join(git_dir, "src", "data")
+        if os.path.exists(src_data_dir):
+            for fn in os.listdir(src_data_dir):
+                if fn.endswith(".json") or fn.endswith(".gz"):
+                    files_to_add.append(os.path.join("src", "data", fn))
+                    
+        if files_to_add:
+            print(f"   🔄 Tự động stage, commit và push dữ liệu mới lên GitHub ({git_dir})...")
+
+            # ✅ First stash any unstaged changes to pull safely
+            stash_res = subprocess.run(["git", "stash", "--include-untracked"],
+                                       cwd=git_dir, capture_output=True, text=True)
+            did_stash = "No local changes" not in stash_res.stdout
+
+            subprocess.run(["git", "pull", "--rebase"], cwd=git_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            # Restore the stashed changes
+            if did_stash:
+                subprocess.run(["git", "stash", "pop"], cwd=git_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            # Stage the files AFTER stash pop so they are actually staged for commit!
+            subprocess.run(["git", "add"] + files_to_add, cwd=git_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+            res_commit = subprocess.run(["git", "commit", "-m", f"Auto-sync local data update ({datetime.now().strftime('%H:%M %d/%m')})"], cwd=git_dir, capture_output=True, text=True)
+            if "nothing to commit" not in res_commit.stdout and "no changes added" not in res_commit.stdout:
+                res_push = subprocess.run(["git", "push"], cwd=git_dir, capture_output=True, text=True)
+                if res_push.returncode == 0:
                     print("   ✅ Đã đẩy dữ liệu mới lên GitHub thành công!")
                 else:
-                    print("   ℹ️ Không có thay đổi dữ liệu nào cần push.")
+                    print(f"   ⚠️ Lỗi push Git: {res_push.stderr}")
+            else:
+                print("   ℹ️ Không có thay đổi dữ liệu nào cần push.")
     except Exception as e_git:
         print(f"   ⚠️ Lỗi tự động Git push: {e_git}")
 
