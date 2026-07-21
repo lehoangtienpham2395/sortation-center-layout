@@ -1661,8 +1661,14 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
     arrival_raw = results.get('arrival', [])
     if arrival_raw:
         df_enriched = pd.DataFrame(arrival_raw)
-        if 'scansitename' in df_enriched.columns and 'last_dept_name' not in df_enriched.columns:
-            df_enriched['last_dept_name'] = df_enriched['scansitename']
+        if 'last_dept_name' not in df_enriched.columns:
+            for col in ['scansitename', 'sendSite', 'sendSiteName', 'startSiteName', 'bưu_cục_gửi']:
+                if col in df_enriched.columns:
+                    df_enriched['last_dept_name'] = df_enriched[col]
+                    break
+        if 'last_dept_name' not in df_enriched.columns:
+            df_enriched['last_dept_name'] = ''
+            
         if 'package_charge_weight' not in df_enriched.columns:
             df_enriched['package_charge_weight'] = 0
             
