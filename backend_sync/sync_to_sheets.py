@@ -1677,13 +1677,68 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         if 'transfercode' not in df_enriched.columns:
             df_enriched['transfercode'] = ''
 
-        if 'ETA Incoming' not in df_enriched.columns:
-            for col in ['eta', 'eta_incoming', 'dự_kiến_đến']:
-                if col in df_enriched.columns:
-                    df_enriched['ETA Incoming'] = df_enriched[col]
-                    break
-        if 'ETA Incoming' not in df_enriched.columns:
-            df_enriched['ETA Incoming'] = ''
+        # 5. Tính toán ETA Incoming từ file etatrucking.csv
+        eta_dict = {}
+        # Hỗ trợ cả 2 môi trường (local Desktop và workspace GHA)
+        eta_paths = [
+            os.path.join(BASE_DIR, "Exportauto", "Valid", "etatrucking.csv"),
+            os.path.join(BASE_DIR, "config", "etatrucking.csv"),
+            os.path.join(os.path.dirname(BASE_DIR), "backend_sync", "Exportauto", "Valid", "etatrucking.csv"),
+            os.path.join(BASE_DIR, "backend_sync", "Exportauto", "Valid", "etatrucking.csv")
+        ]
+        eta_file = None
+        for p in eta_paths:
+            if os.path.exists(p):
+                eta_file = p
+                break
+                
+        if eta_file:
+            try:
+                df_eta = pd.read_csv(eta_file, dtype=str)
+                for _, row_eta in df_eta.iterrows():
+                    st = str(row_eta.get('station') or '').strip().upper()
+                    val = row_eta.get('ETA')
+                    if st and val is not None:
+                        try:
+                            eta_dict[st] = float(val)
+                        except ValueError:
+                            pass
+            except Exception as e_eta:
+                print(f"   ⚠️ Lỗi đọc etatrucking.csv: {e_eta}")
+
+        col_eta_incoming = []
+        for _, row in df_enriched.iterrows():
+            st = str(row.get('last_dept_name') or '').strip().upper()
+            
+            existing_eta = str(row.get('ETA Incoming') or row.get('eta') or row.get('eta_incoming') or '').strip()
+            if existing_eta and existing_eta.lower() not in ('nan', 'none', ''):
+                col_eta_incoming.append(existing_eta)
+                continue
+                
+            scan_t = str(
+                row.get('gio_di_thuc_te') or 
+                row.get('gio_bat_dau_xep') or 
+                row.get('scantime') or 
+                row.get('arrival_time') or
+                row.get('unloadingStartTime') or
+                ''
+            ).strip()
+            
+            eta_hours = eta_dict.get(st)
+            if eta_hours is not None and scan_t and scan_t.lower() not in ('nan', 'none', ''):
+                try:
+                    dt_scan = pd.to_datetime(scan_t, errors='coerce')
+                    if pd.notna(dt_scan):
+                        dt_eta = dt_scan + timedelta(hours=eta_hours)
+                        col_eta_incoming.append(dt_eta.strftime('%Y-%m-%d %H:%M:%S'))
+                    else:
+                        col_eta_incoming.append('')
+                except Exception:
+                    col_eta_incoming.append('')
+            else:
+                col_eta_incoming.append('')
+                
+        df_enriched['ETA Incoming'] = col_eta_incoming
 
         if 'billcode' not in df_enriched.columns:
             for col in ['waybillNo', 'billNo', 'waybill_no']:
@@ -1873,7 +1928,21 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                                       ETA=('ETA Incoming', 'first')
                                   ).reset_index())
                 df_pivot_truck.rename(columns={'last_dept_name': 'Station'}, inplace=True)
-                df_pivot_truck['ETA'] = df_pivot_truck['ETA'].fillna('')
+                def format_eta(row):
+                    eta_str = str(row.get('ETA') or '').strip()
+                    if not eta_str or eta_str.lower() in ('nan', 'none'):
+                        return ''
+                    try:
+                        dt = pd.to_datetime(eta_str, errors='coerce')
+                        if pd.isna(dt):
+                            return eta_str
+                        if str(row.get('Rank')).strip().lower() == 'linehaul':
+                            return dt.strftime('%d/%m %H:%M')
+                        return dt.strftime('%H:%M')
+                    except Exception:
+                        return eta_str
+
+                df_pivot_truck['ETA'] = df_pivot_truck.apply(format_eta, axis=1)
             else:
                 df_pivot_truck = pd.DataFrame(columns=['Ngày vận hành', 'Station', 'Rank', 'Trucking', 'Orders', 'weight', 'ETA'])
                 
