@@ -1668,6 +1668,14 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                     break
         if 'last_dept_name' not in df_enriched.columns:
             df_enriched['last_dept_name'] = ''
+
+        if 'transfercode' not in df_enriched.columns:
+            for col in ['traceCode', 'vehicleNo', 'carNo', 'licensePlate', 'truckCode', 'mã_chuyến']:
+                if col in df_enriched.columns:
+                    df_enriched['transfercode'] = df_enriched[col]
+                    break
+        if 'transfercode' not in df_enriched.columns:
+            df_enriched['transfercode'] = ''
             
         if 'package_charge_weight' not in df_enriched.columns:
             df_enriched['package_charge_weight'] = 0
