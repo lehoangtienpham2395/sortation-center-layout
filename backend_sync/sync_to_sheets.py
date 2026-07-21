@@ -1676,6 +1676,22 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                     break
         if 'transfercode' not in df_enriched.columns:
             df_enriched['transfercode'] = ''
+
+        if 'ETA Incoming' not in df_enriched.columns:
+            for col in ['eta', 'eta_incoming', 'dự_kiến_đến']:
+                if col in df_enriched.columns:
+                    df_enriched['ETA Incoming'] = df_enriched[col]
+                    break
+        if 'ETA Incoming' not in df_enriched.columns:
+            df_enriched['ETA Incoming'] = ''
+
+        if 'billcode' not in df_enriched.columns:
+            for col in ['waybillNo', 'billNo', 'waybill_no']:
+                if col in df_enriched.columns:
+                    df_enriched['billcode'] = df_enriched[col]
+                    break
+        if 'billcode' not in df_enriched.columns:
+            df_enriched['billcode'] = ''
             
         if 'package_charge_weight' not in df_enriched.columns:
             df_enriched['package_charge_weight'] = 0
@@ -1844,6 +1860,14 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                 valid_trucks = valid_trucks[(valid_trucks != '') & (valid_trucks.str.lower() != 'nan')]
                 return int(valid_trucks.nunique())
             
+            # Fill last_dept_name từ pickNetworkName khi rỗng (Shuttle nội thành)
+            if not df_active.empty:
+                mask_empty_station = df_active['last_dept_name'].astype(str).str.strip().isin(['', 'nan'])
+                for col in ['pickNetworkName', 'sendSite', 'sendSiteName', 'startSiteName']:
+                    if col in df_active.columns:
+                        df_active.loc[mask_empty_station, 'last_dept_name'] = df_active.loc[mask_empty_station, col].astype(str).str.strip()
+                        mask_empty_station = df_active['last_dept_name'].astype(str).str.strip().isin(['', 'nan'])
+
             # Nếu không có xe nào trên đường, tạo df_pivot_truck rỗng
             if not df_active.empty:
                 df_pivot_truck = (df_active.groupby(['Ngày vận hành', 'last_dept_name', 'Rank'])
