@@ -1109,7 +1109,7 @@ export default function InboundDashboard({
       {/* Row 3: Tables */}
       <section className="tables-grid">
         {/* Table 1: Origin Station Inbound */}
-        <div className="table-container-card glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="table-container-card glass-card report-glow-card glow-cyan" style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="table-header" style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#B8F7E4', margin: 0 }}>Origin Station Inbound</h2>
             <span className="badge-count sky">{allSendingFCs.length} bưu cục</span>
@@ -1162,7 +1162,7 @@ export default function InboundDashboard({
         </div>
 
         {/* Table 2: Xe đang di chuyển (Trucks in Transit) */}
-        <div className="table-container-card glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="table-container-card glass-card report-glow-card glow-amber" style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="table-header" style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', color: '#B8F7E4', margin: 0 }}>Inbound Truck ETA - HCM HUB</h2>
             <span className="badge-count amber">{totalTransitVehicles} xe</span>
