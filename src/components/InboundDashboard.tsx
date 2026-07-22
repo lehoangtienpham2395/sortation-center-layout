@@ -279,6 +279,11 @@ export default function InboundDashboard({
         return false;
       }
 
+      // Loại bỏ hoàn toàn dòng gộp BN HUB không có mã phiếu nhiệm vụ
+      if (cleanKey === 'BN HUB' && !d['transfercode']) {
+        return false;
+      }
+
       return true;
     })
     .map(d => {
