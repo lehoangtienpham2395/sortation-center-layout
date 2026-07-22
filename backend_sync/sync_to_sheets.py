@@ -2081,19 +2081,20 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             # Sắp xếp theo ngày vận hành, trạm, ETA
             if not df_final_truck.empty:
                 df_final_truck = df_final_truck.loc[:, ~df_final_truck.columns.duplicated()].copy()
-                if 'Ngy vn hnh' not in df_final_truck.columns and 'Ngày vận hành' in df_final_truck.columns:
-                    df_final_truck['Ngy vn hnh'] = df_final_truck['Ngày vận hành']
                 if 'Ngày vận hành' not in df_final_truck.columns and 'Ngy vn hnh' in df_final_truck.columns:
                     df_final_truck['Ngày vận hành'] = df_final_truck['Ngy vn hnh']
+                if 'Ngy vn hnh' in df_final_truck.columns:
+                    df_final_truck = df_final_truck.drop(columns=['Ngy vn hnh'])
                 df_final_truck = df_final_truck.sort_values(
                     by=['Ngày vận hành', 'Station', 'ETA'],
                     ascending=[False, True, True]
                 )
             
-            # Ghi đè file truck_eta.json (không lưu lịch sử tĩnh vì xe xả hàng xong sẽ tự biến mất khỏi live snapshot)
+            # Ghi đè file truck_eta.json
             truck_json_path = "data/truck_eta.json"
             df_final_truck_json = df_final_truck.copy()
             df_final_truck_json.rename(columns={'Ngày vận hành': 'Ngy vn hnh'}, inplace=True)
+            df_final_truck_json = df_final_truck_json.loc[:, ~df_final_truck_json.columns.duplicated()].copy()
             df_final_truck_json.to_json(truck_json_path, orient="records", force_ascii=False)
             print(f"   💾 Đã lưu file 'data/truck_eta.json' với {len(df_final_truck)} dòng (xe đang về).")
             
