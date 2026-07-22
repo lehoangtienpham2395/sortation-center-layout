@@ -316,9 +316,9 @@ export default function InboundDashboard({
   const shuttleVehicles = incomingVehicles.filter(v => v.rank === 'Shuttle');
   const linehaulVehicles = incomingVehicles.filter(v => v.rank === 'Linehaul');
 
-  // Counts of actual vehicles (having non-empty transfercodes)
-  const totalShuttleVehicles = shuttleVehicles.reduce((sum, v) => sum + v.vehicles, 0);
-  const totalLinehaulVehicles = linehaulVehicles.reduce((sum, v) => sum + v.vehicles, 0);
+  // Counts of actual vehicles from mapped incomingVehicles
+  const totalShuttleVehicles = shuttleVehicles.reduce((sum, v) => sum + (v.trucking || 1), 0);
+  const totalLinehaulVehicles = linehaulVehicles.reduce((sum, v) => sum + (v.trucking || 1), 0);
 
   // Orders status: tổng đơn chưa đến Hub = "Đang trên đường". 
   // Lấy trực tiếp tổng từ danh sách xe đang di chuyển (incomingVehicles) để bảo đảm 100% khớp số liệu.
