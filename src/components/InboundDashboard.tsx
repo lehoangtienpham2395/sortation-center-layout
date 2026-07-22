@@ -151,10 +151,16 @@ export default function InboundDashboard({
   const getDateInbound = (d: any) => d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'];
   const getDateForecast = (d: any) => d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
+  // Northern / BN HUB Station Filter helper
+  const isNorthStation = (stName: string) => {
+    const clean = (stName || '').trim().toUpperCase();
+    return clean === 'BN HUB' || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ') || NORTH_POST_OFFICES.has(clean);
+  };
+
   const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && getDateInbound(d) === activeDate);
-  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && getDateForecast(d) === activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
-  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && getDateForecast(d) === activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
-  const filteredTransporting = inboundData.filter(d => getStatus(d) === 'Transporting' && getDateForecast(d) === activeDate && (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase() !== 'BN HUB');
+  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && getDateForecast(d) === activeDate && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
+  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && getDateForecast(d) === activeDate && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
+  const filteredTransporting = inboundData.filter(d => getStatus(d) === 'Transporting' && getDateForecast(d) === activeDate && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
   const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
 
   const getLinehaulOperatingDate = (row: any) => {
@@ -214,8 +220,8 @@ export default function InboundDashboard({
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
     const status = d['Trng thi'] || d['Trạng thái'];
 
-    // Bỏ qua BN HUB khỏi Forecast (BN HUB không nằm trong kế hoạch sản lượng của các bưu cục)
-    if (station === 'BN HUB') {
+    // Bỏ qua BN HUB & Miền Bắc khỏi Forecast (BN HUB thuộc sản lượng Linehaul đường dài)
+    if (isNorthStation(station)) {
       return;
     }
 
