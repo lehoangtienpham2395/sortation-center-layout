@@ -41,12 +41,7 @@ def main():
 
     # 1. Pull Git để lấy code/config mới nhất từ GitHub
     log("📥 [1/4] Pull code/config mới nhất từ GitHub...")
-    # Stash tất cả thay đổi cục bộ (kể cả sync_to_sheets.py) để pull được sạch
-    subprocess.run(["git", "stash", "--include-untracked", "-m", "auto-stash before pull"],
-                   cwd=BASE_DIR, capture_output=True)
     run(["git", "pull", "--rebase", "origin", "main"], timeout=30)
-    # Restore lại các thay đổi cục bộ sau pull
-    subprocess.run(["git", "stash", "pop"], cwd=BASE_DIR, capture_output=True)
 
     # 2. Chạy sync chính (kéo JFS API → SQLite → JSON)
     python_exe = sys.executable
@@ -134,14 +129,8 @@ def main():
     if r_status.returncode == 0:
         log("✅ [3/4] Không có thay đổi mới — bỏ qua commit.")
     else:
-        # Stash any remaining unstaged changes to avoid rebase conflict
-        subprocess.run(["git", "stash", "--include-untracked", "-m", "auto-stash before pull"],
-                       cwd=BASE_DIR, capture_output=True)
+        run(["git", "commit", "-m", f"chore(data): auto-sync {ts_str} ICT"])
         run(["git", "pull", "--rebase", "origin", "main"], timeout=30)
-        # Restore stashed changes (ignore errors if nothing stashed)
-        subprocess.run(["git", "stash", "pop"], cwd=BASE_DIR, capture_output=True)
-        run(["git", "commit", "-m",
-             f"chore(data): auto-sync {ts_str} ICT [skip ci]"])
         ok = run(["git", "push", "origin", "main"], timeout=60)
         if ok:
             log("✅ [3/4] Push thành công!")

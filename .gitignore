@@ -46,3 +46,9 @@ backend_sync/compare_*.py
 backend_sync/check_*.py
 backend_sync/cleanup_stale_now.py
 backend_sync/startup_sync.log
+
+# Lock files
+*.lock
+sync.lock
+backend_sync/sync.lock
+

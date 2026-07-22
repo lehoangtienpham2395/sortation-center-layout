@@ -4176,17 +4176,30 @@ def main():
     def safe_mirror_copy(src, dest, max_retries=5):
         import shutil
         import time
+        dest_tmp = dest + ".tmp"
         for attempt in range(1, max_retries + 1):
             try:
                 with FILE_WRITE_LOCK:
-                    shutil.copy2(src, dest)
+                    shutil.copy2(src, dest_tmp)
+                    os.replace(dest_tmp, dest)
                 return True
-            except PermissionError as pe:
+            except PermissionError:
+                if os.path.exists(dest_tmp):
+                    try: os.remove(dest_tmp)
+                    except Exception: pass
                 if attempt == max_retries:
-                    print(f"   ❌ Lỗi mirror {os.path.basename(src)}: {pe} sau {max_retries} lần thử.")
-                    return False
-                time.sleep(1.0 * attempt)
+                    # Final fallback: try direct copyfile
+                    try:
+                        shutil.copyfile(src, dest)
+                        return True
+                    except Exception as pe_final:
+                        print(f"   ⚠️ Warning mirror {os.path.basename(src)}: {pe_final}")
+                        return False
+                time.sleep(0.5 * attempt)
             except Exception as e_copy:
+                if os.path.exists(dest_tmp):
+                    try: os.remove(dest_tmp)
+                    except Exception: pass
                 print(f"   ⚠️ Lỗi copy {os.path.basename(src)}: {e_copy}")
                 return False
         return False
@@ -4228,35 +4241,22 @@ def main():
         if files_to_add:
             print(f"   🔄 Tự động stage, commit và push dữ liệu mới lên GitHub ({git_dir})...")
 
-            # ✅ First stash any unstaged changes to pull safely
-            stash_res = subprocess.run(["git", "stash", "--include-untracked"],
-                                       cwd=git_dir, capture_output=True, text=True)
-            did_stash = "No local changes" not in stash_res.stdout
-
-            subprocess.run(["git", "pull", "--rebase"], cwd=git_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-            # Restore the stashed changes
-            # [FIX-GIT-STASH] Kiểm tra returncode của stash pop.
-            if did_stash:
-                pop_res = subprocess.run(["git", "stash", "pop"], cwd=git_dir, capture_output=True, text=True)
-                if pop_res.returncode != 0:
-                    print(f"   ⚠️ [Git Guard] git stash pop có conflict hoặc lỗi (code {pop_res.returncode}). Dừng push dữ liệu để tránh ghi đè/mất file. Chi tiết: {pop_res.stderr}")
-                    return
-
-            # Stage the files AFTER stash pop so they are actually staged for commit!
+            # Stage files directly without stash
             subprocess.run(["git", "add"] + files_to_add, cwd=git_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             res_commit = subprocess.run(["git", "commit", "-m", f"Auto-sync local data update ({datetime.now().strftime('%H:%M %d/%m')})"], cwd=git_dir, capture_output=True, text=True)
-            if "nothing to commit" not in res_commit.stdout and "no changes added" not in res_commit.stdout:
-                res_push = subprocess.run(["git", "push"], cwd=git_dir, capture_output=True, text=True)
-                if res_push.returncode == 0:
-                    print("   ✅ Đã đẩy dữ liệu mới lên GitHub thành công!")
-                else:
-                    print(f"   ⚠️ Lỗi push Git: {res_push.stderr}")
+            
+            # Pull rebase remote changes first if any
+            subprocess.run(["git", "pull", "--rebase", "origin", "main"], cwd=git_dir, capture_output=True, text=True)
+
+            res_push = subprocess.run(["git", "push", "origin", "main"], cwd=git_dir, capture_output=True, text=True)
+            if res_push.returncode == 0:
+                print("   ✅ Đã đẩy dữ liệu mới lên GitHub thành công!")
             else:
-                print("   ℹ️ Không có thay đổi dữ liệu nào cần push.")
+                print(f"   ⚠️ Reminded push status: {res_push.stderr.strip()[:150]}")
     except Exception as e_git:
         print(f"   ⚠️ Lỗi tự động Git push: {e_git}")
+
 
 
 if __name__ == "__main__":
