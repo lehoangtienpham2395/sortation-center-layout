@@ -2835,16 +2835,25 @@ def run_once(session, token_mgr, rebuild_days=None):
             if delivery_time and delivery_time.lower() not in ('nan', 'none', ''):
                 update_if_changed(rec, 'Pickup_time', delivery_time)
 
+            if not rec.get('inbound_scanDate') and not rec.get('outbound_scanDate'):
+                update_if_changed(rec, 'is_active', 1)
+
+            if is_new or rec.get('status_order') in ('', 'Đã rời HUB'):
+                update_if_changed(rec, 'status_order', 'Đã điều phối bưu cục')
+
             fc_time_str = str(
                 r.get('dispatchNetworkTime') or
                 r.get('shippingTime') or
                 r.get('orderTime') or
                 r.get('createTime') or
                 r.get('inputTime') or
+                r.get('deliveryTime') or
                 ''
             ).strip()
             if fc_time_str and fc_time_str.lower() not in ('nan', 'none', ''):
                 update_if_changed(rec, 'dispatchNetworkTime', fc_time_str)
+            elif not rec.get('dispatchNetworkTime'):
+                update_if_changed(rec, 'dispatchNetworkTime', now_vn.strftime('%Y-%m-%d %H:%M:%S'))
 
     # 2. Process Dispatch
     df_dp = pd.DataFrame(results.get('dispatch', []))
@@ -2911,6 +2920,8 @@ def run_once(session, token_mgr, rebuild_days=None):
             rec['changed'] = True
         if not rec.get('data_source'):
             update_if_changed(rec, 'data_source', 'Arrival')
+        if not rec.get('dispatchNetworkTime'):
+            update_if_changed(rec, 'dispatchNetworkTime', scan_time)
         if not rec.get('Arrival_time') or scan_time > rec['Arrival_time']:
             update_if_changed(rec, 'Arrival_time', scan_time)
 
