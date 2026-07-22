@@ -126,7 +126,7 @@ body {
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
-  opacity: 0.85;
+  opacity: 0;
   transition: opacity 0.35s ease;
   animation: spinGlow 3s linear infinite;
   z-index: -1;
@@ -151,7 +151,6 @@ body {
 .report-glow-card {
   position: relative;
   border-radius: 16px;
-  box-shadow: 0 4px 18px var(--glow-shadow, rgba(0, 229, 255, 0.15));
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1;
 }
@@ -173,7 +172,7 @@ body {
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
-  opacity: 0.85;
+  opacity: 0;
   transition: opacity 0.35s ease;
   animation: spinGlow 3.5s linear infinite;
   z-index: 10;
