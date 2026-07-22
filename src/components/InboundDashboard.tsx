@@ -256,8 +256,6 @@ export default function InboundDashboard({
   });
 
   const filteredTruckEta = (truckEtaData || []).filter(d => {
-    const station = (d['Station'] || d['Pickup_station'] || '').trim().toUpperCase();
-    if (station === 'BN HUB') return true;
     return (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
   });
 
