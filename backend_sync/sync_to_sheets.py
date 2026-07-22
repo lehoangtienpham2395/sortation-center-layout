@@ -1670,13 +1670,15 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         print(f"   ⚠️ SQLite active query note: {e_sq}")
 
     arrival_raw = results.get('arrival', [])
-    if df_enriched.empty and arrival_raw:
-        df_enriched = pd.DataFrame(arrival_raw)
-        if 'last_dept_name' not in df_enriched.columns:
+    if arrival_raw:
+        df_arrival_api = pd.DataFrame(arrival_raw)
+        if 'last_dept_name' not in df_arrival_api.columns:
             for col in ['scansitename', 'Pickup_station', 'sendSite', 'sendSiteName', 'startSiteName', 'bưu_cục_gửi']:
-                if col in df_enriched.columns:
-                    df_enriched['last_dept_name'] = df_enriched[col]
+                if col in df_arrival_api.columns:
+                    df_arrival_api['last_dept_name'] = df_arrival_api[col]
                     break
+        if df_enriched.empty:
+            df_enriched = df_arrival_api
         if 'last_dept_name' not in df_enriched.columns:
             df_enriched['last_dept_name'] = ''
 
