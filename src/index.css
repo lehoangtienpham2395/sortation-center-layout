@@ -126,7 +126,7 @@ body {
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
-  opacity: 0;
+  opacity: 0.85;
   transition: opacity 0.35s ease;
   animation: spinGlow 3s linear infinite;
   z-index: -1;
@@ -135,7 +135,7 @@ body {
 .google-sync-btn:hover {
   background: #1c212b;
   color: #ffffff;
-  box-shadow: 0 0 22px rgba(66, 133, 244, 0.35);
+  box-shadow: 0 0 22px rgba(66, 133, 244, 0.5);
   transform: translateY(-1px);
 }
 
@@ -151,6 +151,7 @@ body {
 .report-glow-card {
   position: relative;
   border-radius: 16px;
+  box-shadow: 0 4px 18px var(--glow-shadow, rgba(0, 229, 255, 0.15));
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1;
 }
@@ -164,7 +165,7 @@ body {
   background: conic-gradient(
     from var(--glow-angle, 0deg),
     var(--glow-color-start, #00e5ff) 0deg,
-    var(--glow-color-end, rgba(0, 229, 255, 0.2)) 120deg,
+    var(--glow-color-end, rgba(0, 229, 255, 0.3)) 120deg,
     transparent 240deg,
     var(--glow-color-start, #00e5ff) 360deg
   );
@@ -172,7 +173,7 @@ body {
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
-  opacity: 0;
+  opacity: 0.85;
   transition: opacity 0.35s ease;
   animation: spinGlow 3.5s linear infinite;
   z-index: 10;
@@ -183,8 +184,8 @@ body {
 }
 
 .report-glow-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px var(--glow-shadow, rgba(0, 229, 255, 0.25));
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px var(--glow-shadow, rgba(0, 229, 255, 0.4));
 }
 
 /* Specific Card Color Variables */
