@@ -134,18 +134,17 @@ export default function InboundDashboard({
     `${nowVN.getFullYear()}-${padStr(nowVN.getMonth() + 1)}-${padStr(nowVN.getDate())} ${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}`
   );
 
-  const rawInboundDates = Array.from(
-    new Set([
-      ...inboundData.map(d => d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound']),
-      ...inboundData.map(d => d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast']),
-      ...inboundData.map(d => d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Pickup']),
-      ...inboundData.map(d => d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Arrival'])
-    ].filter(Boolean))
-  ) as string[];
+  const inboundDates: string[] = [];
+  const startDt = new Date('2026-07-05T00:00:00');
+  const endDt = new Date(`${todayOpDate}T00:00:00`);
+  for (let d = new Date(endDt); d >= startDt; d.setDate(d.getDate() - 1)) {
+    const yr = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const dy = String(d.getDate()).padStart(2, '0');
+    inboundDates.push(`${yr}-${mo}-${dy}`);
+  }
 
-  const inboundDates = rawInboundDates.filter(d => !todayOpDate || d <= todayOpDate);
-  inboundDates.sort((a, b) => b.localeCompare(a));
-  const activeDate = selectedInboundDate || inboundDates[0] || rawInboundDates[0] || '';
+  const activeDate = selectedInboundDate || inboundDates[0] || '';
 
   // 2. Filter datasets by active date
   const getStatus = (d: any) => d['Trng thi'] || d['Trạng thái'];
@@ -436,9 +435,11 @@ export default function InboundDashboard({
 
   const totalInbound = stages['Inbound'].orders;
   
-  // Mapping chuẩn hóa: Lấy trực tiếp stages['Transporting'].orders để bảo đảm khớp 100% với Layout Master
-  const totalInTransitVehiclesOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
-  totalInTransitOrders = Math.max(stages['Transporting'].orders, totalInTransitVehiclesOrders);
+  // Shuttle in-transit orders (EXCLUDING BN HUB Linehaul)
+  const totalShuttleInTransitOrders = incomingVehicles
+    .filter((v: any) => v.rank === 'Shuttle')
+    .reduce((sum: number, s: any) => sum + s.orders, 0);
+  totalInTransitOrders = Math.max(stages['Transporting'].orders, totalShuttleInTransitOrders);
   
   const totalPickupDone = stages['Pickup Done'].orders;
   
@@ -1139,7 +1140,7 @@ export default function InboundDashboard({
                   </tr>
                 )}
                 {incomingVehicles.map((v, idx) => (
-                  <tr key={v.station + '-' + v.trucking}>
+                  <tr key={v.station + '-' + idx}>
                      <td className="table-index">{idx + 1}</td>
                      <td className="table-buucuc">{v.station}</td>
                      <td className="num-tabular" style={{ textAlign: 'left', color: '#38bdf8', fontWeight: 500 }}>{v.trucking} xe</td>

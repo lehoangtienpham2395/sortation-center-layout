@@ -1399,8 +1399,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
 
                 
             op_date_ib = get_operating_date(ib_time) if ib_time else ""
-            fc_time_temp = fc_time if fc_time else (pk_time if pk_time else (arr_time if arr_time else ib_time))
-            op_date_fc = get_operating_date(fc_time_temp) if fc_time_temp else ""
+            op_date_fc = get_operating_date(fc_time) if fc_time else ""
             op_date_pk = get_operating_date(pk_time) if pk_time else ""
             op_date_arr = get_operating_date(arr_time) if arr_time else ""
             
@@ -1445,7 +1444,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                 loai_rot = "Rớt hôm nay"
 
             ib_hour = safe_hour_format(ib_time)
-            fc_hour = safe_hour_format(fc_time_temp)
+            fc_hour = safe_hour_format(fc_time)
             pk_hour = safe_hour_format(pk_time)
             arr_hour = safe_hour_format(arr_time)
 
@@ -1746,14 +1745,21 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             df_enriched['package_charge_weight'] = 0
             
     if df_enriched.empty:
-        import glob
-        csv_pattern = os.path.join(BASE_DIR, "Exportauto", "IncomingCargo", "BaoCao_GiamSatHangDen_ChiTiet_Enriched_*.csv")
-        csv_files = sorted(glob.glob(csv_pattern))
-        if csv_files:
-            try:
-                df_enriched = pd.read_csv(csv_files[-1], dtype=str)
-            except Exception:
-                pass
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            df_enriched = pd.read_sql_query("""
+                SELECT pickNetworkName as last_dept_name, 
+                       COALESCE(billNo, waybillNo, '') as billcode, 
+                       CAST(weight AS FLOAT) as package_charge_weight, 
+                       dispatchNetworkTime as scantime,
+                       Pickup_time as gio_di_thuc_te,
+                       inbound_network, status_order
+                FROM shipments 
+                WHERE is_active = 1 AND status_order IN ('Đang trên đường', 'Đã lấy hàng')
+            """, conn)
+            conn.close()
+        except Exception:
+            df_enriched = pd.DataFrame()
             
     if not df_enriched.empty:
         try:
@@ -1940,9 +1946,13 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             
             # Nếu không có xe nào trên đường, tạo df_pivot_truck rỗng
             if not df_active.empty:
-                df_pivot_truck = (df_active.groupby(['Ngày vận hành', 'last_dept_name', 'Rank'])
+                # Group by transfercode (mã phiếu nhiệm vụ) so each vehicle is its own separate row with its own ETA
+                if 'transfercode' not in df_active.columns:
+                    df_active['transfercode'] = ''
+                
+                df_pivot_truck = (df_active.groupby(['Ngày vận hành', 'last_dept_name', 'Rank', 'transfercode'])
                                   .agg(
-                                      Trucking=('transfercode', count_unique_trucks),
+                                      Trucking=('billcode', lambda x: 1),
                                       Orders=('billcode', 'count'),
                                       weight=('package_charge_weight', 'sum'),
                                       ETA=('ETA Incoming', 'first')
@@ -1964,16 +1974,16 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
 
                 df_pivot_truck['ETA'] = df_pivot_truck.apply(format_eta, axis=1)
             else:
-                df_pivot_truck = pd.DataFrame(columns=['Ngày vận hành', 'Station', 'Rank', 'Trucking', 'Orders', 'weight', 'ETA'])
+                df_pivot_truck = pd.DataFrame(columns=['Ngày vận hành', 'Station', 'Rank', 'transfercode', 'Trucking', 'Orders', 'weight', 'ETA'])
                 
-            truck_cols = ['Ngày vận hành', 'Station', 'Trucking', 'Orders', 'weight', 'ETA', 'Rank']
-            df_final_truck = df_pivot_truck[truck_cols].copy() if not df_pivot_truck.empty else pd.DataFrame(columns=truck_cols)
+            truck_cols = ['Ngày vận hành', 'Station', 'Trucking', 'Orders', 'weight', 'ETA', 'Rank', 'transfercode']
+            df_final_truck = df_pivot_truck[[c for c in truck_cols if c in df_pivot_truck.columns]].copy() if not df_pivot_truck.empty else pd.DataFrame(columns=truck_cols)
             
-            # Sắp xếp theo ngày vận hành, trạm
+            # Sắp xếp theo ngày vận hành, trạm, ETA
             if not df_final_truck.empty:
                 df_final_truck = df_final_truck.sort_values(
-                    by=['Ngày vận hành', 'Station'],
-                    ascending=[False, True]
+                    by=['Ngày vận hành', 'Station', 'ETA'],
+                    ascending=[False, True, True]
                 )
             
             # Ghi đè file truck_eta.json (không lưu lịch sử tĩnh vì xe xả hàng xong sẽ tự biến mất khỏi live snapshot)
