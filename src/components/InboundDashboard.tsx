@@ -437,7 +437,8 @@ export default function InboundDashboard({
   const totalInbound = stages['Inbound'].orders;
   
   // Mapping chuẩn hóa: Lấy trực tiếp stages['Transporting'].orders để bảo đảm khớp 100% với Layout Master
-  totalInTransitOrders = stages['Transporting'].orders;
+  const totalInTransitVehiclesOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
+  totalInTransitOrders = Math.max(stages['Transporting'].orders, totalInTransitVehiclesOrders);
   
   const totalPickupDone = stages['Pickup Done'].orders;
   
