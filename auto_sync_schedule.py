@@ -41,7 +41,8 @@ def main():
 
     # 1. Pull Git để lấy code/config mới nhất từ GitHub
     log("📥 [1/4] Pull code/config mới nhất từ GitHub...")
-    subprocess.run(["git", "checkout", "--", "data/", "src/data/"], cwd=BASE_DIR, capture_output=True)
+    subprocess.run(["git", "reset", "--hard", "HEAD"], cwd=BASE_DIR, capture_output=True)
+    subprocess.run(["git", "clean", "-fd"], cwd=BASE_DIR, capture_output=True)
     run(["git", "pull", "--rebase", "origin", "main"], timeout=30)
 
     # 2. Chạy sync chính (kéo JFS API → SQLite → JSON)
