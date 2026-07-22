@@ -1979,6 +1979,54 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             truck_cols = ['Ngày vận hành', 'Station', 'Trucking', 'Orders', 'weight', 'ETA', 'Rank', 'transfercode']
             df_final_truck = df_pivot_truck[[c for c in truck_cols if c in df_pivot_truck.columns]].copy() if not df_pivot_truck.empty else pd.DataFrame(columns=truck_cols)
             
+            # Filter out generic BN HUB aggregated rows if Linehaul details exist
+            if not df_final_truck.empty:
+                df_final_truck = df_final_truck[df_final_truck['Station'].astype(str).str.upper() != 'BN HUB']
+
+            # Append active BN HUB Linehaul vehicles directly from data/linehaul.json (1 vehicle per transfercode)
+            lh_json_path = os.path.join(BASE_DIR, "data", "linehaul.json")
+            if os.path.exists(lh_json_path):
+                try:
+                    with open(lh_json_path, 'r', encoding='utf-8') as f_lh:
+                        lh_list = json.load(f_lh)
+                    lh_rows_to_add = []
+                    for lh_row in lh_list:
+                        next_net = str(lh_row.get('nextNetworkName') or '').strip().upper()
+                        unloading_end = str(lh_row.get('unloadingEndTime') or '').strip()
+                        if next_net == 'BN HUB' and not unloading_end:
+                            send_t = str(lh_row.get('sendTime') or '').strip()
+                            orders_cnt = int(float(lh_row.get('billPiece') or 0))
+                            w_kg = float(lh_row.get('weight') or 0)
+                            pnv = str(lh_row.get('Phiếu nhiệm vụ') or '').strip()
+                            
+                            eta_formatted = ''
+                            op_dt_truck = today_op_date
+                            if send_t:
+                                try:
+                                    dt_send = pd.to_datetime(send_t)
+                                    dt_shifted = dt_send + pd.Timedelta(hours=36)
+                                    op_dt_truck = get_operating_date(dt_shifted.strftime('%Y-%m-%d %H:%M:%S'))
+                                    eta_formatted = dt_shifted.strftime('%d/%m %H:%M')
+                                except Exception:
+                                    pass
+                            
+                            if orders_cnt > 0:
+                                lh_rows_to_add.append({
+                                    'Ngày vận hành': op_dt_truck,
+                                    'Station': 'BN HUB',
+                                    'Trucking': 1,
+                                    'Orders': orders_cnt,
+                                    'weight': w_kg,
+                                    'ETA': eta_formatted,
+                                    'Rank': 'Linehaul',
+                                    'transfercode': pnv
+                                })
+                    if lh_rows_to_add:
+                        df_lh_add = pd.DataFrame(lh_rows_to_add)
+                        df_final_truck = pd.concat([df_final_truck, df_lh_add], ignore_index=True)
+                except Exception as e_lh_err:
+                    print(f"   ⚠️ Error loading linehaul.json for truck_eta: {e_lh_err}")
+
             # Sắp xếp theo ngày vận hành, trạm, ETA
             if not df_final_truck.empty:
                 df_final_truck = df_final_truck.sort_values(
