@@ -1651,8 +1651,26 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
     # 5. Arrival sheet (giám sát hàng đến trung chuyển – tích lũy theo ngày, trạm, xe)
     print("\n📋 Xử lý sheet Arrival...")
     df_enriched = pd.DataFrame()
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        df_sqlite_active = pd.read_sql_query("""
+            SELECT pickNetworkName as last_dept_name, 
+                   COALESCE(waybillNo, billNo, '') as billcode, 
+                   CAST(weight AS FLOAT) as package_charge_weight, 
+                   dispatchNetworkTime as scantime,
+                   Pickup_time as gio_di_thuc_te,
+                   inbound_network, status_order
+            FROM shipments 
+            WHERE is_active = 1 AND status_order = 'Đang trên đường'
+        """, conn)
+        conn.close()
+        if not df_sqlite_active.empty:
+            df_enriched = df_sqlite_active
+    except Exception as e_sq:
+        print(f"   ⚠️ SQLite active query note: {e_sq}")
+
     arrival_raw = results.get('arrival', [])
-    if arrival_raw:
+    if df_enriched.empty and arrival_raw:
         df_enriched = pd.DataFrame(arrival_raw)
         if 'last_dept_name' not in df_enriched.columns:
             for col in ['scansitename', 'Pickup_station', 'sendSite', 'sendSiteName', 'startSiteName', 'bưu_cục_gửi']:
@@ -1744,22 +1762,24 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         if 'package_charge_weight' not in df_enriched.columns:
             df_enriched['package_charge_weight'] = 0
             
-    if df_enriched.empty:
-        try:
-            conn = sqlite3.connect(DB_FILE)
-            df_enriched = pd.read_sql_query("""
-                SELECT pickNetworkName as last_dept_name, 
-                       COALESCE(billNo, waybillNo, '') as billcode, 
-                       CAST(weight AS FLOAT) as package_charge_weight, 
-                       dispatchNetworkTime as scantime,
-                       Pickup_time as gio_di_thuc_te,
-                       inbound_network, status_order
-                FROM shipments 
-                WHERE is_active = 1 AND status_order IN ('Đang trên đường', 'Đã lấy hàng')
-            """, conn)
-            conn.close()
-        except Exception:
-            df_enriched = pd.DataFrame()
+    # Populate df_enriched from SQLite active on-the-road shipments (status_order == 'Đang trên đường')
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        df_sqlite_active = pd.read_sql_query("""
+            SELECT pickNetworkName as last_dept_name, 
+                   COALESCE(waybillNo, billNo, '') as billcode, 
+                   CAST(weight AS FLOAT) as package_charge_weight, 
+                   dispatchNetworkTime as scantime,
+                   Pickup_time as gio_di_thuc_te,
+                   inbound_network, status_order
+            FROM shipments 
+            WHERE is_active = 1 AND status_order = 'Đang trên đường'
+        """, conn)
+        conn.close()
+        if not df_sqlite_active.empty:
+            df_enriched = df_sqlite_active
+    except Exception as e_sq:
+        print(f"   ⚠️ SQLite active query note: {e_sq}")
             
     if not df_enriched.empty:
         try:
@@ -1918,20 +1938,35 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                 df_enriched.get('OpDate_Truck', df_enriched.get('Ngày vận hành', pd.Series([]))).astype(str).str.strip() == today_op_date
             ].copy() if not df_enriched.empty else pd.DataFrame()
 
-            # Tìm các xe (transfercode) có ít nhất 1 đơn đã được Inbound tại HUB hôm nay
-            arrived_trucks = set()
+            # Exclude vehicles/station trips where 50% or more of orders have ALREADY scanned Inbound at HUB
             if not df_enriched_today.empty:
-                for _, row in df_enriched_today.iterrows():
-                    bill = str(row.get('billcode') or row.get('waybillNo') or '').strip().upper()
-                    truck_code = str(row.get('transfercode') or '').strip()
-                    if bill in inbound_today_wbs and truck_code and truck_code.lower() != 'nan':
-                        arrived_trucks.add(truck_code)
+                # Group by last_dept_name (Station) to calculate Inbound progress
+                arrived_stations_50 = set()
+                st_col = 'last_dept_name' if 'last_dept_name' in df_enriched_today.columns else 'Bưu cục'
+                
+                for st_name, grp in df_enriched_today.groupby(st_col):
+                    tot_cnt = len(grp)
+                    ib_cnt = sum(
+                        1 for _, r in grp.iterrows() 
+                        if str(r.get('billcode') or r.get('waybillNo') or '').strip().upper() in inbound_today_wbs 
+                        or str(r.get('status_order') or r.get('status') or '').strip().lower() in ('đang trên bãi', 'inbound', 'nhập kho')
+                    )
+                    if tot_cnt > 0 and (ib_cnt / tot_cnt) >= 0.5:
+                        arrived_stations_50.add(str(st_name).strip().upper())
 
-            # df_active là các xe chưa thuộc arrived_trucks
-            if not df_enriched_today.empty:
-                df_active = df_enriched_today[
-                    ~df_enriched_today['transfercode'].astype(str).str.strip().isin(arrived_trucks)
-                ].copy()
+                def is_arrived_order(row):
+                    st = str(row.get('last_dept_name') or row.get('Bưu cục') or '').strip().upper()
+                    if st in arrived_stations_50:
+                        return True
+                    bill = str(row.get('billcode') or row.get('waybillNo') or row.get('waybill_no') or '').strip().upper()
+                    if bill and bill in inbound_today_wbs:
+                        return True
+                    status_str = str(row.get('status_order') or row.get('status') or row.get('trạng_thái') or '').strip().lower()
+                    if any(kw in status_str for kw in ['nhập kho', 'inbound', 'trên bãi', 'đã đến', 'hoàn thành']):
+                        return True
+                    return False
+
+                df_active = df_enriched_today[~df_enriched_today.apply(is_arrived_order, axis=1)].copy()
             else:
                 df_active = pd.DataFrame()
 

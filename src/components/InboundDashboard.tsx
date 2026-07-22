@@ -273,9 +273,21 @@ export default function InboundDashboard({
       const key = (d['Station'] || d['Pickup_station'] || '').trim();
       if (!key) return false;
       const cleanKey = key.toUpperCase();
-      if (cleanKey !== 'BN HUB' && (NORTH_POST_OFFICES.has(cleanKey) || cleanKey.startsWith('HN ') || cleanKey.startsWith('HD ') || cleanKey.startsWith('HY '))) {
+      if (cleanKey !== 'BN HUB' && isNorthStation(cleanKey)) {
         return false;
       }
+
+      // Xe nào đã Inbound được >= 50% tổng sản lượng -> coi như đã về HUB, loại khỏi danh sách xe đang về
+      const stInboundVol = inboundData
+        .filter(row => (row['Bu cc'] || row['Bưu cục'] || '').trim().toUpperCase() === cleanKey && (row['Trng thi'] || row['Trạng thái']) === 'Inbound' && (row['Ngy vn hnh_Inbound'] || row['Ngày vận hành_Inbound']) === activeDate)
+        .reduce((sum, row) => sum + (parseInt(row['Volume'], 10) || 0), 0);
+
+      const truckOrders = parseInt(d['Orders'] || d['Tng s n'] || d['Tổng số đơn'] || 0, 10) || 0;
+      const totalStationVol = stInboundVol + truckOrders;
+      if (totalStationVol > 0 && (stInboundVol / totalStationVol) >= 0.5) {
+        return false;
+      }
+
       return true;
     })
     .map(d => {
