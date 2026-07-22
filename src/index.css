@@ -151,21 +151,21 @@ body {
 .report-glow-card {
   position: relative;
   border-radius: 16px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1;
 }
 
 .report-glow-card::before {
   content: '';
   position: absolute;
-  inset: -1.5px;
-  border-radius: 17px;
-  padding: 1.5px;
+  inset: -2px;
+  border-radius: 18px;
+  padding: 2px;
   background: conic-gradient(
     from var(--glow-angle, 0deg),
     var(--glow-color-start, #00e5ff) 0deg,
-    var(--glow-color-end, rgba(0, 229, 255, 0.3)) 120deg,
-    transparent 240deg,
+    var(--glow-color-end, rgba(0, 229, 255, 0.4)) 90deg,
+    transparent 180deg,
     var(--glow-color-start, #00e5ff) 360deg
   );
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -173,9 +173,9 @@ body {
   mask-composite: exclude;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.35s ease;
-  animation: spinGlow 3.5s linear infinite;
-  z-index: 10;
+  transition: opacity 0.3s ease;
+  animation: spinGlow 3s linear infinite;
+  z-index: 2;
 }
 
 .report-glow-card:hover::before {
@@ -184,7 +184,8 @@ body {
 
 .report-glow-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 30px var(--glow-shadow, rgba(0, 229, 255, 0.4));
+  border-color: var(--glow-color-start, #00e5ff) !important;
+  box-shadow: 0 0 30px var(--glow-shadow, rgba(0, 229, 255, 0.45)), inset 0 0 15px var(--glow-shadow, rgba(0, 229, 255, 0.15)) !important;
 }
 
 /* Specific Card Color Variables */
