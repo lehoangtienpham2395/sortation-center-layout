@@ -1550,11 +1550,6 @@ export default function App() {
           {/* Top Operational Header Bar */}
           <div className="fixed top-0 left-0 right-0 h-14 z-30 bg-[#09111c]/90 border-b border-white/10 backdrop-blur-md px-6 flex items-center justify-between" style={{ paddingLeft: sidebarHovered ? '240px' : '64px' }}>
             <div className="flex items-center gap-4">
-              <span className="font-extrabold text-sm tracking-wide text-white flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#00e5ff] animate-pulse"></span>
-                HCM HUB CONTROL CENTER
-              </span>
-
               {/* Search Bar */}
               <div className="relative flex items-center">
                 <input
