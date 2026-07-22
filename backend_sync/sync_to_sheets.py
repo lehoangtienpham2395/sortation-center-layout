@@ -1431,7 +1431,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                     arr_dt = pd.to_datetime(arr_time)
                     shifted_arr_dt = arr_dt + pd.Timedelta(hours=36)
                     op_date_arr = shifted_arr_dt.strftime('%Y-%m-%d')
-                    arr_hour = shifted_arr_dt.strftime('%H:00')
+                    arr_hour = shifted_arr_dt.strftime('%Y-%m-%d %H:00')
                 except Exception:
                     pass
 
@@ -1879,12 +1879,38 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             now_vn_eta = datetime.now(ZoneInfo('Asia/Ho_Chi_Minh'))
             today_op_date = get_operating_date(now_vn_eta.strftime('%Y-%m-%d %H:%M:%S'))
 
-            if 'Ngày vận hành' not in df_enriched.columns:
-                df_enriched['Ngày vận hành'] = today_op_date
+            # BN HUB / Northern +36h shift logic for incoming trucks operating date
+            NORTH_POST_OFFICES_ETA = {
+                'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
+                'HN THƯỜNG TÍN', 'HN HOÀNG MAI', 'HD KINH MÔN', 'HY VĂN GIANG', 'HN NGỌC HỒI',
+                'HN MỸ ĐỨC', 'HN ĐÔNG ANH', 'HN HÀ ĐÔNG', 'HN THANH TRÌ', 'HN THANH LIỆT',
+                'HN HOÀI ĐỨC', 'HN MÊ LINH', 'HN AN KHÁNH', 'HN CẦU GIẤY', 'HN THANH OAI',
+                'HN ĐỐNG ĐA', 'HN CHƯƠNG MỸ', 'HN CHÚC SƠN', 'HN HẠ BẰNG', 'HN HÁT MÔN',
+                'HN LONG BIÊN', 'HN PHÚ XUYÊN', 'HN HÀ NAM', 'HN SƠN TÂY', 'HN NAM TỪ LIÊM',
+                'HN PHÚ DIỄN', 'HN TÂY HỒ', 'HN VĨNH TUY', 'HN ỨNG HÒA'
+            }
+
+            def get_truck_op_date(row):
+                pkn = str(row.get('pickNetworkName') or row.get('inbound_network') or row.get('last_dept_name') or '').strip().upper()
+                is_bn = (pkn == 'BN HUB' or pkn.startswith('HN ') or pkn.startswith('HD ') or pkn.startswith('HY ') or pkn in NORTH_POST_OFFICES_ETA)
+                if is_bn:
+                    scan_t = str(row.get('gio_di_thuc_te') or row.get('gio_bat_dau_xep') or row.get('scantime') or row.get('sendTime') or row.get('unloadingStartTime') or '').strip()
+                    if scan_t and scan_t.lower() not in ('nan', 'none', ''):
+                        try:
+                            dt_scan = pd.to_datetime(scan_t, errors='coerce')
+                            if pd.notna(dt_scan):
+                                dt_shifted = dt_scan + pd.Timedelta(hours=36)
+                                return get_operating_date(dt_shifted.strftime('%Y-%m-%d %H:%M:%S'))
+                        except Exception:
+                            pass
+                return str(row.get('Ngày vận hành') or today_op_date).strip()
+
+            if not df_enriched.empty:
+                df_enriched['OpDate_Truck'] = df_enriched.apply(get_truck_op_date, axis=1)
 
             df_enriched_today = df_enriched[
-                df_enriched['Ngày vận hành'].astype(str).str.strip() == today_op_date
-            ].copy()
+                df_enriched.get('OpDate_Truck', df_enriched.get('Ngày vận hành', pd.Series([]))).astype(str).str.strip() == today_op_date
+            ].copy() if not df_enriched.empty else pd.DataFrame()
 
             # Tìm các xe (transfercode) có ít nhất 1 đơn đã được Inbound tại HUB hôm nay
             arrived_trucks = set()
@@ -1906,7 +1932,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             # Hàm đếm số lượng xe (số lượng transfercode duy nhất không rỗng)
             def count_unique_trucks(series):
                 valid_trucks = series.dropna().astype(str).str.strip()
-                valid_trucks = valid_trucks[(valid_trucks != '') & (valid_trucks.str.lower() != 'nan')]
+                valid_trucks = valid_trucks[(valid_trucks != '') & (valid_trucks.str.lower() != 'nan') & (valid_trucks.str.lower() != 'none')]
                 val = int(valid_trucks.nunique())
                 if val == 0 and not series.empty:
                     return 1
