@@ -2029,6 +2029,11 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
 
             # Sắp xếp theo ngày vận hành, trạm, ETA
             if not df_final_truck.empty:
+                df_final_truck = df_final_truck.loc[:, ~df_final_truck.columns.duplicated()].copy()
+                if 'Ngy vn hnh' not in df_final_truck.columns and 'Ngày vận hành' in df_final_truck.columns:
+                    df_final_truck['Ngy vn hnh'] = df_final_truck['Ngày vận hành']
+                if 'Ngày vận hành' not in df_final_truck.columns and 'Ngy vn hnh' in df_final_truck.columns:
+                    df_final_truck['Ngày vận hành'] = df_final_truck['Ngy vn hnh']
                 df_final_truck = df_final_truck.sort_values(
                     by=['Ngày vận hành', 'Station', 'ETA'],
                     ascending=[False, True, True]
