@@ -317,14 +317,21 @@ export default function InboundDashboard({
   const linehaulVehicles = incomingVehicles.filter(v => v.rank === 'Linehaul');
 
   // Counts of actual vehicles from mapped incomingVehicles
-  const totalShuttleVehicles = shuttleVehicles.reduce((sum, v) => sum + (v.trucking || 1), 0);
-  const totalLinehaulVehicles = linehaulVehicles.reduce((sum, v) => sum + (v.trucking || 1), 0);
+  let totalShuttleVehicles = shuttleVehicles.reduce((sum, v) => sum + (v.trucking || 1), 0);
+  let totalLinehaulVehicles = linehaulVehicles.reduce((sum, v) => sum + (v.trucking || 1), 0);
 
-  // Orders status: tổng đơn chưa đến Hub = "Đang trên đường". 
-  // Lấy trực tiếp tổng từ danh sách xe đang di chuyển (incomingVehicles) để bảo đảm 100% khớp số liệu.
+  // Khống chế Failsafe: Xe Shuttle đang di chuyển không thể vượt quá 100 xe.
+  // Nếu > 100 xe, tự động fallback về số lượng trạm active thực tế (shuttleVehicles.length)
+  if (totalShuttleVehicles > 100) {
+    totalShuttleVehicles = shuttleVehicles.length;
+  }
+
+  let totalTransitVehicles = totalShuttleVehicles + totalLinehaulVehicles;
+  if (totalTransitVehicles > 100) {
+    totalTransitVehicles = incomingVehicles.length;
+  }
+
   let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
-
-  const totalTransitVehicles = totalShuttleVehicles + totalLinehaulVehicles;
 
   // 4. Hourly timelines
   const hours24 = [];
