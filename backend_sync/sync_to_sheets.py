@@ -1763,20 +1763,27 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             df_enriched['package_charge_weight'] = 0
             
     # Populate df_enriched from SQLite active on-the-road shipments (status_order == 'Đang trên đường')
+    from zoneinfo import ZoneInfo
+    now_vn_eta = datetime.now(ZoneInfo('Asia/Ho_Chi_Minh'))
+    today_op_date = get_operating_date(now_vn_eta.strftime('%Y-%m-%d %H:%M:%S'))
+
     try:
         conn = sqlite3.connect(DB_FILE)
         df_sqlite_active = pd.read_sql_query("""
             SELECT pickNetworkName as last_dept_name, 
-                   COALESCE(waybillNo, billNo, '') as billcode, 
+                   waybillNo as billcode, 
                    CAST(weight AS FLOAT) as package_charge_weight, 
                    dispatchNetworkTime as scantime,
                    Pickup_time as gio_di_thuc_te,
-                   inbound_network, status_order
+                   inbound_network, status_order,
+                   dispatch_plan as transfercode
             FROM shipments 
             WHERE is_active = 1 AND status_order = 'Đang trên đường'
         """, conn)
         conn.close()
         if not df_sqlite_active.empty:
+            df_sqlite_active['ETA Incoming'] = df_sqlite_active['gio_di_thuc_te']
+            df_sqlite_active['Ngày vận hành'] = today_op_date
             df_enriched = df_sqlite_active
     except Exception as e_sq:
         print(f"   ⚠️ SQLite active query note: {e_sq}")
@@ -1958,6 +1965,9 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                         arrived_stations_50.add(st_clean)
 
                 def is_arrived_order(row):
+                    st_order = str(row.get('status_order') or '').strip()
+                    if st_order == 'Đang trên đường':
+                        return False
                     st = str(row.get('last_dept_name') or row.get('Bưu cục') or '').strip().upper()
                     if st in arrived_stations_50:
                         return True
@@ -1988,13 +1998,14 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                 if 'transfercode' not in df_active.columns:
                     df_active['transfercode'] = ''
                 
-                df_pivot_truck = (df_active.groupby(['Ngày vận hành', 'last_dept_name', 'Rank', 'transfercode'])
+                df_pivot_truck = (df_active.groupby(['Ngày vận hành', 'last_dept_name', 'Rank'])
                                   .agg(
                                       Trucking=('billcode', lambda x: 1),
                                       Orders=('billcode', 'count'),
                                       weight=('package_charge_weight', 'sum'),
                                       ETA=('ETA Incoming', 'first')
                                   ).reset_index())
+                df_pivot_truck['transfercode'] = ''
                 df_pivot_truck.rename(columns={'last_dept_name': 'Station'}, inplace=True)
                 def format_eta(row):
                     eta_str = str(row.get('ETA') or '').strip()

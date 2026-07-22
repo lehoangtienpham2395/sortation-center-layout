@@ -277,15 +277,24 @@ export default function InboundDashboard({
         return false;
       }
 
+      // Helper to normalize station names (e.g. "SG CỦ CHI" -> "CỦ CHI")
+      const normalizeStName = (s: string) => s.toUpperCase().replace(/^(SG|BD|LA|HN|HD|HY|CT|DN|DT|VL|AG|ST|TG|VT)\s+/, '').trim();
+      const normCleanKey = normalizeStName(cleanKey);
+
       // Xe nào (trừ xe BN HUB Linehaul) đã Inbound được >= 50% tổng sản lượng -> coi như đã về HUB, loại khỏi danh sách xe đang về
       if (cleanKey !== 'BN HUB') {
         const stInboundVol = inboundData
-          .filter(row => (row['Bu cc'] || row['Bưu cục'] || '').trim().toUpperCase() === cleanKey && (row['Trng thi'] || row['Trạng thái']) === 'Inbound' && (row['Ngy vn hnh_Inbound'] || row['Ngày vận hành_Inbound']) === activeDate)
+          .filter(row => {
+            const rowSt = normalizeStName(row['Bu cc'] || row['Bưu cục'] || '');
+            const isIb = (row['Trng thi'] || row['Trạng thái']) === 'Inbound';
+            const rowOp = (row['Ngy vn hnh_Inbound'] || row['Ngày vận hành_Inbound'] || row['Ngy vn hnh'] || row['Ngày vận hành']);
+            return rowSt === normCleanKey && isIb && (!rowOp || rowOp === activeDate);
+          })
           .reduce((sum, row) => sum + (parseInt(row['Volume'], 10) || 0), 0);
 
         const truckOrders = parseInt(d['Orders'] || d['Tng s n'] || d['Tổng số đơn'] || 0, 10) || 0;
         const totalStationVol = stInboundVol + truckOrders;
-        if (totalStationVol > 0 && (stInboundVol / totalStationVol) >= 0.5) {
+        if (stInboundVol > 0 && totalStationVol > 0 && (stInboundVol / totalStationVol) >= 0.3) {
           return false;
         }
       }
