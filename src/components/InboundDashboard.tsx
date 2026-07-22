@@ -227,23 +227,7 @@ export default function InboundDashboard({
     }
   });
 
-  // Cộng sản lượng BN HUB Linehaul active vào Transporting & Forecast của activeDate
-  const bnHubActiveTrucks = (truckEtaData || []).filter(d => {
-    const st = (d['Station'] || d['Pickup_station'] || '').trim().toUpperCase();
-    const op = d['Ngy vn hnh'] || d['Ngày vận hành'];
-    return st === 'BN HUB' && op === activeDate;
-  });
 
-  bnHubActiveTrucks.forEach(truck => {
-    const vol = parseInt(truck['Orders'] || 0, 10) || 0;
-    const wt = parseFloat(truck['weight'] || 0) || 0;
-    stages['Transporting'].orders += vol;
-    stages['Transporting'].weight += wt;
-    if (wt > 0) {
-      stagesWithWeight['Transporting'] += vol;
-    }
-    forecastRotHomNay += vol;
-  });
 
   // Phân tách đơn Forecast cho toàn bộ dữ liệu (bảo đảm khớp số liệu BN HUB và tránh lệch lịch sử)
   inboundData.forEach(d => {
