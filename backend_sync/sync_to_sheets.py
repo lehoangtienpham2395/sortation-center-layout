@@ -1464,23 +1464,8 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                 'Loại rớt': loai_rot
             })
 
-        # Backlog Carryover Projection
-        # Đơn rớt hôm trước (chưa pickup) được CHUYỂN sang ngày hôm nay — không cộng thêm (tránh double-count)
-        projected_rows = []
-        for r in unique_rows:
-            is_carryover = False
-            if r['Trạng thái'] != 'Inbound':
-                was_picked_before_today = r['Ngày vận hành_Pickup'] and r['Ngày vận hành_Pickup'] < current_op_date
-                if not was_picked_before_today:
-                    if r['Ngày vận hành_Forecast'] and r['Ngày vận hành_Forecast'] < current_op_date:
-                        # Đơn rớt: REPLACE ngày gốc bằng ngày hôm nay, không thêm dòng mới
-                        dup = r.copy()
-                        dup['Ngày vận hành_Forecast'] = current_op_date
-                        dup['Loại rớt'] = 'Rớt hôm trước'
-                        projected_rows.append(dup)
-                        is_carryover = True
-            if not is_carryover:
-                projected_rows.append(r)
+        # Preserve original Forecast operating dates so historical reports remain exact
+        projected_rows = unique_rows
 
         # Grouping & Aggregation
         grouped = {}
@@ -1530,14 +1515,23 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             _meta_conn.close()
             if _meta:
                 fc_prev = int(_meta[0])
-                if fc_prev > 0:
+                if fc_prev > 100:  # Chỉ áp dụng khi số lượng đáng kể để tránh lỗi chia nhỏ
                     pct_change = abs(fc_total_now - fc_prev) / fc_prev
-                    if pct_change > 0.30:
+                    if pct_change > 3.0:  # Thay đổi đột biến quá 300% (3.0)
+                        print(f"\n{'🚨'*20}")
+                        print(f"   🚨 ERROR: PHÁT HIỆN FORECAST ĐỘT BIẾN QUÁ MỨC CHO PHÉP!")
+                        print(f"   🚨 Lần trước: {fc_prev:,}  |  Lần này: {fc_total_now:,}  |  Thay đổi: {pct_change:.0%}")
+                        print(f"   🚨 BẢO VỆ AN TOÀN: Dừng khẩn cấp tiến trình sync để tránh ghi đè dữ liệu hỏng!")
+                        print(f"{'🚨'*20}\n")
+                        raise ValueError(f"Forecast đột biến {pct_change:.0%}, dừng tiến trình để bảo vệ DB.")
+                    elif pct_change > 0.30:
                         print(f"\n{'='*60}")
                         print(f"   ⚠️  CẢNH BÁO: Forecast thay đổi bất thường!")
                         print(f"   ⚠️  Lần trước: {fc_prev:,}  |  Lần này: {fc_total_now:,}  |  Thay đổi: {pct_change:.0%}")
                         print(f"   ⚠️  Kiểm tra lại: date range, is_active filter, dedup logic!")
                         print(f"{'='*60}\n")
+        except ValueError as ve:
+            raise ve
         except Exception:
             pass
         # Ghi lại giá trị hiện tại vào meta để so sánh lần sau
@@ -2546,6 +2540,12 @@ def run_once(session, token_mgr, rebuild_days=None):
         conn = sqlite3.connect(DB_FILE)
         c = conn.cursor()
         
+        # ── [FIX-TZ] Tính ngưỡng thời gian bằng Python localtime (UTC+7) thay vì
+        #    dùng datetime('now', '+7 hours') trong SQLite vì có thể bị lệch múi giờ ──
+        _now_local    = datetime.now()
+        _thresh_3days = (_now_local - timedelta(days=3)).strftime('%Y-%m-%d %H:%M:%S')
+        _thresh_2days = (_now_local - timedelta(days=2)).strftime('%Y-%m-%d %H:%M:%S')
+
         # Tự động dọn dẹp các đơn kẹt quá 3 ngày không có log xuất kho
         # 1. Đối với các đơn đã quét Inbound
         c.execute("""
@@ -2553,8 +2553,8 @@ def run_once(session, token_mgr, rebuild_days=None):
             SET status_order = 'Đã rời HUB', is_active = 0, last_updated = CURRENT_TIMESTAMP
             WHERE is_active = 1
               AND (inbound_scanDate != '' AND inbound_scanDate IS NOT NULL)
-              AND datetime(inbound_scanDate) < datetime('now', '+7 hours', '-3 days')
-        """)
+              AND inbound_scanDate < ?
+        """, (_thresh_3days,))
         cnt1 = c.rowcount
         
         # 2. Đối với các đơn mới chỉ ở trạng thái Forecast/Pickup (chưa có inbound scan)
@@ -2564,11 +2564,11 @@ def run_once(session, token_mgr, rebuild_days=None):
             WHERE is_active = 1
               AND (inbound_scanDate = '' OR inbound_scanDate IS NULL)
               AND (
-                (Pickup_time != '' AND Pickup_time IS NOT NULL AND datetime(Pickup_time) < datetime('now', '+7 hours', '-3 days'))
+                (Pickup_time != '' AND Pickup_time IS NOT NULL AND Pickup_time < ?)
                 OR
-                ((Pickup_time = '' OR Pickup_time IS NULL) AND date(time_ref) < date('now', '+7 hours', '-3 days'))
+                ((Pickup_time = '' OR Pickup_time IS NULL) AND time_ref < ?)
               )
-        """)
+        """, (_thresh_3days, _thresh_3days))
         cnt2 = c.rowcount
 
         # 3. Đối với các đơn chỉ từ nguồn Dispatch (không có inbound, không có Pickup_time)
@@ -2582,8 +2582,8 @@ def run_once(session, token_mgr, rebuild_days=None):
               AND (outbound_scanDate = '' OR outbound_scanDate IS NULL)
               AND (Pickup_time = '' OR Pickup_time IS NULL)
               AND dispatchNetworkTime != '' AND dispatchNetworkTime IS NOT NULL
-              AND datetime(dispatchNetworkTime) < datetime('now', '+7 hours', '-2 days')
-        """)
+              AND dispatchNetworkTime < ?
+        """, (_thresh_2days,))
         cnt3 = c.rowcount
         conn.commit()
         if cnt3 > 0:
@@ -2591,8 +2591,10 @@ def run_once(session, token_mgr, rebuild_days=None):
 
         if cnt1 + cnt2 + cnt3 > 0:
             print(f"   🧹 Tự động dọn dẹp: Đã chuyển {cnt1:,} đơn kẹt Inbound → 'Đã rời HUB', tắt {cnt2:,} đơn Forecast/Pickup cũ (>3 ngày), tắt {cnt3:,} đơn Dispatch cũ (>2 ngày).")
-        # Reset is_backlog = 0 for all shipments before loading active ones (live backlog will set it back to 1)
-        c.execute("UPDATE shipments SET is_backlog = 0")
+
+        # [FIX-BACKLOG] Reset is_backlog = 0 CHỈ cho đơn còn active.
+        # Không reset đơn đã is_active=0 để bảo toàn lịch sử backlog.
+        c.execute("UPDATE shipments SET is_backlog = 0 WHERE is_active = 1")
         conn.commit()
             
         c.execute("SELECT * FROM shipments WHERE is_active = 1")
@@ -2692,6 +2694,17 @@ def run_once(session, token_mgr, rebuild_days=None):
             if delivery_time and delivery_time.lower() not in ('nan', 'none', ''):
                 update_if_changed(rec, 'Pickup_time', delivery_time)
 
+            fc_time_str = str(
+                r.get('dispatchNetworkTime') or
+                r.get('shippingTime') or
+                r.get('orderTime') or
+                r.get('createTime') or
+                r.get('inputTime') or
+                ''
+            ).strip()
+            if fc_time_str and fc_time_str.lower() not in ('nan', 'none', ''):
+                update_if_changed(rec, 'dispatchNetworkTime', fc_time_str)
+
     # 2. Process Dispatch
     df_dp = pd.DataFrame(results.get('dispatch', []))
     if not df_dp.empty:
@@ -2716,7 +2729,14 @@ def run_once(session, token_mgr, rebuild_days=None):
             except (ValueError, TypeError):
                 pass
             
-            disp_time = str(r.get('dispatchNetworkTime') or '').strip()
+            disp_time = str(
+                r.get('dispatchNetworkTime') or
+                r.get('createTime') or
+                r.get('inputTime') or
+                r.get('orderDispatchTime') or
+                r.get('orderTime') or
+                ''
+            ).strip()
             if disp_time and disp_time.lower() not in ('nan', 'none', ''):
                 update_if_changed(rec, 'dispatchNetworkTime', disp_time)
                 
@@ -3260,29 +3280,79 @@ def run_once(session, token_mgr, rebuild_days=None):
                     is_backlog, is_active, retry_count, last_retry_time, last_updated
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ON CONFLICT(waybillNo) DO UPDATE SET
-                    data_source        = excluded.data_source,
-                    weight             = excluded.weight,
-                    pickNetworkName    = excluded.pickNetworkName,
-                    dispatch_plan      = excluded.dispatch_plan,
-                    Pickup_time        = excluded.Pickup_time,
-                    pickup_label       = excluded.pickup_label,
-                    Pickup_ontime      = excluded.Pickup_ontime,
-                    dispatchNetworkTime= excluded.dispatchNetworkTime,
-                    next_station       = excluded.next_station,
-                    Tuyến              = excluded.Tuyến,
-                    Rank               = excluded.Rank,
-                    inbound_network    = excluded.inbound_network,
-                    inbound_scanDate   = excluded.inbound_scanDate,
-                    outbound_scanDate  = excluded.outbound_scanDate,
-                    Arrival_time       = excluded.Arrival_time,
-                    dispatch_actual    = excluded.dispatch_actual,
-                    status_order       = excluded.status_order,
-                    time_ref           = excluded.time_ref,
-                    is_backlog         = excluded.is_backlog,
-                    is_active          = excluded.is_active,
-                    retry_count        = excluded.retry_count,
-                    last_retry_time    = excluded.last_retry_time,
-                    last_updated       = CURRENT_TIMESTAMP
+                    -- Nhóm B: Luôn luôn cập nhật trạng thái hoạt động và metadata
+                    data_source         = excluded.data_source,
+                    status_order        = excluded.status_order,
+                    is_backlog          = excluded.is_backlog,
+                    is_active           = excluded.is_active,
+                    retry_count         = excluded.retry_count,
+                    last_retry_time     = excluded.last_retry_time,
+                    last_updated        = CURRENT_TIMESTAMP,
+
+                    -- Nhóm A: Bảo vệ dữ liệu. Chỉ ghi đè nếu DB cũ chưa có (rỗng/NULL/0.0)
+                    weight = CASE 
+                        WHEN (shipments.weight IS NULL OR shipments.weight = 0.0) AND excluded.weight IS NOT NULL AND excluded.weight > 0 
+                        THEN excluded.weight ELSE shipments.weight END,
+                        
+                    dispatch_plan = CASE 
+                        WHEN (shipments.dispatch_plan IS NULL OR shipments.dispatch_plan = '') 
+                        THEN excluded.dispatch_plan ELSE shipments.dispatch_plan END,
+                        
+                    dispatchNetworkTime = CASE 
+                        WHEN (shipments.dispatchNetworkTime IS NULL OR shipments.dispatchNetworkTime = '') 
+                        THEN excluded.dispatchNetworkTime ELSE shipments.dispatchNetworkTime END,
+                        
+                    pickNetworkName = CASE 
+                        WHEN (shipments.pickNetworkName IS NULL OR shipments.pickNetworkName = '') 
+                        THEN excluded.pickNetworkName ELSE shipments.pickNetworkName END,
+                        
+                    Pickup_time = CASE 
+                        WHEN (shipments.Pickup_time IS NULL OR shipments.Pickup_time = '') 
+                        THEN excluded.Pickup_time ELSE shipments.Pickup_time END,
+                        
+                    pickup_label = CASE 
+                        WHEN (shipments.pickup_label IS NULL OR shipments.pickup_label = '') 
+                        THEN excluded.pickup_label ELSE shipments.pickup_label END,
+                        
+                    Pickup_ontime = CASE 
+                        WHEN (shipments.Pickup_ontime IS NULL OR shipments.Pickup_ontime = '') 
+                        THEN excluded.Pickup_ontime ELSE shipments.Pickup_ontime END,
+                        
+                    next_station = CASE 
+                        WHEN (shipments.next_station IS NULL OR shipments.next_station = '') 
+                        THEN excluded.next_station ELSE shipments.next_station END,
+                        
+                    Tuyến = CASE 
+                        WHEN (shipments.Tuyến IS NULL OR shipments.Tuyến = '') 
+                        THEN excluded.Tuyến ELSE shipments.Tuyến END,
+                        
+                    Rank = CASE 
+                        WHEN (shipments.Rank IS NULL OR shipments.Rank = '') 
+                        THEN excluded.Rank ELSE shipments.Rank END,
+                        
+                    inbound_network = CASE 
+                        WHEN (shipments.inbound_network IS NULL OR shipments.inbound_network = '') 
+                        THEN excluded.inbound_network ELSE shipments.inbound_network END,
+                        
+                    inbound_scanDate = CASE 
+                        WHEN (shipments.inbound_scanDate IS NULL OR shipments.inbound_scanDate = '') 
+                        THEN excluded.inbound_scanDate ELSE shipments.inbound_scanDate END,
+                        
+                    outbound_scanDate = CASE 
+                        WHEN (shipments.outbound_scanDate IS NULL OR shipments.outbound_scanDate = '') 
+                        THEN excluded.outbound_scanDate ELSE shipments.outbound_scanDate END,
+                        
+                    Arrival_time = CASE 
+                        WHEN (shipments.Arrival_time IS NULL OR shipments.Arrival_time = '') 
+                        THEN excluded.Arrival_time ELSE shipments.Arrival_time END,
+                        
+                    dispatch_actual = CASE 
+                        WHEN (shipments.dispatch_actual IS NULL OR shipments.dispatch_actual = '') 
+                        THEN excluded.dispatch_actual ELSE shipments.dispatch_actual END,
+                        
+                    time_ref = CASE 
+                        WHEN (shipments.time_ref IS NULL OR shipments.time_ref = '') 
+                        THEN excluded.time_ref ELSE shipments.time_ref END
             """, changed_records)
             conn.commit()
             conn.close()
@@ -3948,8 +4018,28 @@ def main():
             sys.exit(1)
 
     # Mirror data/ files to root data/ and src/data/ for frontend and GitHub raw access
-    try:
+    # [FIX-MIRROR] Lock và retry để tránh WinError 32 (file being used by another process)
+    FILE_WRITE_LOCK = threading.Lock()
+    
+    def safe_mirror_copy(src, dest, max_retries=5):
         import shutil
+        import time
+        for attempt in range(1, max_retries + 1):
+            try:
+                with FILE_WRITE_LOCK:
+                    shutil.copy2(src, dest)
+                return True
+            except PermissionError as pe:
+                if attempt == max_retries:
+                    print(f"   ❌ Lỗi mirror {os.path.basename(src)}: {pe} sau {max_retries} lần thử.")
+                    return False
+                time.sleep(1.0 * attempt)
+            except Exception as e_copy:
+                print(f"   ⚠️ Lỗi copy {os.path.basename(src)}: {e_copy}")
+                return False
+        return False
+
+    try:
         dest_dirs = [os.path.join("..", "data"), os.path.join("..", "src", "data")]
         repo_base = r"C:\Users\lehoa\.gemini\antigravity\scratch\sortation-center-layout"
         if os.path.exists(repo_base):
@@ -3961,7 +4051,7 @@ def main():
             if os.path.exists("data"):
                 for fn in os.listdir("data"):
                     if fn.endswith(".json") or fn.endswith(".gz"):
-                        shutil.copy2(os.path.join("data", fn), os.path.join(dest_dir, fn))
+                        safe_mirror_copy(os.path.join("data", fn), os.path.join(dest_dir, fn))
         print("   📂 Đã đồng bộ tất cả file JSON ra các thư mục data/ và src/data/ (Desktop & Git repo).")
     except Exception as e_mir:
         print(f"   ⚠️ Lỗi mirror data: {e_mir}")
@@ -3994,8 +4084,12 @@ def main():
             subprocess.run(["git", "pull", "--rebase"], cwd=git_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
             # Restore the stashed changes
+            # [FIX-GIT-STASH] Kiểm tra returncode của stash pop.
             if did_stash:
-                subprocess.run(["git", "stash", "pop"], cwd=git_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                pop_res = subprocess.run(["git", "stash", "pop"], cwd=git_dir, capture_output=True, text=True)
+                if pop_res.returncode != 0:
+                    print(f"   ⚠️ [Git Guard] git stash pop có conflict hoặc lỗi (code {pop_res.returncode}). Dừng push dữ liệu để tránh ghi đè/mất file. Chi tiết: {pop_res.stderr}")
+                    return
 
             # Stage the files AFTER stash pop so they are actually staged for commit!
             subprocess.run(["git", "add"] + files_to_add, cwd=git_dir, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
