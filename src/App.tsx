@@ -392,95 +392,7 @@ export default function App() {
   const INVENTORY_STATUSES = ['Đang trên bãi', 'Đang trên đường', 'Đã lấy hàng', 'Đã điều phối bưu cục'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([...INVENTORY_STATUSES]);
 
-  // ── 6 Feature Enhancements States ──
-  const [searchQuery, setSearchQuery] = useState('');
-  const [soundAlertEnabled, setSoundAlertEnabled] = useState(false);
-  const [tvMode, setTvMode] = useState(false);
   const [selectedDetailRack, setSelectedDetailRack] = useState<any | null>(null);
-  const [selectedHour, setSelectedHour] = useState<number>(-1); // -1 = Realtime Live
-
-  // Global Search matching racks
-  const matchingRackIds = useMemo(() => {
-    if (!searchQuery.trim()) return new Set<string>();
-    const q = searchQuery.trim().toLowerCase();
-    const matches = new Set<string>();
-    ALL_RACKS.forEach(r => {
-      if (r.areaId.toLowerCase().includes(q) || (r.name && r.name.toLowerCase().includes(q))) {
-        matches.add(r.areaId);
-      }
-    });
-    return matches;
-  }, [searchQuery]);
-
-  // Sound Beeper Audio synthesis
-  const playBeep = () => {
-    try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      gain.gain.setValueAtTime(0.12, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.35);
-    } catch (e) {
-      console.error('Audio play error:', e);
-    }
-  };
-
-  // TV Command Center Auto-rotate view timer (30s)
-  useEffect(() => {
-    if (!tvMode) return;
-    try {
-      if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
-      }
-    } catch (e) {}
-
-    const interval = setInterval(() => {
-      setCurrentView(prev => (prev === 'inbound' ? 'master' : 'inbound'));
-    }, 30000);
-
-    return () => {
-      clearInterval(interval);
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
-      }
-    };
-  }, [tvMode]);
-
-  // Play sound alert when overload triggers
-  useEffect(() => {
-    if (soundAlertEnabled) {
-      const isBottleneck = Object.values(data).some((d: any) => d && d.utilization >= 95);
-      if (isBottleneck) {
-        playBeep();
-      }
-    }
-  }, [data, soundAlertEnabled]);
-
-  // Export Layout SVG Snapshot Image
-  const handleExportMapImage = () => {
-    const svgEl = document.querySelector('svg') as SVGElement;
-    if (!svgEl) {
-      alert('Không tìm thấy sơ đồ SVG!');
-      return;
-    }
-    const serializer = new XMLSerializer();
-    const svgStr = serializer.serializeToString(svgEl);
-    const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Sodo_HCM_HUB_${new Date().toISOString().split('T')[0]}.svg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
 
   const toggleStatus = (status: string) => {
     setSelectedStatuses(prev =>
@@ -1103,7 +1015,6 @@ export default function App() {
                 <ZoneCell key={c.areaId} c={c} d={d} bx={bx} by={by}
                           bw={TR_BAY_W} bh={Z_H} midLabelY={by+Z_H/2}
                           isHovered={hoveredRack?.areaId===c.areaId}
-                          isMatched={matchingRackIds.has(c.areaId)}
                           onEnter={() => {
                             setHoveredRack({...c,...d});
                             if (c.zone) setHoveredZone(c.zone);
