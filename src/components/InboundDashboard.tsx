@@ -748,12 +748,36 @@ export default function InboundDashboard({
     setDateDropdownOpen(false);
   };
 
+  const handleExportCSV = () => {
+    if (!filteredInbound || filteredInbound.length === 0) {
+      alert('Không có dữ liệu Inbound để xuất!');
+      return;
+    }
+    const headers = ['Bưu cục', 'Trạng thái', 'Volume', 'Weight', 'Ngày vận hành_Inbound', 'Loại rớt'];
+    const rows = filteredInbound.map(d => [
+      `"${d['Bưu cục'] || d['Bưu cục'] || ''}"`,
+      `"${d['Trạng thái'] || d['Trạng thái'] || ''}"`,
+      d['Volume'] || 0,
+      d['Weight'] || 0,
+      `"${d['Ngày vận hành_Inbound'] || ''}"`,
+      `"${d['Loại rớt'] || ''}"`
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Bao_Cao_Inbound_${activeDate || 'HCM_HUB'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="inbound-dashboard dashboard-container w-full max-w-7xl mx-auto pb-12 text-slate-100 font-sans">
       {/* 1. Header Control Block */}
       <header className="dashboard-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px' }}>
 
-        {/* LEFT: Sync Button + Logo */}
+        {/* LEFT: Sync Button + Export Button + Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
           <button
             className="google-sync-btn"
@@ -764,6 +788,16 @@ export default function InboundDashboard({
             <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" style={{ marginRight: '8px' }} />
             {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
           </button>
+
+          <button
+            className="google-sync-btn"
+            onClick={handleExportCSV}
+            style={{ width: 'auto', padding: '10px 18px', background: '#092518' }}
+          >
+            <i className="fa-solid fa-file-excel text-[#10b981]" style={{ marginRight: '6px' }}></i>
+            Xuất Báo Cáo
+          </button>
+
           <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '80px', borderRadius: '10px', display: 'block' }} />
         </div>
 
@@ -844,10 +878,10 @@ export default function InboundDashboard({
         </div>
       )}
 
-      {/* Row 1: KPI Cards */}
+      {/* Row 1: KPI Cards with Thematic Border Tracing Glow */}
       <section className="kpi-grid">
         {/* KPI 1: Inbound (orders) */}
-        <div className="kpi-card accent-green glass-card">
+        <div className="kpi-card accent-green glass-card report-glow-card glow-cyan">
           <div className="kpi-card-header">
             <span className="kpi-title">Inbound (orders)</span>
             <i className="fa-solid fa-warehouse kpi-icon"></i>
@@ -860,7 +894,7 @@ export default function InboundDashboard({
         </div>
 
         {/* KPI 2: Inbound (weight) */}
-        <div className="kpi-card accent-green glass-card">
+        <div className="kpi-card accent-green glass-card report-glow-card glow-emerald">
           <div className="kpi-card-header">
             <span className="kpi-title">Inbound (weight)</span>
             <i className="fa-solid fa-weight-hanging kpi-icon"></i>
@@ -873,7 +907,7 @@ export default function InboundDashboard({
         </div>
 
         {/* KPI 3: Inbound Truck ETA - HCM HUB */}
-        <div className="kpi-card accent-lime glass-card">
+        <div className="kpi-card accent-lime glass-card report-glow-card glow-amber">
           <div className="kpi-card-header">
             <span className="kpi-title">Inbound Truck ETA - HCM HUB</span>
             <i className="fa-solid fa-truck-fast kpi-icon"></i>
@@ -895,7 +929,7 @@ export default function InboundDashboard({
         </div>
 
         {/* KPI 4: Forecast */}
-        <div className="kpi-card accent-orange glass-card">
+        <div className="kpi-card accent-orange glass-card report-glow-card glow-purple">
           <div className="kpi-card-header">
             <span className="kpi-title">Forecast</span>
             <i className="fa-solid fa-chart-line kpi-icon"></i>
@@ -920,7 +954,7 @@ export default function InboundDashboard({
       {/* Row 2: Charts */}
       <section className="charts-grid">
         {/* Line Chart */}
-        <div className="chart-container-card dual-line-wrapper">
+        <div className="chart-container-card dual-line-wrapper report-glow-card glow-cyan">
           <div className="chart-header">
             <h2>Hourly Processing Trend</h2>
             <div className="chart-legend-custom">
@@ -936,7 +970,7 @@ export default function InboundDashboard({
         </div>
 
         {/* Donut Chart */}
-        <div className="chart-container-card donut-wrapper">
+        <div className="chart-container-card donut-wrapper report-glow-card glow-emerald">
           <div className="chart-header">
             <h2>Orders status</h2>
           </div>

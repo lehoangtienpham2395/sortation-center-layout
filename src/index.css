@@ -74,84 +74,154 @@ body {
   color: var(--accent);
 }
 
-/* ── Google One Sync Button Style ── */
+@property --glow-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes spinGlow {
+  0% { --glow-angle: 0deg; }
+  100% { --glow-angle: 360deg; }
+}
+
+/* ── Google One Sync Button Style (Spinning Conic Gradient Border) ── */
 .google-sync-btn {
-  background: #1d2025; /* Dark background similar to "Chế độ AI" button */
-  border: 1.5px solid rgba(255, 255, 255, 0.08);
-  border-radius: 9999px; /* Pill shape */
+  position: relative;
+  background: #15181e;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
   padding: 10px 24px;
   font-family: 'Montserrat', sans-serif;
   font-weight: 700;
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
   cursor: pointer;
   overflow: hidden;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  z-index: 1;
 }
 
-/* Outer border glow effect */
 .google-sync-btn::before {
   content: '';
   position: absolute;
-  inset: -1.5px;
+  inset: -2px;
   border-radius: 9999px;
-  padding: 1.5px;
-  background: radial-gradient(
-    70px circle at var(--mouse-x, 0px) var(--mouse-y, 0px),
-    #4285F4 0%,
-    #EA4335 25%,
-    #FBBC05 50%,
-    #34A853 75%,
-    transparent 100%
+  padding: 2px;
+  background: conic-gradient(
+    from var(--glow-angle, 0deg),
+    #4285F4 0deg,
+    #EA4335 90deg,
+    #FBBC05 180deg,
+    #34A853 270deg,
+    #4285F4 360deg
   );
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-/* Background hover glow */
-.google-sync-btn::after {
-  content: '';
-  position: absolute;
-  top: calc(var(--mouse-y, 0px) - 35px);
-  left: calc(var(--mouse-x, 0px) - 35px);
-  width: 70px;
-  height: 70px;
-  background: radial-gradient(
-    35px circle,
-    rgba(66, 133, 244, 0.12) 0%,
-    rgba(52, 104, 83, 0.04) 50%,
-    transparent 100%
-  );
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.35s ease;
+  animation: spinGlow 3s linear infinite;
+  z-index: -1;
 }
 
 .google-sync-btn:hover {
-  background: #25282f;
-  color: #fff;
-  border-color: transparent;
-  box-shadow: 0 0 16px rgba(66, 133, 244, 0.25);
+  background: #1c212b;
+  color: #ffffff;
+  box-shadow: 0 0 22px rgba(66, 133, 244, 0.35);
   transform: translateY(-1px);
 }
 
-.google-sync-btn:hover::before,
-.google-sync-btn:hover::after {
+.google-sync-btn:hover::before {
   opacity: 1;
 }
 
 .google-sync-btn:active {
   transform: translateY(0.5px);
+}
+
+/* ── Thematic Accent Border Tracing Glow (for Report Cards & Action Buttons) ── */
+.report-glow-card {
+  position: relative;
+  border-radius: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+}
+
+.report-glow-card::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 17px;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--glow-angle, 0deg),
+    var(--glow-color-start, #00e5ff) 0deg,
+    var(--glow-color-end, rgba(0, 229, 255, 0.2)) 120deg,
+    transparent 240deg,
+    var(--glow-color-start, #00e5ff) 360deg
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  animation: spinGlow 3.5s linear infinite;
+  z-index: 10;
+}
+
+.report-glow-card:hover::before {
+  opacity: 1;
+}
+
+.report-glow-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px var(--glow-shadow, rgba(0, 229, 255, 0.25));
+}
+
+/* Specific Card Color Variables */
+.glow-cyan {
+  --glow-color-start: #00e5ff;
+  --glow-color-end: #0284c7;
+  --glow-shadow: rgba(0, 229, 255, 0.25);
+}
+
+.glow-purple {
+  --glow-color-start: #c084fc;
+  --glow-color-end: #7e22ce;
+  --glow-shadow: rgba(192, 132, 252, 0.25);
+}
+
+.glow-emerald {
+  --glow-color-start: #10b981;
+  --glow-color-end: #047857;
+  --glow-shadow: rgba(16, 185, 129, 0.25);
+}
+
+.glow-amber {
+  --glow-color-start: #f59e0b;
+  --glow-color-end: #b45309;
+  --glow-shadow: rgba(245, 158, 11, 0.25);
+}
+
+.glow-orange {
+  --glow-color-start: #f97316;
+  --glow-color-end: #c2410c;
+  --glow-shadow: rgba(249, 115, 22, 0.25);
+}
+
+.glow-blue {
+  --glow-color-start: #3b82f6;
+  --glow-color-end: #1d4ed8;
+  --glow-shadow: rgba(59, 130, 246, 0.25);
 }
 
 /* ── Mobile Layout Specific Styles ── */

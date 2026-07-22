@@ -313,9 +313,9 @@ const IB_NAMES = ['A', 'AA', 'B', 'C', 'BN HUB'];
 const DOCK_Y = WB;
 const DOCK_H = 55;
 
-function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, onEnter, onLeave, onClick, addCenterLine, isTruck }:
+function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, isMatched, onEnter, onLeave, onClick, addCenterLine, isTruck }:
   { c:any, d:any, bx:number, by:number, bw:number, bh:number, midLabelY:number,
-    isHovered:boolean, onEnter:()=>void, onLeave:()=>void, onClick?:()=>void, addCenterLine?:boolean, isTruck?:boolean }) {
+    isHovered:boolean, isMatched?:boolean, onEnter:()=>void, onLeave:()=>void, onClick?:()=>void, addCenterLine?:boolean, isTruck?:boolean }) {
   const zoneColors: Record<number, string> = {
     4: 'var(--inbound)',
     3: 'var(--green)',
@@ -327,12 +327,15 @@ function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, onEnter, onLeave
   return (
     <g onMouseEnter={onEnter} onMouseLeave={onLeave} onClick={onClick} className="cursor-pointer">
       <rect x={bx} y={by} width={bw} height={bh}
-            fill={isTruck ? (isHovered ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.02)') : col}
-            fillOpacity={isTruck ? 1 : (isHovered ? 0.35 : 0.14)}
-            stroke={col} strokeWidth="0.7" />
+            fill={isMatched ? '#00e5ff' : (isTruck ? (isHovered ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.02)') : col)}
+            fillOpacity={isMatched ? 0.6 : (isTruck ? 1 : (isHovered ? 0.35 : 0.14))}
+            stroke={isMatched ? '#00e5ff' : col} strokeWidth={isMatched ? "2" : "0.7"} />
+      {isMatched && (
+        <rect x={bx-2} y={by-2} width={bw+4} height={bh+4} fill="none" stroke="#00e5ff" strokeWidth="1.5" strokeDasharray="3 2" className="animate-pulse" />
+      )}
       {!isTruck && (
         <rect x={bx+1} y={by + bh - 1 - fillH} width={bw-2} height={fillH}
-              fill={col} fillOpacity={0.7} />
+              fill={isMatched ? '#00e5ff' : col} fillOpacity={0.7} />
       )}
       {addCenterLine && !isTruck && (
         <line x1={bx+bw/2} y1={by+4} x2={bx+bw/2} y2={by+bh-4}
@@ -343,7 +346,7 @@ function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, onEnter, onLeave
             transform={`rotate(-90 ${bx+bw/2} ${midLabelY})`}
             pointerEvents="none">{c.name}</text>
       <text x={bx+bw/2} y={by-4} textAnchor="middle"
-            fill={isHovered ? '#fff' : (isTruck ? 'rgba(255,255,255,0.4)' : 'rgba(154,167,194,0.7)')}
+            fill={isMatched ? '#00e5ff' : (isHovered ? '#fff' : (isTruck ? 'rgba(255,255,255,0.4)' : 'rgba(154,167,194,0.7)'))}
             className="mono text-[5.5px] font-medium" pointerEvents="none">{c.areaId}</text>
     </g>
   );
@@ -388,6 +391,96 @@ export default function App() {
   const [outboundRate, setOutboundRate] = useState<string>('0.0');
   const INVENTORY_STATUSES = ['Đang trên bãi', 'Đang trên đường', 'Đã lấy hàng', 'Đã điều phối bưu cục'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([...INVENTORY_STATUSES]);
+
+  // ── 6 Feature Enhancements States ──
+  const [searchQuery, setSearchQuery] = useState('');
+  const [soundAlertEnabled, setSoundAlertEnabled] = useState(false);
+  const [tvMode, setTvMode] = useState(false);
+  const [selectedDetailRack, setSelectedDetailRack] = useState<any | null>(null);
+  const [selectedHour, setSelectedHour] = useState<number>(-1); // -1 = Realtime Live
+
+  // Global Search matching racks
+  const matchingRackIds = useMemo(() => {
+    if (!searchQuery.trim()) return new Set<string>();
+    const q = searchQuery.trim().toLowerCase();
+    const matches = new Set<string>();
+    ALL_RACKS.forEach(r => {
+      if (r.areaId.toLowerCase().includes(q) || (r.name && r.name.toLowerCase().includes(q))) {
+        matches.add(r.areaId);
+      }
+    });
+    return matches;
+  }, [searchQuery]);
+
+  // Sound Beeper Audio synthesis
+  const playBeep = () => {
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+    } catch (e) {
+      console.error('Audio play error:', e);
+    }
+  };
+
+  // TV Command Center Auto-rotate view timer (30s)
+  useEffect(() => {
+    if (!tvMode) return;
+    try {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    } catch (e) {}
+
+    const interval = setInterval(() => {
+      setCurrentView(prev => (prev === 'inbound' ? 'master' : 'inbound'));
+    }, 30000);
+
+    return () => {
+      clearInterval(interval);
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+    };
+  }, [tvMode]);
+
+  // Play sound alert when overload triggers
+  useEffect(() => {
+    if (soundAlertEnabled) {
+      const isBottleneck = Object.values(data).some((d: any) => d && d.utilization >= 95);
+      if (isBottleneck) {
+        playBeep();
+      }
+    }
+  }, [data, soundAlertEnabled]);
+
+  // Export Layout SVG Snapshot Image
+  const handleExportMapImage = () => {
+    const svgEl = document.querySelector('svg') as SVGElement;
+    if (!svgEl) {
+      alert('Không tìm thấy sơ đồ SVG!');
+      return;
+    }
+    const serializer = new XMLSerializer();
+    const svgStr = serializer.serializeToString(svgEl);
+    const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Sodo_HCM_HUB_${new Date().toISOString().split('T')[0]}.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const toggleStatus = (status: string) => {
     setSelectedStatuses(prev =>
@@ -1010,6 +1103,7 @@ export default function App() {
                 <ZoneCell key={c.areaId} c={c} d={d} bx={bx} by={by}
                           bw={TR_BAY_W} bh={Z_H} midLabelY={by+Z_H/2}
                           isHovered={hoveredRack?.areaId===c.areaId}
+                          isMatched={matchingRackIds.has(c.areaId)}
                           onEnter={() => {
                             setHoveredRack({...c,...d});
                             if (c.zone) setHoveredZone(c.zone);
@@ -1020,7 +1114,7 @@ export default function App() {
                           }}
                           onClick={() => {
                             setHoveredRack({...c,...d});
-                            if (isMobile) setBottomSheetOpen(true);
+                            setSelectedDetailRack({ item: c, detail: d });
                           }}
                           addCenterLine={true}/>
               );
@@ -1453,6 +1547,93 @@ export default function App() {
       {!isMobile ? (
         /* ── DESKTOP LAYOUT ── */
         <>
+          {/* Top Operational Header Bar */}
+          <div className="fixed top-0 left-0 right-0 h-14 z-30 bg-[#09111c]/90 border-b border-white/10 backdrop-blur-md px-6 flex items-center justify-between" style={{ paddingLeft: sidebarHovered ? '240px' : '64px' }}>
+            <div className="flex items-center gap-4">
+              <span className="font-extrabold text-sm tracking-wide text-white flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#00e5ff] animate-pulse"></span>
+                HCM HUB CONTROL CENTER
+              </span>
+
+              {/* Search Bar */}
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  placeholder="Tìm Bưu Cục, Chute C01, Xe T3-01..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="bg-[#111827] border border-white/15 focus:border-[#00e5ff] text-xs text-white placeholder-slate-500 rounded-full py-1.5 pl-8 pr-4 w-60 outline-none transition-all"
+                />
+                <span className="absolute left-2.5 text-slate-500 text-xs">🔍</span>
+                {searchQuery && (
+                  <button onClick={() => setSearchQuery('')} className="absolute right-2.5 text-slate-400 hover:text-white text-xs">✕</button>
+                )}
+              </div>
+            </div>
+
+            {/* Middle: Timeline Scrubber (00:00 - 23:00) */}
+            <div className="flex items-center gap-3 bg-[#111827] border border-white/10 px-4 py-1 rounded-full text-xs text-slate-300">
+              <span className="font-bold text-[10px] text-slate-400 uppercase tracking-wider">Thời gian:</span>
+              <input
+                type="range"
+                min="-1"
+                max="23"
+                value={selectedHour}
+                onChange={e => setSelectedHour(parseInt(e.target.value, 10))}
+                className="w-32 accent-[#00e5ff] cursor-pointer"
+              />
+              <span className="mono font-bold text-[#00e5ff] min-w-[55px]">
+                {selectedHour === -1 ? 'REALTIME' : `${String(selectedHour).padStart(2, '0')}:00`}
+              </span>
+            </div>
+
+            {/* Right Action Controls with Google Glow Buttons */}
+            <div className="flex items-center gap-3">
+              {/* Sound Alert Toggle Button */}
+              <button
+                onClick={() => setSoundAlertEnabled(!soundAlertEnabled)}
+                className={`google-sync-btn text-xs py-1.5 px-3.5 ${soundAlertEnabled ? 'border-amber-500/50 text-amber-400' : 'text-slate-400'}`}
+                title="Bật/Tắt âm thanh cảnh báo khi quá tải"
+                style={{ padding: '6px 14px' }}
+              >
+                <span style={{ fontSize: '14px' }}>{soundAlertEnabled ? '🔔' : '🔕'}</span>
+                <span>{soundAlertEnabled ? 'Cảnh báo: Bật' : 'Âm thanh'}</span>
+              </button>
+
+              {/* TV Mode Toggle Button */}
+              <button
+                onClick={() => setTvMode(!tvMode)}
+                className={`google-sync-btn text-xs py-1.5 px-3.5 ${tvMode ? 'border-purple-500/50 text-purple-300' : ''}`}
+                title="Chế độ TV Monitor chiếu màn hình lớn (Tự xoay 30s)"
+                style={{ padding: '6px 14px' }}
+              >
+                <span style={{ fontSize: '14px' }}>🖥️</span>
+                <span>{tvMode ? 'TV Mode: ON (30s)' : 'TV Mode'}</span>
+              </button>
+
+              {/* Export Map Image Button */}
+              <button
+                onClick={handleExportMapImage}
+                className="google-sync-btn text-xs"
+                style={{ padding: '6px 14px' }}
+              >
+                <span style={{ fontSize: '13px' }}>📷</span>
+                <span>Xuất Sơ Đồ</span>
+              </button>
+
+              {/* Google Sheets Sync Button */}
+              <button
+                className="google-sync-btn"
+                onClick={fetchAndUpdateData}
+                disabled={loading}
+                style={{ padding: '6px 16px' }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
+                {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
+              </button>
+            </div>
+          </div>
+
           {/* Sidebar Menu */}
           <div 
             onMouseEnter={() => setSidebarHovered(true)}
@@ -2381,6 +2562,84 @@ export default function App() {
         </div>
         <div className="ticker-track">{tickerText}</div>
       </div>
+
+      {/* ── Interactive Detail Modal Drawer ── */}
+      {selectedDetailRack && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm transition-all" onClick={() => setSelectedDetailRack(null)}>
+          <div className="w-full max-w-md bg-[#0f172a] border-l border-white/10 p-6 flex flex-col gap-6 text-white shadow-2xl relative" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-[#00e5ff]/10 border border-[#00e5ff]/30 flex items-center justify-center text-[#00e5ff] font-bold mono text-xl shadow-[0_0_15px_rgba(0,229,255,0.2)]">
+                  {selectedDetailRack.item.areaId}
+                </div>
+                <div>
+                  <h2 className="font-bold text-lg text-white">{selectedDetailRack.item.name || selectedDetailRack.item.areaId}</h2>
+                  <p className="text-xs text-slate-400">Phân khu Zone {selectedDetailRack.item.zone || 1} — Chi tiết ô chia chọn</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedDetailRack(null)} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm font-bold">
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/[0.03] border border-white/5 p-4 rounded-xl">
+                  <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">Sản lượng hiện tại</div>
+                  <div className="text-2xl font-bold mono text-[#00e5ff]">
+                    {selectedDetailRack.detail?.current?.toLocaleString() || 0} <span className="text-xs font-normal text-slate-400">đơn</span>
+                  </div>
+                </div>
+
+                <div className="bg-white/[0.03] border border-white/5 p-4 rounded-xl">
+                  <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">Tỷ lệ lấp đầy</div>
+                  <div className="text-2xl font-bold mono text-[#10b981]">
+                    {selectedDetailRack.detail?.utilization || 0}%
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white/[0.03] border border-white/5 p-4 rounded-xl space-y-3">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">Sức chứa tối đa:</span>
+                  <span className="mono font-bold">{selectedDetailRack.detail?.capacity || 780} đơn</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">Còn trống:</span>
+                  <span className="mono font-bold text-[#38bdf8]">{selectedDetailRack.detail?.remaining || 0} đơn</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">Tổng trọng lượng:</span>
+                  <span className="mono font-bold text-[#f59e0b]">{(selectedDetailRack.detail?.weight || 0).toLocaleString()} kg</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">Trạng thái vận hành:</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    (selectedDetailRack.detail?.utilization || 0) >= 95 ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                    (selectedDetailRack.detail?.utilization || 0) >= 80 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                    'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  }`}>
+                    {(selectedDetailRack.detail?.utilization || 0) >= 95 ? 'QUÁ TẢI (CRITICAL)' :
+                     (selectedDetailRack.detail?.utilization || 0) >= 80 ? 'CẢNH BÁO (WARNING)' : 'BÌNH THƯỜNG (OK)'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-white/[0.03] border border-white/5 p-4 rounded-xl space-y-2">
+                <div className="text-xs font-bold text-slate-300">Tuyến / Bưu cục kết nối:</div>
+                <div className="text-sm font-semibold text-[#60a5fa]">{selectedDetailRack.item.name}</div>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Đảm bảo tiến độ luồng hàng nhập & phát theo cam kết thời gian SLA vận hành HUB.
+                </p>
+              </div>
+            </div>
+
+            <button onClick={() => setSelectedDetailRack(null)} className="w-full py-3 bg-[#00e5ff]/10 hover:bg-[#00e5ff]/20 border border-[#00e5ff]/30 text-[#00e5ff] font-bold rounded-xl transition-all text-xs tracking-wider uppercase">
+              Đóng Cửa Sổ
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
