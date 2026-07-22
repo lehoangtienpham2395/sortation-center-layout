@@ -256,6 +256,8 @@ export default function InboundDashboard({
   });
 
   const filteredTruckEta = (truckEtaData || []).filter(d => {
+    const station = (d['Station'] || d['Pickup_station'] || '').trim().toUpperCase();
+    if (station === 'BN HUB') return true;
     return (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
   });
 
@@ -278,12 +280,6 @@ export default function InboundDashboard({
       if (cleanKey !== 'BN HUB' && isNorthStation(cleanKey)) {
         return false;
       }
-
-      // Loại bỏ hoàn toàn dòng gộp BN HUB không có mã phiếu nhiệm vụ
-      if (cleanKey === 'BN HUB' && !d['transfercode']) {
-        return false;
-      }
-
       return true;
     })
     .map(d => {
