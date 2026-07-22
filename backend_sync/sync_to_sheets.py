@@ -1655,7 +1655,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         conn = sqlite3.connect(DB_FILE)
         df_sqlite_active = pd.read_sql_query("""
             SELECT pickNetworkName as last_dept_name, 
-                   COALESCE(waybillNo, billNo, '') as billcode, 
+                   waybillNo as billcode, 
                    CAST(weight AS FLOAT) as package_charge_weight, 
                    dispatchNetworkTime as scantime,
                    Pickup_time as gio_di_thuc_te,
@@ -1945,6 +1945,9 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                 st_col = 'last_dept_name' if 'last_dept_name' in df_enriched_today.columns else 'Bưu cục'
                 
                 for st_name, grp in df_enriched_today.groupby(st_col):
+                    st_clean = str(st_name).strip().upper()
+                    if st_clean == 'BN HUB':
+                        continue
                     tot_cnt = len(grp)
                     ib_cnt = sum(
                         1 for _, r in grp.iterrows() 
@@ -1952,7 +1955,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                         or str(r.get('status_order') or r.get('status') or '').strip().lower() in ('đang trên bãi', 'inbound', 'nhập kho')
                     )
                     if tot_cnt > 0 and (ib_cnt / tot_cnt) >= 0.5:
-                        arrived_stations_50.add(str(st_name).strip().upper())
+                        arrived_stations_50.add(st_clean)
 
                 def is_arrived_order(row):
                     st = str(row.get('last_dept_name') or row.get('Bưu cục') or '').strip().upper()
