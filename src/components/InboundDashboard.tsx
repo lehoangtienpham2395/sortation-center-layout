@@ -433,10 +433,6 @@ export default function InboundDashboard({
 
   // 4. Inbound (Nhập kho HUB): Hiển thị các đơn nhập kho trong ngày activeDate
   filteredInbound.forEach(d => {
-    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    if (station === 'BN HUB') {
-      return;
-    }
     if ((d['Trng thi'] || d['Trạng thái']) === 'Inbound') {
       const ibTime = d['Inbound Hour'] !== undefined && d['Inbound Hour'] !== null && d['Inbound Hour'] !== '' 
         ? d['Inbound Hour'] 
