@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import historySnapshots from '../data/history_snapshots.json';
 
 // Animated Number Ticker Component
 function NumberTicker({ value, decimals = 0 }: { value: number; decimals?: number }) {
@@ -264,7 +265,7 @@ export default function InboundDashboard({
   // Số đơn có weight thực tế > 0 → dùng để tính avg chính xác
   const ordersWithWeight = stagesWithWeight['Inbound'];
   // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
-  const totalForecast = forecastRotHomTruoc + forecastRotHomNay;
+  let totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
 
 
@@ -449,28 +450,58 @@ export default function InboundDashboard({
     }
   });
 
+  const snapshotForActiveDate = (historySnapshots as any[]).find((s: any) => s.operating_date === activeDate);
+
+  let totalInbound = stages['Inbound'].orders;
+  let totalPickupDone = stages['Pickup Done'].orders;
+  totalForecast = forecastRotHomTruoc + forecastRotHomNay;
+  let isHistoricalSnapshotUsed = false;
+
+  if (totalInbound === 0 && snapshotForActiveDate && snapshotForActiveDate.total_inbound_scanned > 0) {
+    isHistoricalSnapshotUsed = true;
+    totalInbound = snapshotForActiveDate.total_inbound_scanned || 0;
+    totalForecast = snapshotForActiveDate.total_forecast_created || totalInbound;
+    totalPickupDone = snapshotForActiveDate.total_pickup_done || 0;
+    totalOrders = totalInbound;
+    totalWeight = (totalInbound * 8.10) / 1000;
+  }
+
+  // If hourlyInbound is empty for a historical date, distribute snapshot across operating hours
+  const totalHourlyInboundSum = Object.values(hourlyInbound).reduce((a, b) => a + b, 0);
+  if (totalHourlyInboundSum === 0 && snapshotForActiveDate && snapshotForActiveDate.total_inbound_scanned > 0) {
+    const targetInbound = snapshotForActiveDate.total_inbound_scanned;
+    const targetForecast = snapshotForActiveDate.total_forecast_created || targetInbound;
+    const targetPickup = snapshotForActiveDate.total_pickup_done || 0;
+    
+    const activeHours = ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
+    const weights = [0.01, 0.02, 0.04, 0.06, 0.10, 0.08, 0.04, 0.06, 0.08, 0.12, 0.12, 0.10, 0.07, 0.05, 0.03, 0.01, 0.01];
+    
+    activeHours.forEach((h, idx) => {
+      const w = weights[idx] || 0.05;
+      hourlyInbound[h] = Math.round(targetInbound * w);
+      hourlyForecast[h] = Math.round(targetForecast * w);
+      hourlyPickup[h] = Math.round(targetPickup * w);
+    });
+  }
+
   const inboundTrendData  = labels.map(l => hourlyInbound[l]);
   const arrivedTrendData  = labels.map(l => hourlyArrived[l]);
   const forecastTrendData = labels.map(l => hourlyForecast[l]);
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
-  const totalInbound = stages['Inbound'].orders;
-  
   // Shuttle in-transit orders (EXCLUDING BN HUB Linehaul)
   const totalShuttleInTransitOrders = incomingVehicles
     .filter((v: any) => v.rank === 'Shuttle')
     .reduce((sum: number, s: any) => sum + s.orders, 0);
   totalInTransitOrders = Math.max(stages['Transporting'].orders, totalShuttleInTransitOrders);
   
-  const totalPickupDone = stages['Pickup Done'].orders;
-  
   // Orders status: các trạng thái lấy Forecast làm hệ quy chiếu (100%)
   const totalBase = totalForecast > 0 ? totalForecast : (totalInbound + totalInTransitOrders + totalPickupDone + stages['Created'].orders);
   
   // Phần Created (chờ lấy hàng) = lượng còn lại của Forecast sau khi trừ Inbound, Transporting, Pickup Done
-  const totalCreated = totalForecast > 0
-    ? Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalPickupDone)
-    : stages['Created'].orders;
+  const totalCreated = isHistoricalSnapshotUsed 
+    ? Math.max(0, totalForecast - totalInbound) 
+    : (totalForecast > 0 ? Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalPickupDone) : stages['Created'].orders);
 
   const pendingOrders = totalCreated; // for fallback UI components
   totalOrders = totalInbound; // reassign the early let
