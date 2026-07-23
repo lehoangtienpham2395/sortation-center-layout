@@ -1722,20 +1722,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
         col_eta_incoming = []
         for _, row in df_enriched.iterrows():
             st = str(row.get('last_dept_name') or '').strip().upper()
-            
-            existing_eta = str(row.get('ETA Incoming') or row.get('eta') or row.get('eta_incoming') or '').strip()
-            if existing_eta and existing_eta.lower() not in ('nan', 'none', ''):
-                col_eta_incoming.append(existing_eta)
-                continue
-                
-            scan_t = str(
-                row.get('gio_di_thuc_te') or 
-                row.get('gio_bat_dau_xep') or 
-                row.get('scantime') or 
-                row.get('arrival_time') or
-                row.get('unloadingStartTime') or
-                ''
-            ).strip()
+            scan_t = str(row.get('gio_di_thuc_te') or row.get('Pickup_time') or '').strip()
             
             eta_hours = eta_dict.get(st)
             if eta_hours is not None and scan_t and scan_t.lower() not in ('nan', 'none', ''):
@@ -1967,12 +1954,23 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                         arrived_stations_50.add(st_clean)
 
                 def is_arrived_order(row):
-                    st_order = str(row.get('status_order') or '').strip()
-                    if st_order == 'Đang trên đường':
-                        return False
                     st = str(row.get('last_dept_name') or row.get('Bưu cục') or '').strip().upper()
+                    
+                    # 1. Ràng buộc ngặt nghèo thời gian: Xe Shuttle có mốc đi thực tế đã quá 2.5 tiếng -> TỰ ĐỘNG GỠ (ĐÃ ĐẾN HUB)
+                    if st != 'BN HUB':
+                        scan_t = str(row.get('gio_di_thuc_te') or row.get('Pickup_time') or row.get('scantime') or row.get('dispatchNetworkTime') or '').strip()
+                        if scan_t and scan_t.lower() not in ('nan', 'none', ''):
+                            try:
+                                dt_send = pd.to_datetime(scan_t, errors='coerce')
+                                if pd.notna(dt_send) and dt_send < (now_vn_eta.replace(tzinfo=None) - timedelta(hours=2.5)):
+                                    return True
+                            except Exception:
+                                pass
+
+                    # 2. Ràng buộc 50% sản lượng trạm đã đến HUB
                     if st in arrived_stations_50:
                         return True
+                        
                     bill = str(row.get('billcode') or row.get('waybillNo') or row.get('waybill_no') or '').strip().upper()
                     if bill and bill in inbound_today_wbs:
                         return True
