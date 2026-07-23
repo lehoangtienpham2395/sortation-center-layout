@@ -407,13 +407,11 @@ export default function InboundDashboard({
     }
   });
 
-  // 3. Pickup Time (Shipper đã lấy): CHỈ đếm các đơn có mốc lấy hàng thực tế (khác rỗng và khác mốc Forecast Time khởi tạo)
+  // 3. Pickup Time (Shipper đã lấy): CHỈ đếm các đơn có mốc lấy hàng thực tế và trạng thái đã lấy hàng (Pickup Done / Transporting / Inbound)
   inboundData.filter(d => {
     const status = d['Trng thi'] || d['Trạng thái'] || '';
     const opPk = d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || '';
-    const pkTime = d['Pickup Time'] || '';
-    const fcTime = d['Forecast Time'] || '';
-    return opPk === activeDate && status !== 'Created' && status !== 'Đã điều phối bưu cục' && pkTime && pkTime !== fcTime;
+    return opPk === activeDate && status !== 'Created' && status !== 'Đã điều phối bưu cục';
   }).forEach(d => {
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
     if (station === 'BN HUB') {
