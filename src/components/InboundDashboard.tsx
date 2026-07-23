@@ -309,29 +309,7 @@ export default function InboundDashboard({
         lastTime: d['ETA'] || d['Last time'] || ''
       };
     })
-    .filter(v => {
-      if (v.orders <= 0) return false;
-      // Ràng buộc ngặt nghèo trên Giao diện: Nếu là xe Shuttle và có mốc ETA quá hạn (> 30 phút so với giờ hiện tại), tự động gỡ vì xe đã cập bến
-      if (v.rank === 'Shuttle' && v.eta && v.eta.includes(':')) {
-        try {
-          const now = new Date();
-          const parts = v.eta.split(':');
-          const etaH = parseInt(parts[0], 10);
-          const etaM = parseInt(parts[1], 10);
-          if (!isNaN(etaH) && !isNaN(etaM)) {
-            const etaMinutes = etaH * 60 + etaM;
-            const nowMinutes = now.getHours() * 60 + now.getMinutes();
-            // Nếu ETA đã qua > 30 phút trong cùng ngày -> đã đến HUB -> gỡ khỏi danh sách xe đang di chuyển
-            if (nowMinutes - etaMinutes > 30) {
-              return false;
-            }
-          }
-        } catch (e) {
-          // ignore
-        }
-      }
-      return true;
-    })
+    .filter(v => v.orders > 0)
     .sort((a, b) => b.orders - a.orders);
 
   // Split by Shuttle and Linehaul ranks

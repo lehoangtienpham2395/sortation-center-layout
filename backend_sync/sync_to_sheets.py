@@ -1767,7 +1767,7 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                    inbound_network, status_order,
                    dispatch_plan as transfercode
             FROM shipments 
-            WHERE is_active = 1 AND status_order = 'Đang trên đường'
+            WHERE is_active = 1 AND status_order IN ('Đang trên đường', 'Đã lấy hàng')
         """, conn)
         conn.close()
         if not df_sqlite_active.empty:
