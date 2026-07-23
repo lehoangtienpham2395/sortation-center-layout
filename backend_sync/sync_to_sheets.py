@@ -3248,6 +3248,10 @@ def run_once(session, token_mgr, rebuild_days=None):
                     else:
                         rec[key] = val_str
 
+            # Triệt tiêu trùng mốc ảo: Nếu Pickup_time trùng hệt dispatchNetworkTime -> gán rỗng Pickup_time
+            if rec.get('Pickup_time') and rec.get('dispatchNetworkTime') and rec['Pickup_time'] == rec['dispatchNetworkTime']:
+                rec['Pickup_time'] = ""
+
     # Calculate status and derived fields for modified records
     for wb, rec in db_records.items():
         if not rec.get('changed'):
