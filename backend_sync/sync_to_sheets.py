@@ -2035,7 +2035,11 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
                 df_final_truck = df_final_truck[df_final_truck['Station'].astype(str).str.upper() != 'BN HUB']
 
             # Append active BN HUB Linehaul vehicles directly from data/linehaul.json (1 vehicle per transfercode)
-            lh_json_path = os.path.join(BASE_DIR, "data", "linehaul.json")
+            lh_json_path = "data/linehaul.json"
+            if not os.path.exists(lh_json_path):
+                lh_json_path = os.path.join(BASE_DIR, "data", "linehaul.json")
+            if not os.path.exists(lh_json_path):
+                lh_json_path = os.path.join(os.path.dirname(BASE_DIR), "data", "linehaul.json")
             if os.path.exists(lh_json_path):
                 try:
                     with open(lh_json_path, 'r', encoding='utf-8') as f_lh:
