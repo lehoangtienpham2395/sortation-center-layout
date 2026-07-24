@@ -857,14 +857,15 @@ export default function InboundDashboard({
               Update: {lastUpdate || '...'}
             </div>
           </div>
-          <div className="date-control-wrapper">
-            <span className="control-label">Operations Date</span>
+          <div className="date-control-wrapper flex items-center gap-2">
+            <span className="control-label text-xs text-slate-400 font-semibold">Operations Date</span>
             <DatePicker
               selectedDate={activeDate}
               onDateChange={(d) => setSelectedInboundDate(d)}
               availableDates={inboundDates}
               align="right"
-              className="w-[180px]"
+              className="w-[210px]"
+              buttonClassName="!py-1.5 !px-4 !rounded-full text-xs font-bold"
             />
           </div>
         </div>

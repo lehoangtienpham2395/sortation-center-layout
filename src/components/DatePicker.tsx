@@ -6,6 +6,7 @@ export interface DatePickerProps {
   availableDates?: string[]; // Array of "YYYY-MM-DD"
   label?: string;
   className?: string;
+  buttonClassName?: string;
   align?: 'left' | 'right' | 'center';
 }
 
@@ -15,6 +16,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   availableDates: _availableDates = [],
   label,
   className = '',
+  buttonClassName = '',
   align = 'center'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -134,7 +136,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-[#121519]/90 backdrop-blur-md border border-white/15 text-white font-semibold text-[13px] transition-all duration-200 hover:border-[#a3e635]/60 hover:bg-white/[0.04] text-center font-outfit shadow-lg"
+        className={`w-full flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-[#121519]/90 backdrop-blur-md border border-white/15 text-white font-semibold text-[13px] transition-all duration-200 hover:border-[#a3e635]/60 hover:bg-white/[0.04] text-center font-outfit shadow-lg ${buttonClassName}`}
         style={{ 
           fontFamily: "'Outfit', sans-serif",
           boxShadow: '0 4px 20px rgba(0,0,0,0.4), 0 0 15px rgba(163,230,53,0.08)'
