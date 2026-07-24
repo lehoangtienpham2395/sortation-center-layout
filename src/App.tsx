@@ -346,6 +346,7 @@ function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, isMatched, onEnt
 
 export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [sidebarHovered, setSidebarHovered] = useState(false);
   const [currentView, setCurrentView] = useState<'master' | 'inbound' | 'heatmap' | 'kpi'>('inbound');
   const [inboundData, setInboundData] = useState<any[]>([]);
   const [linehaulData, setLinehaulData] = useState<any[]>([]);
@@ -1457,43 +1458,68 @@ export default function App() {
       {!isMobile ? (
         /* ── DESKTOP LAYOUT ── */
         <>
-          {/* Sidebar Menu - Vertically Compact Layout with Large Clear Text & Full Labels */}
+          {/* Sidebar Menu - Hover Collapsible with 30% Compact Width (w-40) & Dashboard Theme Colors */}
           <div 
-            className="fixed top-0 left-0 h-full z-40 w-44 flex flex-col bg-[#121519]/95 backdrop-blur-xl border-r border-white/[0.06] font-outfit select-none"
+            onMouseEnter={() => setSidebarHovered(true)}
+            onMouseLeave={() => setSidebarHovered(false)}
+            className={`fixed top-0 left-0 h-full z-40 flex flex-col bg-[#121519]/95 backdrop-blur-xl border-r border-white/[0.08] font-outfit select-none transition-all duration-200 ${
+              sidebarHovered ? 'w-40' : 'w-12'
+            }`}
             style={{ fontFamily: "'Outfit', sans-serif" }}
           >
             {/* Sidebar Header */}
-            <div className="flex items-center p-3 border-b border-white/[0.08] h-12 px-4 gap-2.5">
+            <div className={`flex items-center border-b border-white/[0.08] h-12 ${
+              sidebarHovered ? 'px-4 gap-2.5 justify-start' : 'justify-center p-2'
+            }`}>
               <Menu size={18} className="text-slate-200 shrink-0" />
-              <span className="text-[17px] font-black text-slate-100 tracking-tight font-outfit">Menu</span>
+              {sidebarHovered && (
+                <span className="text-[17px] font-black text-slate-100 tracking-tight font-outfit">Menu</span>
+              )}
             </div>
 
-            {/* Menu Items - Tight Vertical Spacing */}
-            <div className="flex-1 py-3 space-y-3 px-2 overflow-y-auto scrollbar-none font-outfit" style={{ scrollbarWidth: 'none' }}>
+            {/* Menu Items */}
+            <div className="flex-1 py-3 space-y-3 px-1.5 overflow-y-auto scrollbar-none font-outfit" style={{ scrollbarWidth: 'none' }}>
               
-              {/* Group 1: DASHBOARD VIEWS */}
+              {/* Group 1: DASHBOARD VIEWS (No "DASHBOARD" label, Theme Colored Active Text) */}
               <div className="space-y-1 font-outfit">
-                <div className="px-3 text-[10px] text-slate-400 font-black tracking-[0.1em] uppercase mb-1.5 select-none font-outfit">
-                  DASHBOARD
-                </div>
                 {[
-                  { id: 'master', label: 'Layout', active: currentView === 'master', onClick: () => setCurrentView('master') },
-                  { id: 'inbound', label: 'Inbound', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
-                  { id: 'heatmap', label: 'Heatmap', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
-                  { id: 'kpi', label: 'KPI', active: currentView === 'kpi', onClick: () => setCurrentView('kpi') },
+                  { id: 'master', label: 'Layout', color: '#4F8CFF', active: currentView === 'master', onClick: () => setCurrentView('master') },
+                  { id: 'inbound', label: 'Inbound', color: '#a3e635', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
+                  { id: 'heatmap', label: 'Heatmap', color: '#10B981', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
+                  { id: 'kpi', label: 'KPI', color: '#F59E0B', active: currentView === 'kpi', onClick: () => setCurrentView('kpi') },
                 ].map(item => {
                   return (
                     <button
                       key={item.id}
                       onClick={item.onClick}
-                      className={`w-full flex items-center px-3 py-1.5 rounded-xl text-left transition-all duration-150 font-outfit ${
+                      className={`w-full flex items-center rounded-xl text-left transition-all duration-150 font-outfit relative ${
+                        sidebarHovered ? 'px-3 py-2' : 'justify-center p-2'
+                      } ${
                         item.active 
-                          ? 'text-white bg-[#2c303a] font-black shadow-sm' 
+                          ? 'bg-[#2c303a] font-black shadow-sm' 
                           : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-bold'
                       }`}
-                      style={{ fontFamily: "'Outfit', sans-serif" }}
+                      style={item.active ? { 
+                        color: item.color,
+                        boxShadow: `0 0 12px ${item.color}25`,
+                        fontFamily: "'Outfit', sans-serif" 
+                      } : { fontFamily: "'Outfit', sans-serif" }}
                     >
-                      <span className="text-[15px] font-extrabold tracking-tight font-outfit">{item.label}</span>
+                      {item.active && (
+                        <div 
+                          className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r"
+                          style={{ backgroundColor: item.color }}
+                        />
+                      )}
+                      {sidebarHovered ? (
+                        <span className="text-[15px] font-extrabold tracking-tight font-outfit" style={{ color: item.active ? item.color : undefined }}>
+                          {item.label}
+                        </span>
+                      ) : (
+                        <span className="text-xs font-black text-center font-outfit" style={{ color: item.active ? item.color : '#94A3B8' }}>
+                          {item.label.charAt(0)}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -1502,9 +1528,11 @@ export default function App() {
               {/* Group 2: PANEL / TIỆN ÍCH */}
               {currentView === 'master' && (
                 <div className="space-y-1 pt-3 border-t border-white/[0.08] font-outfit">
-                  <div className="px-3 text-[10px] text-slate-400 font-black tracking-[0.1em] uppercase mb-1.5 select-none font-outfit">
-                    PANEL / TIỆN ÍCH
-                  </div>
+                  {sidebarHovered && (
+                    <div className="px-3 text-[10px] text-slate-400 font-black tracking-[0.1em] uppercase mb-1.5 select-none font-outfit">
+                      PANEL / TIỆN ÍCH
+                    </div>
+                  )}
                   {[
                     { id: 'monitor', label: 'Giám sát phân khu', active: showMonitor, onClick: () => setShowMonitor(!showMonitor) },
                     { id: 'telemetry', label: 'Thông số kho', active: showTelemetry, onClick: () => setShowTelemetry(!showTelemetry) },
@@ -1515,14 +1543,20 @@ export default function App() {
                       <button
                         key={item.id}
                         onClick={item.onClick}
-                        className={`w-full flex items-center px-3 py-1.5 rounded-xl text-left transition-all duration-150 font-outfit ${
+                        className={`w-full flex items-center rounded-xl text-left transition-all duration-150 font-outfit ${
+                          sidebarHovered ? 'px-3 py-1.5' : 'justify-center p-2'
+                        } ${
                           item.active 
                             ? 'text-white bg-[#2c303a] font-extrabold shadow-sm' 
                             : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-bold'
                         }`}
                         style={{ fontFamily: "'Outfit', sans-serif" }}
                       >
-                        <span className="text-[13.5px] font-bold tracking-tight whitespace-nowrap font-outfit">{item.label}</span>
+                        {sidebarHovered ? (
+                          <span className="text-[13.5px] font-bold tracking-tight whitespace-nowrap font-outfit">{item.label}</span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400 font-outfit">{item.label.substring(0, 2)}</span>
+                        )}
                       </button>
                     );
                   })}
@@ -1535,8 +1569,8 @@ export default function App() {
           {/* Logo J&T Cargo - absolute top-left, above left panels */}
           {currentView === 'master' && (
             <div
-              className="absolute z-30 select-none"
-              style={{ top: '14px', left: '188px' }}
+              className="absolute z-30 select-none transition-all duration-200"
+              style={{ top: '14px', left: sidebarHovered ? '176px' : '64px' }}
             >
               <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '72px', borderRadius: '10px', display: 'block' }} />
             </div>
@@ -1545,8 +1579,8 @@ export default function App() {
           {/* Left Column: Stacked panels (w-72) */}
           {currentView === 'master' && (
             <div 
-              className="absolute z-20 top-[104px] w-72 flex flex-col gap-4 max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-300"
-              style={{ left: '188px' }}
+              className="absolute z-20 top-[104px] w-72 flex flex-col gap-4 max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-200"
+              style={{ left: sidebarHovered ? '176px' : '64px' }}
             >
               
               {/* 1. OPERATIONAL MONITOR & ZONE METRICS */}
@@ -1859,8 +1893,8 @@ export default function App() {
           {/* Floating Legend */}
           {currentView === 'master' && (
             <div 
-              className="absolute bottom-16 z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg transition-all duration-300"
-              style={{ left: '188px' }}
+              className="absolute bottom-16 z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg transition-all duration-200"
+              style={{ left: sidebarHovered ? '176px' : '64px' }}
             >
               {[['#0c883d','Ô chứa'],['var(--orange)','Cổng Outbound'],
                 ['var(--inbound)','Cổng Inbound'],['rgba(100,116,139,0.7)','Xe tải']].map(([c,l])=>(
@@ -1896,17 +1930,17 @@ export default function App() {
           {/* Center Content: Switch between Layout Master and Inbound */}
           <div 
             className={currentView === 'master'
-              ? 'absolute top-16 bottom-20 flex items-center justify-center transition-all duration-300'
-              : 'absolute inset-0 pt-16 pb-6 overflow-y-auto scrollbar-thin transition-all duration-300 flex flex-col items-center'
+              ? 'absolute top-16 bottom-20 flex items-center justify-center transition-all duration-200'
+              : 'absolute inset-0 pt-16 pb-6 overflow-y-auto scrollbar-thin transition-all duration-200 flex flex-col items-center'
             }
             style={!isMobile ? (
               currentView === 'master'
                 ? {
-                    left: '482px',
+                    left: sidebarHovered ? '468px' : '356px',
                     right: '384px'
                   }
                 : {
-                    paddingLeft: '188px',
+                    paddingLeft: sidebarHovered ? '176px' : '64px',
                     paddingRight: '24px'
                   }
             ) : {
