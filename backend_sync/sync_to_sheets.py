@@ -233,107 +233,90 @@ def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     
-    # ⚡ TỐI ƯU HÓA HIỆU NĂNG GHI/ĐỌC SQLITE CỰC ĐẠI
     c.execute("PRAGMA journal_mode = WAL")
     c.execute("PRAGMA synchronous = OFF")
-    c.execute("PRAGMA cache_size = -64000")  # Cache RAM 64MB
+    c.execute("PRAGMA cache_size = -64000")
     c.execute("PRAGMA temp_store = MEMORY")
     c.execute("PRAGMA count_changes = OFF")
     
-    # 1. Tạo bảng shipments mới
+    # Auto-migrate legacy table if waybillNo column exists
+    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='shipments'")
+    if c.fetchone():
+        c.execute("PRAGMA table_info(shipments)")
+        col_list = [col[1] for col in c.fetchall()]
+        if 'waybillNo' in col_list:
+            print("   📦 Phát hiện bảng 'shipments' legacy (22 cột). Bắt đầu nâng cấp tự động sang Schema Enterprise v2.0 (29 cột)...")
+            try:
+                c.execute("DROP TABLE IF EXISTS shipments_legacy")
+                c.execute("ALTER TABLE shipments RENAME TO shipments_legacy")
+                conn.commit()
+            except Exception as e_ren:
+                print(f"   ⚠️ Lỗi rename legacy shipments: {e_ren}")
+
     c.execute("""
         CREATE TABLE IF NOT EXISTS shipments (
-            waybillNo TEXT PRIMARY KEY,
+            tracking TEXT PRIMARY KEY,
             data_source TEXT,
-            weight REAL,
-            pickNetworkName TEXT,
-            dispatch_plan TEXT,
+            Orders_weight REAL,
+            Pickup_station TEXT,
+            Dispatch_code TEXT,
             Pickup_time TEXT,
-            pickup_label TEXT,
             Pickup_ontime TEXT,
-            dispatchNetworkTime TEXT,
-            next_station TEXT,
-            Tuyến TEXT,
+            Created_time TEXT,
+            Next_station TEXT,
+            Round TEXT,
             Rank TEXT,
-            inbound_network TEXT,
             inbound_scanDate TEXT,
             outbound_scanDate TEXT,
-            Arrival_time TEXT,
+            arrival_scanDate TEXT,
             dispatch_actual TEXT,
-            status_order TEXT,
+            status_sys TEXT,
             time_ref TEXT,
             is_backlog INTEGER DEFAULT 0,
             is_active INTEGER DEFAULT 1,
-            last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
+            trip_code TEXT DEFAULT '',
+            transporing_time TEXT DEFAULT '',
+            transported_time TEXT DEFAULT '',
+            Orders_num INTEGER DEFAULT 1,
+            Pickup_station2 TEXT DEFAULT '',
+            AreaCode TEXT DEFAULT '',
+            flowTypeDesc TEXT DEFAULT '',
+            last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+            retry_count INTEGER DEFAULT 0,
+            last_retry_time TEXT DEFAULT ''
         )
     """)
-    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_time_ref ON shipments(time_ref)")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_status ON shipments(status_order)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_created ON shipments(Created_time)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_status ON shipments(status_sys)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_ship_active ON shipments(is_active)")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_arrival_time ON shipments(Arrival_time)")
-    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_inbound_scanDate ON shipments(inbound_scanDate)")
-    
-    # 1b. Auto-add retry columns if they do not exist
-    try:
-        c.execute("ALTER TABLE shipments ADD COLUMN retry_count INTEGER DEFAULT 0")
-    except Exception:
-        pass
-    try:
-        c.execute("ALTER TABLE shipments ADD COLUMN last_retry_time TEXT DEFAULT ''")
-    except Exception:
-        pass
-    
-    # 2. Kiểm tra nếu bảng inventory cũ tồn tại thì migrate sang shipments
-    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='inventory'")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_inbound ON shipments(inbound_scanDate)")
+    c.execute("CREATE INDEX IF NOT EXISTS idx_ship_outbound ON shipments(outbound_scanDate)")
+    conn.commit()
+
+    # If legacy table exists, copy records over
+    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='shipments_legacy'")
     if c.fetchone():
-        print("   📦 Phát hiện bảng 'inventory' cũ. Bắt đầu migrate sang bảng 'shipments'...")
         try:
-            # Kiểm tra xem cột Arrival_time có tồn tại trong inventory không, tự động thêm nếu chưa có
-            try:
-                c.execute("ALTER TABLE inventory ADD COLUMN Arrival_time TEXT")
-            except Exception:
-                pass
-                
             c.execute("""
                 INSERT OR IGNORE INTO shipments (
-                    waybillNo, data_source, weight, pickNetworkName, dispatch_plan,
-                    Pickup_time, pickup_label, Pickup_ontime, dispatchNetworkTime,
-                    next_station, Tuyến, Rank, inbound_network, inbound_scanDate,
-                    outbound_scanDate, Arrival_time, dispatch_actual, status_order, time_ref,
-                    is_backlog, is_active, last_updated
+                    tracking, data_source, Orders_weight, Pickup_station, Dispatch_code,
+                    Pickup_time, Pickup_ontime, Created_time, Next_station, Round, Rank,
+                    inbound_scanDate, outbound_scanDate, arrival_scanDate, dispatch_actual,
+                    status_sys, time_ref, is_backlog, is_active, last_updated
                 )
                 SELECT 
                     waybillNo, data_source, weight, pickNetworkName, dispatch_plan,
-                    Pickup_time, pickup_label, Pickup_ontime, dispatchNetworkTime,
-                    next_station, Tuyến, Rank, inbound_network, inbound_scanDate,
-                    outbound_scanDate, Arrival_time, dispatch_actual, status_order, time_ref,
-                    CASE WHEN inbound_scanDate = 'Backlog' THEN 1 ELSE 0 END,
-                    CASE WHEN (inbound_scanDate IS NULL OR inbound_scanDate = '' OR inbound_scanDate = 'Backlog') 
-                          AND (outbound_scanDate IS NULL OR outbound_scanDate = '') THEN 1 ELSE 0 END,
-                    last_updated
-                FROM inventory
+                    Pickup_time, pickup_label, dispatchNetworkTime, next_station, Tuyến, Rank,
+                    inbound_scanDate, outbound_scanDate, Arrival_time, dispatch_actual,
+                    status_order, time_ref, is_backlog, is_active, last_updated
+                FROM shipments_legacy
             """)
+            c.execute("DROP TABLE shipments_legacy")
             conn.commit()
-            print("   ✅ Migrate dữ liệu thành công!")
-            # Drop bảng cũ
-            c.execute("DROP TABLE inventory")
-            conn.commit()
-            print("   🗑️ Đã xóa bảng 'inventory' cũ.")
-        except Exception as e_migrate:
-            print(f"   ⚠️ Lỗi migrate dữ liệu: {e_migrate}")
-            
-    # Tự động dọn dẹp các bản ghi ĐÃ RỜI HUB / Inbound (không active) cũ hơn 7 ngày để tối ưu hóa DB
-    try:
-        limit_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d %H:%M:%S')
-        c.execute("""
-            DELETE FROM shipments 
-            WHERE is_active = 0 
-              AND datetime(last_updated) < datetime(?)
-        """, (limit_date,))
-        conn.commit()
-    except Exception as e_clean:
-        print(f"   ⚠️ Lỗi dọn dẹp database: {e_clean}")
-        
+            print("   ✅ Migrate dữ liệu legacy sang Enterprise v2.0 thành công!")
+        except Exception as e_mig:
+            print(f"   ⚠️ Lỗi migrate legacy shipments: {e_mig}")
+
     conn.close()
 
 
