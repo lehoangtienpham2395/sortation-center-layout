@@ -2378,18 +2378,44 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
                 df_db_inv['next_st_clean'] = df_db_inv['next_station'].astype(str).str.strip().str.upper()
                 df_db_inv['pick_st_clean'] = df_db_inv['pickNetworkName'].astype(str).str.strip().str.upper()
                 
-                # Priority: dispatch_plan > next_station > pickNetworkName
+                NORTH_POST_OFFICES = {
+                    'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
+                    'HN THƯỜNG TÍN', 'HN HOÀNG MAI', 'HD KINH MÔN', 'HY VĂN GIANG', 'HN NGỌC HỒI',
+                    'HN MỸ ĐỨC', 'HN ĐÔNG ANH', 'HN HÀ ĐÔNG', 'HN THANH TRÌ', 'HN THANH LIỆT',
+                    'HN HOÀI ĐỨC', 'HN MÊ LINH', 'HN AN KHÁNH', 'HN CẦU GIẤY', 'HN THANH OAI',
+                    'HN ĐỐNG ĐA', 'HN CHƯƠNG MỸ', 'HN CHÚC SƠN', 'HN HẠ BẰNG', 'HN HÁT MÔN',
+                    'HN LONG BIÊN', 'HN PHÚ XUYÊN', 'HN HÀ NAM', 'HN SƠN TÂY', 'HN NAM TỪ LIÊM',
+                    'HN PHÚ DIỄN', 'HN TÂY HỒ', 'HN VĨNH TUY', 'HN ỨNG HÒA'
+                }
+
+                # Correct Outbound Chute Direction:
+                # ❌ NEVER use pickNetworkName == 'BN HUB' for Outbound chute! (That is Inbound coming FROM BN HUB)
+                # ✅ Outbound to BN HUB is ONLY when Destination (dispatch_plan/next_station) is BN HUB or Northern!
                 def resolve_target_st(r):
                     dp = r['dp_clean']
                     ns = r['next_st_clean']
                     pk = r['pick_st_clean']
+
+                    # 1. Check if destination is explicitly BN HUB or Northern linehaul
+                    if dp == 'BN HUB' or ns == 'BN HUB':
+                        return 'BN HUB'
+                    if dp.startswith('HN ') or dp.startswith('HD ') or dp.startswith('HY ') or dp.startswith('BN ') or dp.startswith('TN ') or dp.startswith('THN ') or dp in NORTH_POST_OFFICES:
+                        return 'BN HUB'
+
+                    # 2. Map standard Outbound destination
                     if dp and dp not in ('HCM HUB', 'NONE', 'NAN'):
                         return dp
                     if ns and ns not in ('HCM HUB', 'NONE', 'NAN'):
                         return ns
-                    return pk
-                
+                    
+                    # 3. Fallback origin only for satellite post offices (exclude BN HUB origin!)
+                    if pk != 'BN HUB' and not pk.startswith('HN ') and not pk.startswith('HD ') and not pk.startswith('HY ') and pk not in NORTH_POST_OFFICES:
+                        return pk
+
+                    return 'EXCLUDE_INBOUND'
+
                 df_db_inv['target_st'] = df_db_inv.apply(resolve_target_st, axis=1)
+                df_db_inv = df_db_inv[df_db_inv['target_st'] != 'EXCLUDE_INBOUND'].copy()
                 df_db_inv['layout_name'] = df_db_inv['target_st'].apply(map_station_to_layout_name)
                 df_db_inv['status_upper'] = df_db_inv['status_order'].astype(str).str.strip()
                 
