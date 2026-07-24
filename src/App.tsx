@@ -1764,8 +1764,8 @@ export default function App() {
                 >
                   {currentView === 'master' ? (
                     <>
-                      <h3 className="font-outfit text-[13px] font-bold tracking-[0.08em] pb-3 mb-4 border-b border-white/[0.08] text-center" style={{ margin: 0, color: '#FFF4D6', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>CONTROL CENTER</h3>
-                      <div className="space-y-6">
+                      <h3 className="font-outfit text-[13px] font-bold tracking-[0.08em] pb-2 mb-2.5 border-b border-white/[0.08] text-center" style={{ margin: 0, color: '#FFF4D6', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>CONTROL CENTER</h3>
+                      <div className="flex flex-col gap-[4px]">
                         {/* 1. LOẠI (Type Selector) - Segmented Control */}
                         <div className="flex bg-black/35 rounded-lg p-0.5 w-full">
                           {(['Outbound', 'Backlog', 'Inventory'] as const).map(type => {
@@ -1787,13 +1787,13 @@ export default function App() {
                           })}
                         </div>
 
-                        {/* 2. TRẠNG THÁI (Status Selector) - Modern Toggle Buttons */}
-                        <div className={`grid grid-cols-2 gap-2 transition-all duration-300 ${
+                        {/* 2. TRẠNG THÁI (Status Selector) - 2px gap */}
+                        <div className={`grid grid-cols-2 gap-[2px] transition-all duration-300 ${
                           selectedType !== 'Inventory' ? 'opacity-30 pointer-events-none select-none filter blur-[0.4px]' : 'opacity-100'
                         }`}>
                           <button
                             onClick={toggleAllStatuses}
-                            className={`flex items-center justify-center px-2.5 py-1.5 rounded-lg text-[11.5px] font-bold transition-all duration-200 ${
+                            className={`flex items-center justify-center px-2 py-1.5 rounded-lg text-[11.5px] font-bold transition-all duration-200 ${
                               selectedStatuses.length === INVENTORY_STATUSES.length
                                 ? 'bg-emerald-500/15 text-emerald-400 shadow-[0_4px_12px_rgba(0,0,0,0.3),_0_0_8px_rgba(16,185,129,0.15)] hover:translate-y-[-1px]'
                                 : 'bg-white/[0.04] shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-slate-400 hover:bg-white/[0.07] hover:text-white hover:translate-y-[-1px]'
@@ -1807,7 +1807,7 @@ export default function App() {
                               <button
                                 key={status}
                                 onClick={() => toggleStatus(status)}
-                                className={`flex items-center justify-center px-2.5 py-1.5 rounded-lg text-[11.5px] font-bold transition-all duration-200 ${
+                                className={`flex items-center justify-center px-2 py-1.5 rounded-lg text-[11.5px] font-bold transition-all duration-200 ${
                                   isChecked
                                     ? 'bg-emerald-500/15 text-emerald-400 shadow-[0_4px_12px_rgba(0,0,0,0.3),_0_0_8px_rgba(16,185,129,0.15)] hover:translate-y-[-1px]'
                                     : 'bg-white/[0.04] shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-slate-400 hover:bg-white/[0.07] hover:text-white hover:translate-y-[-1px]'
