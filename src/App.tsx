@@ -1467,20 +1467,20 @@ export default function App() {
             }`}
             style={{ fontFamily: "'Outfit', sans-serif" }}
           >
-            {/* Sidebar Header */}
-            <div className={`flex items-center border-b border-white/[0.08] h-12 ${
-              sidebarHovered ? 'px-3 gap-2.5 justify-start' : 'justify-center p-2'
-            }`}>
-              <Menu size={18} className="text-slate-200 shrink-0" />
+            {/* Sidebar Header - Fixed w-12 slot for 100% pixel alignment */}
+            <div className="flex items-center border-b border-white/[0.08] h-12 select-none shrink-0">
+              <div className="w-12 h-full flex items-center justify-center shrink-0">
+                <Menu size={18} className="text-slate-200" />
+              </div>
               {sidebarHovered && (
-                <span className="text-[17px] font-black text-slate-100 tracking-tight font-outfit">Menu</span>
+                <span className="text-[17px] font-black text-slate-100 tracking-tight font-outfit pr-3 whitespace-nowrap">Menu</span>
               )}
             </div>
 
             {/* Menu Items */}
             <div className="flex-1 py-3 space-y-3 px-0 overflow-y-auto scrollbar-none font-outfit" style={{ scrollbarWidth: 'none' }}>
               
-              {/* Group 1: DASHBOARD VIEWS (Vertically Aligned 100% with "Menu" Text at 40px) */}
+              {/* Group 1: DASHBOARD VIEWS (Fixed w-12 slot - Text starts at exact 48px) */}
               <div className="space-y-1 font-outfit">
                 {[
                   { id: 'master', label: 'Layout', color: '#4F8CFF', active: currentView === 'master', onClick: () => setCurrentView('master') },
@@ -1492,9 +1492,7 @@ export default function App() {
                     <button
                       key={item.id}
                       onClick={item.onClick}
-                      className={`w-full flex items-center text-left transition-all duration-150 font-outfit relative rounded-r-sm ${
-                        sidebarHovered ? 'pl-[40px] pr-2 py-2' : 'justify-center p-2'
-                      } ${
+                      className={`w-full h-10 flex items-center text-left transition-all duration-150 font-outfit relative rounded-r-sm ${
                         item.active 
                           ? 'bg-[#2c303a] font-extrabold shadow-sm' 
                           : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-semibold'
@@ -1511,13 +1509,20 @@ export default function App() {
                           style={{ backgroundColor: item.color }}
                         />
                       )}
-                      {sidebarHovered ? (
-                        <span className="text-[15px] font-extrabold tracking-tight font-outfit" style={{ color: item.active ? item.color : undefined }}>
+                      
+                      {/* Left w-12 Slot */}
+                      <div className="w-12 h-full flex items-center justify-center shrink-0">
+                        {!sidebarHovered && (
+                          <span className="text-xs font-black text-center font-outfit" style={{ color: item.active ? item.color : '#94A3B8' }}>
+                            {item.label.charAt(0)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Text Label - Starts at 48px */}
+                      {sidebarHovered && (
+                        <span className="text-[15px] font-extrabold tracking-tight font-outfit pr-3 whitespace-nowrap" style={{ color: item.active ? item.color : undefined }}>
                           {item.label}
-                        </span>
-                      ) : (
-                        <span className="text-xs font-black text-center font-outfit" style={{ color: item.active ? item.color : '#94A3B8' }}>
-                          {item.label.charAt(0)}
                         </span>
                       )}
                     </button>
@@ -1525,12 +1530,15 @@ export default function App() {
                 })}
               </div>
 
-              {/* Group 2: PANEL / TIỆN ÍCH (Aligned vertically with "Menu" Text) */}
+              {/* Group 2: PANEL / TIỆN ÍCH (Fixed w-12 slot - Text starts at exact 48px) */}
               {currentView === 'master' && (
                 <div className="space-y-0.5 pt-2.5 border-t border-white/[0.08] font-outfit">
                   {sidebarHovered && (
-                    <div className="pl-[40px] pr-2 text-[10px] text-slate-400 font-semibold tracking-[0.08em] uppercase mb-1 select-none font-outfit">
-                      PANEL / TIỆN ÍCH
+                    <div className="flex items-center h-6 select-none">
+                      <div className="w-12 shrink-0" />
+                      <span className="text-[10px] text-slate-400 font-semibold tracking-[0.08em] uppercase pr-3 font-outfit whitespace-nowrap">
+                        PANEL / TIỆN ÍCH
+                      </span>
                     </div>
                   )}
                   {[
@@ -1543,19 +1551,23 @@ export default function App() {
                       <button
                         key={item.id}
                         onClick={item.onClick}
-                        className={`w-full flex items-center rounded-r-sm text-left transition-all duration-150 font-outfit ${
-                          sidebarHovered ? 'pl-[40px] pr-2 py-1.5' : 'justify-center p-2'
-                        } ${
+                        className={`w-full h-8 flex items-center rounded-r-sm text-left transition-all duration-150 font-outfit ${
                           item.active 
                             ? 'text-white bg-[#2c303a] font-normal shadow-sm' 
                             : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-normal'
                         }`}
                         style={{ fontFamily: "'Outfit', sans-serif" }}
                       >
-                        {sidebarHovered ? (
-                          <span className="text-[13px] font-normal tracking-normal whitespace-nowrap font-outfit text-slate-300">{item.label}</span>
-                        ) : (
-                          <span className="text-[10px] font-normal text-slate-400 font-outfit">{item.label.substring(0, 2)}</span>
+                        {/* Left w-12 Slot */}
+                        <div className="w-12 h-full flex items-center justify-center shrink-0">
+                          {!sidebarHovered && (
+                            <span className="text-[10px] font-normal text-slate-400 font-outfit">{item.label.substring(0, 2)}</span>
+                          )}
+                        </div>
+
+                        {/* Text Label - Starts at 48px */}
+                        {sidebarHovered && (
+                          <span className="text-[13px] font-normal tracking-normal whitespace-nowrap font-outfit text-slate-300 pr-3">{item.label}</span>
                         )}
                       </button>
                     );
