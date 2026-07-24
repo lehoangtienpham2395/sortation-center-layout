@@ -1753,12 +1753,15 @@ export default function App() {
             </div>
           )}
 
-          {/* Right Column: Control Center & Top 10 Racks (w-90) */}
+          {/* Right Column: Control Center & Top 10 Racks (w-90, 15px gap, 10% rounded corners) */}
           {currentView === 'master' && (
-            <div className="absolute z-40 top-16 right-6 w-90 flex flex-col gap-4 max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-6 scrollbar-none">
+            <div className="absolute z-40 top-16 right-6 w-90 flex flex-col gap-[15px] max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-6 scrollbar-none">
               {/* A. Control Center Panel */}
               {showControls && (
-                <div className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-20">
+                <div 
+                  className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-20 rounded-xl"
+                  style={{ borderRadius: '12px' }}
+                >
                   {currentView === 'master' ? (
                     <>
                       <h3 className="font-outfit text-[13px] font-bold tracking-[0.08em] pb-3 mb-4 border-b border-white/[0.08] text-center" style={{ margin: 0, color: '#FFF4D6', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>CONTROL CENTER</h3>
@@ -1863,8 +1866,8 @@ export default function App() {
               {/* B. TOP 10 RACKS */}
               {currentView === 'master' && showTop10 && (
                 <div 
-                  className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-10 animate-fade-in"
-                  style={{ marginTop: '64px' }}
+                  className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-10 animate-fade-in rounded-xl"
+                  style={{ borderRadius: '12px' }}
                 >
                   {/* Header Title */}
                   <div className="flex justify-center items-center mb-2.5 pb-2.5 border-b border-white/[0.08]">
