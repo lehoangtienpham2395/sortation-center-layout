@@ -1442,15 +1442,41 @@ export default function App() {
   return (
     <div className="w-full h-full relative font-sans text-white bg-[#02040a]">
       {!isMobile && currentView === 'master' && (
-        <div className="absolute top-0 right-0 h-12 flex items-center justify-between px-6 z-30 transition-all duration-300 left-16 pointer-events-none"
+        <div className="absolute top-0 right-0 h-14 flex items-center justify-between px-6 z-30 transition-all duration-300 left-16 pointer-events-none"
              style={{background:'linear-gradient(180deg,rgba(2,4,10,.95),rgba(2,4,10,0))'}}>
           <div className="flex items-center select-none" />
-          <div className="flex items-center gap-3 pointer-events-auto">
+          <div className="flex items-center gap-4 pointer-events-auto">
             {lastUpdate && (
-              <div style={{ fontSize: '11px', color: '#94a3b8', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', padding: '5px 12px', borderRadius: '20px', fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>
+              <div style={{ 
+                fontSize: '11px', 
+                color: '#B8F7E4', 
+                background: 'rgba(184, 247, 228, 0.05)', 
+                border: '1px solid rgba(184, 247, 228, 0.2)', 
+                padding: '5px 14px', 
+                borderRadius: '20px', 
+                fontWeight: 600, 
+                fontFamily: "'Inter', sans-serif",
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                textShadow: '0 0 8px rgba(184,247,228,0.3)'
+              }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#B8F7E4] animate-pulse" />
                 Update: {lastUpdate}
               </div>
             )}
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 font-semibold select-none">Operations Date</span>
+              <DatePicker
+                selectedDate={selectedDate}
+                onDateChange={(d) => setSelectedDate(d)}
+                availableDates={availableDates}
+                align="right"
+                className="w-[210px]"
+                buttonClassName="!py-1.5 !px-4 !rounded-full text-xs font-bold"
+              />
+            </div>
           </div>
         </div>
       )}
@@ -1758,18 +1784,7 @@ export default function App() {
                           })}
                         </div>
 
-                        {/* 2. NGÀY / THÁNG (Calendar & Month Popover DatePicker) */}
-                        <div className="relative z-50 w-full flex justify-center">
-                          <DatePicker
-                            selectedDate={selectedDate}
-                            onDateChange={(d) => setSelectedDate(d)}
-                            availableDates={availableDates}
-                            className="w-[180px]"
-                            align="center"
-                          />
-                        </div>
-
-                        {/* 3. TRẠNG THÁI (Status Selector) - Modern Toggle Buttons */}
+                        {/* 2. TRẠNG THÁI (Status Selector) - Modern Toggle Buttons */}
                         <div className={`grid grid-cols-2 gap-2 transition-all duration-300 ${
                           selectedType !== 'Inventory' ? 'opacity-30 pointer-events-none select-none filter blur-[0.4px]' : 'opacity-100'
                         }`}>
