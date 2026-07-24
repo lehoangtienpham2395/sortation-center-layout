@@ -3,16 +3,7 @@ import InboundDashboard from './components/InboundDashboard';
 import HeatmapDashboard from './components/HeatmapDashboard';
 import KpiDashboard from './components/KpiDashboard';
 import { DatePicker } from './components/DatePicker';
-import { 
-  LayoutDashboard, 
-  Activity, 
-  TrendingUp, 
-  Sliders, 
-  ListOrdered,
-  Menu,
-  Inbox,
-  Calendar
-} from 'lucide-react';
+import { Menu } from 'lucide-react';
 import configData from './data/config.json';
 
 // Animated Number Ticker Component
@@ -1475,14 +1466,13 @@ export default function App() {
               sidebarHovered ? 'w-56' : 'w-12'
             }`}
           >
-            {/* Sidebar Header */}
-            <div className={`flex items-center p-3 border-b border-white/[0.06] h-12 ${
-              sidebarHovered ? 'justify-between px-4' : 'justify-center'
+            {/* Sidebar Header - Sleek Hamburger Menu Style matching Image 2 */}
+            <div className={`flex items-center p-3 border-b border-white/[0.08] h-12 ${
+              sidebarHovered ? 'justify-start px-4 gap-2.5' : 'justify-center'
             }`}>
-              {sidebarHovered ? (
-                <span className="text-[10px] text-slate-500 font-bold tracking-[0.08em] uppercase select-none">Danh mục giám sát</span>
-              ) : (
-                <Menu size={16} className="text-slate-400" />
+              <Menu size={18} className="text-slate-300 shrink-0" />
+              {sidebarHovered && (
+                <span className="text-sm font-extrabold text-slate-100 tracking-tight select-none font-outfit">Menu</span>
               )}
             </div>
 
@@ -1490,62 +1480,32 @@ export default function App() {
             <div className="flex-1 py-4 space-y-4 px-3 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
               
               {/* Group 1: DASHBOARD VIEWS */}
-              <div className="space-y-1">
+              <div className="space-y-1 font-outfit">
                 {sidebarHovered && (
-                  <div className="px-3 text-[11px] text-[#94A3B8] font-bold tracking-[0.08em] uppercase mb-2.5 select-none">
-                    Dashboard
+                  <div className="px-3 text-[10px] text-slate-400 font-extrabold tracking-[0.1em] uppercase mb-2 select-none font-outfit">
+                    DASHBOARD
                   </div>
                 )}
                 {[
-                  { id: 'master', label: 'Layout Master', desc: 'Toàn bộ thông tin tổng thể', icon: LayoutDashboard, color: '#4F8CFF', active: currentView === 'master', onClick: () => setCurrentView('master') },
-                  { id: 'inbound', label: 'Inbound', desc: 'Thống kê chi tiết luồng nhập', icon: Inbox, color: '#4F8CFF', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
-                  { id: 'heatmap', label: 'Heatmap', desc: 'Lưu lượng hoạt động theo giờ', icon: Calendar, color: '#10B981', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
-                  { id: 'kpi', label: 'KPI Dashboard', desc: 'Thống kê KPI và SLA vận hành', icon: TrendingUp, color: '#10B981', active: currentView === 'kpi', onClick: () => setCurrentView('kpi') },
+                  { id: 'master', label: 'Layout', active: currentView === 'master', onClick: () => setCurrentView('master') },
+                  { id: 'inbound', label: 'Inbound', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
+                  { id: 'heatmap', label: 'Heatmap', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
+                  { id: 'kpi', label: 'KPI', active: currentView === 'kpi', onClick: () => setCurrentView('kpi') },
                 ].map(item => {
-                  const Icon = item.icon;
                   return (
                     <button
                       key={item.id}
                       onClick={item.onClick}
-                      className={`w-full flex items-center gap-4 px-3 py-2.5 rounded-2xl text-left transition-all duration-180 group relative ${
+                      className={`w-full flex items-center px-3.5 py-2.5 rounded-xl text-left transition-all duration-150 font-outfit ${
                         item.active 
-                          ? 'text-white bg-[#2d466e]/30' 
-                          : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.02]'
+                          ? 'text-white bg-[#2c303a] font-extrabold shadow-sm' 
+                          : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-semibold'
                       }`}
-                      style={item.active ? { 
-                        boxShadow: `0 0 8px ${item.color}08`
-                      } : {}}
                     >
-                      {item.active && (
-                        <div 
-                          className="absolute left-0 top-3.5 bottom-3.5 w-[3px] rounded-r"
-                          style={{ backgroundColor: item.color }}
-                        />
-                      )}
-                      <div 
-                        className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-180 group-hover:scale-105"
-                        style={{ 
-                          backgroundColor: 'rgba(255,255,255,0.03)',
-                          border: '1px solid rgba(255,255,255,0.05)',
-                          color: item.active ? item.color : '#94A3B8',
-                          boxShadow: item.active ? `0 0 8px ${item.color}30` : 'none'
-                        }}
-                      >
-                        <Icon 
-                          size={18} 
-                          strokeWidth={2}
-                        />
-                      </div>
-                      {sidebarHovered && (
-                        <div className="flex flex-col select-none">
-                          <span className="text-base font-semibold leading-normal tracking-wide">{item.label}</span>
-                          <span className="text-xs text-[#94A3B8] mt-1 font-normal leading-relaxed">{item.desc}</span>
-                        </div>
-                      )}
-                      {!sidebarHovered && (
-                        <div className="absolute left-16 bg-[#0a0e14] text-white text-[9.5px] py-1 px-2 rounded border border-white/10 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-180 whitespace-nowrap z-50 shadow-xl">
-                          {item.label}
-                        </div>
+                      {sidebarHovered ? (
+                        <span className="text-sm tracking-tight font-outfit">{item.label}</span>
+                      ) : (
+                        <span className="text-xs font-extrabold text-center w-full text-slate-300 font-outfit">{item.label.substring(0, 2)}</span>
                       )}
                     </button>
                   );
@@ -1554,62 +1514,32 @@ export default function App() {
 
               {/* Group 2: VIEW CONTROLS (Only visible for Master Layout to toggle widgets) */}
               {currentView === 'master' && (
-                <div className="space-y-1 pt-4 border-t border-white/[0.06]">
+                <div className="space-y-1 pt-4 border-t border-white/[0.08] font-outfit">
                   {sidebarHovered && (
-                    <div className="px-3 text-[11px] text-[#94A3B8] font-bold tracking-[0.08em] uppercase mb-2.5 select-none">
-                      Tiện ích / Panel
+                    <div className="px-3 text-[10px] text-slate-400 font-extrabold tracking-[0.1em] uppercase mb-2 select-none font-outfit">
+                      PANEL / TIỆN ÍCH
                     </div>
                   )}
                   {[
-                    { id: 'monitor', label: 'Giám sát phân khu', desc: 'Operational Monitor', icon: Activity, color: '#22C55E', active: showMonitor, onClick: () => setShowMonitor(!showMonitor) },
-                    { id: 'telemetry', label: 'Thông số kho', desc: 'Real-time Telemetry', icon: TrendingUp, color: '#F59E0B', active: showTelemetry, onClick: () => setShowTelemetry(!showTelemetry) },
-                    { id: 'controls', label: 'Bộ lọc dữ liệu', desc: 'Control Center', icon: Sliders, color: '#22D3EE', active: showControls, onClick: () => setShowControls(!showControls) },
-                    { id: 'top10', label: 'Bảng xếp hạng', desc: 'Top 10 bưu cục', icon: ListOrdered, color: '#8B5CF6', active: showTop10, onClick: () => setShowTop10(!showTop10) },
+                    { id: 'monitor', label: 'Giám sát phân khu', active: showMonitor, onClick: () => setShowMonitor(!showMonitor) },
+                    { id: 'telemetry', label: 'Thông số kho', active: showTelemetry, onClick: () => setShowTelemetry(!showTelemetry) },
+                    { id: 'controls', label: 'Bộ lọc dữ liệu', active: showControls, onClick: () => setShowControls(!showControls) },
+                    { id: 'top10', label: 'Bảng xếp hạng', active: showTop10, onClick: () => setShowTop10(!showTop10) },
                   ].map(item => {
-                    const Icon = item.icon;
                     return (
                       <button
                         key={item.id}
                         onClick={item.onClick}
-                        className={`w-full flex items-center gap-4 px-3 py-2.5 rounded-2xl text-left transition-all duration-180 group relative ${
+                        className={`w-full flex items-center px-3.5 py-2 rounded-xl text-left transition-all duration-150 font-outfit ${
                           item.active 
-                            ? 'text-white bg-[#2d466e]/30' 
-                            : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.02]'
+                            ? 'text-white bg-[#2c303a] font-bold shadow-sm' 
+                            : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-medium'
                         }`}
-                        style={item.active ? { 
-                          boxShadow: `0 0 8px ${item.color}08`
-                        } : {}}
                       >
-                        {item.active && (
-                          <div 
-                            className="absolute left-0 top-3.5 bottom-3.5 w-[3px] rounded-r"
-                            style={{ backgroundColor: item.color }}
-                          />
-                        )}
-                        <div 
-                          className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all duration-180 group-hover:scale-105"
-                          style={{ 
-                            backgroundColor: 'rgba(255,255,255,0.03)',
-                            border: '1px solid rgba(255,255,255,0.05)',
-                            color: item.active ? item.color : '#94A3B8',
-                            boxShadow: item.active ? `0 0 8px ${item.color}30` : 'none'
-                          }}
-                        >
-                          <Icon 
-                            size={16} 
-                            strokeWidth={2}
-                          />
-                        </div>
-                        {sidebarHovered && (
-                          <div className="flex flex-col select-none">
-                            <span className="text-base font-semibold leading-normal tracking-wide">{item.label}</span>
-                            <span className="text-xs text-[#94A3B8] mt-1 font-normal leading-relaxed">{item.desc}</span>
-                          </div>
-                        )}
-                        {!sidebarHovered && (
-                          <div className="absolute left-16 bg-[#0a0e14] text-white text-[9.5px] py-1 px-2 rounded border border-white/10 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-180 whitespace-nowrap z-50 shadow-xl">
-                            {item.label}
-                          </div>
+                        {sidebarHovered ? (
+                          <span className="text-xs tracking-tight font-outfit">{item.label}</span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-center w-full text-slate-400 font-outfit">{item.label.substring(0, 2)}</span>
                         )}
                       </button>
                     );
