@@ -1480,11 +1480,11 @@ export default function App() {
             {/* Menu Items */}
             <div className="flex-1 py-3 space-y-3 px-1.5 overflow-y-auto scrollbar-none font-outfit" style={{ scrollbarWidth: 'none' }}>
               
-              {/* Group 1: DASHBOARD VIEWS (No "DASHBOARD" label, Theme Colored Active Text) */}
+              {/* Group 1: DASHBOARD VIEWS (Theme Colored Active Text, 10% Subtle Rounding) */}
               <div className="space-y-1 font-outfit">
                 {[
                   { id: 'master', label: 'Layout', color: '#4F8CFF', active: currentView === 'master', onClick: () => setCurrentView('master') },
-                  { id: 'inbound', label: 'Inbound', color: '#a3e635', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
+                  { id: 'inbound', label: 'Inbound', color: '#22d3ee', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
                   { id: 'heatmap', label: 'Heatmap', color: '#10B981', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
                   { id: 'kpi', label: 'KPI', color: '#F59E0B', active: currentView === 'kpi', onClick: () => setCurrentView('kpi') },
                 ].map(item => {
@@ -1492,22 +1492,22 @@ export default function App() {
                     <button
                       key={item.id}
                       onClick={item.onClick}
-                      className={`w-full flex items-center rounded-xl text-left transition-all duration-150 font-outfit relative ${
+                      className={`w-full flex items-center text-left transition-all duration-150 font-outfit relative rounded-sm ${
                         sidebarHovered ? 'px-3 py-2' : 'justify-center p-2'
                       } ${
                         item.active 
-                          ? 'bg-[#2c303a] font-black shadow-sm' 
-                          : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-bold'
+                          ? 'bg-[#2c303a] font-extrabold shadow-sm' 
+                          : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-semibold'
                       }`}
                       style={item.active ? { 
                         color: item.color,
-                        boxShadow: `0 0 12px ${item.color}25`,
+                        boxShadow: `0 0 10px ${item.color}20`,
                         fontFamily: "'Outfit', sans-serif" 
                       } : { fontFamily: "'Outfit', sans-serif" }}
                     >
                       {item.active && (
                         <div 
-                          className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r"
+                          className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-sm"
                           style={{ backgroundColor: item.color }}
                         />
                       )}
@@ -1525,11 +1525,11 @@ export default function App() {
                 })}
               </div>
 
-              {/* Group 2: PANEL / TIỆN ÍCH */}
+              {/* Group 2: PANEL / TIỆN ÍCH (Unbolded font-normal text) */}
               {currentView === 'master' && (
-                <div className="space-y-1 pt-3 border-t border-white/[0.08] font-outfit">
+                <div className="space-y-0.5 pt-2.5 border-t border-white/[0.08] font-outfit">
                   {sidebarHovered && (
-                    <div className="px-3 text-[10px] text-slate-400 font-black tracking-[0.1em] uppercase mb-1.5 select-none font-outfit">
+                    <div className="px-3 text-[10px] text-slate-400 font-semibold tracking-[0.08em] uppercase mb-1 select-none font-outfit">
                       PANEL / TIỆN ÍCH
                     </div>
                   )}
@@ -1543,19 +1543,19 @@ export default function App() {
                       <button
                         key={item.id}
                         onClick={item.onClick}
-                        className={`w-full flex items-center rounded-xl text-left transition-all duration-150 font-outfit ${
+                        className={`w-full flex items-center rounded-sm text-left transition-all duration-150 font-outfit ${
                           sidebarHovered ? 'px-3 py-1.5' : 'justify-center p-2'
                         } ${
                           item.active 
-                            ? 'text-white bg-[#2c303a] font-extrabold shadow-sm' 
-                            : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-bold'
+                            ? 'text-white bg-[#2c303a] font-normal shadow-sm' 
+                            : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-normal'
                         }`}
                         style={{ fontFamily: "'Outfit', sans-serif" }}
                       >
                         {sidebarHovered ? (
-                          <span className="text-[13.5px] font-bold tracking-tight whitespace-nowrap font-outfit">{item.label}</span>
+                          <span className="text-[13px] font-normal tracking-normal whitespace-nowrap font-outfit text-slate-300">{item.label}</span>
                         ) : (
-                          <span className="text-[10px] font-bold text-slate-400 font-outfit">{item.label.substring(0, 2)}</span>
+                          <span className="text-[10px] font-normal text-slate-400 font-outfit">{item.label.substring(0, 2)}</span>
                         )}
                       </button>
                     );
