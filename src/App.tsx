@@ -1484,7 +1484,7 @@ export default function App() {
               <div className="space-y-1 font-outfit">
                 {[
                   { id: 'master', label: 'Layout', color: '#4F8CFF', active: currentView === 'master', onClick: () => setCurrentView('master') },
-                  { id: 'inbound', label: 'Inbound', color: '#22d3ee', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
+                  { id: 'inbound', label: 'Inbound', color: '#B8F7E4', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
                   { id: 'heatmap', label: 'Heatmap', color: '#10B981', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
                   { id: 'kpi', label: 'KPI', color: '#F59E0B', active: currentView === 'kpi', onClick: () => setCurrentView('kpi') },
                 ].map(item => {
