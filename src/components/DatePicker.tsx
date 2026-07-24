@@ -163,7 +163,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             <button
               type="button"
               onClick={() => setMode('single')}
-              className={`flex-1 py-1.5 text-[11px] font-extrabold rounded-md text-center flex items-center justify-center transition-all font-outfit ${
+              className={`flex-1 py-1.5 text-[13px] font-extrabold rounded-md text-center flex items-center justify-center transition-all font-outfit ${
                 mode === 'single' ? 'bg-[#a3e635] text-black font-extrabold shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -172,7 +172,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             <button
               type="button"
               onClick={() => setMode('month')}
-              className={`flex-1 py-1.5 text-[11px] font-extrabold rounded-md text-center flex items-center justify-center transition-all font-outfit ${
+              className={`flex-1 py-1.5 text-[13px] font-extrabold rounded-md text-center flex items-center justify-center transition-all font-outfit ${
                 mode === 'month' ? 'bg-[#a3e635] text-black font-extrabold shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -183,33 +183,32 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           {/* DAY SELECTION VIEW */}
           {mode === 'single' && (
             <div>
-              {/* Header: Click Month Year title to switch to Month View */}
+              {/* Header: Centered Month Year title flanked by Prev/Next arrows */}
               <div className="flex items-center justify-between mb-2.5 px-1 text-center">
                 <button
                   type="button"
+                  onClick={handlePrevMonth}
+                  className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-md text-slate-400 hover:text-[#a3e635] hover:bg-white/10 transition-colors"
+                >
+                  <i className="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => setMode('month')}
-                  className="font-extrabold text-sm text-[#a3e635] hover:underline tracking-tight text-center font-outfit flex items-center gap-1"
+                  className="font-extrabold text-sm text-[#a3e635] hover:underline tracking-tight text-center font-outfit flex items-center justify-center gap-1 mx-auto"
                 >
                   <span>{monthNamesEn[viewMonth - 1]} {viewYear}</span>
                   <i className="fa-solid fa-caret-down text-xs text-[#a3e635]"></i>
                 </button>
 
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={handlePrevMonth}
-                    className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-md text-slate-400 hover:text-[#a3e635] hover:bg-white/10 transition-colors"
-                  >
-                    <i className="fa-solid fa-chevron-left text-xs"></i>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleNextMonth}
-                    className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-md text-slate-400 hover:text-[#a3e635] hover:bg-white/10 transition-colors"
-                  >
-                    <i className="fa-solid fa-chevron-right text-xs"></i>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleNextMonth}
+                  className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-md text-slate-400 hover:text-[#a3e635] hover:bg-white/10 transition-colors"
+                >
+                  <i className="fa-solid fa-chevron-right text-xs"></i>
+                </button>
               </div>
 
               {/* Days of Week Header: S M T W T F S */}
@@ -268,26 +267,25 @@ export const DatePicker: React.FC<DatePickerProps> = ({
           {mode === 'month' && (
             <div>
               <div className="flex items-center justify-between mb-2.5 px-1 text-center">
-                <span className="font-extrabold text-sm text-[#a3e635] tracking-wider text-center font-outfit">
+                <button
+                  type="button"
+                  onClick={handlePrevYear}
+                  className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-md text-slate-400 hover:text-[#a3e635] hover:bg-white/10"
+                >
+                  <i className="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+
+                <span className="font-extrabold text-sm text-[#a3e635] tracking-wider text-center font-outfit mx-auto">
                   NĂM {viewYear}
                 </span>
 
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={handlePrevYear}
-                    className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-md text-slate-400 hover:text-[#a3e635] hover:bg-white/10"
-                  >
-                    <i className="fa-solid fa-chevron-left text-xs"></i>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleNextYear}
-                    className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-md text-slate-400 hover:text-[#a3e635] hover:bg-white/10"
-                  >
-                    <i className="fa-solid fa-chevron-right text-xs"></i>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleNextYear}
+                  className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-md text-slate-400 hover:text-[#a3e635] hover:bg-white/10"
+                >
+                  <i className="fa-solid fa-chevron-right text-xs"></i>
+                </button>
               </div>
 
               {/* 4 Columns x 3 Rows 1:1 Perfect Squares */}
