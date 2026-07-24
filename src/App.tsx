@@ -352,10 +352,10 @@ export default function App() {
   const [arrivalData, setArrivalData] = useState<any[]>([]);
   const [truckEtaData, setTruckEtaData] = useState<any[]>([]);
   const [selectedInboundDate, setSelectedInboundDate] = useState<string>('');
-  const showMonitor = true;
-  const showTelemetry = true;
-  const showControls = true;
-  const showTop10 = true;
+  const [showMonitor, setShowMonitor] = useState(true);
+  const [showTelemetry, setShowTelemetry] = useState(true);
+  const [showControls, setShowControls] = useState(true);
+  const [showTop10, setShowTop10] = useState(true);
   const [activeTab, setActiveTab] = useState<'layout' | 'inbound' | 'top10' | 'stats' | 'heatmap' | 'kpi'>('inbound');
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
   const [data,       setData]       = useState<any>(generateMockData());
@@ -1457,22 +1457,22 @@ export default function App() {
       {!isMobile ? (
         /* ── DESKTOP LAYOUT ── */
         <>
-          {/* Sidebar Menu - Ultra Compact Width w-32 (128px) with Larger Text */}
+          {/* Sidebar Menu - Ultra Compact Width w-[84px] (Shrunk by ~40%) with PANEL Section */}
           <div 
-            className="fixed top-0 left-0 h-full z-40 w-32 flex flex-col bg-[#121519]/90 backdrop-blur-xl border-r border-white/[0.06] font-outfit"
+            className="fixed top-0 left-0 h-full z-40 w-[84px] flex flex-col bg-[#121519]/95 backdrop-blur-xl border-r border-white/[0.06] font-outfit select-none"
             style={{ fontFamily: "'Outfit', sans-serif" }}
           >
-            {/* Sidebar Header - Larger Menu Title */}
-            <div className="flex items-center p-3 border-b border-white/[0.08] h-13 px-3.5 gap-2">
-              <Menu size={20} className="text-slate-200 shrink-0" />
-              <span className="text-[17px] font-black text-slate-100 tracking-tight select-none font-outfit">Menu</span>
+            {/* Sidebar Header */}
+            <div className="flex items-center justify-center p-2.5 border-b border-white/[0.08] h-12 gap-1.5">
+              <Menu size={16} className="text-slate-200 shrink-0" />
+              <span className="text-sm font-black text-slate-100 tracking-tight font-outfit">Menu</span>
             </div>
 
             {/* Menu Items */}
-            <div className="flex-1 py-3.5 space-y-3 px-2 overflow-y-auto scrollbar-none font-outfit" style={{ scrollbarWidth: 'none' }}>
+            <div className="flex-1 py-3 space-y-3 px-1.5 overflow-y-auto scrollbar-none font-outfit" style={{ scrollbarWidth: 'none' }}>
               
-              {/* Group 1: DASHBOARD VIEWS ONLY */}
-              <div className="space-y-1.5 font-outfit">
+              {/* Group 1: DASHBOARD VIEWS */}
+              <div className="space-y-1 font-outfit">
                 {[
                   { id: 'master', label: 'Layout', active: currentView === 'master', onClick: () => setCurrentView('master') },
                   { id: 'inbound', label: 'Inbound', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
@@ -1483,18 +1483,48 @@ export default function App() {
                     <button
                       key={item.id}
                       onClick={item.onClick}
-                      className={`w-full flex items-center px-3 py-2.5 rounded-xl text-left transition-all duration-150 font-outfit ${
+                      className={`w-full flex items-center justify-center py-2 px-1 rounded-xl transition-all duration-150 font-outfit ${
                         item.active 
                           ? 'text-white bg-[#2c303a] font-black shadow-sm' 
                           : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-bold'
                       }`}
                       style={{ fontFamily: "'Outfit', sans-serif" }}
                     >
-                      <span className="text-base font-extrabold tracking-tight font-outfit">{item.label}</span>
+                      <span className="text-[13px] font-extrabold tracking-tight text-center font-outfit">{item.label}</span>
                     </button>
                   );
                 })}
               </div>
+
+              {/* Group 2: PANEL / TIỆN ÍCH */}
+              {currentView === 'master' && (
+                <div className="space-y-1 pt-2.5 border-t border-white/[0.08] font-outfit">
+                  <div className="text-[9px] text-slate-400 font-black tracking-wider uppercase mb-1 text-center font-outfit">
+                    PANEL
+                  </div>
+                  {[
+                    { id: 'monitor', label: 'Giám sát', active: showMonitor, onClick: () => setShowMonitor(!showMonitor) },
+                    { id: 'telemetry', label: 'Thông số', active: showTelemetry, onClick: () => setShowTelemetry(!showTelemetry) },
+                    { id: 'controls', label: 'Bộ lọc', active: showControls, onClick: () => setShowControls(!showControls) },
+                    { id: 'top10', label: 'Top 10', active: showTop10, onClick: () => setShowTop10(!showTop10) },
+                  ].map(item => {
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={item.onClick}
+                        className={`w-full flex items-center justify-center py-1.5 px-1 rounded-xl transition-all duration-150 font-outfit ${
+                          item.active 
+                            ? 'text-white bg-[#2c303a] font-bold shadow-sm' 
+                            : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-medium'
+                        }`}
+                        style={{ fontFamily: "'Outfit', sans-serif" }}
+                      >
+                        <span className="text-[11.5px] font-bold tracking-tight text-center font-outfit">{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
             </div>
           </div>
@@ -1503,7 +1533,7 @@ export default function App() {
           {currentView === 'master' && (
             <div
               className="absolute z-30 select-none"
-              style={{ top: '14px', left: '140px' }}
+              style={{ top: '14px', left: '96px' }}
             >
               <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '72px', borderRadius: '10px', display: 'block' }} />
             </div>
@@ -1513,7 +1543,7 @@ export default function App() {
           {currentView === 'master' && (
             <div 
               className="absolute z-20 top-[104px] w-72 flex flex-col gap-4 max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-300"
-              style={{ left: '140px' }}
+              style={{ left: '96px' }}
             >
               
               {/* 1. OPERATIONAL MONITOR & ZONE METRICS */}
@@ -1827,7 +1857,7 @@ export default function App() {
           {currentView === 'master' && (
             <div 
               className="absolute bottom-16 z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg transition-all duration-300"
-              style={{ left: '140px' }}
+              style={{ left: '96px' }}
             >
               {[['#0c883d','Ô chứa'],['var(--orange)','Cổng Outbound'],
                 ['var(--inbound)','Cổng Inbound'],['rgba(100,116,139,0.7)','Xe tải']].map(([c,l])=>(
@@ -1869,11 +1899,11 @@ export default function App() {
             style={!isMobile ? (
               currentView === 'master'
                 ? {
-                    left: '434px',
+                    left: '390px',
                     right: '384px'
                   }
                 : {
-                    paddingLeft: '140px',
+                    paddingLeft: '96px',
                     paddingRight: '24px'
                   }
             ) : {
