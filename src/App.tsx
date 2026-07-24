@@ -1759,8 +1759,8 @@ export default function App() {
               {/* A. Control Center Panel */}
               {showControls && (
                 <div 
-                  className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-20 rounded-xl"
-                  style={{ borderRadius: '12px' }}
+                  className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-20 rounded-lg"
+                  style={{ borderRadius: '8px' }}
                 >
                   {currentView === 'master' ? (
                     <>
@@ -1866,8 +1866,8 @@ export default function App() {
               {/* B. TOP 10 RACKS */}
               {currentView === 'master' && showTop10 && (
                 <div 
-                  className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-10 animate-fade-in rounded-xl"
-                  style={{ borderRadius: '12px' }}
+                  className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-10 animate-fade-in rounded-lg"
+                  style={{ borderRadius: '8px' }}
                 >
                   {/* Header Title */}
                   <div className="flex justify-center items-center mb-2.5 pb-2.5 border-b border-white/[0.08]">
