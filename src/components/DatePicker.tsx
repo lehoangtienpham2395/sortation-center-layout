@@ -130,12 +130,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     <div className={`relative inline-block font-outfit ${className}`} style={{ fontFamily: "'Outfit', sans-serif" }} ref={containerRef}>
       {label && <label className="block text-xs uppercase font-bold text-slate-400 mb-1 text-center font-outfit">{label}</label>}
 
-      {/* Trigger Button */}
+      {/* Trigger Button - Thin Border, Rounded-xl (20%), Glassmorphism Glow Shadow */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-center gap-2 px-3.5 py-2 rounded-none bg-[#121519] border-2 border-[#a3e635]/60 text-white font-semibold text-[13px] transition-all shadow-md hover:border-[#a3e635] text-center font-outfit"
-        style={{ fontFamily: "'Outfit', sans-serif" }}
+        className="w-full flex items-center justify-center gap-2 px-3.5 py-2 rounded-xl bg-[#121519]/90 backdrop-blur-md border border-white/15 text-white font-semibold text-[13px] transition-all duration-200 hover:border-[#a3e635]/60 hover:bg-white/[0.04] text-center font-outfit shadow-lg"
+        style={{ 
+          fontFamily: "'Outfit', sans-serif",
+          boxShadow: '0 4px 20px rgba(0,0,0,0.4), 0 0 15px rgba(163,230,53,0.08)'
+        }}
       >
         <i className="fa-regular fa-calendar-days text-[#a3e635] text-sm shrink-0"></i>
         <span className="font-bold text-slate-100 tracking-tight text-[13px] text-center whitespace-nowrap font-outfit">
@@ -144,18 +147,21 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         <i className={`fa-solid fa-chevron-down text-[10px] text-[#a3e635] shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}></i>
       </button>
 
-      {/* Popover Card */}
+      {/* Popover Card - Thin Border, Rounded-xl, Glassmorphism Backdrop Blur & Glowing Shadow */}
       {isOpen && (
         <div
-          className={`absolute top-full mt-2 z-50 w-60 bg-[#121519] border border-[#2a2f38] rounded-none shadow-2xl p-3 text-white font-outfit ${alignClass}`}
-          style={{ fontFamily: "'Outfit', sans-serif", boxShadow: '0 20px 40px -10px rgba(0,0,0,0.95), 0 0 25px rgba(163,230,53,0.1)' }}
+          className={`absolute top-full mt-2 z-50 w-64 bg-[#121519]/95 backdrop-blur-2xl border border-white/15 rounded-xl p-3.5 text-white font-outfit ${alignClass}`}
+          style={{ 
+            fontFamily: "'Outfit', sans-serif", 
+            boxShadow: '0 20px 40px -10px rgba(0,0,0,0.95), 0 0 25px rgba(163,230,53,0.15)' 
+          }}
         >
           {/* Mode Switcher Tabs: 2 Tabs ONLY [ Ngày | Tháng ] */}
-          <div className="flex bg-[#16191e] p-0.5 rounded-none mb-3 border border-[#232832]">
+          <div className="flex bg-[#16191e]/90 p-1 rounded-lg mb-3 border border-white/10">
             <button
               type="button"
               onClick={() => setMode('single')}
-              className={`flex-1 py-1.5 text-[11px] font-extrabold rounded-none text-center flex items-center justify-center transition-all font-outfit ${
+              className={`flex-1 py-1.5 text-[11px] font-extrabold rounded-md text-center flex items-center justify-center transition-all font-outfit ${
                 mode === 'single' ? 'bg-[#a3e635] text-black font-extrabold shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -164,7 +170,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             <button
               type="button"
               onClick={() => setMode('month')}
-              className={`flex-1 py-1.5 text-[11px] font-extrabold rounded-none text-center flex items-center justify-center transition-all font-outfit ${
+              className={`flex-1 py-1.5 text-[11px] font-extrabold rounded-md text-center flex items-center justify-center transition-all font-outfit ${
                 mode === 'month' ? 'bg-[#a3e635] text-black font-extrabold shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -190,14 +196,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   <button
                     type="button"
                     onClick={handlePrevMonth}
-                    className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-none text-slate-400 hover:text-[#a3e635] hover:bg-[#1c2128] transition-colors"
+                    className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-md text-slate-400 hover:text-[#a3e635] hover:bg-white/10 transition-colors"
                   >
                     <i className="fa-solid fa-chevron-left text-xs"></i>
                   </button>
                   <button
                     type="button"
                     onClick={handleNextMonth}
-                    className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-none text-slate-400 hover:text-[#a3e635] hover:bg-[#1c2128] transition-colors"
+                    className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-md text-slate-400 hover:text-[#a3e635] hover:bg-white/10 transition-colors"
                   >
                     <i className="fa-solid fa-chevron-right text-xs"></i>
                   </button>
@@ -215,7 +221,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 <span className="flex items-center justify-center">S</span>
               </div>
 
-              {/* Day Grid - Perfect 1:1 Squares */}
+              {/* Day Grid - Perfect 1:1 Squares with Rounded Corners */}
               <div className="grid grid-cols-7 gap-0.5 text-center text-[13px] font-outfit">
                 {/* Empty cells before month start */}
                 {Array.from({ length: startDayOfWeek }).map((_, i) => (
@@ -229,15 +235,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   const isSelected = activeDay === dateStr;
                   const isToday = todayStr === dateStr;
 
-                  // CSS classes: Perfect 1:1 Square Cells
-                  let cellClasses = 'aspect-square w-full flex items-center justify-center text-center text-[13px] font-extrabold leading-none rounded-none transition-all font-outfit ';
+                  // CSS classes: Perfect 1:1 Square Cells with Rounded Corners
+                  let cellClasses = 'aspect-square w-full flex items-center justify-center text-center text-[13px] font-extrabold leading-none rounded-md transition-all font-outfit ';
 
                   if (isSelected) {
-                    cellClasses += 'bg-[#a3e635] text-black font-black z-10 ';
+                    cellClasses += 'bg-[#a3e635] text-black font-black z-10 shadow-sm ';
                   } else if (isToday) {
-                    cellClasses += 'border-2 border-[#a3e635] text-[#a3e635] font-black hover:bg-[#a3e635]/15 ';
+                    cellClasses += 'border border-[#a3e635] text-[#a3e635] font-black hover:bg-[#a3e635]/15 ';
                   } else {
-                    cellClasses += 'text-slate-200 hover:bg-[#1c2128] hover:text-[#a3e635] ';
+                    cellClasses += 'text-slate-200 hover:bg-white/10 hover:text-[#a3e635] ';
                   }
 
                   return (
@@ -268,14 +274,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   <button
                     type="button"
                     onClick={handlePrevYear}
-                    className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-none text-slate-400 hover:text-[#a3e635] hover:bg-[#1c2128]"
+                    className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-md text-slate-400 hover:text-[#a3e635] hover:bg-white/10"
                   >
                     <i className="fa-solid fa-chevron-left text-xs"></i>
                   </button>
                   <button
                     type="button"
                     onClick={handleNextYear}
-                    className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-none text-slate-400 hover:text-[#a3e635] hover:bg-[#1c2128]"
+                    className="w-6.5 h-6.5 flex items-center justify-center text-center rounded-md text-slate-400 hover:text-[#a3e635] hover:bg-white/10"
                   >
                     <i className="fa-solid fa-chevron-right text-xs"></i>
                   </button>
@@ -293,10 +299,10 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                       key={monthNum}
                       type="button"
                       onClick={() => handleMonthClick(monthNum)}
-                      className={`aspect-square w-full rounded-none text-center flex items-center justify-center transition-all font-outfit ${
+                      className={`aspect-square w-full rounded-lg text-center flex items-center justify-center transition-all font-outfit ${
                         isCurrentMonthView
                           ? 'bg-[#a3e635] text-black font-black shadow-sm'
-                          : 'bg-[#16191e] text-slate-200 hover:bg-[#1c2128] hover:text-[#a3e635] border border-[#232832]'
+                          : 'bg-[#16191e]/90 text-slate-200 hover:bg-white/10 hover:text-[#a3e635] border border-white/10'
                       }`}
                       style={{ fontFamily: "'Outfit', sans-serif" }}
                     >
