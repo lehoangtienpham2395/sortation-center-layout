@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 export interface DatePickerProps {
-  selectedDate: string; // "YYYY-MM-DD" or "YYYY-MM-DD..YYYY-MM-DD" or "YYYY-MM"
-  onDateChange: (dateStr: string, isMonthMode?: boolean) => void;
+  selectedDate: string; // "YYYY-MM-DD"
+  onDateChange: (dateStr: string) => void;
   availableDates?: string[]; // Array of "YYYY-MM-DD"
   label?: string;
   className?: string;
@@ -18,37 +18,19 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   align = 'center'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [mode, setMode] = useState<'range' | 'single' | 'month'>('single');
+  const [mode, setMode] = useState<'single' | 'month'>('single');
 
-  // Range selection draft state
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-  const [hoverDate, setHoverDate] = useState<string>('');
-
-  const parseInitial = (str: string) => {
-    if (!str) return { start: '', end: '' };
-    if (str.includes('..')) {
-      const [s, e] = str.split('..');
-      return { start: s, end: e };
-    }
-    return { start: str, end: str };
-  };
+  // Selected single date state
+  const [activeDay, setActiveDay] = useState<string>(selectedDate || '');
 
   useEffect(() => {
-    const { start, end } = parseInitial(selectedDate);
-    setStartDate(start);
-    setEndDate(end);
-
-    if (selectedDate && selectedDate.length === 7) {
-      setMode('month');
-    }
+    setActiveDay(selectedDate || '');
   }, [selectedDate]);
 
   // Current view Month and Year
   const getInitialView = () => {
-    const base = startDate || selectedDate || '';
-    if (base) {
-      const parts = base.split('-').map(Number);
+    if (selectedDate && selectedDate.includes('-')) {
+      const parts = selectedDate.split('-').map(Number);
       if (parts[0] && parts[1]) {
         return { year: parts[0], month: parts[1] };
       }
@@ -78,7 +60,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   const pad = (n: number) => String(n).padStart(2, '0');
   const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
 
-  // Month navigation
+  // Month navigation in Day view
   const handlePrevMonth = () => {
     if (viewMonth === 1) {
       setViewMonth(12);
@@ -100,43 +82,17 @@ export const DatePicker: React.FC<DatePickerProps> = ({
   const handlePrevYear = () => setViewYear(viewYear - 1);
   const handleNextYear = () => setViewYear(viewYear + 1);
 
-  // Calendar Day Click Handler (Range logic)
+  // Calendar Day Click Handler -> Select Date and Close
   const handleDayClick = (dateStr: string) => {
-    if (mode === 'single') {
-      setStartDate(dateStr);
-      setEndDate(dateStr);
-      onDateChange(dateStr, false);
-      setIsOpen(false);
-      return;
-    }
-
-    // Range Mode Selection
-    if (!startDate || (startDate && endDate)) {
-      // Step 1: Pick start date
-      setStartDate(dateStr);
-      setEndDate('');
-    } else if (startDate && !endDate) {
-      // Step 2: Pick end date
-      if (dateStr < startDate) {
-        setStartDate(dateStr);
-        setEndDate(startDate);
-        onDateChange(`${dateStr}..${startDate}`, false);
-      } else if (dateStr === startDate) {
-        setEndDate(dateStr);
-        onDateChange(dateStr, false);
-      } else {
-        setEndDate(dateStr);
-        onDateChange(`${startDate}..${dateStr}`, false);
-      }
-      setIsOpen(false);
-    }
+    setActiveDay(dateStr);
+    onDateChange(dateStr);
+    setIsOpen(false);
   };
 
-  // Month selection handler
+  // Month Click Handler -> Jump to Day view of that month!
   const handleMonthClick = (mNum: number) => {
-    const formatted = `${viewYear}-${pad(mNum)}`;
-    onDateChange(formatted, true);
-    setIsOpen(false);
+    setViewMonth(mNum);
+    setMode('single'); // Jump automatically to day selection of that month!
   };
 
   // Calculations for calendar grid
@@ -157,35 +113,12 @@ export const DatePicker: React.FC<DatePickerProps> = ({
 
   // Helper date formatter for trigger button
   const formatTriggerText = () => {
-    if (selectedDate && selectedDate.length === 7) {
-      const [y, m] = selectedDate.split('-');
-      return `Tháng ${m}, ${y}`;
-    }
-
-    const formatDateNice = (dStr: string) => {
-      if (!dStr) return '';
-      const [y, m, d] = dStr.split('-').map(Number);
-      const dateObj = new Date(y, m - 1, d);
-      const monthShort = dateObj.toLocaleString('en-US', { month: 'short' });
-      return `${monthShort} ${d}, ${y}`;
-    };
-
-    if (startDate && endDate) {
-      if (startDate === endDate) return formatDateNice(startDate);
-      const [sy, , sd] = startDate.split('-').map(Number);
-      const [ey, , ed] = endDate.split('-').map(Number);
-      const sObj = new Date(sy, Number(startDate.split('-')[1]) - 1, sd);
-
-      const sMonth = sObj.toLocaleString('en-US', { month: 'short' });
-
-      if (sy === ey) {
-        return `${sMonth} ${sd}–${ed}, ${ey}`;
-      }
-      return `${formatDateNice(startDate)}–${formatDateNice(endDate)}`;
-    }
-
-    if (startDate) return formatDateNice(startDate);
-    return 'Chọn ngày';
+    const dStr = activeDay || selectedDate;
+    if (!dStr) return 'Chọn ngày';
+    const [y, m, d] = dStr.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    const monthShort = dateObj.toLocaleString('en-US', { month: 'short' });
+    return `${monthShort} ${d}, ${y}`;
   };
 
   const alignClass =
@@ -197,7 +130,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
     <div className={`relative inline-block font-outfit ${className}`} style={{ fontFamily: "'Outfit', sans-serif" }} ref={containerRef}>
       {label && <label className="block text-xs uppercase font-bold text-slate-400 mb-1 text-center font-outfit">{label}</label>}
 
-      {/* Trigger Button - 100% Synced Dark Theme, Sharp Square 1:1, Outfit font */}
+      {/* Trigger Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
@@ -211,13 +144,13 @@ export const DatePicker: React.FC<DatePickerProps> = ({
         <i className={`fa-solid fa-chevron-down text-[10px] text-[#a3e635] shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}></i>
       </button>
 
-      {/* Popover Card - w-64, #121519, rounded-none */}
+      {/* Popover Card */}
       {isOpen && (
         <div
-          className={`absolute top-full mt-2 z-50 w-64 bg-[#121519] border border-[#2a2f38] rounded-none shadow-2xl p-3 text-white font-outfit ${alignClass}`}
+          className={`absolute top-full mt-2 z-50 w-60 bg-[#121519] border border-[#2a2f38] rounded-none shadow-2xl p-3 text-white font-outfit ${alignClass}`}
           style={{ fontFamily: "'Outfit', sans-serif", boxShadow: '0 20px 40px -10px rgba(0,0,0,0.95), 0 0 25px rgba(163,230,53,0.1)' }}
         >
-          {/* Mode Switcher Tabs */}
+          {/* Mode Switcher Tabs: 2 Tabs ONLY [ Ngày | Tháng ] */}
           <div className="flex bg-[#16191e] p-0.5 rounded-none mb-3 border border-[#232832]">
             <button
               type="button"
@@ -230,15 +163,6 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => setMode('range')}
-              className={`flex-1 py-1.5 text-[11px] font-extrabold rounded-none text-center flex items-center justify-center transition-all font-outfit ${
-                mode === 'range' ? 'bg-[#a3e635] text-black font-extrabold shadow-sm' : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Khoảng
-            </button>
-            <button
-              type="button"
               onClick={() => setMode('month')}
               className={`flex-1 py-1.5 text-[11px] font-extrabold rounded-none text-center flex items-center justify-center transition-all font-outfit ${
                 mode === 'month' ? 'bg-[#a3e635] text-black font-extrabold shadow-sm' : 'text-slate-400 hover:text-slate-200'
@@ -248,14 +172,19 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             </button>
           </div>
 
-          {/* DAY RANGE & SINGLE VIEW */}
-          {(mode === 'range' || mode === 'single') && (
+          {/* DAY SELECTION VIEW */}
+          {mode === 'single' && (
             <div>
-              {/* Header: Month Year Title & Navigation Chevrons */}
+              {/* Header: Click Month Year title to switch to Month View */}
               <div className="flex items-center justify-between mb-2.5 px-1 text-center">
-                <span className="font-extrabold text-sm text-[#a3e635] tracking-tight text-center font-outfit">
-                  {monthNamesEn[viewMonth - 1]} {viewYear}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setMode('month')}
+                  className="font-extrabold text-sm text-[#a3e635] hover:underline tracking-tight text-center font-outfit flex items-center gap-1"
+                >
+                  <span>{monthNamesEn[viewMonth - 1]} {viewYear}</span>
+                  <i className="fa-solid fa-caret-down text-xs text-[#a3e635]"></i>
+                </button>
 
                 <div className="flex items-center gap-1">
                   <button
@@ -286,7 +215,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 <span className="flex items-center justify-center">S</span>
               </div>
 
-              {/* Day Grid - 1:1 Perfect Squares */}
+              {/* Day Grid - Perfect 1:1 Squares */}
               <div className="grid grid-cols-7 gap-0.5 text-center text-[13px] font-outfit">
                 {/* Empty cells before month start */}
                 {Array.from({ length: startDayOfWeek }).map((_, i) => (
@@ -297,27 +226,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                 {Array.from({ length: daysInCurrentMonth }).map((_, idx) => {
                   const dayNum = idx + 1;
                   const dateStr = `${viewYear}-${pad(viewMonth)}-${pad(dayNum)}`;
-
-                  // Calculate selection states
-                  const isStart = startDate === dateStr;
-                  const isEnd = endDate === dateStr;
-
-                  let activeEnd = endDate;
-                  if (startDate && !endDate && hoverDate && hoverDate >= startDate) {
-                    activeEnd = hoverDate;
-                  }
-
-                  const isRangeMiddle =
-                    startDate && activeEnd && dateStr > startDate && dateStr < activeEnd;
+                  const isSelected = activeDay === dateStr;
                   const isToday = todayStr === dateStr;
 
-                  // CSS classes
+                  // CSS classes: Perfect 1:1 Square Cells
                   let cellClasses = 'aspect-square w-full flex items-center justify-center text-center text-[13px] font-extrabold leading-none rounded-none transition-all font-outfit ';
 
-                  if (isStart || isEnd || dateStr === activeEnd) {
+                  if (isSelected) {
                     cellClasses += 'bg-[#a3e635] text-black font-black z-10 ';
-                  } else if (isRangeMiddle) {
-                    cellClasses += 'bg-[#a3e635]/25 text-[#f7fee7] font-bold ';
                   } else if (isToday) {
                     cellClasses += 'border-2 border-[#a3e635] text-[#a3e635] font-black hover:bg-[#a3e635]/15 ';
                   } else {
@@ -329,7 +245,6 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                       key={dayNum}
                       type="button"
                       onClick={() => handleDayClick(dateStr)}
-                      onMouseEnter={() => setHoverDate(dateStr)}
                       className={cellClasses}
                       style={{ fontFamily: "'Outfit', sans-serif" }}
                     >
@@ -341,7 +256,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
             </div>
           )}
 
-          {/* PERFECT SQUARE 4x3 MONTH GRID */}
+          {/* PERFECT SQUARE 4x3 MONTH GRID -> Click month jumps to Day view of that month */}
           {mode === 'month' && (
             <div>
               <div className="flex items-center justify-between mb-2.5 px-1 text-center">
@@ -371,8 +286,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
               <div className="grid grid-cols-4 gap-1 text-center font-outfit">
                 {monthNamesEn.map((name, idx) => {
                   const monthNum = idx + 1;
-                  const monthStr = `${viewYear}-${pad(monthNum)}`;
-                  const isSelected = selectedDate === monthStr;
+                  const isCurrentMonthView = viewMonth === monthNum;
 
                   return (
                     <button
@@ -380,7 +294,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                       type="button"
                       onClick={() => handleMonthClick(monthNum)}
                       className={`aspect-square w-full rounded-none text-center flex items-center justify-center transition-all font-outfit ${
-                        isSelected
+                        isCurrentMonthView
                           ? 'bg-[#a3e635] text-black font-black shadow-sm'
                           : 'bg-[#16191e] text-slate-200 hover:bg-[#1c2128] hover:text-[#a3e635] border border-[#232832]'
                       }`}
