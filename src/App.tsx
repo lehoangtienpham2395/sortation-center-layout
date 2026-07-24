@@ -1443,7 +1443,7 @@ export default function App() {
     <div className="w-full h-full relative font-sans text-white bg-[#02040a]">
       {!isMobile && currentView === 'master' && (
         <div className="absolute top-0 right-0 h-14 flex items-center justify-between px-6 z-50 transition-all duration-300 left-16 pointer-events-none"
-             style={{background:'linear-gradient(180deg,rgba(2,4,10,.95),rgba(2,4,10,0))'}}>
+             style={{ background: 'transparent' }}>
           <div className="flex items-center select-none" />
           <div className="flex items-center gap-4 pointer-events-auto">
             {lastUpdate && (
@@ -1610,7 +1610,7 @@ export default function App() {
               className="absolute z-30 select-none transition-all duration-200"
               style={{ top: '14px', left: sidebarHovered ? '176px' : '64px' }}
             >
-              <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '72px', borderRadius: '10px', display: 'block' }} />
+              <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '72px', display: 'block' }} />
             </div>
           )}
 
