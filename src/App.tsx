@@ -1904,11 +1904,7 @@ export default function App() {
                                   setHoveredZone(null);
                                 }}>
                               <td className="font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.2)' }}>{index + 1}</td>
-                              <td className="text-center py-1">
-                                <span className="inline-block px-1.5 py-0.5 rounded-md bg-[#22d3ee]/10 border border-[#22d3ee]/30 text-[#22d3ee] font-mono font-bold text-[10.5px] tracking-tight shadow-[0_0_8px_rgba(34,211,238,0.2)]">
-                                  {chute.areaId}
-                                </span>
-                              </td>
+                              <td className="mono font-bold text-center" style={{ color: '#22d3ee', fontSize: '11.5px', textShadow: '0 0 8px rgba(34, 211, 238, 0.5)' }}>{chute.areaId}</td>
                               <td className="font-bold text-white uppercase" style={{ fontSize: '11px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2' }} title={chute.name}>
                                 {chute.name.replace(/^(SG|BD|TG|DT|DN|LA)\s+/i, '')}
                               </td>
