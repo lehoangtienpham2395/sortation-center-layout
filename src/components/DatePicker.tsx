@@ -152,7 +152,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({
       {/* Popover Card - Thin Border, Rounded-xl, Glassmorphism Backdrop Blur & Glowing Shadow */}
       {isOpen && (
         <div
-          className={`absolute top-full mt-2 z-50 w-64 bg-[#121519]/95 backdrop-blur-2xl border border-white/15 rounded-xl p-3.5 text-white font-outfit ${alignClass}`}
+          className={`absolute top-full mt-2 z-[999] w-64 bg-[#121519]/95 backdrop-blur-2xl border border-white/15 rounded-xl p-3.5 text-white font-outfit ${alignClass}`}
           style={{ 
             fontFamily: "'Outfit', sans-serif", 
             boxShadow: '0 20px 40px -10px rgba(0,0,0,0.95), 0 0 25px rgba(163,230,53,0.15)' 
