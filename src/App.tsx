@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import InboundDashboard from './components/InboundDashboard';
 import HeatmapDashboard from './components/HeatmapDashboard';
 import KpiDashboard from './components/KpiDashboard';
+import { DatePicker } from './components/DatePicker';
 import { 
   LayoutDashboard, 
   Activity, 
@@ -378,7 +379,6 @@ export default function App() {
   const [tickerText, setTickerText] = useState('HỆ THỐNG ỔN ĐỊNH — KHÔNG CÓ CẢNH BÁO');
   const [loading,    setLoading]    = useState(false);
   const [hoveredZone,setHoveredZone] = useState<number | null>(null);
-  const [masterDateDropdownOpen, setMasterDateDropdownOpen] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string>('');
 
 
@@ -534,27 +534,36 @@ export default function App() {
   useEffect(() => {
     if (rawSheetRows.length === 0) return;
 
+    const isDateMatch = (rDate: string, sDate: string) => {
+      if (!rDate || !sDate) return false;
+      if (sDate.includes('..')) {
+        const [start, end] = sDate.split('..');
+        return rDate >= start && rDate <= end;
+      }
+      return sDate.length === 7 ? rDate.startsWith(sDate) : rDate === sDate;
+    };
+
     // Create lookup maps for both Backlog and the selectedType for the selectedDate
     const selectedMap: Record<string, SheetRow> = {};
     const backlogMap: Record<string, SheetRow> = {};
     // For Inventory: accumulate volumes per areaId across selected statuses
     const inventoryMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
 
-    const hasInventoryForSelectedDate = rawSheetRows.some(r => r.type === 'Inventory' && r.date === selectedDate);
-    const hasBacklogForSelectedDate = rawSheetRows.some(r => r.type === 'Backlog' && r.date === selectedDate);
+    const hasInventoryForSelectedDate = rawSheetRows.some(r => r.type === 'Inventory' && isDateMatch(r.date, selectedDate));
+    const hasBacklogForSelectedDate = rawSheetRows.some(r => r.type === 'Backlog' && isDateMatch(r.date, selectedDate));
 
     rawSheetRows.forEach(row => {
       const key = row.areaId;
       if (!key) return;
 
-      if (row.date === selectedDate) {
+      if (isDateMatch(row.date, selectedDate)) {
         if (row.type === selectedType && selectedType !== 'Inventory') {
           selectedMap[key] = row;
         }
       }
 
-      // For Inventory and Backlog, check if exact date exists, otherwise fallback to latest snapshot
-      const matchInventory = row.type === 'Inventory' && (hasInventoryForSelectedDate ? row.date === selectedDate : true);
+      // For Inventory and Backlog, check if exact/month date exists, otherwise fallback to latest snapshot
+      const matchInventory = row.type === 'Inventory' && (hasInventoryForSelectedDate ? isDateMatch(row.date, selectedDate) : true);
       if (matchInventory) {
         if (!row.status || selectedStatuses.includes(row.status)) {
           if (!inventoryMap[key]) {
@@ -565,7 +574,7 @@ export default function App() {
         }
       }
 
-      const matchBacklog = row.type === 'Backlog' && (hasBacklogForSelectedDate ? row.date === selectedDate : true);
+      const matchBacklog = row.type === 'Backlog' && (hasBacklogForSelectedDate ? isDateMatch(row.date, selectedDate) : true);
       if (matchBacklog) {
         backlogMap[key] = row;
       }
@@ -1793,71 +1802,15 @@ export default function App() {
                           })}
                         </div>
 
-                        {/* 2. NGÀY (Date Selector) - Custom Dropdown (100% giống INBOUND CONTROL) */}
+                        {/* 2. NGÀY / THÁNG (Calendar & Month Popover DatePicker) */}
                         <div className="relative z-50 w-full flex justify-center">
-                          <div className={`custom-datepicker ${masterDateDropdownOpen ? 'open' : ''} w-[170px]`}>
-                            <button 
-                              className="datepicker-trigger w-full flex justify-between items-center py-1 px-3 whitespace-nowrap flex-nowrap"
-                              style={{ fontSize: '11px' }}
-                              onClick={() => setMasterDateDropdownOpen(!masterDateDropdownOpen)}
-                            >
-                              <div className="flex items-center shrink-0">
-                                <i className="fa-regular fa-calendar-days icon-cal text-[#22d3ee] text-[13px]" style={{ marginRight: '6px' }}></i>
-                                <span className="font-bold text-slate-200 whitespace-nowrap" style={{ fontSize: '11px' }}>{selectedDate || 'Chọn ngày'}</span>
-                              </div>
-                              <i className="fa-solid fa-chevron-down icon-arrow text-slate-500 text-[9px]" style={{ transform: masterDateDropdownOpen ? 'rotate(180deg)' : 'none' }}></i>
-                            </button>
-                            {masterDateDropdownOpen && (
-                              <div className="datepicker-dropdown shadow-2xl" style={{ left: '50%', transform: 'translateX(-50%)', width: '180px', padding: '8px', opacity: 1, pointerEvents: 'auto' }}>
-                                <div className="datepicker-presets">
-                                  <button 
-                                    className="preset-btn text-[8.5px] hover:text-[#22d3ee] hover:border-[#22d3ee]/30 transition-all"
-                                    onClick={() => {
-                                      if (availableDates.length > 0) {
-                                        setSelectedDate(availableDates[0]);
-                                        setMasterDateDropdownOpen(false);
-                                      }
-                                    }}
-                                  >
-                                    Hôm nay
-                                  </button>
-                                  <button 
-                                    className="preset-btn text-[8.5px] hover:text-[#22d3ee] hover:border-[#22d3ee]/30 transition-all"
-                                    onClick={() => {
-                                      if (availableDates.length > 1) {
-                                        setSelectedDate(availableDates[1]);
-                                        setMasterDateDropdownOpen(false);
-                                      }
-                                    }}
-                                  >
-                                    Hôm qua
-                                  </button>
-                                </div>
-                                <div className="datepicker-list-header text-[7.5px]">Chọn ngày vận hành (30 ngày gần đây)</div>
-                                <div className="datepicker-list max-h-[96px] overflow-y-auto pr-1 scrollbar-thin">
-                                  {availableDates.map(d => {
-                                    const isActive = d === selectedDate;
-                                    return (
-                                      <button
-                                        key={d}
-                                        className={`datepicker-item text-[9px] transition-all ${
-                                          isActive 
-                                            ? 'bg-cyan-500/10 text-[#22d3ee] font-bold border-l-2 border-[#22d3ee]' 
-                                            : 'text-slate-400 hover:bg-white/5 hover:text-white'
-                                        }`}
-                                        onClick={() => {
-                                          setSelectedDate(d);
-                                          setMasterDateDropdownOpen(false);
-                                        }}
-                                      >
-                                        {d}
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                          </div>
+                          <DatePicker
+                            selectedDate={selectedDate}
+                            onDateChange={(d) => setSelectedDate(d)}
+                            availableDates={availableDates}
+                            className="w-[180px]"
+                            align="center"
+                          />
                         </div>
 
                         {/* 3. TRẠNG THÁI (Status Selector) - Modern Toggle Buttons */}
@@ -1940,7 +1893,7 @@ export default function App() {
               {currentView === 'master' && showTop10 && (
                 <div 
                   className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-10 animate-fade-in"
-                  style={{ pointerEvents: masterDateDropdownOpen ? 'none' : 'auto', marginTop: '64px' }}
+                  style={{ marginTop: '64px' }}
                 >
                   {/* Header Title */}
                   <div className="flex justify-center items-center mb-2.5 pb-2.5 border-b border-white/[0.08]">

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { DatePicker } from './DatePicker';
 import historySnapshots from '../data/history_snapshots.json';
 
 // Animated Number Ticker Component
@@ -138,7 +139,6 @@ export default function InboundDashboard({
   fetchAndUpdateData,
   lastUpdate
 }: InboundDashboardProps) {
-  const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<any | null>(null);
@@ -173,10 +173,19 @@ export default function InboundDashboard({
     return clean === 'BN HUB' || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ') || NORTH_POST_OFFICES.has(clean);
   };
 
-  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && getDateInbound(d) === activeDate);
-  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && getDateForecast(d) === activeDate && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
-  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && getDateForecast(d) === activeDate && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
-  const filteredTransporting = inboundData.filter(d => getStatus(d) === 'Transporting' && getDateForecast(d) === activeDate && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
+  const isDateMatch = (dStr: string, aDate: string) => {
+    if (!dStr || !aDate) return false;
+    if (aDate.includes('..')) {
+      const [start, end] = aDate.split('..');
+      return dStr >= start && dStr <= end;
+    }
+    return aDate.length === 7 ? dStr.startsWith(aDate) : dStr === aDate;
+  };
+
+  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && isDateMatch(getDateInbound(d), activeDate));
+  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && isDateMatch(getDateForecast(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
+  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && isDateMatch(getDateForecast(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
+  const filteredTransporting = inboundData.filter(d => getStatus(d) === 'Transporting' && isDateMatch(getDateForecast(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
   const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
 
   const getLinehaulOperatingDate = (row: any) => {
@@ -196,7 +205,7 @@ export default function InboundDashboard({
     }
     return '';
   };
-  const filteredLinehaul = linehaulData.filter(d => getLinehaulOperatingDate(d) === activeDate);
+  const filteredLinehaul = linehaulData.filter(d => isDateMatch(getLinehaulOperatingDate(d), activeDate));
 
   // 3. Aggregate operational statistics
 
@@ -768,17 +777,6 @@ export default function InboundDashboard({
     }
   }, [activeDate, inboundData, linehaulData, totalOrders, totalInTransitOrders, pendingOrders, forecastTrendData, arrivedTrendData, pickupTrendData, inboundTrendData, truckEtaData]);
 
-  const toggleDropdown = () => setDateDropdownOpen(!dateDropdownOpen);
-  const selectPreset = (preset: 'today' | 'yesterday') => {
-    if (inboundDates.length === 0) return;
-    if (preset === 'today') {
-      setSelectedInboundDate(inboundDates[0]);
-    } else if (preset === 'yesterday' && inboundDates.length > 1) {
-      setSelectedInboundDate(inboundDates[1]);
-    }
-    setDateDropdownOpen(false);
-  };
-
   const handleExportCSV = () => {
     if (!filteredInbound || filteredInbound.length === 0) {
       alert('Không có dữ liệu Inbound để xuất!');
@@ -861,36 +859,13 @@ export default function InboundDashboard({
           </div>
           <div className="date-control-wrapper">
             <span className="control-label">Operations Date</span>
-            <div className={`custom-datepicker ${dateDropdownOpen ? 'open' : ''}`}>
-              <button className="datepicker-trigger report-glow-card glow-cyan" onClick={toggleDropdown}>
-                <i className="fa-regular fa-calendar-days icon-cal" style={{ marginRight: '6px' }}></i>
-                <span>{activeDate || 'Chọn ngày'}</span>
-                <i className="fa-solid fa-chevron-down icon-arrow" style={{ marginLeft: '6px' }}></i>
-              </button>
-              {dateDropdownOpen && (
-                <div className="datepicker-dropdown">
-                  <div className="datepicker-presets">
-                    <button className="preset-btn" onClick={() => selectPreset('today')}>Hôm nay</button>
-                    <button className="preset-btn" onClick={() => selectPreset('yesterday')}>Hôm qua</button>
-                  </div>
-                  <div className="datepicker-list-header">Chọn ngày vận hành (30 ngày gần đây)</div>
-                  <div className="datepicker-list">
-                    {inboundDates.map(d => (
-                      <button
-                        key={d}
-                        className={`datepicker-item ${d === activeDate ? 'active' : ''}`}
-                        onClick={() => {
-                          setSelectedInboundDate(d);
-                          setDateDropdownOpen(false);
-                        }}
-                      >
-                        {d}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            <DatePicker
+              selectedDate={activeDate}
+              onDateChange={(d) => setSelectedInboundDate(d)}
+              availableDates={inboundDates}
+              align="right"
+              className="w-[180px]"
+            />
           </div>
         </div>
       </header>
