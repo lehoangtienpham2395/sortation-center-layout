@@ -1469,7 +1469,7 @@ export default function App() {
           >
             {/* Sidebar Header */}
             <div className={`flex items-center border-b border-white/[0.08] h-12 ${
-              sidebarHovered ? 'px-4 gap-2.5 justify-start' : 'justify-center p-2'
+              sidebarHovered ? 'px-2.5 gap-2 justify-start' : 'justify-center p-2'
             }`}>
               <Menu size={18} className="text-slate-200 shrink-0" />
               {sidebarHovered && (
@@ -1478,9 +1478,9 @@ export default function App() {
             </div>
 
             {/* Menu Items */}
-            <div className="flex-1 py-3 space-y-3 px-1.5 overflow-y-auto scrollbar-none font-outfit" style={{ scrollbarWidth: 'none' }}>
+            <div className="flex-1 py-3 space-y-3 px-1 overflow-y-auto scrollbar-none font-outfit" style={{ scrollbarWidth: 'none' }}>
               
-              {/* Group 1: DASHBOARD VIEWS (Theme Colored Active Text, 10% Subtle Rounding) */}
+              {/* Group 1: DASHBOARD VIEWS (Push text closer to left edge) */}
               <div className="space-y-1 font-outfit">
                 {[
                   { id: 'master', label: 'Layout', color: '#4F8CFF', active: currentView === 'master', onClick: () => setCurrentView('master') },
@@ -1493,7 +1493,7 @@ export default function App() {
                       key={item.id}
                       onClick={item.onClick}
                       className={`w-full flex items-center text-left transition-all duration-150 font-outfit relative rounded-sm ${
-                        sidebarHovered ? 'px-3 py-2' : 'justify-center p-2'
+                        sidebarHovered ? 'pl-2 pr-1.5 py-1.5' : 'justify-center p-1.5'
                       } ${
                         item.active 
                           ? 'bg-[#2c303a] font-extrabold shadow-sm' 
@@ -1507,7 +1507,7 @@ export default function App() {
                     >
                       {item.active && (
                         <div 
-                          className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-sm"
+                          className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-sm"
                           style={{ backgroundColor: item.color }}
                         />
                       )}
@@ -1525,11 +1525,11 @@ export default function App() {
                 })}
               </div>
 
-              {/* Group 2: PANEL / TIỆN ÍCH (Unbolded font-normal text) */}
+              {/* Group 2: PANEL / TIỆN ÍCH */}
               {currentView === 'master' && (
                 <div className="space-y-0.5 pt-2.5 border-t border-white/[0.08] font-outfit">
                   {sidebarHovered && (
-                    <div className="px-3 text-[10px] text-slate-400 font-semibold tracking-[0.08em] uppercase mb-1 select-none font-outfit">
+                    <div className="px-2 text-[10px] text-slate-400 font-semibold tracking-[0.08em] uppercase mb-1 select-none font-outfit">
                       PANEL / TIỆN ÍCH
                     </div>
                   )}
@@ -1544,7 +1544,7 @@ export default function App() {
                         key={item.id}
                         onClick={item.onClick}
                         className={`w-full flex items-center rounded-sm text-left transition-all duration-150 font-outfit ${
-                          sidebarHovered ? 'px-3 py-1.5' : 'justify-center p-2'
+                          sidebarHovered ? 'pl-2 pr-1.5 py-1.5' : 'justify-center p-1.5'
                         } ${
                           item.active 
                             ? 'text-white bg-[#2c303a] font-normal shadow-sm' 
