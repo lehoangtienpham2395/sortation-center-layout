@@ -352,10 +352,10 @@ export default function App() {
   const [arrivalData, setArrivalData] = useState<any[]>([]);
   const [truckEtaData, setTruckEtaData] = useState<any[]>([]);
   const [selectedInboundDate, setSelectedInboundDate] = useState<string>('');
-  const [showMonitor, setShowMonitor] = useState(true);
-  const [showTelemetry, setShowTelemetry] = useState(true);
-  const [showControls, setShowControls] = useState(true);
-  const [showTop10, setShowTop10] = useState(true);
+  const showMonitor = true;
+  const showTelemetry = true;
+  const showControls = true;
+  const showTop10 = true;
   const [activeTab, setActiveTab] = useState<'layout' | 'inbound' | 'top10' | 'stats' | 'heatmap' | 'kpi'>('inbound');
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
   const [data,       setData]       = useState<any>(generateMockData());
@@ -1459,21 +1459,21 @@ export default function App() {
         <>
           {/* Sidebar Menu - Permanently Visible Compact Field Notes Style matching Image 2 */}
           <div 
-            className="fixed top-0 left-0 h-full z-40 w-40 flex flex-col bg-[#121519]/90 backdrop-blur-xl border-r border-white/[0.06] font-outfit"
+            className="fixed top-0 left-0 h-full z-40 w-36 flex flex-col bg-[#121519]/90 backdrop-blur-xl border-r border-white/[0.06] font-outfit"
             style={{ fontFamily: "'Outfit', sans-serif" }}
           >
-            {/* Sidebar Header - Sleek Hamburger Menu Style */}
-            <div className="flex items-center p-3 border-b border-white/[0.08] h-12 px-4 gap-2.5">
-              <Menu size={18} className="text-slate-300 shrink-0" />
-              <span className="text-sm font-extrabold text-slate-100 tracking-tight select-none font-outfit">Menu</span>
+            {/* Sidebar Header - Larger Menu Title */}
+            <div className="flex items-center p-3.5 border-b border-white/[0.08] h-13 px-4 gap-2.5">
+              <Menu size={20} className="text-slate-200 shrink-0" />
+              <span className="text-base font-black text-slate-100 tracking-tight select-none font-outfit">Menu</span>
             </div>
 
             {/* Menu Items */}
-            <div className="flex-1 py-3.5 space-y-4 px-2.5 overflow-y-auto scrollbar-none font-outfit" style={{ scrollbarWidth: 'none' }}>
+            <div className="flex-1 py-4 space-y-4 px-3 overflow-y-auto scrollbar-none font-outfit" style={{ scrollbarWidth: 'none' }}>
               
-              {/* Group 1: DASHBOARD VIEWS */}
-              <div className="space-y-1 font-outfit">
-                <div className="px-2.5 text-[10px] text-slate-400 font-extrabold tracking-[0.1em] uppercase mb-2 select-none font-outfit">
+              {/* Group 1: DASHBOARD VIEWS ONLY */}
+              <div className="space-y-1.5 font-outfit">
+                <div className="px-3 text-xs text-slate-400 font-black tracking-[0.12em] uppercase mb-2.5 select-none font-outfit">
                   DASHBOARD
                 </div>
                 {[
@@ -1486,48 +1486,18 @@ export default function App() {
                     <button
                       key={item.id}
                       onClick={item.onClick}
-                      className={`w-full flex items-center px-3 py-2 rounded-xl text-left transition-all duration-150 font-outfit ${
+                      className={`w-full flex items-center px-3.5 py-2.5 rounded-xl text-left transition-all duration-150 font-outfit ${
                         item.active 
-                          ? 'text-white bg-[#2c303a] font-extrabold shadow-sm' 
-                          : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-semibold'
+                          ? 'text-white bg-[#2c303a] font-black shadow-sm' 
+                          : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-bold'
                       }`}
                       style={{ fontFamily: "'Outfit', sans-serif" }}
                     >
-                      <span className="text-xs font-bold tracking-tight font-outfit">{item.label}</span>
+                      <span className="text-[15px] font-extrabold tracking-tight font-outfit">{item.label}</span>
                     </button>
                   );
                 })}
               </div>
-
-              {/* Group 2: VIEW CONTROLS (Only visible for Master Layout to toggle widgets) */}
-              {currentView === 'master' && (
-                <div className="space-y-1 pt-3.5 border-t border-white/[0.08] font-outfit">
-                  <div className="px-2.5 text-[10px] text-slate-400 font-extrabold tracking-[0.1em] uppercase mb-2 select-none font-outfit">
-                    PANEL / TIỆN ÍCH
-                  </div>
-                  {[
-                    { id: 'monitor', label: 'Giám sát phân khu', active: showMonitor, onClick: () => setShowMonitor(!showMonitor) },
-                    { id: 'telemetry', label: 'Thông số kho', active: showTelemetry, onClick: () => setShowTelemetry(!showTelemetry) },
-                    { id: 'controls', label: 'Bộ lọc dữ liệu', active: showControls, onClick: () => setShowControls(!showControls) },
-                    { id: 'top10', label: 'Bảng xếp hạng', active: showTop10, onClick: () => setShowTop10(!showTop10) },
-                  ].map(item => {
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={item.onClick}
-                        className={`w-full flex items-center px-3 py-1.5 rounded-xl text-left transition-all duration-150 font-outfit ${
-                          item.active 
-                            ? 'text-white bg-[#2c303a] font-bold shadow-sm' 
-                            : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-medium'
-                        }`}
-                        style={{ fontFamily: "'Outfit', sans-serif" }}
-                      >
-                        <span className="text-[11px] font-semibold tracking-tight font-outfit">{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
 
             </div>
           </div>
@@ -1536,7 +1506,7 @@ export default function App() {
           {currentView === 'master' && (
             <div
               className="absolute z-30 select-none"
-              style={{ top: '14px', left: '172px' }}
+              style={{ top: '14px', left: '156px' }}
             >
               <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '72px', borderRadius: '10px', display: 'block' }} />
             </div>
@@ -1546,7 +1516,7 @@ export default function App() {
           {currentView === 'master' && (
             <div 
               className="absolute z-20 top-[104px] w-72 flex flex-col gap-4 max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-300"
-              style={{ left: '172px' }}
+              style={{ left: '156px' }}
             >
               
               {/* 1. OPERATIONAL MONITOR & ZONE METRICS */}
@@ -1860,7 +1830,7 @@ export default function App() {
           {currentView === 'master' && (
             <div 
               className="absolute bottom-16 z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg transition-all duration-300"
-              style={{ left: '172px' }}
+              style={{ left: '156px' }}
             >
               {[['#0c883d','Ô chứa'],['var(--orange)','Cổng Outbound'],
                 ['var(--inbound)','Cổng Inbound'],['rgba(100,116,139,0.7)','Xe tải']].map(([c,l])=>(
@@ -1902,11 +1872,11 @@ export default function App() {
             style={!isMobile ? (
               currentView === 'master'
                 ? {
-                    left: '470px',
+                    left: '450px',
                     right: '384px'
                   }
                 : {
-                    paddingLeft: '172px',
+                    paddingLeft: '156px',
                     paddingRight: '24px'
                   }
             ) : {
