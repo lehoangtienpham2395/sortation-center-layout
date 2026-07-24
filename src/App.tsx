@@ -1787,19 +1787,20 @@ export default function App() {
                           })}
                         </div>
 
-                        {/* 2. TRẠNG THÁI (Status Selector) - 2px gap */}
+                        {/* 2. TRẠNG THÁI (Status Selector) - CHIP style with checkmarks */}
                         <div className={`grid grid-cols-2 gap-[2px] transition-all duration-300 ${
                           selectedType !== 'Inventory' ? 'opacity-30 pointer-events-none select-none filter blur-[0.4px]' : 'opacity-100'
                         }`}>
                           <button
                             onClick={toggleAllStatuses}
-                            className={`flex items-center justify-center px-2 py-1.5 rounded-lg text-[11.5px] font-bold transition-all duration-200 ${
+                            className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11.5px] font-bold transition-all duration-200 ${
                               selectedStatuses.length === INVENTORY_STATUSES.length
-                                ? 'bg-emerald-500/15 text-emerald-400 shadow-[0_4px_12px_rgba(0,0,0,0.3),_0_0_8px_rgba(16,185,129,0.15)] hover:translate-y-[-1px]'
-                                : 'bg-white/[0.04] shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-slate-400 hover:bg-white/[0.07] hover:text-white hover:translate-y-[-1px]'
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-[0_4px_12px_rgba(0,0,0,0.3),_0_0_8px_rgba(16,185,129,0.15)] hover:translate-y-[-1px]'
+                                : 'bg-white/[0.04] border border-white/5 text-slate-400 hover:bg-white/[0.07] hover:text-white hover:translate-y-[-1px]'
                             }`}
                           >
-                            Tất cả
+                            {selectedStatuses.length === INVENTORY_STATUSES.length && <i className="fa-solid fa-check text-[10px] text-emerald-400"></i>}
+                            <span>Tất cả</span>
                           </button>
                           {INVENTORY_STATUSES.map(status => {
                             const isChecked = selectedStatuses.includes(status);
@@ -1807,13 +1808,14 @@ export default function App() {
                               <button
                                 key={status}
                                 onClick={() => toggleStatus(status)}
-                                className={`flex items-center justify-center px-2 py-1.5 rounded-lg text-[11.5px] font-bold transition-all duration-200 ${
+                                className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11.5px] font-bold transition-all duration-200 ${
                                   isChecked
-                                    ? 'bg-emerald-500/15 text-emerald-400 shadow-[0_4px_12px_rgba(0,0,0,0.3),_0_0_8px_rgba(16,185,129,0.15)] hover:translate-y-[-1px]'
-                                    : 'bg-white/[0.04] shadow-[0_4px_12px_rgba(0,0,0,0.4)] text-slate-400 hover:bg-white/[0.07] hover:text-white hover:translate-y-[-1px]'
+                                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-[0_4px_12px_rgba(0,0,0,0.3),_0_0_8px_rgba(16,185,129,0.15)] hover:translate-y-[-1px]'
+                                    : 'bg-white/[0.04] border border-white/5 text-slate-400 hover:bg-white/[0.07] hover:text-white hover:translate-y-[-1px]'
                                 }`}
                               >
-                                {status}
+                                {isChecked && <i className="fa-solid fa-check text-[10px] text-emerald-400"></i>}
+                                <span>{status}</span>
                               </button>
                             );
                           })}
@@ -1881,7 +1883,7 @@ export default function App() {
                       <thead>
                         <tr style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                           <th style={{ width: '25px', textAlign: 'center' }}>#</th>
-                          <th style={{ width: '35px', textAlign: 'center' }}>MÃ</th>
+                          <th style={{ width: '45px', textAlign: 'center' }}>MÃ</th>
                           <th style={{ textAlign: 'left' }}>BƯU CỤC</th>
                           <th style={{ textAlign: 'center', width: '45px' }}>{selectedType === 'Outbound' ? 'XUẤT' : 'TỒN'}</th>
                           <th style={{ textAlign: 'center', width: '70px' }}>T.LƯỢNG</th>
@@ -1902,7 +1904,11 @@ export default function App() {
                                   setHoveredZone(null);
                                 }}>
                               <td className="font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.2)' }}>{index + 1}</td>
-                              <td className="mono font-bold text-center" style={{ color: '#22d3ee', fontSize: '11.5px', textShadow: '0 0 8px rgba(34, 211, 238, 0.5)' }}>{chute.areaId}</td>
+                              <td className="text-center py-1">
+                                <span className="inline-block px-1.5 py-0.5 rounded-md bg-[#22d3ee]/10 border border-[#22d3ee]/30 text-[#22d3ee] font-mono font-bold text-[10.5px] tracking-tight shadow-[0_0_8px_rgba(34,211,238,0.2)]">
+                                  {chute.areaId}
+                                </span>
+                              </td>
                               <td className="font-bold text-white uppercase" style={{ fontSize: '11px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2' }} title={chute.name}>
                                 {chute.name.replace(/^(SG|BD|TG|DT|DN|LA)\s+/i, '')}
                               </td>
