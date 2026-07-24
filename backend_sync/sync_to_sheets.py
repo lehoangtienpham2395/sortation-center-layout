@@ -2365,7 +2365,7 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             conn = sqlite3.connect(DB_FILE)
             # ✅ Chỉ đọc đơn đang active (is_active=1) và chưa rời HUB
             df_db_inv = pd.read_sql_query(
-                """SELECT next_station, pickNetworkName, status_order, weight, waybillNo, time_ref
+                """SELECT dispatch_plan, next_station, pickNetworkName, status_order, weight, waybillNo, time_ref
                    FROM shipments
                    WHERE is_active = 1
                      AND status_order != 'Đã rời HUB'""",
@@ -2374,15 +2374,22 @@ def update_google_sheet(df, outbound_volumes_grouped, target_dates, run_outbound
             conn.close()
 
             if not df_db_inv.empty:
+                df_db_inv['dp_clean'] = df_db_inv['dispatch_plan'].astype(str).str.strip().str.upper()
                 df_db_inv['next_st_clean'] = df_db_inv['next_station'].astype(str).str.strip().str.upper()
                 df_db_inv['pick_st_clean'] = df_db_inv['pickNetworkName'].astype(str).str.strip().str.upper()
                 
-                # Dynamic fallback: If next_station is empty or HCM HUB, fallback to pickNetworkName
-                df_db_inv['target_st'] = df_db_inv.apply(
-                    lambda r: r['pick_st_clean'] if (not r['next_st_clean'] or r['next_st_clean'] in ('HCM HUB', 'NONE', 'NAN')) else r['next_st_clean'],
-                    axis=1
-                )
+                # Priority: dispatch_plan > next_station > pickNetworkName
+                def resolve_target_st(r):
+                    dp = r['dp_clean']
+                    ns = r['next_st_clean']
+                    pk = r['pick_st_clean']
+                    if dp and dp not in ('HCM HUB', 'NONE', 'NAN'):
+                        return dp
+                    if ns and ns not in ('HCM HUB', 'NONE', 'NAN'):
+                        return ns
+                    return pk
                 
+                df_db_inv['target_st'] = df_db_inv.apply(resolve_target_st, axis=1)
                 df_db_inv['layout_name'] = df_db_inv['target_st'].apply(map_station_to_layout_name)
                 df_db_inv['status_upper'] = df_db_inv['status_order'].astype(str).str.strip()
                 
