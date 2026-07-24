@@ -1473,9 +1473,6 @@ export default function App() {
               
               {/* Group 1: DASHBOARD VIEWS ONLY */}
               <div className="space-y-1.5 font-outfit">
-                <div className="px-3 text-xs text-slate-400 font-black tracking-[0.12em] uppercase mb-2.5 select-none font-outfit">
-                  DASHBOARD
-                </div>
                 {[
                   { id: 'master', label: 'Layout', active: currentView === 'master', onClick: () => setCurrentView('master') },
                   { id: 'inbound', label: 'Inbound', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
