@@ -149,6 +149,9 @@ def sync_postgre_to_dashboard():
         st = next_st or dict_station.get(sc, 'CHƯA PHÂN BƯU CỤC')
         zn = dict_zone.get(sc, '3')
         area = dict_area.get(sc, 'C01')
+        if area == 'A06':
+            st = 'BN HUB'
+            zn = 'BNI001'
         cap = '780'
         wt = float(r.get('Orders_weight') or 1.0)
         
