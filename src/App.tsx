@@ -454,10 +454,10 @@ export default function App() {
       fetchSheetData('Heatmap'),
     ]);
 
-    setInboundData(ibRows ?? []);
-    setLinehaulData(lhRows ?? []);
-    setArrivalData(arrivalRows ?? []);
-    setTruckEtaData(truckEtaRows ?? []);
+    if (ibRows && ibRows.length > 0) setInboundData(ibRows);
+    if (lhRows && lhRows.length > 0) setLinehaulData(lhRows);
+    if (arrivalRows && arrivalRows.length > 0) setArrivalData(arrivalRows);
+    if (truckEtaRows && truckEtaRows.length > 0) setTruckEtaData(truckEtaRows);
     if (heatmapData) {
       setHeatmapRows(heatmapData);
     }
