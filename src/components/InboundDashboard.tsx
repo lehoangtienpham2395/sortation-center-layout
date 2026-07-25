@@ -278,45 +278,47 @@ export default function InboundDashboard({
 
   // Trucking in transit: map directly from filteredTruckEta and apply exclusions
 
-  const incomingVehicles = filteredTruckEta
-    .filter(d => {
-      const key = (d['Station'] || d['Pickup_station'] || '').trim();
-      if (!key) return false;
-      const cleanKey = key.toUpperCase();
-      if (cleanKey !== 'BN HUB' && isNorthStation(cleanKey)) {
-        return false;
-      }
-      return true;
-    })
-    .map(d => {
-      const orders = parseInt(d['Orders'] || d['Tng s n'] || d['Tổng số đơn'] || d['Chua dn Hub'] || d['Chưa đến Hub'] || 0, 10);
-      const weight = parseFloat(d['weight'] || d['package_charge_weight'] || 0);
-      let truckingCount = 0;
-      if (typeof d['Trucking'] === 'number') {
-        truckingCount = d['Trucking'];
-      } else if (d['Trucking']) {
-        const val = String(d['Trucking']).trim();
-        // Check if it's a number string
-        if (/^\d+$/.test(val)) {
-          truckingCount = parseInt(val, 10);
-        } else if (val !== '' && val.toLowerCase() !== 'nan') {
-          truckingCount = 1;
-        }
-      }
-      return {
-        station: d['Station'] || d['Pickup_station'] || '',
-        trucking: truckingCount,
-        orders: orders,
-        weight: weight,
-        eta: d['ETA'] || d['Last time'] || '',
-        rank: ((d['Station'] || d['Pickup_station'] || '').trim().toUpperCase() === 'BN HUB') ? 'Linehaul' : (d['Rank'] || 'Shuttle'),
-        // Backwards compatibility keys:
-        chuaDenHub: orders,
-        tongDon: orders,
-        vehicles: truckingCount,
-        lastTime: d['ETA'] || d['Last time'] || ''
+  // Group filteredTruckEta by unique station to avoid duplicate scan-hour rows
+  const groupedStationVehicles: Record<string, any> = {};
+
+  (filteredTruckEta || []).forEach(d => {
+    const st = (d['Station'] || d['Pickup_station'] || '').trim();
+    if (!st) return;
+    const cleanKey = st.toUpperCase();
+    if (cleanKey !== 'BN HUB' && isNorthStation(cleanKey)) return;
+
+    // Ưu tiên lấy đơn Chưa đến Hub (hàng đang trên đường)
+    const inTransitOrders = parseInt(d['Chưa đến Hub'] || d['Chua dn Hub'] || d['Orders'] || d['Tổng số đơn'] || d['Tng s n'] || 0, 10);
+    const tongDon = parseInt(d['Tổng số đơn'] || d['Tng s n'] || 0, 10);
+    const lastTime = d['Last time'] || d['ETA'] || '';
+    const wt = parseFloat(d['weight'] || d['package_charge_weight'] || 0);
+
+    if (!groupedStationVehicles[st]) {
+      groupedStationVehicles[st] = {
+        station: st,
+        trucking: 1,
+        orders: 0,
+        weight: 0,
+        eta: lastTime,
+        rank: (cleanKey === 'BN HUB') ? 'Linehaul' : (d['Rank'] || 'Shuttle'),
+        chuaDenHub: 0,
+        tongDon: 0,
+        vehicles: 1,
+        lastTime: lastTime
       };
-    })
+    }
+
+    groupedStationVehicles[st].orders += inTransitOrders;
+    groupedStationVehicles[st].chuaDenHub += inTransitOrders;
+    groupedStationVehicles[st].tongDon += tongDon;
+    groupedStationVehicles[st].weight += wt;
+    if (lastTime > groupedStationVehicles[st].lastTime) {
+      groupedStationVehicles[st].lastTime = lastTime;
+      groupedStationVehicles[st].eta = lastTime;
+    }
+  });
+
+  const incomingVehicles = Object.values(groupedStationVehicles)
     .filter(v => v.orders > 0)
     .sort((a, b) => b.orders - a.orders);
 
@@ -324,21 +326,9 @@ export default function InboundDashboard({
   const shuttleVehicles = incomingVehicles.filter(v => v.rank === 'Shuttle');
   const linehaulVehicles = incomingVehicles.filter(v => v.rank === 'Linehaul');
 
-  // Counts of actual vehicles from mapped incomingVehicles
-  let totalShuttleVehicles = shuttleVehicles.reduce((sum, v) => sum + (v.trucking || 1), 0);
-  let totalLinehaulVehicles = linehaulVehicles.reduce((sum, v) => sum + (v.trucking || 1), 0);
-
-  // Khống chế Failsafe: Xe Shuttle đang di chuyển không thể vượt quá 100 xe.
-  // Nếu > 100 xe, tự động fallback về số lượng trạm active thực tế (shuttleVehicles.length)
-  if (totalShuttleVehicles > 100) {
-    totalShuttleVehicles = shuttleVehicles.length;
-  }
-
+  let totalShuttleVehicles = shuttleVehicles.length;
+  let totalLinehaulVehicles = linehaulVehicles.length;
   let totalTransitVehicles = totalShuttleVehicles + totalLinehaulVehicles;
-  if (totalTransitVehicles > 100) {
-    totalTransitVehicles = incomingVehicles.length;
-  }
-
   let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
 
   // 4. Hourly timelines
