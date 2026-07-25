@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { DatePicker } from './DatePicker';
-import historySnapshots from '../data/history_snapshots.json';
 
 // Animated Number Ticker Component
 function NumberTicker({ value, decimals = 0 }: { value: number; decimals?: number }) {
@@ -185,7 +184,7 @@ export default function InboundDashboard({
   const getDatePickup = (d: any) => d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
   const getDateArrival = (d: any) => d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
-  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && isDateMatch(getDateInbound(d), activeDate));
+  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && isDateMatch(getDateInbound(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
   const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && isDateMatch(getDateForecast(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
   const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && isDateMatch(getDatePickup(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
   const filteredTransporting = inboundData.filter(d => getStatus(d) === 'Transporting' && isDateMatch(getDateArrival(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
@@ -242,29 +241,25 @@ export default function InboundDashboard({
 
 
 
-  // Phân tách đơn Forecast cho toàn bộ dữ liệu (bảo đảm khớp số liệu BN HUB và tránh lệch lịch sử)
   inboundData.forEach(d => {
-    const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
-    if (!fcDate) return;
-
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    const status = d['Trng thi'] || d['Trạng thái'];
+    if (isNorthStation(station)) return;
 
-    // Bỏ qua BN HUB & Miền Bắc khỏi Forecast (BN HUB thuộc sản lượng Linehaul đường dài)
-    if (isNorthStation(station)) {
-      return;
-    }
+    const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
+    const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
+    const pkDate = d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || '';
+    const arDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || '';
 
-    const vol = parseInt(d['Volume'], 10) || 0;
+    // Record must belong to activeDate operating cycle
+    if (fcDate !== activeDate && ibDate !== activeDate && pkDate !== activeDate && arDate !== activeDate) return;
 
-    if (fcDate === activeDate) {
+    const vol = parseInt(d['Volume'], 10) || 1;
+    const loiRot = d['Loi rt'] || d['Loại rớt'] || '';
+
+    if (loiRot === 'Rớt hôm nay' || fcDate === activeDate) {
       forecastRotHomNay += vol;
-    } else if (fcDate < activeDate) {
-      const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
-      // Nếu chưa nhập kho, hoặc nhập kho từ ngày activeDate trở đi -> đơn này vẫn là backlog chờ xử lý vào ngày activeDate
-      if (status !== 'Inbound' || ibDate >= activeDate) {
-        forecastRotHomTruoc += vol;
-      }
+    } else if (loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) {
+      forecastRotHomTruoc += vol;
     }
   });
 
@@ -462,39 +457,9 @@ export default function InboundDashboard({
     }
   });
 
-  const snapshotForActiveDate = (historySnapshots as any[]).find((s: any) => s.operating_date === activeDate);
-
-  let totalInbound = stages['Inbound'].orders;
-  let totalPickupDone = stages['Pickup Done'].orders;
+  const totalInbound = stages['Inbound'].orders;
+  const totalPickupDone = stages['Pickup Done'].orders;
   totalForecast = forecastRotHomTruoc + forecastRotHomNay;
-  let isHistoricalSnapshotUsed = false;
-
-  if (totalInbound === 0 && snapshotForActiveDate && snapshotForActiveDate.total_inbound_scanned > 0) {
-    isHistoricalSnapshotUsed = true;
-    totalInbound = snapshotForActiveDate.total_inbound_scanned || 0;
-    totalForecast = snapshotForActiveDate.total_forecast_created || totalInbound;
-    totalPickupDone = snapshotForActiveDate.total_pickup_done || 0;
-    totalOrders = totalInbound;
-    totalWeight = (totalInbound * 8.10) / 1000;
-  }
-
-  // If hourlyInbound is empty for a historical date, distribute snapshot across operating hours
-  const totalHourlyInboundSum = Object.values(hourlyInbound).reduce((a, b) => a + b, 0);
-  if (totalHourlyInboundSum === 0 && snapshotForActiveDate && snapshotForActiveDate.total_inbound_scanned > 0) {
-    const targetInbound = snapshotForActiveDate.total_inbound_scanned;
-    const targetForecast = snapshotForActiveDate.total_forecast_created || targetInbound;
-    const targetPickup = snapshotForActiveDate.total_pickup_done || 0;
-    
-    const activeHours = ['06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
-    const weights = [0.01, 0.02, 0.04, 0.06, 0.10, 0.08, 0.04, 0.06, 0.08, 0.12, 0.12, 0.10, 0.07, 0.05, 0.03, 0.01, 0.01];
-    
-    activeHours.forEach((h, idx) => {
-      const w = weights[idx] || 0.05;
-      hourlyInbound[h] = Math.round(targetInbound * w);
-      hourlyForecast[h] = Math.round(targetForecast * w);
-      hourlyPickup[h] = Math.round(targetPickup * w);
-    });
-  }
 
   const inboundTrendData  = labels.map(l => hourlyInbound[l]);
   const arrivedTrendData  = labels.map(l => hourlyArrived[l]);
@@ -511,12 +476,12 @@ export default function InboundDashboard({
   const totalBase = totalForecast > 0 ? totalForecast : (totalInbound + totalInTransitOrders + totalPickupDone + stages['Created'].orders);
   
   // Phần Created (chờ lấy hàng) = lượng còn lại của Forecast sau khi trừ Inbound, Transporting, Pickup Done
-  const totalCreated = isHistoricalSnapshotUsed 
-    ? Math.max(0, totalForecast - totalInbound) 
-    : (totalForecast > 0 ? Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalPickupDone) : stages['Created'].orders);
+  const totalCreated = totalForecast > 0 
+    ? Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalPickupDone) 
+    : stages['Created'].orders;
 
   const pendingOrders = totalCreated; // for fallback UI components
-  totalOrders = totalInbound; // reassign the early let
+  totalOrders = totalInbound;
   totalWeight = stages['Inbound'].weight;
 
   let inboundPct   = totalBase > 0 ? Math.round((totalInbound           / totalBase) * 100) : 0;

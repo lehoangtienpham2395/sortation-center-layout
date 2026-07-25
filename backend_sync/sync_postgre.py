@@ -5,8 +5,13 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Dual Postgres/SQLite Connection
-PG_URL = os.environ.get("POSTGRES_URL", "").strip() or os.environ.get("DATABASE_URL", "").strip()
+# PostgreSQL Connection Credentials for logistics_db
+PG_DBNAME = os.environ.get("PGDATABASE", "logistics_db")
+PG_USER = os.environ.get("PGUSER", "postgres")
+PG_PASS = os.environ.get("PGPASSWORD", "Tien@giang0203")
+PG_HOST = os.environ.get("PGHOST", "127.0.0.1")
+PG_PORT = int(os.environ.get("PGPORT", 5433))
+
 DB_FILE = os.path.join(BASE_DIR, "data", "dwh_v2.db")
 DATA_DIR = os.path.join(BASE_DIR, "data")
 VALID_FILE = r"C:\Users\lehoa\OneDrive\Desktop\testing\Exportauto\Valid\valid.csv"
@@ -15,7 +20,7 @@ CSV_FILE = os.path.join(os.path.dirname(BASE_DIR), "full_multi_source_7days_v6.c
 tz_vn = ZoneInfo("Asia/Ho_Chi_Minh")
 now_vn = datetime.datetime.now(tz_vn)
 today_str = now_vn.strftime("%Y-%m-%d")
-now_sys = now_vn.strftime("%H:%M:%S %d/%m/%Y")
+now_sys = now_vn.strftime("%Y-%m-%d %H:%M:%S")
 
 def get_op_date(dt_str):
     if not dt_str or str(dt_str).lower() in ('nan', 'none', ''): return ""
@@ -27,18 +32,19 @@ def get_op_date(dt_str):
     except Exception:
         return str(dt_str)[:10]
 
-def get_db_connection():
-    if PG_URL:
-        try:
-            import psycopg2
-            return psycopg2.connect(PG_URL)
-        except Exception as e:
-            print(f"⚠️ PostgreSQL Error ({e}), using local engine...")
-    os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
-    return sqlite3.connect(DB_FILE)
+def get_pg_connection():
+    try:
+        import psycopg2
+        conn = psycopg2.connect(dbname=PG_DBNAME, user=PG_USER, password=PG_PASS, host=PG_HOST, port=PG_PORT)
+        print(f"🟢 Connected to PostgreSQL '{PG_DBNAME}' on port {PG_PORT}!")
+        return conn
+    except Exception as e:
+        print(f"⚠️ Could not connect to PostgreSQL ({e}), using SQLite fallback...")
+        os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
+        return sqlite3.connect(DB_FILE)
 
 def sync_postgre_to_dashboard():
-    print(f"🚀 [{now_sys}] Running sync_postgre engine for Sortation Center Dashboard...")
+    print(f"🚀 [{now_sys}] Running sync_postgre engine connected to '{PG_DBNAME}'...")
     
     df_valid = pd.read_csv(VALID_FILE, dtype=str) if os.path.exists(VALID_FILE) else pd.DataFrame()
     dict_zone = {}
@@ -56,6 +62,84 @@ def sync_postgre_to_dashboard():
 
     df_v6 = pd.read_csv(CSV_FILE, dtype=str).fillna('')
     print(f"   Loaded {len(df_v6):,} records from v6 pipeline.")
+
+    # 1. Update PostgreSQL logistics_db
+    conn = get_pg_connection()
+    is_pg = hasattr(conn, 'cursor_factory') or 'psycopg2' in str(type(conn))
+    cur = conn.cursor()
+
+    if is_pg:
+        try:
+            cur.execute("TRUNCATE TABLE enriched.dispatch_enriched RESTART IDENTITY CASCADE;")
+            conn.commit()
+            
+            enriched_tuples = []
+            
+            for idx, r in df_v6.iterrows():
+                wb = r.get('tracking', '').strip()
+                if not wb: continue
+                cr_t = r.get('Created_time', '').strip() or None
+                op_date_created = get_op_date(cr_t) or today_str
+                st_sys = r.get('status_sys', '').strip()
+                pick_st = r.get('Pickup_station', '').strip()
+                disp_code = r.get('Dispatch_code', '').strip()
+                num = int(float(r.get('Orders_num') or 1))
+                wt = float(r.get('Orders_weight') or 1.0)
+                pk_st2 = r.get('Pickup_station2', '').strip()
+                pk_t = r.get('Pickup_time', '').strip() or None
+                area_code = r.get('AreaCode', '').strip()
+                flow_desc = r.get('flowTypeDesc', '').strip()
+                next_st = r.get('Next_station', '').strip()
+                rnd = r.get('Round', 'Shuttle').strip()
+                rnk = r.get('Rank', 'FC').strip()
+                
+                inb_t = r.get('inbound_scanDate', '').strip() or None
+                outb_t = r.get('outbound_scanDate', '').strip() or None
+                arr_t = r.get('arrival_scanDate', '').strip() or None # Arrival_time (scantime)
+                trip = r.get('trip_code', '').strip() # transferCode / billTaskCode
+                transp_t = r.get('transporing_time', '').strip() or None # actualDepartureTime
+                transpd_t = r.get('transported_time', '').strip() or None # actualArrivalTime
+                
+                op_date_inb = get_op_date(inb_t) if inb_t else None
+                is_backlog = 1 if inb_t and not outb_t else 0
+                is_active = 1
+                
+                enriched_tuples.append((
+                    wb, 'v6_pipeline', st_sys, cr_t, pick_st, disp_code, num, wt,
+                    pk_st2, pk_t, 'OK', area_code, flow_desc, next_st, rnd, rnk,
+                    inb_t, outb_t, arr_t, trip, transp_t, transpd_t, disp_code,
+                    op_date_created, op_date_inb, is_backlog, is_active, 0, now_sys
+                ))
+
+            bsz = 2000
+            from psycopg2.extras import execute_values
+            
+            execute_values(cur, """
+            INSERT INTO enriched.dispatch_enriched (
+                tracking, data_source, status_sys, created_time, pickup_station, dispatch_code,
+                orders_num, orders_weight, pickup_station2, pickup_time, pickup_ontime,
+                areacode, flowtypedesc, next_station, round, rank,
+                inbound_scandate, outbound_scandate, arrival_scandate, trip_code,
+                transporing_time, transported_time, dispatch_actual,
+                operation_date_created, operation_date_inbound, is_backlog, is_active,
+                retry_count, last_updated
+            ) VALUES %s ON CONFLICT (tracking) DO UPDATE SET
+                status_sys = EXCLUDED.status_sys,
+                inbound_scandate = EXCLUDED.inbound_scandate,
+                outbound_scandate = EXCLUDED.outbound_scandate,
+                arrival_scandate = EXCLUDED.arrival_scandate,
+                trip_code = EXCLUDED.trip_code,
+                transporing_time = EXCLUDED.transporing_time,
+                transported_time = EXCLUDED.transported_time,
+                last_updated = EXCLUDED.last_updated;
+            """, enriched_tuples, page_size=bsz)
+            
+            conn.commit()
+            print(f"   ✅ Saved {len(enriched_tuples):,} records into PostgreSQL 'logistics_db.enriched.dispatch_enriched'!")
+        except Exception as e:
+            print(f"   ⚠️ Error writing to PostgreSQL: {e}")
+            conn.rollback()
+    conn.close()
 
     inv_group, out_group, backlog_group, inbound_group, arr_group = {}, {}, {}, {}, {}
 
@@ -162,7 +246,7 @@ def sync_postgre_to_dashboard():
     last_update_obj = {"last_update": now_sys, "activeDate": today_str}
     with open(os.path.join(DATA_DIR, "last_update.json"), 'w', encoding='utf-8') as f: json.dump(last_update_obj, f, ensure_ascii=False, indent=2)
 
-    print("🎉 sync_postgre completed successfully!")
+    print("🎉 sync_postgre completed successfully for 'logistics_db'!")
 
 if __name__ == '__main__':
     sync_postgre_to_dashboard()
