@@ -3306,7 +3306,7 @@ def run_once(session, token_mgr, rebuild_days=None):
         # Next station details
         raw_code = str(rec.get('dispatch_plan') or '').strip()
         if not raw_code:
-            raw_code = str(rec.get('next_station') or '').strip()
+            rec['Next_station'] = (rec.get('Next_station') or rec.get('next_station') or '').strip()
 
         mapped_ns = ""
         
