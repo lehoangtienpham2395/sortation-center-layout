@@ -562,21 +562,28 @@ def pull_arrival_from_jfs(session, token_mgr, base_headers, date_start, date_end
         print('   ⚠️ Arrival: không có bưu cục để kéo.')
         return []
 
-    # 2. Đọc mapping sortcode từ valid.csv cục bộ
+    # 2. Đọc mapping sortcode từ valid.csv cục bộ (Hỗ trợ linh hoạt cấu trúc cột)
     d_sortcode = {}
     try:
-        if os.path.exists(VALID_FILE):
-            df_v = pd.read_csv(VALID_FILE, encoding='utf-8-sig', dtype=str)
+        valid_paths = [
+            VALID_FILE,
+            os.path.join(BASE_DIR, "config", "valid.csv"),
+            r"C:\Users\lehoa\OneDrive\Desktop\testing\Exportauto\Valid\valid.csv",
+            os.path.join(BASE_DIR, "Exportauto", "Valid", "valid.csv")
+        ]
+        valid_file_to_use = next((p for p in valid_paths if os.path.exists(p)), VALID_FILE)
+        if os.path.exists(valid_file_to_use):
+            df_v = pd.read_csv(valid_file_to_use, encoding='utf-8-sig', dtype=str)
             df_v.columns = df_v.columns.str.strip()
-            # Ưu tiên cột 'Bưu cục' (cột 1) để BN HUB map đúng sortcode BNI001H gốc của nó
-            name_col = 'Bưu cục' if 'Bưu cục' in df_v.columns else ('Bưu cục final' if 'Bưu cục final' in df_v.columns else None)
-            if name_col and 'sortcode' in df_v.columns:
-                df_filtered_v = df_v[[name_col, 'sortcode']].dropna()
-                d_sortcode = {
-                    str(row[name_col]).strip().upper(): str(row['sortcode']).strip()
-                    for _, row in df_filtered_v.iterrows()
-                    if str(row['sortcode']).strip() != '' and not any(x in str(row['sortcode']).lower() for x in ('offline', 'nan', 'none'))
-                }
+            if 'sortcode' in df_v.columns:
+                for _, row in df_v.iterrows():
+                    sc = str(row.get('sortcode', '')).strip()
+                    if sc and not any(x in sc.lower() for x in ('offline', 'nan', 'none')):
+                        for col in ['Station_1', 'Station_2', 'Bưu cục', 'Buu cuc', 'Bưu cục final', 'Buu cuc final']:
+                            if col in df_v.columns and pd.notna(row.get(col)):
+                                st_name = str(row[col]).strip().upper()
+                                if st_name and st_name not in ('NAN', 'NONE', ''):
+                                    d_sortcode[st_name] = sc
                 print(f"   ✅ Đã nạp mapping sortcode từ valid.csv: {len(d_sortcode)} bưu cục.")
         else:
             print(f"   ⚠️ Không tìm thấy valid.csv tại {VALID_FILE}.")
@@ -915,19 +922,57 @@ def load_json(path):
 
 def load_valid(path):
     try:
-        df = pd.read_csv(path, encoding='utf-8-sig', dtype=str)
+        valid_paths = [
+            path,
+            os.path.join(BASE_DIR, "config", "valid.csv"),
+            r"C:\Users\lehoa\OneDrive\Desktop\testing\Exportauto\Valid\valid.csv",
+            os.path.join(BASE_DIR, "Exportauto", "Valid", "valid.csv")
+        ]
+        valid_file_to_use = next((p for p in valid_paths if os.path.exists(p)), path)
+        df = pd.read_csv(valid_file_to_use, encoding='utf-8-sig', dtype=str)
         df.columns = df.columns.str.strip()
         print(f"   ✅ Valid: {len(df)} dòng | Cột: {list(df.columns)}")
         d_sortcode, d_buucuc, d_tuyen, d_rank = {}, {}, {}, {}
-        if 'sortcode' in df.columns and 'Bưu cục final' in df.columns:
-            d_sortcode = {str(k).strip(): str(v).strip() for k, v in df.set_index('sortcode')['Bưu cục final'].to_dict().items() if pd.notna(k) and str(k).strip() != '' and pd.notna(v) and str(v).strip() != ''}
-        if 'Bưu cục' in df.columns and 'Bưu cục final' in df.columns:
-            d_buucuc = {str(k).strip(): str(v).strip() for k, v in df.set_index('Bưu cục')['Bưu cục final'].to_dict().items() if pd.notna(k) and str(k).strip() != '' and pd.notna(v) and str(v).strip() != ''}
-        if 'Bưu cục final' in df.columns:
-            if 'Tuyến' in df.columns:
-                d_tuyen = {str(k).strip(): str(v).strip() for k, v in df.set_index('Bưu cục final')['Tuyến'].to_dict().items() if pd.notna(k) and str(k).strip() != '' and pd.notna(v) and str(v).strip() != ''}
-            if 'Rank' in df.columns:
-                d_rank = {str(k).strip(): str(v).strip() for k, v in df.set_index('Bưu cục final')['Rank'].to_dict().items() if pd.notna(k) and str(k).strip() != '' and pd.notna(v) and str(v).strip() != ''}
+
+        bc_col = next((c for c in ['Station_2', 'Station_1', 'Bưu cục final', 'Buu cuc final', 'Bưu cục', 'Buu cuc'] if c in df.columns), None)
+        sc_col = 'sortcode' if 'sortcode' in df.columns else None
+        rd_col = next((c for c in ['Round', 'Tuyến', 'Tuyen'] if c in df.columns), None)
+        rk_col = 'Rank' if 'Rank' in df.columns else None
+
+        if sc_col and bc_col:
+            for _, row in df.iterrows():
+                sc = str(row.get(sc_col, '')).strip()
+                bc = str(row.get(bc_col, '')).strip()
+                if sc and bc and sc.lower() not in ('nan', 'none') and bc.lower() not in ('nan', 'none'):
+                    d_sortcode[sc] = bc
+
+        if bc_col:
+            for col_name in ['Station_1', 'Station_2', 'Bưu cục', 'Buu cuc']:
+                if col_name in df.columns:
+                    for _, row in df.iterrows():
+                        st = str(row.get(col_name, '')).strip()
+                        bc = str(row.get(bc_col, '')).strip()
+                        if st and bc and st.lower() not in ('nan', 'none') and bc.lower() not in ('nan', 'none'):
+                            d_buucuc[st] = bc
+
+            if rd_col:
+                for _, row in df.iterrows():
+                    bc = str(row.get(bc_col, '')).strip()
+                    rd = str(row.get(rd_col, '')).strip()
+                    if bc and rd:
+                        d_tuyen[bc] = rd
+                        if 'Station_1' in df.columns:
+                            d_tuyen[str(row.get('Station_1', '')).strip()] = rd
+
+            if rk_col:
+                for _, row in df.iterrows():
+                    bc = str(row.get(bc_col, '')).strip()
+                    rk = str(row.get(rk_col, '')).strip()
+                    if bc and rk:
+                        d_rank[bc] = rk
+                        if 'Station_1' in df.columns:
+                            d_rank[str(row.get('Station_1', '')).strip()] = rk
+
         return d_sortcode, d_buucuc, d_tuyen, d_rank
     except FileNotFoundError:
         print(f"   ❌ Không tìm thấy: {path}")
