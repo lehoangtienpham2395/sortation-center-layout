@@ -217,8 +217,8 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
     const url = `https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
-    const data = await response.json();
-    if (!Array.isArray(data)) return [];
+    const rawData = await response.json();
+    const data = Array.isArray(rawData) ? rawData : (rawData?.pivot_data || rawData?.data || []);
     if (sheetType.toLowerCase() === 'heatmap') {
       return data;
     }
