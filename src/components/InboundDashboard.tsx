@@ -424,7 +424,7 @@ export default function InboundDashboard({
     return opPk === activeDate && status !== 'Created' && status !== 'Đã điều phối bưu cục';
   }).forEach(d => {
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    if (station === 'BN HUB') {
+    if (isNorthStation(station)) {
       return;
     }
     const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
