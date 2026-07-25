@@ -577,6 +577,7 @@ export default function App() {
         
         // HARDCODE CHECK FIRST!
         const hardcodedNames: Record<string, string> = {
+          'A06': 'BN HUB',
           'C07': 'DT TN',
           'C08': 'TG GÒ CÔNG',
           'C09': 'LA HẬU NGHĨA',
