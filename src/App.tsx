@@ -540,9 +540,6 @@ export default function App() {
     // For Inventory: accumulate volumes per areaId across selected statuses
     const inventoryMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
 
-    const hasInventoryForSelectedDate = rawSheetRows.some(r => r.type === 'Inventory' && isDateMatch(r.date, selectedDate));
-    const hasBacklogForSelectedDate = rawSheetRows.some(r => r.type === 'Backlog' && isDateMatch(r.date, selectedDate));
-
     rawSheetRows.forEach(row => {
       const key = row.areaId;
       if (!key) return;
@@ -553,8 +550,8 @@ export default function App() {
         }
       }
 
-      // For Inventory and Backlog, check if exact/month date exists, otherwise fallback to latest snapshot
-      const matchInventory = row.type === 'Inventory' && (hasInventoryForSelectedDate ? isDateMatch(row.date, selectedDate) : true);
+      // For Inventory and Backlog, strictly filter by selectedDate
+      const matchInventory = row.type === 'Inventory' && isDateMatch(row.date, selectedDate);
       if (matchInventory) {
         if (!row.status || selectedStatuses.includes(row.status)) {
           if (!inventoryMap[key]) {
@@ -565,7 +562,7 @@ export default function App() {
         }
       }
 
-      const matchBacklog = row.type === 'Backlog' && (hasBacklogForSelectedDate ? isDateMatch(row.date, selectedDate) : true);
+      const matchBacklog = row.type === 'Backlog' && isDateMatch(row.date, selectedDate);
       if (matchBacklog) {
         backlogMap[key] = row;
       }
@@ -1469,8 +1466,11 @@ export default function App() {
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-400 font-semibold select-none">Operations Date</span>
               <DatePicker
-                selectedDate={selectedDate}
-                onDateChange={(d) => setSelectedDate(d)}
+                selectedDate={selectedDate || selectedInboundDate}
+                onDateChange={(d) => {
+                  setSelectedDate(d);
+                  setSelectedInboundDate(d);
+                }}
                 availableDates={availableDates}
                 align="right"
                 className="w-[210px]"
