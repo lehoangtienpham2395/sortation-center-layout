@@ -3,52 +3,30 @@ logs
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-
 node_modules
 dist
-dist-ssr
-*.local
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+# Large files (>50MB)
+data/latest.json
+src/data/latest.json
+data/outbound.json
+src/data/outbound.json
+latest.json
+outbound.json
+data/*.csv
+*.csv
 
-# SQLite Database (No longer tracked in PostgreSQL mode)
-backend_sync/db/state.db
-backend_sync/db/last_run.txt
-
-# Temporary export/analysis files (không push lên GitHub)
-data/*
+# Tracked Dashboard JSON Files
 !data/config.json
-!data/.gitkeep
-!data/*.json
-!data/*.json.gz
-data/export_*.csv
-data/compare_*.csv
-data/FILE*.csv
-data/forecast_*.csv
-backend_sync/export_*.py
-backend_sync/compare_*.py
-backend_sync/check_*.py
-backend_sync/cleanup_stale_now.py
-backend_sync/startup_sync.log
-
-# Lock files
-*.lock
-sync.lock
-backend_sync/sync.lock
-
+!data/inbound.json
+!data/backlog.json
+!data/inventory.json
+!data/hub_inventory_pivot.json
+!data/hourly_drop_monitor.json
+!data/heatmap.json
+!data/history_snapshots.json
+!data/last_update.json
+!data/arrival.json
+!data/linehaul.json
+!data/truck_eta.json
+!data/latest.json.gz
