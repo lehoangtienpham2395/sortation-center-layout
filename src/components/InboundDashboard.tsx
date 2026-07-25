@@ -366,7 +366,7 @@ export default function InboundDashboard({
   //    - Gắn trực tiếp lên bộ lọc ngày activeDate
   inboundData.forEach(d => {
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    if (station === 'BN HUB') return;
+    if (isNorthStation(station)) return;
 
     const arrTime = d['Arrival Time'] || d['Arrival_time'] || '';
     if (!arrTime) return;
@@ -396,7 +396,7 @@ export default function InboundDashboard({
     return opDate === activeDate || fcDate === activeDate;
   }).forEach(d => {
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    if (station === 'BN HUB') {
+    if (isNorthStation(station)) {
       return;
     }
     const fcTime = d['Forecast Time'] || '';
