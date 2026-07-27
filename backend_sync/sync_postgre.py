@@ -272,7 +272,61 @@ def sync_postgre_to_dashboard():
     else:
         print(f"   ⚠️  valid.csv not found — zone/area mapping empty")
 
-    # ── 2. PostgreSQL fetch ───────────────────────────────────────
+    # ── 1.1 JFS API Live Pull (Kéo mới từ JFS API -> Nạp PostgreSQL) ─────────
+    if _HAS_PIPELINE:
+        print("\n🌐 Phase 1: Pulling live data from JFS API (7 sources)...")
+        try:
+            session_main = build_session()
+            session_arr  = build_session()
+            tkn_main     = TokenManager(session_main, ACCOUNT, PASSWORD, label='660021')
+            tkn_arr      = TokenManager(session_arr,  ARR_ACCOUNT, ARR_PASSWORD, label='660085')
+
+            # Pre-warm logins
+            from concurrent.futures import ThreadPoolExecutor
+            with ThreadPoolExecutor(max_workers=2) as ex:
+                fa = ex.submit(tkn_main.get_token)
+                fb = ex.submit(tkn_arr.get_token)
+                fa.result(); fb.result()
+
+            ih_headers = _pv6.load_json(_pv6.cfg('inboundheaders.json'))
+            ip_payload = _pv6.load_json(_pv6.cfg('inboundpayload.json'))
+            oh_headers = _pv6.load_json(_pv6.cfg('outboundheaders.json'))
+            op_payload = _pv6.load_json(_pv6.cfg('outboundpayload.json'))
+            dh_headers = _pv6.load_json(_pv6.cfg('dispatchheaders.json'))
+            dp_payload = _pv6.load_json(_pv6.cfg('dispatchpayload.json'))
+
+            ip_payload['beginDate'] = start_str; ip_payload['endDate'] = end_str
+            op_payload['beginDate'] = start_str; op_payload['endDate'] = end_str
+            dp_payload['startInputTime'] = start_str; dp_payload['endInputTime'] = end_str
+            dp_payload['current'] = '1'; dp_payload['size'] = str(_pv6.PAGE_SIZE)
+
+            i_params = {'sqlCode': ip_payload.get('sqlCode', ''), 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693'}
+            o_params = {'sqlCode': op_payload.get('sqlCode', ''), 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693'}
+
+            raw = {}
+            with ThreadPoolExecutor(max_workers=5) as ex:
+                fut = {
+                    ex.submit(_pv6.pull_dispatch, session_main, tkn_main, dh_headers, dp_payload): 'dispatch',
+                    ex.submit(_pv6.pull_scan, session_main, tkn_main, ih_headers, i_params, ip_payload, 'Inbound'): 'inbound',
+                    ex.submit(_pv6.pull_scan, session_main, tkn_main, oh_headers, o_params, op_payload, 'Outbound'): 'outbound',
+                    ex.submit(_pv6.pull_arrival, session_arr, tkn_arr, ih_headers, start_str, end_str): 'arrival',
+                    ex.submit(_pv6.pull_shuttle, session_arr, tkn_arr, start_str, end_str): 'shuttle',
+                }
+                for f in _pv6.as_completed(fut):
+                    k = fut[f]
+                    try: raw[k] = f.result()
+                    except Exception as _e: raw[k] = []
+
+            print(f"   📥 JFS Dispatch: {len(raw.get('dispatch', [])):,} đơn")
+            print(f"   📥 JFS Inbound : {len(raw.get('inbound', [])):,} quét")
+            print(f"   📥 JFS Outbound: {len(raw.get('outbound', [])):,} quét")
+            print(f"   📥 JFS Arrival : {len(raw.get('arrival', [])):,} quét")
+            print(f"   📥 JFS Shuttle : {len(raw.get('shuttle', [])):,} chuyến xe")
+        except Exception as e:
+            print(f"   ⚠️  Phase 1 JFS API Live Pull skipped/error: {e}")
+
+    # ── 2. PostgreSQL fetch & export ──────────────────────────────────────────
+    print("\n📦 Phase 2: Reading from PostgreSQL logistics_db & generating JSONs...")
     try:
         conn = get_pg_conn()
         print("   🟢 Connected to PostgreSQL")
@@ -310,7 +364,11 @@ def sync_postgre_to_dashboard():
         return
 
     df = df.fillna('')
-    print(f"   📦 {len(df):,} records from PostgreSQL")
+    total_rows = len(df)
+    today_rows = len(df[df['operation_date_created'].astype(str).str[:10] == today])
+    print(f"   📦 {total_rows:,} records từ PostgreSQL (2 ngày gần nhất)")
+    print(f"   📅 Ngày vận hành hôm nay ({today}): {today_rows:,} đơn")
+    print(f"   📅 Ngày hôm qua ({yesterday})       : {total_rows - today_rows:,} đơn")
 
     # ── 3. Aggregate ──────────────────────────────────────────────
     inv_group     = {}   # (zone, area_id, station_name, status) → {volume, weight_kg, capacity}
@@ -320,17 +378,20 @@ def sync_postgre_to_dashboard():
     arr_group     = {}   # (op_date, station_name, scan_hour)    → {total, at_hub, not_hub, last_scan_time}
     hourly        = {f"{h:02d}:00": 0 for h in range(24)}
 
+    # Normalize Hubcode → numeric zone for frontend ZONE_LIST
+    ZONE_MAP = {'SR0001': '1', 'BNI001': '1', '1': '1', '2': '2', '3': '3'}
+
     for _, r in df.iterrows():
         sc        = str(r.get('dispatch_code', '')).strip().upper()
         next_st   = str(r.get('next_station',  '')).strip()
         mapped_st = dict_station.get(sc, '')
         station   = mapped_st or (next_st if next_st and next_st != 'KHO VÙNG KHÁC' else 'KHO VÙNG KHÁC')
-        zone      = dict_zone.get(sc, '3')
-        area_id   = dict_area.get(sc, 'C01')
-        cap       = 780
+        zone    = ZONE_MAP.get(dict_zone.get(sc, '3'), '3')
+        area_id = dict_area.get(sc, 'C01')
+        cap     = 780
 
         if area_id == 'A06':
-            station, zone, cap = 'BN HUB', 'BNI001', 1400
+            station, zone, cap = 'BN HUB', '1', 1400
 
         wt_kg    = float(r.get('orders_weight') or 0)
         cr_t     = clean_ts_str(r.get('created_time'))
@@ -354,12 +415,13 @@ def sync_postgre_to_dashboard():
                       'Đang trên đường'      if has_arr else
                       'Đã lấy hàng'           if has_pick else 'Đã điều phối bưu cục')
 
-        # inventory group
-        ki = (zone, area_id, station, inv_status)
-        if ki not in inv_group:
-            inv_group[ki] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
-        inv_group[ki]['volume']    += 1
-        inv_group[ki]['weight_kg'] += wt_kg
+        # inventory group — CHỈ đơn CHƯA RỜI HUB (loại đơn đã có outbound scan)
+        if not has_out:
+            ki = (zone, area_id, station, inv_status)
+            if ki not in inv_group:
+                inv_group[ki] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
+            inv_group[ki]['volume']    += 1
+            inv_group[ki]['weight_kg'] += wt_kg
 
         # outbound group
         if has_out:

@@ -603,8 +603,12 @@ export default function App() {
         inventoryMap[key].weight += row.weight;
       }
 
-      if (row.type === 'Backlog' || selectedType === 'Backlog') {
-        backlogMap[key] = row;
+      if (row.type === 'Backlog') {
+        if (!backlogMap[key]) {
+          backlogMap[key] = { ...row, volume: 0, weight: 0 };
+        }
+        backlogMap[key].volume += row.volume;
+        backlogMap[key].weight += row.weight;
       }
     });
 
