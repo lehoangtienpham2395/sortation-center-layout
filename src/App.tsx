@@ -288,7 +288,7 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
 }
 
 
-const UTILCOL: any = { green:'#10b981', yellow:'#f59e0b', orange:'#f97316', red:'#ef4444', darkred:'#dc2626' };
+const UTILCOL: any = { green:'#00b050', yellow:'#f59e0b', orange:'#f97316', red:'#ef4444', darkred:'#dc2626' };
 
 const WL = 60;                        
 const WR = 894;                       
@@ -1554,7 +1554,7 @@ export default function App() {
                 {[
                   { id: 'master', label: 'Layout', color: '#4F8CFF', active: currentView === 'master', onClick: () => setCurrentView('master') },
                   { id: 'inbound', label: 'Inbound', color: '#B8F7E4', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
-                  { id: 'heatmap', label: 'Heatmap', color: '#10B981', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
+                  { id: 'heatmap', label: 'Heatmap', color: '#00b050', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
                   { id: 'kpi', label: 'KPI', color: '#F59E0B', active: currentView === 'kpi', onClick: () => setCurrentView('kpi') },
     { id: 'maps', label: 'Maps', color: '#00F2FE', active: currentView === 'maps', onClick: () => setCurrentView('maps') },
                 ].map(item => {
@@ -1714,7 +1714,7 @@ export default function App() {
                   {/* Zone cards 3-column grid */}
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     {[
-                      { id: 3, shortName: 'ZONE 3', sub: '', color: '#10b981', colorBg: 'rgba(16,185,129,0.1)', colorBorder: 'rgba(16,185,129,0.3)' },
+                      { id: 3, shortName: 'ZONE 3', sub: '', color: '#00b050', colorBg: 'rgba(16,185,129,0.1)', colorBorder: 'rgba(16,185,129,0.3)' },
                       { id: 2, shortName: 'ZONE 2', sub: '', color: '#f59e0b', colorBg: 'rgba(245,158,11,0.1)', colorBorder: 'rgba(245,158,11,0.3)' },
                       { id: 1, shortName: 'ZONE 1', sub: '', color: '#f97316', colorBg: 'rgba(249,115,22,0.1)', colorBorder: 'rgba(249,115,22,0.3)' }
                     ].map(zone => {
@@ -2183,7 +2183,7 @@ export default function App() {
                       <tbody>
                         {getTop10Chutes().map((chute, index) => {
                           const colors: Record<string, string> = {
-                            green: '#10b981',
+                            green: '#00b050',
                             yellow: '#f59e0b',
                             orange: '#f97316',
                             red: '#ef4444',
@@ -2394,7 +2394,7 @@ export default function App() {
 
                 <div className="bg-white/[0.03] border border-white/5 p-4 rounded-xl">
                   <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">Tỷ lệ lấp đầy</div>
-                  <div className="text-2xl font-bold mono text-[#10b981]">
+                  <div className="text-2xl font-bold mono text-[#00b050]">
                     {selectedDetailRack.detail?.utilization || 0}%
                   </div>
                 </div>
