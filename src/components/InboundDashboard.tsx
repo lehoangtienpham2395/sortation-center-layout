@@ -552,23 +552,20 @@ export default function InboundDashboard({
 
   const totalInbound = stages['Inbound'].orders;
   const totalPickupDone = stages['Pickup Done'].orders;
-  totalForecast = forecastRotHomTruoc + forecastRotHomNay;
+  totalInTransitOrders = stages['Transporting'].orders;
+
+  // FIX: Tổng Forecast = Tất cả đơn cần nhập kho trong ngày (Inbound + Transporting + Pickup Done + Rớt chưa về HUB)
+  const backlogOrders = forecastRotHomTruoc + forecastRotHomNay;
+  totalForecast = totalInbound + totalInTransitOrders + totalPickupDone + backlogOrders;
+  const totalCreated = backlogOrders;
 
   const inboundTrendData  = labels.map(l => hourlyInbound[l]);
   const arrivedTrendData  = labels.map(l => hourlyArrived[l]);
   const forecastTrendData = labels.map(l => hourlyForecast[l]);
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
-  // Shuttle in-transit orders: dùng stages['Transporting'] (từ inbound scan) vì orders_count = 0 trong shuttle_tracking
-  totalInTransitOrders = stages['Transporting'].orders;
-  
   // Orders status: các trạng thái lấy Forecast làm hệ quy chiếu (100%)
   const totalBase = totalForecast > 0 ? totalForecast : (totalInbound + totalInTransitOrders + totalPickupDone + stages['Created'].orders);
-  
-  // Phần Created (chờ lấy hàng) = lượng còn lại của Forecast sau khi trừ Inbound, Transporting, Pickup Done
-  const totalCreated = totalForecast > 0 
-    ? Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalPickupDone) 
-    : stages['Created'].orders;
 
   const pendingOrders = totalCreated; // for fallback UI components
   totalOrders = totalInbound;
