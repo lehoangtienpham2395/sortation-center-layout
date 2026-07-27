@@ -108,6 +108,18 @@ def sql_esc(val):
         return 'NULL'
     return "'" + str(val).replace("'", "''") + "'"
 
+def get_op_date(dt_str: str) -> str:
+    """Ngày vận hành theo cycle 06:00–06:00."""
+    if not dt_str or str(dt_str).lower() in ('nan', 'none', ''):
+        return ''
+    try:
+        dt = datetime.strptime(str(dt_str)[:19], '%Y-%m-%d %H:%M:%S')
+        if dt.hour < 6:
+            return (dt.date() - timedelta(days=1)).strftime('%Y-%m-%d')
+        return dt.strftime('%Y-%m-%d')
+    except Exception:
+        return str(dt_str)[:10]
+
 # ============================================================
 # SESSION + TOKEN MANAGER
 # ============================================================
