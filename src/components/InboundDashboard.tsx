@@ -205,7 +205,7 @@ export default function InboundDashboard({
 
   const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && isDateMatch(getDateInbound(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
   const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && Boolean(getDateForecast(d)) && isDateMatch(getDateForecast(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
-  const filteredPickup = inboundData.filter(d => (getStatus(d) === 'Created' || getStatus(d) === 'Transporting' || getStatus(d) === 'Inbound') && Boolean(d['Pickup Time'] || d['pickup_time']) && isDateMatch(getDatePickup(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
+  const filteredPickup = inboundData.filter(d => (getStatus(d) === 'Created') && Boolean(d['Pickup Time'] || d['pickup_time']) && isDateMatch(getDatePickup(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
   const filteredTransportingInbound = inboundData.filter(d => (getStatus(d) === 'Transporting') && (isDateMatch(getDateArrival(d), activeDate) || isDateMatch(getDatePickup(d), activeDate) || isDateMatch(getDateForecast(d), activeDate)) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
   const filteredArrivalData = ((arrivalData as any[]) || []).map(d => ({
     'Bu cc': d['last_dept_name'] || d['scansitename'] || 'BƯU CỤC CẦN',
@@ -409,6 +409,21 @@ export default function InboundDashboard({
       if (hourlyArrived[hour] !== undefined) {
         hourlyArrived[hour] += vol;
       }
+    }
+  });
+
+  // 1b. Bổ sung Truck ETA (Inbound Truck ETA - HCM HUB) vào đường Transporting trên biểu đồ
+  // Mỗi xe đang trên đường → phân bổ orders vào slot giờ ETA dự kiến đến Hub
+  filteredTruckEta.forEach((d: any) => {
+    const etaTime = d['actualArrivalTime'] || d['predictArriveTime'] || d['Giờ đến bãi'] || d['eta'] || d['planned_arrival'] || '';
+    if (!etaTime) return;
+    const hrVal = getHourFromTimestamp(etaTime);
+    if (hrVal < 0 || hrVal >= 24) return;
+    const hour = `${String(hrVal).padStart(2, '0')}:00`;
+    if (hourlyArrived[hour] === undefined) return;
+    const orders = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
+    if (orders > 0) {
+      hourlyArrived[hour] += orders;
     }
   });
 
@@ -797,7 +812,7 @@ export default function InboundDashboard({
       {/* 1. Header Control Block */}
       <header className="dashboard-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px' }}>
 
-        {/* LEFT: Sync Button + Export Button + Logo */}
+        {/* LEFT: Sync Button + Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
           <button
             className="google-sync-btn"
@@ -809,15 +824,6 @@ export default function InboundDashboard({
             {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
           </button>
 
-          <button
-            className="google-sync-btn"
-            onClick={handleExportCSV}
-            style={{ width: 'auto', padding: '10px 18px', background: '#092518' }}
-          >
-            <i className="fa-solid fa-file-excel" style={{ color: "#B8F7E4", marginRight: "6px" }}></i>
-            Xuất Báo Cáo
-          </button>
-
           <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '80px', borderRadius: '10px', display: 'block' }} />
         </div>
 
@@ -827,9 +833,17 @@ export default function InboundDashboard({
           <p className="subtitle text-xs text-slate-400" style={{ marginTop: '4px', textAlign: 'center', display: 'block' }}>Operational overview of today's inbound activities</p>
         </div>
 
-        {/* RIGHT: Status + Date Picker */}
+        {/* RIGHT: Export Button + Status + Date Picker */}
         <div className="header-right" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              className="google-sync-btn"
+              onClick={handleExportCSV}
+              style={{ width: 'auto', padding: '7px 14px', background: '#092518', fontSize: '12px' }}
+            >
+              <i className="fa-solid fa-file-excel" style={{ color: '#B8F7E4', marginRight: '6px' }}></i>
+              Xuất Báo Cáo
+            </button>
             <div style={{ 
               fontSize: '11px', 
               color: '#B8F7E4', 

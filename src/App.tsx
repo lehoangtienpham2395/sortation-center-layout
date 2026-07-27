@@ -1595,7 +1595,7 @@ export default function App() {
             {lastUpdate && (
               <div style={{ 
                 fontSize: '11px', 
-                color: '#10b981', 
+                color: '#B8F7E4', 
                 background: 'rgba(184, 247, 228, 0.05)', 
                 border: '1px solid rgba(184, 247, 228, 0.2)', 
                 padding: '5px 14px', 
@@ -1607,7 +1607,7 @@ export default function App() {
                 gap: '6px',
                 textShadow: '0 0 8px rgba(184,247,228,0.3)'
               }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#B8F7E4] animate-pulse" />
                 Update: {lastUpdate}
               </div>
             )}
