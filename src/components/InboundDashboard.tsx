@@ -570,8 +570,12 @@ export default function InboundDashboard({
   const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
   const getFC = (name: any) => {
     if (!name) return null;
-    const clean = String(name).trim().toUpperCase();
+    let clean = String(name).trim().toUpperCase();
     if (!clean) return null;
+    if (clean === 'KHO VÙNG KHÁC' || clean === 'KHÔ VÙNG KHÁC' || clean === 'KHÁC') {
+      clean = 'BN HUB';
+      name = 'BN HUB';
+    }
     if (!fcMetrics[clean]) {
       fcMetrics[clean] = { fc: String(name).trim(), vehicles: new Set(), orders: 0, weight: 0 };
     }
