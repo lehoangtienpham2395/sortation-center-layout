@@ -621,9 +621,9 @@ export default function InboundDashboard({
       const fc = getFC(fcName);
       if (fc) {
         fc.orders += parseInt(d['Volume'], 10) || 0;
-        // FIX: Weight trong inbound.json có thể tính bằng gram → chia 1000 để ra kg
+        // Weight trong inbound.json là weight_ton (đã là Tấn)
         const rawW = parseFloat(d['Weight'] ?? d['weight'] ?? 0);
-        fc.weight += rawW > 1000 ? rawW / 1000 : rawW;
+        fc.weight += rawW;
       }
     }
   });
@@ -631,12 +631,10 @@ export default function InboundDashboard({
   filteredLinehaul.forEach(d => {
     // linehaul.json structure: send_network = bưu cục NGUỒN (gửi hàng đến HUB)
     // arrive_network = bưu cục ĐÍCH (HCM HUB hoặc BN HUB)
-    // Bưu cục gửi hàng đến HCM HUB chính là send_network
     const fcName = d['send_network'] || d['sendNetworkName'] || d['nextNetworkName'] || d['send_network_name'] || '';
-    // FIX: linehaul.json dùng orders_count + weight_kg (không phải loadscanwaybillnum)
     const lhWaybill = d['orders_count'] ?? d['loadscanwaybillnum'] ?? d['unloadingBillPiece'] ?? 0;
-    const lhWeight  = d['weight_kg']    ?? d['loadpackageweight']  ?? d['unloadingWeight']    ?? 0;
-    // vehicle key: trip_code (linehaul.json), plate_number, hoặc Phiếu nhiệm vụ
+    // weight_kg từ linehaul.json tính bằng kg → quy đổi ra Tấn (/ 1000)
+    const lhWeightKg = d['weight_kg'] ?? d['loadpackageweight'] ?? d['unloadingWeight'] ?? 0;
     const vehicleKey = d['trip_code'] || d['plate_number'] || d['Phiếu nhiệm vụ'] || d['shipmentName'] || '';
     if (fcName && vehicleKey) {
       const clean = fcName.trim().toUpperCase();
@@ -644,9 +642,8 @@ export default function InboundDashboard({
         fcMetrics[clean] = { fc: fcName.trim(), vehicles: new Set(), orders: 0, weight: 0 };
       }
       fcMetrics[clean].vehicles.add(vehicleKey);
-      // Luôn cộng dồn orders + weight từ linehaul
       fcMetrics[clean].orders += parseInt(lhWaybill as any, 10) || 0;
-      fcMetrics[clean].weight += parseFloat(lhWeight as any) || 0;
+      fcMetrics[clean].weight += (parseFloat(lhWeightKg as any) || 0) / 1000;
     }
   });
 
@@ -934,8 +931,8 @@ export default function InboundDashboard({
             <i className="fa-solid fa-weight-hanging kpi-icon"></i>
           </div>
           <div className="kpi-card-body">
-            <span className="kpi-value"><NumberTicker value={totalWeight / 1000} decimals={2} /> Tấn</span>
-            <span className="kpi-sub">Avg: {(ordersWithWeight > 0 ? totalWeight / ordersWithWeight : 0).toFixed(2)} kg/pkg</span>
+            <span className="kpi-value"><NumberTicker value={totalWeight} decimals={2} /> Tấn</span>
+            <span className="kpi-sub">Avg: {(ordersWithWeight > 0 ? (totalWeight * 1000) / ordersWithWeight : 0).toFixed(2)} kg/pkg</span>
           </div>
           <div className="kpi-glow"></div>
         </div>
@@ -1167,7 +1164,7 @@ export default function InboundDashboard({
                     <td className="table-buucuc" style={{ color: '#38bdf8' }}>TỔNG CỘNG</td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{totalSendingVehicles} xe</td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{totalSendingOrders.toLocaleString()}</td>
-                    <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{(totalSendingWeight / 1000).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{totalSendingWeight.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>100%</td>
                   </tr>
                 )}
@@ -1179,7 +1176,7 @@ export default function InboundDashboard({
                       <span className="badge-count violet">{fc.vehicles} xe</span>
                     </td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#10b981', fontWeight: 600 }}>{fc.orders.toLocaleString()}</td>
-                    <td className="num-tabular" style={{ textAlign: 'right' }}>{(fc.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
+                    <td className="num-tabular" style={{ textAlign: 'right' }}>{fc.weight.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
                     <td className="num-tabular" style={{ textAlign: 'right', fontWeight: '600', color: '#38bdf8' }}>
                       {totalSendingOrders > 0 ? ((fc.orders / totalSendingOrders) * 100).toFixed(1) : '0.0'}%
                     </td>
