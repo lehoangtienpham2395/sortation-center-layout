@@ -52,6 +52,54 @@ try {
   console.error("Error loading master config map:", e);
 }
 
+// ============================================================
+// BACKEND <-> FRONTEND DATA CONTRACT & ENUM MAPS
+// ============================================================
+export const BACKEND_STATUS_MAP: Record<string, string> = {
+  // Capitalized canonical values
+  'Inbound': 'Inbound',
+  'Transporting': 'Transporting',
+  'Created': 'Created',
+  'Outbound': 'Outbound',
+
+  // Raw / Lowercase / Legacy status mappings
+  'inbound': 'Inbound',
+  'at_hub': 'Inbound',
+  'Đang trên bãi': 'Inbound',
+
+  'transporting': 'Transporting',
+  'Đang trên đường': 'Transporting',
+
+  'pickup_done': 'Created',
+  'created': 'Created',
+  'Đã lấy hàng': 'Created',
+  'Đã điều phối bưu cục': 'Created',
+
+  'outbound_done': 'Outbound',
+  'outbound': 'Outbound',
+  'Đã xuất khỏi HUB': 'Outbound',
+  'Đã rời HUB': 'Outbound',
+};
+
+export const BACKEND_DROP_TYPE_MAP: Record<string, string> = {
+  'rot_today': 'Rớt hôm nay',
+  'rot_yesterday': 'Rớt hôm trước',
+  'Rớt hôm nay': 'Rớt hôm nay',
+  'Rớt hôm trước': 'Rớt hôm trước',
+};
+
+export function normalizeStatus(rawStatus?: string): string {
+  if (!rawStatus) return 'Created';
+  const str = String(rawStatus).trim();
+  return BACKEND_STATUS_MAP[str] || BACKEND_STATUS_MAP[str.toLowerCase()] || str;
+}
+
+export function normalizeDropType(rawDropType?: string): string {
+  if (!rawDropType) return 'Rớt hôm nay';
+  const str = String(rawDropType).trim();
+  return BACKEND_DROP_TYPE_MAP[str] || str;
+}
+
 // ── Rack / chute definitions (Chuẩn hóa 100% tên bưu cục theo valid.csv) ──
 const ZONE3_LIST = [
   // 5 ô chutes bên phải vách ngăn (vùng xanh lá)
@@ -217,6 +265,18 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
           out[keyMap[k]] = v;
         }
       }
+
+      // Contract normalization
+      const rawSt = row['status'] ?? row['Trạng thái'] ?? row['Trng thi'] ?? row['status_sys'];
+      const stNorm = normalizeStatus(rawSt);
+      out['status'] = stNorm;
+      out['Trạng thái'] = stNorm;
+
+      const rawDrop = row['drop_type'] ?? row['Loại rớt'] ?? row['Loi rt'];
+      const dropNorm = normalizeDropType(rawDrop);
+      out['drop_type'] = dropNorm;
+      out['Loại rớt'] = dropNorm;
+
       return out;
     });
   } catch (error) {
@@ -265,11 +325,15 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
       const capRaw     = item['capacity'] ?? item['Sc cha'] ?? item['Sức chứa'] ?? 780;
       const dateRaw    = item['op_date'] ?? item['Ngy'] ?? item['Ngày'] ?? item['date'] ?? item['operation_date_created'] ?? item['operation_date'] ?? item['operation_date_inbound'] ?? todayStr;
       const rawSt      = item['status'] ?? item['Trng thi'] ?? item['Trạng thái'] ?? item['status_sys'] ?? undefined;
-      const statusRaw  = rawSt ? (STATUS_MAP[String(rawSt)] ?? String(rawSt)) : undefined;
+      const statusRaw  = rawSt ? normalizeStatus(rawSt) : undefined;
 
       const volume   = Number(volumeRaw);
       let weight     = Number(weightRaw) || 0;
-      if (weight > 100) weight = Number((weight / 1000.0).toFixed(3));
+      if (weight > 0 && weight < 500) {
+        weight = Number((weight * 1000.0).toFixed(2));
+      } else if (weight > 500000) {
+        weight = Number((weight / 1000.0).toFixed(2));
+      }
       const capacity = Number(capRaw) || 780;
 
       if (areaId || buuCuc) {
@@ -412,7 +476,7 @@ export default function App() {
   const [heatmapRows, setHeatmapRows] = useState<any[]>([]);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Outbound');
+  const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Inventory');
   const [outboundRate, setOutboundRate] = useState<string>('0.0');
   const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Created'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([...INVENTORY_STATUSES]);
@@ -598,7 +662,7 @@ export default function App() {
       const key = row.areaId;
       if (!key) return;
 
-      const dateMatched = isDateMatch(row.date, selectedDate);
+      const dateMatched = isDateMatch(row.date, selectedDate) || (row.type === 'Inventory' && (!selectedDate || selectedDate === row.date));
       if (!dateMatched) return;
 
       // Volume tab matches Volume or exact row type

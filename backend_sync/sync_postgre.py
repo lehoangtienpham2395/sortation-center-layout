@@ -418,9 +418,9 @@ def sync_postgre_to_dashboard():
         op_date_arr  = get_op_date(arr_t)  if arr_t  else ''
 
         if op_date_inb in (today, yesterday) or op_date_fc in (today, yesterday):
-            in_status  = ('inbound'      if has_in   else
-                          'transporting' if has_arr  else
-                          'pickup_done'  if has_pick else 'created')
+            in_status  = ('Inbound'      if has_in   else
+                          'Transporting' if has_arr  else
+                          'Created'      if has_pick else 'Created')
             drop_type  = 'rot_today' if op_date_fc == today else 'rot_yesterday'
             key_ib = (
                 station, in_status,
