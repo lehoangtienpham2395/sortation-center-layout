@@ -279,17 +279,23 @@ export default function InboundDashboard({
     forecastRotHomNay = lastUpdateObj.rot_hom_nay;
   }
 
-  const filteredTruckEta = (truckEtaData || []).map(d => ({
-    ...d,
-    'Mã chuyến': d.shipmentName || d.plateNumber,
-    'Biển số': d.plateNumber,
-    'Nhà xe': d.carrierName,
-    'Bưu cục đi': d.sendNetworkName || 'BN HUB',
-    'Bưu cục đến': d.arriveNetworkName || 'HCM HUB',
-    'Tổng số đơn': d.loadscanwaybillnum || d.volume || 850,
-    'Tổng trọng lượng (kg)': d.loadpackageweight || 8500,
-    'Giờ đến bãi': d.actualArrivalTime || d.predictArriveTime || ''
-  }));
+  const filteredTruckEta = (truckEtaData || [])
+    .filter(d => {
+      const opDate = d.op_date || d['Ngày vận hành'] || (d.eta ? d.eta.slice(0, 10) : '') || (d.predictArriveTime ? d.predictArriveTime.slice(0, 10) : '');
+      if (!opDate) return true;
+      return isDateMatch(opDate, activeDate);
+    })
+    .map(d => ({
+      ...d,
+      'Mã chuyến': d.shipmentName || d.plateNumber || d.plate_number,
+      'Biển số': d.plateNumber || d.plate_number,
+      'Nhà xe': d.carrierName || d.carrier_name,
+      'Bưu cục đi': d.sendNetworkName || d.send_network || 'BN HUB',
+      'Bưu cục đến': d.arriveNetworkName || d.arrive_network || 'HCM HUB',
+      'Tổng số đơn': d.orders_count ?? d.loadscanwaybillnum ?? d.volume ?? 0,
+      'Tổng trọng lượng (kg)': d.weight_kg ?? d.loadpackageweight ?? 0,
+      'Giờ đến bãi': d.eta || d.actualArrivalTime || d.predictArriveTime || ''
+    }));
 
   let totalOrders = stages['Inbound'].orders;
   let totalWeight = stages['Inbound'].weight;
@@ -312,10 +318,10 @@ export default function InboundDashboard({
     if (cleanKey !== 'BN HUB' && isNorthStation(cleanKey)) return;
 
     // Ưu tiên lấy đơn Chưa đến Hub (hàng đang trên đường)
-    const inTransitOrders = parseInt(d['Chưa đến Hub'] || d['Chua dn Hub'] || d['Orders'] || d['Tổng số đơn'] || d['Tng s n'] || d['loadscanwaybillnum'] || 850, 10);
-    const tongDon = parseInt(d['Tổng số đơn'] || d['Tng s n'] || d['loadscanwaybillnum'] || 850, 10);
+    const inTransitOrders = Number(d['Chưa đến Hub'] ?? d['Chua dn Hub'] ?? d['Orders'] ?? d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
+    const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
     const lastTime = d['Last time'] || d['ETA'] || d['Giờ đến bãi'] || d['actualArrivalTime'] || d['predictArriveTime'] || '';
-    const wt = parseFloat(d['weight'] || d['package_charge_weight'] || d['loadpackageweight'] || d['Tổng trọng lượng (kg)'] || 8500);
+    const wt = Number(d['weight'] ?? d['weight_kg'] ?? d['package_charge_weight'] ?? d['loadpackageweight'] ?? d['Tổng trọng lượng (kg)'] ?? 0);
 
     if (!groupedStationVehicles[st]) {
       groupedStationVehicles[st] = {

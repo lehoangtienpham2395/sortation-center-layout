@@ -1,3 +1,4 @@
+import RouteMapDashboard from './components/RouteMapDashboard';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import InboundDashboard from './components/InboundDashboard';
 import HeatmapDashboard from './components/HeatmapDashboard';
@@ -180,13 +181,9 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
       response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
     }
     if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
-    const data = await response.json();
-    if (!Array.isArray(data)) {
-      if (data && typeof data === 'object' && Array.isArray(data.trucks)) {
-        return data.trucks;
-      }
-      return [];
-    }
+    const rawData = await response.json();
+    const data = Array.isArray(rawData) ? rawData : (rawData?.trucks || rawData?.pivot_data || rawData?.data || []);
+    
     // Remap column keys (supports English snake_case and legacy unaccented keys)
     const keyMap: Record<string, string> = {
       'station_name': 'Bưu cục',
@@ -375,7 +372,7 @@ function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, isMatched, onEnt
 export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [sidebarHovered, setSidebarHovered] = useState(false);
-  const [currentView, setCurrentView] = useState<'master' | 'inbound' | 'heatmap' | 'kpi'>('inbound');
+  const [currentView, setCurrentView] = useState<'master' | 'inbound' | 'heatmap' | 'kpi' | 'maps'>('inbound');
   const [inboundData, setInboundData] = useState<any[]>([]);
   const [linehaulData, setLinehaulData] = useState<any[]>([]);
   const [arrivalData, setArrivalData] = useState<any[]>([]);
@@ -1557,6 +1554,7 @@ export default function App() {
                   { id: 'inbound', label: 'Inbound', color: '#B8F7E4', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
                   { id: 'heatmap', label: 'Heatmap', color: '#10B981', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
                   { id: 'kpi', label: 'KPI', color: '#F59E0B', active: currentView === 'kpi', onClick: () => setCurrentView('kpi') },
+    { id: 'maps', label: 'Maps', color: '#00F2FE', active: currentView === 'maps', onClick: () => setCurrentView('maps') },
                 ].map(item => {
                   return (
                     <button
@@ -2033,6 +2031,8 @@ export default function App() {
                 lastUpdate={lastUpdate}
                 heatmapData={heatmapRows}
               />
+            ) : currentView === 'maps' ? (
+              <RouteMapDashboard />
             ) : currentView === 'kpi' ? (
               <KpiDashboard
                 inboundData={inboundData}
