@@ -884,18 +884,18 @@ const POST_OFFICES = {
 };
 
 const PROVINCE_COLORS = {
-  SG: '#3b82f6',
+  SG: '#B8F7E4',
   AG: '#ef4444',
   BD: '#f97316',
   CT: '#eab308',
-  ST: '#10b981',
+  ST: '#B8F7E4',
   DT: '#06b6d4',
   LA: '#3b82f6',
   VL: '#8b5cf6',
   TG: '#ec4899',
   VT: '#14b8a6',
   BN: '#a855f7',
-  HCM: '#00f2fe'
+  HCM: '#B8F7E4'
 };
 
 const COMBINED_ROUTES = [
@@ -248426,7 +248426,7 @@ function renderMapMarkersAndRoutes() {
     }
     if (!po.lat || !po.lng) return;
 
-    const color = isHub ? '#00f2fe' : (PROVINCE_COLORS[po.province] || '#3b82f6');
+    const color = isHub ? '#B8F7E4' : (PROVINCE_COLORS[po.province] || '#3b82f6');
 
     const iconHtml = isHub ? 
       `<div class="hub-marker-icon" title="${po.name}"></div>` :
@@ -248503,7 +248503,7 @@ function renderMapMarkersAndRoutes() {
     const lineWeight = isSelected ? 6 : (route.type === 'ghep' ? 4 : 3);
 
     const polyline = L.polyline(latLngs, {
-      color: isSelected ? '#00f2fe' : color,
+      color: isSelected ? '#B8F7E4' : color,
       weight: lineWeight,
       opacity: lineOpacity,
       dashArray: isSelected ? '10, 10' : (route.type === 'ghep' ? '8, 6' : null),

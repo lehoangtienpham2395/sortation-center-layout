@@ -1,10 +1,10 @@
 /* J&T Cargo Official Dashboard Brand Colors Theme */
 :root {
-  --jt-green: #00b050;
-  --jt-green-glow: rgba(0, 176, 80, 0.4);
+  --jt-green: #B8F7E4;
+  --jt-green-glow: rgba(184, 247, 228, 0.4);
   --jt-orange: #ff5722;
   --jt-amber: #f59e0b;
-  --jt-lime: #00b050;
+  --jt-lime: #B8F7E4;
   
   --bg-dark: #121316;
   --bg-sidebar: #18191c;
@@ -12,7 +12,7 @@
   --bg-glass: rgba(24, 25, 28, 0.95);
   
   --border-subtle: rgba(255, 255, 255, 0.1);
-  --border-jt: #00b050;
+  --border-jt: #B8F7E4;
   
   --text-main: #ffffff;
   --text-sub: #a0aec0;
@@ -200,11 +200,11 @@ html, body {
 .tool-btn.jt-btn {
   background: var(--jt-green);
   border-color: var(--jt-green);
-  color: #ffffff;
+  color: #121316; font-weight: 700;
 }
 
 .tool-btn:hover {
-  background: rgba(0, 176, 80, 0.2);
+  background: rgba(184, 247, 228, 0.2);
   border-color: var(--jt-green);
 }
 
@@ -240,7 +240,7 @@ html, body {
 }
 
 .tab-btn.active {
-  background: rgba(0, 176, 80, 0.15);
+  background: rgba(184, 247, 228, 0.15);
   border-color: var(--jt-green);
   color: var(--jt-green);
 }
@@ -294,9 +294,9 @@ html, body {
 }
 
 .route-card:hover, .route-card.selected {
-  background: rgba(0, 176, 80, 0.12);
+  background: rgba(184, 247, 228, 0.12);
   border-color: var(--jt-green);
-  box-shadow: 0 4px 14px rgba(0, 176, 80, 0.2);
+  box-shadow: 0 4px 14px rgba(184, 247, 228, 0.2);
 }
 
 .route-header {
@@ -321,9 +321,9 @@ html, body {
 }
 
 .route-type-tag.ghep {
-  background: rgba(0, 176, 80, 0.15);
+  background: rgba(184, 247, 228, 0.15);
   color: var(--jt-green);
-  border: 1px solid rgba(0, 176, 80, 0.3);
+  border: 1px solid rgba(184, 247, 228, 0.3);
 }
 
 .route-type-tag.don {
@@ -415,9 +415,9 @@ html, body {
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 700;
-  background: rgba(0, 176, 80, 0.2);
+  background: rgba(184, 247, 228, 0.2);
   color: var(--jt-green);
-  border: 1px solid rgba(0, 176, 80, 0.4);
+  border: 1px solid rgba(184, 247, 228, 0.4);
 }
 
 .mode-tag.shuttle {
@@ -524,7 +524,7 @@ html, body {
 /* J&T Cargo Leaflet Popup Card */
 .leaflet-popup-content-wrapper, .leaflet-popup-tip {
   background: #18191c !important;
-  border: 1px solid rgba(0, 176, 80, 0.5) !important;
+  border: 1px solid rgba(184, 247, 228, 0.5) !important;
   color: #ffffff !important;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8) !important;
   border-radius: 12px !important;
@@ -610,9 +610,9 @@ html, body {
 }
 
 .popup-tag.linehaul {
-  background: rgba(0, 176, 80, 0.2);
+  background: rgba(184, 247, 228, 0.2);
   color: var(--jt-green);
-  border: 1px solid rgba(0, 176, 80, 0.4);
+  border: 1px solid rgba(184, 247, 228, 0.4);
 }
 
 /* Inbound Logo & Flex Header Styling */
@@ -628,7 +628,7 @@ html, body {
   width: auto;
   border-radius: 8px;
   object-fit: contain;
-  box-shadow: 0 0 12px rgba(0, 176, 80, 0.4);
+  box-shadow: 0 0 12px rgba(184, 247, 228, 0.4);
   display: block;
 }
 
