@@ -171,7 +171,8 @@ export default function InboundDashboard({
   // Northern / BN HUB Station Filter helper
   const isNorthStation = (stName: string) => {
     const clean = (stName || '').trim().toUpperCase();
-    return clean === 'BN HUB' || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ') || NORTH_POST_OFFICES.has(clean);
+    if (clean === 'BN HUB') return false; // Always include BN HUB
+    return clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ') || NORTH_POST_OFFICES.has(clean);
   };
 
   const normalizeDateStr = (dStr: string): string => {
