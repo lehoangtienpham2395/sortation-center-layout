@@ -1,7 +1,7 @@
 """
 sync_postgre.py — Dashboard Data Pipeline (3 phần)
 ====================================================
-🌐 Phase 1: Kéo dữ liệu từ JFS API → PostgreSQL (pipeline_unified_v6)
+🌐 Phase 1: Kéo dữ liệu từ JFS API → PostgreSQL
    - pull_dispatch, pull_scan (Inbound/Outbound), pull_arrival, pull_shuttle
    - Dữ liệu được upsert vào enriched.dispatch_enriched
 
@@ -265,35 +265,18 @@ def sync_postgre_to_dashboard():
     else:
         print(f"   ⚠️  valid.csv not found — zone/area mapping empty")
 
-    # ── Phase 1: Chạy pipeline_unified_v6.py → JFS API → PostgreSQL ──────────
-    pipeline_script = os.path.join(PIPELINE_DIR, 'pipeline_unified_v6.py')
-    if os.path.exists(pipeline_script):
-        print("\n🌐 Phase 1: JFS API crawl → PostgreSQL (pipeline_unified_v6.py)...")
+    # ── Phase 1: JFS API → PostgreSQL (import trực tiếp run_etl.py) ──────────
+    _etl_dir = os.path.dirname(os.path.abspath(__file__))  # backend_sync/
+    if _etl_dir not in sys.path:
+        sys.path.insert(0, _etl_dir)
+    try:
+        import run_etl as _etl
+        print("\n🌐 Phase 1: JFS API → PostgreSQL (run_etl.run_pipeline())...")
         t1 = _time.time()
-        try:
-            result = subprocess.run(
-                [sys.executable, pipeline_script],
-                capture_output=True, text=True, encoding='utf-8', errors='replace',
-                timeout=600  # 10 phút timeout
-            )
-            # In log từ pipeline ra stdout để thấy metrics
-            if result.stdout:
-                for line in result.stdout.strip().splitlines():
-                    print(f"   {line}")
-            if result.stderr:
-                for line in result.stderr.strip().splitlines()[-10:]:  # chỉ in 10 dòng cuối stderr
-                    if any(k in line for k in ['Traceback', 'Error', 'Exception', 'dong', 'total']):
-                        print(f"   ⚠️  {line}")
-            if result.returncode == 0:
-                print(f"   ✅ Phase 1 xong ({_time.time()-t1:.0f}s) — PostgreSQL đã cập nhật")
-            else:
-                print(f"   ⚠️  pipeline_unified_v6 exit code {result.returncode} — tiếp tục Phase 2 từ DB cũ")
-        except subprocess.TimeoutExpired:
-            print("   ⚠️  Phase 1 timeout (>10 phút) — tiếp tục Phase 2 từ DB cũ")
-        except Exception as e:
-            print(f"   ⚠️  Phase 1 error: {e} — tiếp tục Phase 2 từ DB cũ")
-    else:
-        print(f"\n🌐 Phase 1: pipeline_unified_v6.py không tìm thấy tại {pipeline_script} — bỏ qua")
+        _etl.run_pipeline()
+        print(f"   ✅ Phase 1 xong ({_time.time()-t1:.0f}s) — PostgreSQL đã cập nhật")
+    except Exception as _e1:
+        print(f"   ⚠️  Phase 1 error: {_e1} — tiếp tục Phase 2 từ DB hiện tại")
 
     # ── 2. PostgreSQL fetch & export ──────────────────────────────────────────
     print("\n📦 Phase 2: Reading from PostgreSQL logistics_db & generating JSONs...")
