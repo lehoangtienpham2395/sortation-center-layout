@@ -50,7 +50,7 @@ try {
   console.error("Error loading master config map:", e);
 }
 
-// ── Rack / chute definitions (Cập nhật: Zone 3 = 26 chutes + 24 trucks) ──
+// ── Rack / chute definitions (Chuẩn hóa 100% tên bưu cục theo valid.csv) ──
 const ZONE3_LIST = [
   // 5 ô chutes bên phải vách ngăn (vùng xanh lá)
   { areaId: 'C01', name: 'SG CHỢ LỚN', zone: 3 },
@@ -59,18 +59,18 @@ const ZONE3_LIST = [
   { areaId: 'C04', name: 'SG BÌNH TRỊ ĐÔNG', zone: 3 },
   { areaId: 'C05', name: 'SG KHÁNH HỘI', zone: 3 },
   // 21 ô chutes bên trái vách ngăn (C06 -> C26)
-  { areaId: 'C06', name: 'BD BÌNH PHƯỚC', zone: 3 }, { areaId: 'C07', name: 'DT TN', zone: 3 },
+  { areaId: 'C06', name: 'BD DĨ AN', zone: 3 },       { areaId: 'C07', name: 'DC GIA ĐỊNH', zone: 3 },
   { areaId: 'C08', name: 'TG GÒ CÔNG', zone: 3 },   { areaId: 'C09', name: 'LA HẬU NGHĨA', zone: 3 },
-  { areaId: 'C10', name: 'AG TỊNH BIÊN', zone: 3 },   { areaId: 'C11', name: 'AG TÂN CHÂU', zone: 3 },
-  { areaId: 'C12', name: 'AG AN PHÚ', zone: 3 },     { areaId: 'C13', name: 'VL CHỢ LÁCH', zone: 3 },
-  { areaId: 'C14', name: 'SG NHÀ BÈ', zone: 3 },     { areaId: 'C15', name: 'ST PHÚ LỘC', zone: 3 },
-  { areaId: 'C16', name: 'CT LONG MỸ', zone: 3 },    { areaId: 'C17', name: 'ST VĨNH CHÂU', zone: 3 },
-  { areaId: 'C18', name: 'SG GÒ VẤP', zone: 3 },     { areaId: 'C19', name: 'LA BẾN LỨC', zone: 3 },
-  { areaId: 'C20', name: 'SG XUÂN LỘC', zone: 3 },   { areaId: 'C21', name: 'DC NHÀ BÈ', zone: 3 },
-  { areaId: 'C22', name: 'DC BÌNH HƯNG', zone: 3 },  { areaId: 'C23', name: 'DC GIA ĐỊNH', zone: 3 },
+  { areaId: 'C10', name: 'SG XUÂN HÒA', zone: 3 },   { areaId: 'C11', name: 'LA CẦN ĐƯỚC', zone: 3 },
+  { areaId: 'C12', name: 'SG PHÚ NHUẬN', zone: 3 },  { areaId: 'C13', name: 'ST VĨNH CHÂU', zone: 3 },
+  { areaId: 'C14', name: 'CT LONG MỸ', zone: 3 },    { areaId: 'C15', name: 'ST PHÚ LỢI', zone: 3 },
+  { areaId: 'C16', name: 'SG NHƠN ĐỨC', zone: 3 },   { areaId: 'C17', name: 'VL CHỢ LÁCH', zone: 3 },
+  { areaId: 'C18', name: 'AG AN PHÚ', zone: 3 },     { areaId: 'C19', name: 'AG TÂN CHÂU', zone: 3 },
+  { areaId: 'C20', name: 'AG TỊNH BIÊN', zone: 3 },  { areaId: 'C21', name: 'AG THOẠI SƠN', zone: 3 },
+  { areaId: 'C22', name: 'VT LONG ĐẤT', zone: 3 },   { areaId: 'C23', name: 'SG BẢY HIỀN', zone: 3 },
   { areaId: 'C24', name: 'BD BÌNH HÒA', zone: 3 },
-  { areaId: 'C25', name: 'BD BẾN CÁT', zone: 3 },
-  { areaId: 'C26', name: 'SETN', zone: 3 }
+  { areaId: 'C25', name: 'LA BẾN LỨC', zone: 3 },
+  { areaId: 'C26', name: '3PL', zone: 3 }
 ];
 
 const ZONE3_TRUCKS = Array.from({ length: 24 }, (_, i) => ({
@@ -84,17 +84,17 @@ const ZONE2_LIST = [
   { areaId: 'A00', name: 'VT LONG ĐẤT', zone: 3 },
   { areaId: 'A01', name: 'SG HÓC MÔN', zone: 3 },
   { areaId: 'A02', name: 'SG BÌNH LỢI', zone: 3 },
-  { areaId: 'A03', name: 'SG THỦ ĐỨC', zone: 3 },
+  { areaId: 'A03', name: 'SG TÂN THỚI HIỆP', zone: 3 },
   { areaId: 'A04', name: 'LA ĐỨC HÒA', zone: 3 },
   // 18 ô chutes bên trái vách ngăn (B01 -> B18)
-  { areaId: 'B01', name: 'SG XUÂN THỚI SƠN', zone: 2 }, { areaId: 'B02', name: 'SG TÂN NHỰT', zone: 2 },
-  { areaId: 'B03', name: 'SG VĨNH LỘC', zone: 2 },      { areaId: 'B04', name: 'YT XUYÊN MỘC', zone: 2 },
-  { areaId: 'B05', name: 'YT CHÂU ĐỨC', zone: 2 },      { areaId: 'B06', name: 'AN PHÚ ĐÔNG', zone: 2 },
-  { areaId: 'B07', name: 'TÂN THỚI HIỆP', zone: 2 },    { areaId: 'B08', name: 'SG TÂN TẠO', zone: 2 },
-  { areaId: 'B09', name: 'SG CỦ CHI', zone: 2 },         { areaId: 'B10', name: 'SG TÂN SƠN NHÌ', zone: 2 },
-  { areaId: 'B11', name: 'SG HIỆP BÌNH', zone: 2 },      { areaId: 'B12', name: 'SG PHÚ LÂM', zone: 2 },
-  { areaId: 'B13', name: 'SG AN LẠC', zone: 2 },         { areaId: 'B14', name: 'SG BÌNH TÂN', zone: 2 },
-  { areaId: 'B15', name: 'SG TÂN HƯNG', zone: 2 },       { areaId: 'B16', name: 'SG BÀ ĐIỂM', zone: 2 }
+  { areaId: 'B01', name: 'SG ĐÔNG HƯNG THUẬN', zone: 2 }, { areaId: 'B02', name: 'SG TÂN HƯNG', zone: 2 },
+  { areaId: 'B03', name: 'SG BÌNH TÂN', zone: 2 },         { areaId: 'B04', name: 'SG AN LẠC', zone: 2 },
+  { areaId: 'B05', name: 'SG PHÚ LÂM', zone: 2 },          { areaId: 'B06', name: 'SG HIỆP BÌNH', zone: 2 },
+  { areaId: 'B07', name: 'SG TÂN SƠN NHÌ', zone: 2 },       { areaId: 'B08', name: 'SG CỦ CHI', zone: 2 },
+  { areaId: 'B09', name: 'SG TÂN TẠO', zone: 2 },          { areaId: 'B10', name: 'SG GÒ VẤP', zone: 2 },
+  { areaId: 'B11', name: 'SG AN PHÚ ĐÔNG', zone: 2 },      { areaId: 'B12', name: 'VT CHÂU ĐỨC', zone: 2 },
+  { areaId: 'B13', name: 'VT XUYÊN MỘC', zone: 2 },        { areaId: 'B14', name: 'SG VĨNH LỘC', zone: 2 },
+  { areaId: 'B15', name: 'SG TÂN NHỰT', zone: 2 },         { areaId: 'B16', name: 'SG BÀ ĐIỂM', zone: 2 }
 ];
 
 const ZONE2_TRUCKS = Array.from({ length: 21 }, (_, i) => {
@@ -113,7 +113,7 @@ const ZONE1_LIST = [
   { areaId: 'A09', name: 'CT NINH KIỀU', zone: 1 },   { areaId: 'A10', name: 'DT CAO LÃNH', zone: 1 },
   { areaId: 'A11', name: 'DT SA ĐÉC', zone: 1 },      { areaId: 'A12', name: 'TG HÒA KHÁNH', zone: 1 },
   { areaId: 'A13', name: 'VL VĨNH LONG', zone: 1 },   { areaId: 'A14', name: 'TG AN HỮU', zone: 1 },
-  { areaId: 'A15', name: 'LA TÂN AN', zone: 1 },      { areaId: 'A16', name: 'TG MỸ THO', zone: 1 },
+  { areaId: 'A15', name: 'LA TÂN AN', zone: 1 },      { areaId: 'A16', name: 'SG THỦ ĐỨC', zone: 1 },
   { areaId: 'A17', name: 'TG TRUNG AN', zone: 1 },    { areaId: 'A18', name: 'VT VŨNG TÀU', zone: 1 },
   { areaId: 'A19', name: 'AG LONG XUYÊN', zone: 1 },  { areaId: 'A20', name: 'AG CẦN ĐĂNG', zone: 1 }
 ];
@@ -615,20 +615,6 @@ export default function App() {
         const invEntry = inventoryMap[key];
         const activeItem = selectedMap[key] || backlogMap[key];
         
-        // HARDCODE CHECK FIRST!
-        const hardcodedNames: Record<string, string> = {
-          'A06': 'BN HUB',
-          'C07': 'DT TN',
-          'C08': 'TG GÒ CÔNG',
-          'C09': 'LA HẬU NGHĨA',
-          'B16': 'SG BÀ ĐIỂM'
-        };
-
-        if (hardcodedNames[key]) {
-          item.name = hardcodedNames[key];
-          return;
-        }
-
         const name = MASTER_CONFIG_MAP[key] || invEntry?.buuCuc || activeItem?.buuCuc;
         if (name && name !== 'Chờ tải' && !name.includes('Dự phòng')) {
           item.name = name;
