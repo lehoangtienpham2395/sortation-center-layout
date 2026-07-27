@@ -258,9 +258,9 @@ export default function InboundDashboard({
     // Subtraction rule: If order has reached HUB (ibDate, arDate, Outbound), it is NOT in un-arrived backlog
     const hasHubEvent = Boolean(ibDate || arDate || status === 'Outbound' || status === 'Inbound' || status === 'Transporting');
 
-    if (loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate && !hasHubEvent)) {
+    if ((loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) && !hasHubEvent) {
       forecastRotHomTruoc += vol;
-    } else if (loiRot === 'Rớt hôm nay' || (fcDate === activeDate && !hasHubEvent)) {
+    } else if ((loiRot === 'Rớt hôm nay' && fcDate === activeDate) && !hasHubEvent) {
       forecastRotHomNay += vol;
     }
   });
