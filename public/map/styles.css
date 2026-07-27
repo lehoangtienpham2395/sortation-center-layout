@@ -614,3 +614,28 @@ html, body {
   color: var(--jt-green);
   border: 1px solid rgba(0, 176, 80, 0.4);
 }
+
+/* Inbound Logo & Flex Header Styling */
+.brand-header-flex {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.inbound-logo-img {
+  height: 42px;
+  width: auto;
+  border-radius: 8px;
+  object-fit: contain;
+  box-shadow: 0 0 12px rgba(0, 176, 80, 0.4);
+  display: block;
+}
+
+.brand-box h1 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.25;
+}
