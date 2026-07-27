@@ -890,7 +890,7 @@ export default function InboundDashboard({
         {/* KPI 1: Inbound (orders) */}
         <div className="kpi-card accent-green glass-card report-glow-card glow-cyan">
           <div className="kpi-card-header">
-            <span className="kpi-title" style={{ color: "#B8F7E4" }}>Inbound (orders)</span>
+            <span className="kpi-title">Inbound (orders)</span>
             <i className="fa-solid fa-warehouse kpi-icon"></i>
           </div>
           <div className="kpi-card-body">
