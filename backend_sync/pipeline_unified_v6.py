@@ -955,38 +955,68 @@ def main():
             is_backlog = 1 if (has_in and not has_out) else 0
             is_active = 0 if has_out else 1
 
+            is_transit = 1 if (has_in and not has_out and bool(arr_t)) else 0
+
+            # operation_date_created là NOT NULL → fallback sang target_date nếu rỗng
+            op_cr_val = op_cr or str(r.get('Ngay_van_hanh') or r.get('Ngày vận hành') or '')[:10] or None
+            # Nếu vẫn None, dùng created_date extract từ cr_t
+            if not op_cr_val and cr_t:
+                op_cr_val = cr_t[:10]
+
             records.append((
-                str(r.get('tracking') or ''),
-                str(r.get('status_sys') or ''),
-                cr_t or None,
-                str(r.get('Pickup_station') or ''),
-                str(r.get('Dispatch_code') or ''),
-                int(r.get('Orders_num') or 1),
-                float(r.get('Orders_weight') or 0.0),
-                str(r.get('Next_station') or ''),
-                str(r.get('Round') or ''),
-                str(r.get('Rank') or ''),
-                inb_t or None,
-                outb_t or None,
-                arr_t or None,
-                str(r.get('trip_code') or ''),
-                str(r.get('transporing_time') or '') or None,
-                str(r.get('transported_time') or '') or None,
-                op_cr or None,
-                op_inb or None,
-                is_backlog,
-                is_active
+                str(r.get('tracking') or ''),           # tracking NOT NULL
+                'pipeline_v6',                           # data_source NOT NULL
+                str(r.get('status_sys') or ''),          # status_sys
+                cr_t or None,                            # created_time
+                str(r.get('Pickup_station') or ''),      # pickup_station
+                str(r.get('Dispatch_code') or ''),       # dispatch_code
+                int(r.get('Orders_num') or 1),           # orders_num
+                float(r.get('Orders_weight') or 0.0),    # orders_weight
+                str(r.get('Pickup_station2') or ''),     # pickup_station2
+                str(r.get('Pickup_time') or '') or None, # pickup_time
+                str(r.get('pickup_ontime') or ''),       # pickup_ontime
+                str(r.get('AreaCode') or ''),            # areacode
+                str(r.get('flowTypeDesc') or ''),        # flowtypedesc
+                str(r.get('Next_station') or ''),        # next_station
+                str(r.get('Round') or ''),               # round
+                str(r.get('Rank') or ''),                # rank
+                inb_t or None,                           # inbound_scandate
+                outb_t or None,                          # outbound_scandate
+                arr_t or None,                           # arrival_scandate
+                str(r.get('trip_code') or ''),           # trip_code
+                str(r.get('transporing_time') or '') or None,   # transporing_time
+                str(r.get('transported_time') or '') or None,   # transported_time
+                str(r.get('dispatch_actual') or ''),     # dispatch_actual
+                op_cr_val,                               # operation_date_created NOT NULL
+                op_inb or None,                          # operation_date_inbound
+                is_backlog,                              # is_backlog
+                is_active,                               # is_active
             ))
 
         insert_sql = """
             INSERT INTO enriched.dispatch_enriched (
-                tracking, status_sys, created_time, pickup_station, dispatch_code,
-                orders_num, orders_weight, next_station, round, rank,
+                tracking, data_source, status_sys, created_time,
+                pickup_station, dispatch_code, orders_num, orders_weight,
+                pickup_station2, pickup_time, pickup_ontime, areacode, flowtypedesc,
+                next_station, round, rank,
                 inbound_scandate, outbound_scandate, arrival_scandate,
-                trip_code, transporing_time, transported_time,
+                trip_code, transporing_time, transported_time, dispatch_actual,
                 operation_date_created, operation_date_inbound,
                 is_backlog, is_active
             ) VALUES %s
+            ON CONFLICT (tracking) DO UPDATE SET
+                data_source          = EXCLUDED.data_source,
+                status_sys           = EXCLUDED.status_sys,
+                inbound_scandate     = EXCLUDED.inbound_scandate,
+                outbound_scandate    = EXCLUDED.outbound_scandate,
+                arrival_scandate     = EXCLUDED.arrival_scandate,
+                next_station         = EXCLUDED.next_station,
+                trip_code            = EXCLUDED.trip_code,
+                transporing_time     = EXCLUDED.transporing_time,
+                transported_time     = EXCLUDED.transported_time,
+                is_backlog           = EXCLUDED.is_backlog,
+                is_active            = EXCLUDED.is_active,
+                last_updated         = CURRENT_TIMESTAMP
         """
         execute_values(cur, insert_sql, records, page_size=2000)
         conn.commit()

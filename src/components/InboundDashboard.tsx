@@ -283,9 +283,10 @@ export default function InboundDashboard({
     // Subtraction rule: If order has reached HUB (ibDate, arDate, Outbound), it is NOT in un-arrived backlog
     const hasHubEvent = Boolean(ibDate || arDate || status === 'Outbound' || status === 'Inbound' || status === 'Transporting');
 
-    if ((loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) && !hasHubEvent) {
+    // FIX: Chỉ dùng trường Loi rt (không kết hợp fcDate) để tránh sai phân loại
+    if (loiRot === 'Rớt hôm trước' && !hasHubEvent) {
       forecastRotHomTruoc += vol;
-    } else if ((loiRot === 'Rớt hôm nay' && fcDate === activeDate) && !hasHubEvent) {
+    } else if (loiRot === 'Rớt hôm nay' && !hasHubEvent) {
       forecastRotHomNay += vol;
     }
   });
@@ -297,20 +298,24 @@ export default function InboundDashboard({
 
   const filteredTruckEta = (truckEtaData || [])
     .filter(d => {
-      const opDate = d.op_date || d['Ngày vận hành'] || (d.eta ? d.eta.slice(0, 10) : '') || (d.planned_arrival ? d.planned_arrival.slice(0, 10) : '') || (d.predictArriveTime ? d.predictArriveTime.slice(0, 10) : '');
+      // FIX: Chỉ lấy xe đến HCM HUB (arrive_network = 'HCM HUB')
+      const dest = (d.arrive_network || d.arriveNetworkName || d['arrive_network_name'] || '').trim().toUpperCase();
+      if (dest && dest !== 'HCM HUB') return false;
+      const opDate = d.op_date || d['Ngày vận hành'] || (d.planned_arrival ? d.planned_arrival.slice(0, 10) : '') || (d.eta ? d.eta.slice(0, 10) : '') || (d.predictArriveTime ? d.predictArriveTime.slice(0, 10) : '');
       if (!opDate) return false;
       return isDateMatch(opDate, activeDate);
     })
     .map(d => ({
       ...d,
-      'Mã chuyến': d.shipmentName || d.plateNumber || d.plate_number || d.trip_code,
-      'Biển số': d.plateNumber || d.plate_number || d.vehicle_number,
-      'Nhà xe': d.carrierName || d.carrier_name,
-      'Bưu cục đi': d.sendNetworkName || d.send_network || d.send_network_name || d.station_name || d.pickup_station || d.Pickup_station || d.Station || '',
-      'Bưu cục đến': d.arriveNetworkName || d.arrive_network || d.arrive_network_name || d.next_station || '',
+      'Mã chuyến': d.trip_code || d.shipmentName || d.plateNumber || d.plate_number,
+      'Biển số': d.plate_number || d.plateNumber || d.vehicle_number,
+      'Nhà xe': d.carrier_name || d.carrierName,
+      'Bưu cục đi': d.send_network || d.sendNetworkName || d.send_network_name || d.station_name || d.pickup_station || d.Pickup_station || d.Station || '',
+      'Bưu cục đến': d.arrive_network || d.arriveNetworkName || d.arrive_network_name || d.next_station || '',
       'Tổng số đơn': d.orders_count ?? d.loadscanwaybillnum ?? d.volume ?? 0,
       'Tổng trọng lượng (kg)': d.weight_kg ?? d.loadpackageweight ?? 0,
-      'Giờ đến bãi': d.eta || d.actualArrivalTime || d.predictArriveTime || d.planned_arrival || ''
+      // FIX: Dùng planned_arrival khi eta rỗng (shuttle_tracking chỉ có kế hoạch)
+      'Giờ đến bãi': d.eta || d.actual_arrival || d.actualArrivalTime || d.predictArriveTime || d.planned_arrival || ''
     }));
 
   let totalOrders = stages['Inbound'].orders;
@@ -320,58 +325,67 @@ export default function InboundDashboard({
   // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
   let totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
-  // Group filteredTruckEta by unique station to avoid duplicate scan-hour rows
+  // Group filteredTruckEta by unique send_network (origin station)
   const groupedStationVehicles: Record<string, any> = {};
 
   (filteredTruckEta || []).forEach(d => {
-    const st = (d['Bưu cục đi'] || d['sendNetworkName'] || d['send_network'] || d['send_network_name'] || d['station_name'] || d['Pickup_station'] || d['Station'] || '').trim();
+    const st = (d['Bưu cục đi'] || d['send_network'] || d['sendNetworkName'] || '').trim();
     if (!st) return;
     const cleanKey = st.toUpperCase();
+    // Bỏ qua bưu cục miền Bắc ngoại trừ BN HUB
     if (cleanKey !== 'BN HUB' && isNorthStation(cleanKey)) return;
 
-    // Ưu tiên lấy đơn Chưa đến Hub (hàng đang trên đường)
-    const inTransitOrders = Number(d['Chưa đến Hub'] ?? d['Chua dn Hub'] ?? d['Orders'] ?? d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
-    const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
-    const lastTime = d['Last time'] || d['ETA'] || d['Giờ đến bãi'] || d['actualArrivalTime'] || d['predictArriveTime'] || d['planned_arrival'] || '';
-    const wt = Number(d['weight'] ?? d['weight_kg'] ?? d['package_charge_weight'] ?? d['loadpackageweight'] ?? d['Tổng trọng lượng (kg)'] ?? 0);
+    const orders = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? 0);
+    const wt = Number(d['Tổng trọng lượng (kg)'] ?? d['weight_kg'] ?? 0);
+    // FIX: Dùng planned_arrival khi Giờ đến bãi rỗng
+    const etaTime = (d['Giờ đến bãi'] || d['planned_arrival'] || '').trim();
+    const tripKey = d['Mã chuyến'] || d['trip_code'] || d['plate_number'] || '';
 
-    if (!groupedStationVehicles[st]) {
-      groupedStationVehicles[st] = {
+    if (!groupedStationVehicles[cleanKey]) {
+      groupedStationVehicles[cleanKey] = {
         station: st,
-        trucking: 1,
+        trucking: 0,
         orders: 0,
         weight: 0,
-        eta: lastTime,
-        rank: (cleanKey.includes('BN')) ? 'Linehaul' : (d['Rank'] || d['rank'] || 'Shuttle'),
-        chuaDenHub: 0,
-        tongDon: 0,
-        vehicles: 1,
-        lastTime: lastTime
+        eta: etaTime,
+        rank: d['rank'] || d['Rank'] || 'Shuttle',
+        vehicles: 0,
+        lastTime: etaTime,
+        trips: new Set()
       };
     }
 
-    groupedStationVehicles[st].orders += inTransitOrders;
-    groupedStationVehicles[st].chuaDenHub += inTransitOrders;
-    groupedStationVehicles[st].tongDon += tongDon;
-    groupedStationVehicles[st].weight += wt;
-    if (lastTime > groupedStationVehicles[st].lastTime) {
-      groupedStationVehicles[st].lastTime = lastTime;
-      groupedStationVehicles[st].eta = lastTime;
+    const grp = groupedStationVehicles[cleanKey];
+    if (tripKey && !grp.trips.has(tripKey)) {
+      grp.trips.add(tripKey);
+      grp.trucking += 1;
+      grp.vehicles += 1;
+    }
+    grp.orders += orders;
+    grp.weight += wt;
+    // Giữ ETA muộn nhất (xe cuối cùng)
+    if (etaTime && etaTime > grp.lastTime) {
+      grp.lastTime = etaTime;
+      grp.eta = etaTime;
     }
   });
 
   const incomingVehicles = Object.values(groupedStationVehicles)
-    .filter(v => v.orders > 0 || v.tongDon > 0)
-    .sort((a, b) => b.orders - a.orders);
+    // FIX: Hiển thị tất cả bưu cục có xe (không lọc theo orders vì orders_count = 0 trong shuttle_tracking)
+    .filter(v => v.vehicles > 0)
+    .map(v => ({ ...v, trucking: v.trucking, trips: undefined }))
+    .sort((a: any, b: any) => b.vehicles - a.vehicles || a.station.localeCompare(b.station));
 
   // Split by Shuttle and Linehaul ranks
   const shuttleVehicles = incomingVehicles.filter(v => v.rank === 'Shuttle');
   const linehaulVehicles = incomingVehicles.filter(v => v.rank === 'Linehaul');
 
-  let totalShuttleVehicles = shuttleVehicles.length;
-  let totalLinehaulVehicles = linehaulVehicles.length;
+  // FIX: Tổng số chuyến xe = tổng cộng v.trucking (số chuyến cá nhân), không phải số nhóm bưu cục
+  let totalShuttleVehicles = shuttleVehicles.reduce((sum: number, v: any) => sum + (v.trucking || 1), 0);
+  let totalLinehaulVehicles = linehaulVehicles.reduce((sum: number, v: any) => sum + (v.trucking || 1), 0);
   let totalTransitVehicles = totalShuttleVehicles + totalLinehaulVehicles;
-  let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
+  // Khởi tạo = 0, sẽ được ghi đè bởi stages['Transporting'] ở bước sau
+  let totalInTransitOrders = stages['Transporting'].orders;
 
   // 4. Hourly timelines
   const hours24 = [];
@@ -500,11 +514,8 @@ export default function InboundDashboard({
   const forecastTrendData = labels.map(l => hourlyForecast[l]);
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
-  // Shuttle in-transit orders (EXCLUDING BN HUB Linehaul)
-  const totalShuttleInTransitOrders = incomingVehicles
-    .filter((v: any) => v.rank === 'Shuttle')
-    .reduce((sum: number, s: any) => sum + s.orders, 0);
-  totalInTransitOrders = Math.max(stages['Transporting'].orders, totalShuttleInTransitOrders);
+  // Shuttle in-transit orders: dùng stages['Transporting'] (từ inbound scan) vì orders_count = 0 trong shuttle_tracking
+  totalInTransitOrders = stages['Transporting'].orders;
   
   // Orders status: các trạng thái lấy Forecast làm hệ quy chiếu (100%)
   const totalBase = totalForecast > 0 ? totalForecast : (totalInbound + totalInTransitOrders + totalPickupDone + stages['Created'].orders);
@@ -605,26 +616,32 @@ export default function InboundDashboard({
       const fc = getFC(fcName);
       if (fc) {
         fc.orders += parseInt(d['Volume'], 10) || 0;
-        fc.weight += parseFloat(d['Weight']) || 0;
+        // FIX: Weight trong inbound.json có thể tính bằng gram → chia 1000 để ra kg
+        const rawW = parseFloat(d['Weight'] ?? d['weight'] ?? 0);
+        fc.weight += rawW > 1000 ? rawW / 1000 : rawW;
       }
     }
   });
 
   filteredLinehaul.forEach(d => {
-    // nextNetworkName là bưu cục ĐÍCH của chuyến xe → chính là bưu cục "gửi hàng đến HUB"
-    const fcName = d['nextNetworkName'] || '';
-    if (fcName && d['Phiếu nhiệm vụ']) {
-      // Nếu bưu cục này chưa xuất hiện trong fcMetrics (không có inbound scan), tạo mới
+    // linehaul.json structure: send_network = bưu cục NGUỒN (gửi hàng đến HUB)
+    // arrive_network = bưu cục ĐÍCH (HCM HUB hoặc BN HUB)
+    // Bưu cục gửi hàng đến HCM HUB chính là send_network
+    const fcName = d['send_network'] || d['sendNetworkName'] || d['nextNetworkName'] || d['send_network_name'] || '';
+    // FIX: linehaul.json dùng orders_count + weight_kg (không phải loadscanwaybillnum)
+    const lhWaybill = d['orders_count'] ?? d['loadscanwaybillnum'] ?? d['unloadingBillPiece'] ?? 0;
+    const lhWeight  = d['weight_kg']    ?? d['loadpackageweight']  ?? d['unloadingWeight']    ?? 0;
+    // vehicle key: trip_code (linehaul.json), plate_number, hoặc Phiếu nhiệm vụ
+    const vehicleKey = d['trip_code'] || d['plate_number'] || d['Phiếu nhiệm vụ'] || d['shipmentName'] || '';
+    if (fcName && vehicleKey) {
       const clean = fcName.trim().toUpperCase();
       if (!fcMetrics[clean]) {
         fcMetrics[clean] = { fc: fcName.trim(), vehicles: new Set(), orders: 0, weight: 0 };
       }
-      fcMetrics[clean].vehicles.add(d['Phiếu nhiệm vụ']);
-      // Nếu orders chưa được tính từ inbound scan, dùng unloadingBillPiece làm proxy
-      if (fcMetrics[clean].orders === 0) {
-        fcMetrics[clean].orders += parseInt(d['unloadingBillPiece'] as any, 10) || 0;
-        fcMetrics[clean].weight += parseFloat(d['unloadingWeight'] as any) || 0;
-      }
+      fcMetrics[clean].vehicles.add(vehicleKey);
+      // Luôn cộng dồn orders + weight từ linehaul
+      fcMetrics[clean].orders += parseInt(lhWaybill as any, 10) || 0;
+      fcMetrics[clean].weight += parseFloat(lhWeight as any) || 0;
     }
   });
 
@@ -1184,41 +1201,56 @@ export default function InboundDashboard({
               <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
                   <th style={{ width: '50px' }}>#</th>
-                  <th>Station</th>
-                  <th style={{ textAlign: 'left' }}>Trucking</th>
-                  <th style={{ textAlign: 'right' }}>Orders</th>
-                  <th style={{ textAlign: 'right' }}>Weight</th>
-                  <th style={{ textAlign: 'center' }}>ETA</th>
+                  <th>Bưu cục gửi</th>
+                  <th style={{ textAlign: 'center' }}>Chuyến xe</th>
+                  <th style={{ textAlign: 'center' }}>Trạng thái</th>
+                  <th style={{ textAlign: 'center' }}>ETA (Dự kiến)</th>
                 </tr>
               </thead>
               <tbody>
                 {incomingVehicles.length > 0 && (
                   <tr className="total-row" style={{ fontWeight: 'bold', position: 'sticky', top: '41px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', zIndex: 9, backdropFilter: 'blur(8px)' }}>
                     <td className="table-index">-</td>
-                    <td className="table-buucuc" style={{ color: '#f59e0b' }}>TỔNG CỘNG</td>
-                    <td className="table-buucuc" style={{ textAlign: 'left', color: '#f59e0b' }}>{totalTransitVehicles} xe</td>
-                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
-                      {incomingVehicles.reduce((a, b) => a + b.orders, 0).toLocaleString()}
-                    </td>
-                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
-                      {(incomingVehicles.reduce((a, b) => a + b.weight, 0) / 1000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tấn
-                    </td>
+                    <td className="table-buucuc" style={{ color: '#f59e0b' }}>TỔNG CỘNG ({incomingVehicles.length} bưu cục)</td>
+                    <td className="num-tabular" style={{ textAlign: 'center', color: '#f59e0b' }}>{totalTransitVehicles} xe</td>
+                    <td style={{ textAlign: 'center', color: '#f59e0b' }}>-</td>
                     <td style={{ textAlign: 'center', color: '#f59e0b' }}>-</td>
                   </tr>
                 )}
-                {incomingVehicles.map((v, idx) => (
-                  <tr key={v.station + '-' + idx}>
-                     <td className="table-index">{idx + 1}</td>
-                     <td className="table-buucuc">{v.station}</td>
-                     <td className="num-tabular" style={{ textAlign: 'left', color: '#38bdf8', fontWeight: 500 }}>{v.trucking} xe</td>
-                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.orders.toLocaleString()}</td>
-                     <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{(v.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tấn</td>
-                     <td className="num-tabular" style={{ textAlign: 'center', color: '#64748b' }}>{v.eta ? v.eta : '--:--'}</td>
-                  </tr>
-                ))}
+                {incomingVehicles.map((v: any, idx: number) => {
+                  const etaDisplay = v.eta ? (v.eta.slice(11, 16) || v.eta.slice(0, 10)) : '--:--';
+                  const etaDate    = v.eta ? v.eta.slice(0, 10) : '';
+                  const isToday    = etaDate === activeDate;
+                  return (
+                    <tr key={v.station + '-' + idx}>
+                      <td className="table-index">{idx + 1}</td>
+                      <td className="table-buucuc">{v.station}</td>
+                      <td className="num-tabular" style={{ textAlign: 'center' }}>
+                        <span className="badge-count" style={{ background: 'rgba(56,189,248,0.15)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.3)' }}>
+                          {v.trucking} xe
+                        </span>
+                      </td>
+                      <td className="num-tabular" style={{ textAlign: 'center' }}>
+                        <span style={{
+                          fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: '4px',
+                          background: v.rank === 'Linehaul' ? 'rgba(167,139,250,0.2)' : 'rgba(200,255,61,0.15)',
+                          color: v.rank === 'Linehaul' ? '#a78bfa' : '#C8FF3D',
+                          border: `1px solid ${v.rank === 'Linehaul' ? 'rgba(167,139,250,0.4)' : 'rgba(200,255,61,0.3)'}`
+                        }}>
+                          {v.rank || 'Shuttle'}
+                        </span>
+                      </td>
+                      <td className="num-tabular" style={{ textAlign: 'center', color: isToday ? '#f59e0b' : '#64748b', fontWeight: isToday ? 600 : 400 }}>
+                        {v.eta ? (
+                          <span title={v.eta}>{etaDisplay}{!isToday && etaDate ? ` (${etaDate.slice(5)})` : ''}</span>
+                        ) : '--:--'}
+                      </td>
+                    </tr>
+                  );
+                })}
                 {incomingVehicles.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', color: '#5a6578', padding: '24px' }}>Không có xe đang di chuyển</td>
+                    <td colSpan={5} style={{ textAlign: 'center', color: '#5a6578', padding: '24px' }}>Không có xe đang di chuyển đến HCM HUB</td>
                   </tr>
                 )}
               </tbody>
