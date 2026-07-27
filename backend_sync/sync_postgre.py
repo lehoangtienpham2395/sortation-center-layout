@@ -468,8 +468,9 @@ def sync_postgre_to_dashboard():
         for (z, a, s), v in pivot_map.items()
     ]
 
+    now_display = now_vn.strftime("%H:%M:%S %d/%m/%Y")
     last_update_obj = {
-        "last_update":           now_sys,
+        "last_update":           now_display,
         "active_date":           today,
         "yesterday":             yesterday,
         "total_records":         len(df),
