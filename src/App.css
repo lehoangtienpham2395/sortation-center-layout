@@ -231,3 +231,36 @@
   color: #B8F7E4 !important;
   text-shadow: 0 0 12px rgba(184, 247, 228, 0.6) !important;
 }
+
+/* 4-SIDE BRIGHT MINT #B8F7E4 NEON GLOW BORDER FOR CARDS & CLICK STATE */
+.chart-container-card,
+.kpi-card.accent-green,
+.kpi-card.glow-cyan,
+.report-glow-card.glow-cyan {
+  border: 1.5px solid #B8F7E4 !important;
+  box-shadow: 0 0 18px rgba(184, 247, 228, 0.45), inset 0 0 10px rgba(184, 247, 228, 0.15) !important;
+  border-radius: 16px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.chart-container-card:hover,
+.chart-container-card:active,
+.kpi-card:hover,
+.kpi-card:active {
+  box-shadow: 0 0 25px rgba(184, 247, 228, 0.75), inset 0 0 15px rgba(184, 247, 228, 0.3) !important;
+  border-color: #B8F7E4 !important;
+}
+
+/* Titles: HOURLY PROCESSING TREND & ORDERS STATUS */
+.chart-header h2,
+.chart-header h2 span,
+.kpi-title {
+  color: #B8F7E4 !important;
+  text-shadow: 0 0 10px rgba(184, 247, 228, 0.5) !important;
+}
+
+.chart-legend-custom .dot.cyan,
+.chart-legend-custom .dot.green {
+  background: #B8F7E4 !important;
+  box-shadow: 0 0 8px #B8F7E4 !important;
+}
