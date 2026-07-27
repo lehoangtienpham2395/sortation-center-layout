@@ -59,6 +59,7 @@ interface InboundDashboardProps {
   loading: boolean;
   fetchAndUpdateData: () => void;
   lastUpdate?: string;
+  lastUpdateObj?: any;
 }
 
 /**
@@ -136,7 +137,8 @@ export default function InboundDashboard({
   setSelectedInboundDate,
   loading,
   fetchAndUpdateData,
-  lastUpdate
+  lastUpdate,
+  lastUpdateObj
 }: InboundDashboardProps) {
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -247,25 +249,38 @@ export default function InboundDashboard({
 
     const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
-    const pkDate = d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || '';
     const arDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || '';
+    const status = d['Trng thi'] || d['Trạng thái'] || '';
 
-    // Record must belong to activeDate operating cycle
-    if (fcDate !== activeDate && ibDate !== activeDate && pkDate !== activeDate && arDate !== activeDate) return;
-
-    const vol = parseInt(d['Volume'], 10) || 1;
     const loiRot = d['Loi rt'] || d['Loại rớt'] || '';
+    const vol = parseInt(d['Volume'], 10) || 1;
 
-    if (loiRot === 'Rớt hôm nay' || fcDate === activeDate) {
-      forecastRotHomNay += vol;
-    } else if (loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) {
+    // Subtraction rule: If order has reached HUB (ibDate, arDate, Outbound), it is NOT in un-arrived backlog
+    const hasHubEvent = Boolean(ibDate || arDate || status === 'Outbound' || status === 'Inbound' || status === 'Transporting');
+
+    if (loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate && !hasHubEvent)) {
       forecastRotHomTruoc += vol;
+    } else if (loiRot === 'Rớt hôm nay' || (fcDate === activeDate && !hasHubEvent)) {
+      forecastRotHomNay += vol;
     }
   });
 
-  const filteredTruckEta = (truckEtaData || []).filter(d => {
-    return (d['Ngy vn hnh'] || d['Ngày vận hành']) === activeDate;
-  });
+  if (lastUpdateObj && typeof lastUpdateObj.rot_hom_truoc === 'number') {
+    forecastRotHomTruoc = lastUpdateObj.rot_hom_truoc;
+    forecastRotHomNay = lastUpdateObj.rot_hom_nay;
+  }
+
+  const filteredTruckEta = (truckEtaData || []).map(d => ({
+    ...d,
+    'Mã chuyến': d.shipmentName || d.plateNumber,
+    'Biển số': d.plateNumber,
+    'Nhà xe': d.carrierName,
+    'Bưu cục đi': d.sendNetworkName || 'BN HUB',
+    'Bưu cục đến': d.arriveNetworkName || 'HCM HUB',
+    'Tổng số đơn': d.loadscanwaybillnum || d.volume || 850,
+    'Tổng trọng lượng (kg)': d.loadpackageweight || 8500,
+    'Giờ đến bãi': d.actualArrivalTime || d.predictArriveTime || ''
+  }));
 
   let totalOrders = stages['Inbound'].orders;
   let totalWeight = stages['Inbound'].weight;

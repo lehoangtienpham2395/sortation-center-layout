@@ -372,6 +372,7 @@ export default function App() {
   const [loading,    setLoading]    = useState(false);
   const [hoveredZone,setHoveredZone] = useState<number | null>(null);
   const [lastUpdate, setLastUpdate] = useState<string>('');
+  const [lastUpdateObj, setLastUpdateObj] = useState<any>(null);
 
 
   // State variables for historic date/type filter
@@ -511,8 +512,9 @@ export default function App() {
       const res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, { cache: 'no-store' });
       if (res.ok) {
         const d = await res.json();
-        if (d && d.last_update) {
-          setLastUpdate(d.last_update);
+        if (d) {
+          if (d.last_update) setLastUpdate(d.last_update);
+          setLastUpdateObj(d);
         }
       }
     } catch (err) {
@@ -527,12 +529,14 @@ export default function App() {
     if (rawSheetRows.length === 0) return;
 
     const isDateMatch = (rDate: string, sDate: string) => {
-      if (!rDate || !sDate) return false;
+      if (!rDate || !sDate) return true;
+      const cleanR = String(rDate).slice(0, 10);
+      const cleanS = String(sDate).slice(0, 10);
       if (sDate.includes('..')) {
         const [start, end] = sDate.split('..');
-        return rDate >= start && rDate <= end;
+        return cleanR >= start.slice(0, 10) && cleanR <= end.slice(0, 10);
       }
-      return sDate.length === 7 ? rDate.startsWith(sDate) : rDate === sDate;
+      return cleanR === cleanS;
     };
 
     // Create lookup maps for both Backlog and the selectedType for the selectedDate
@@ -545,26 +549,31 @@ export default function App() {
       const key = row.areaId;
       if (!key) return;
 
-      if (isDateMatch(row.date, selectedDate)) {
-        if (row.type === selectedType && selectedType !== 'Inventory') {
-          selectedMap[key] = row;
+      const dateMatched = isDateMatch(row.date, selectedDate);
+      if (!dateMatched) return;
+
+      // Volume tab matches Inventory, Volume, or all row types
+      const isVolumeTab = (selectedType as string) === 'Volume' || selectedType === 'Inventory';
+      const typeMatched = (row.type as string) === (selectedType as string) || isVolumeTab;
+
+      if (typeMatched) {
+        if (!selectedMap[key]) {
+          selectedMap[key] = { ...row, volume: 0, weight: 0 };
         }
+        selectedMap[key].volume += row.volume;
+        selectedMap[key].weight += row.weight;
       }
 
-      // For Inventory and Backlog, strictly filter by selectedDate
-      const matchInventory = row.type === 'Inventory' && isDateMatch(row.date, selectedDate);
-      if (matchInventory) {
-        if (!row.status || selectedStatuses.includes(row.status)) {
-          if (!inventoryMap[key]) {
-            inventoryMap[key] = { volume: 0, weight: 0, capacity: row.capacity, buuCuc: row.buuCuc };
-          }
-          inventoryMap[key].volume += row.volume;
-          inventoryMap[key].weight += row.weight;
+      // Populate inventoryMap for all racks
+      if (!row.status || selectedStatuses.includes(row.status)) {
+        if (!inventoryMap[key]) {
+          inventoryMap[key] = { volume: 0, weight: 0, capacity: row.capacity || 780, buuCuc: row.buuCuc };
         }
+        inventoryMap[key].volume += row.volume;
+        inventoryMap[key].weight += row.weight;
       }
 
-      const matchBacklog = row.type === 'Backlog' && isDateMatch(row.date, selectedDate);
-      if (matchBacklog) {
+      if (row.type === 'Backlog' || selectedType === 'Backlog') {
         backlogMap[key] = row;
       }
     });
@@ -2247,6 +2256,8 @@ export default function App() {
                   setSelectedInboundDate={setSelectedInboundDate}
                   loading={loading}
                   fetchAndUpdateData={fetchAndUpdateData}
+                  lastUpdate={lastUpdate}
+                  lastUpdateObj={lastUpdateObj}
                 />
               </div>
             )}
