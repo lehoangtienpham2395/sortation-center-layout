@@ -582,9 +582,8 @@ export default function App() {
       const dateMatched = isDateMatch(row.date, selectedDate);
       if (!dateMatched) return;
 
-      // Volume tab matches Inventory, Volume, or all row types
-      const isVolumeTab = (selectedType as string) === 'Volume' || selectedType === 'Inventory';
-      const typeMatched = (row.type as string) === (selectedType as string) || isVolumeTab;
+      // Volume tab matches Volume or exact row type
+      const typeMatched = (selectedType as string) === 'Volume' || (row.type as string) === (selectedType as string);
 
       if (typeMatched) {
         if (!selectedMap[key]) {
@@ -594,8 +593,8 @@ export default function App() {
         selectedMap[key].weight += row.weight;
       }
 
-      // Populate inventoryMap for all racks
-      if (!row.status || selectedStatuses.includes(row.status)) {
+      // Populate inventoryMap for all racks ONLY from Inventory rows
+      if (row.type === 'Inventory' && (!row.status || selectedStatuses.includes(row.status))) {
         if (!inventoryMap[key]) {
           inventoryMap[key] = { volume: 0, weight: 0, capacity: row.capacity || 780, buuCuc: row.buuCuc };
         }
