@@ -177,8 +177,10 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
 
 
     const t = Date.now();
-    const url = `https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`;
-    const response = await fetch(url, { cache: 'no-store' });
+    let response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+    if (!response.ok) {
+      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+    }
     if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
     const data = await response.json();
     if (!Array.isArray(data)) return [];
@@ -214,8 +216,10 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
 
 
     const t = Date.now();
-    const url = `https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`;
-    const response = await fetch(url, { cache: 'no-store' });
+    let response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+    if (!response.ok) {
+      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+    }
     if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
     const rawData = await response.json();
     const data = Array.isArray(rawData) ? rawData : (rawData?.pivot_data || rawData?.data || []);
@@ -509,7 +513,10 @@ export default function App() {
     // Fetch last_update.json for the last sync timestamp
     try {
       const t = Date.now();
-      const res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, { cache: 'no-store' });
+      let res = await fetch(`./data/last_update.json?t=${t}`, { cache: 'no-store' });
+      if (!res.ok) {
+        res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, { cache: 'no-store' });
+      }
       if (res.ok) {
         const d = await res.json();
         if (d) {
