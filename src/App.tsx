@@ -258,9 +258,14 @@ interface SheetRow {
 async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival' | 'Truck_ETA'): Promise<any[] | null> {
   try {
     const t = Date.now();
-    let response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+    let response: Response;
+    if (window.location.hostname.includes('github.io')) {
+      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-cache' });
+    } else {
+      response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-cache' });
+    }
     if (!response.ok) {
-      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-cache' });
     }
     if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
     const rawData = await response.json();
@@ -321,9 +326,14 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
   try {
     const todayStr = new Date().toISOString().split('T')[0];
     const t = Date.now();
-    let response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+    let response: Response;
+    if (window.location.hostname.includes('github.io')) {
+      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-cache' });
+    } else {
+      response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-cache' });
+    }
     if (!response.ok) {
-      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-cache' });
     }
     if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
     const rawData = await response.json();
@@ -626,9 +636,14 @@ export default function App() {
     // Fetch last_update.json for the last sync timestamp
     try {
       const t = Date.now();
-      let res = await fetch(`./data/last_update.json?t=${t}`, { cache: 'no-store' });
+      let res: Response;
+      if (window.location.hostname.includes('github.io')) {
+        res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, { cache: 'no-cache' });
+      } else {
+        res = await fetch(`./data/last_update.json?t=${t}`, { cache: 'no-cache' });
+      }
       if (!res.ok) {
-        res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, { cache: 'no-store' });
+        res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, { cache: 'no-cache' });
       }
       if (res.ok) {
         const d = await res.json();
