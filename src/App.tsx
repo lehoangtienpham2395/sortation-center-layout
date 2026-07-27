@@ -42,8 +42,10 @@ function NumberTicker({ value }: { value: number }) {
 const MASTER_CONFIG_MAP: { [key: string]: string } = {};
 try {
   (configData as any[]).forEach(c => {
-    if (c && c.areaId && c.buuCuc) {
-      MASTER_CONFIG_MAP[c.areaId] = c.buuCuc;
+    const key = c?.AreaID || c?.areaId;
+    const name = c?.['Bưu cục'] || c?.buuCuc;
+    if (key && name) {
+      MASTER_CONFIG_MAP[String(key).trim()] = String(name).trim();
     }
   });
 } catch (e) {

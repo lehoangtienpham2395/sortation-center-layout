@@ -252,16 +252,32 @@ def sync_postgre_to_dashboard():
     print(f"   Today   : {today}  |  Yesterday: {yesterday}")
     print("=" * 60)
 
-    # ── 1. Load valid.csv ─────────────────────────────────────────
+    # ── 1. Load valid.csv (Master Config từ Google Sheet) ─────────
     dict_zone, dict_area, dict_station = {}, {}, {}
     if os.path.exists(VALID_FILE):
         df_v = pd.read_csv(VALID_FILE, dtype=str)
         df_v.columns = df_v.columns.str.strip()
-        sc = df_v['sortcode'].dropna().str.strip().str.upper()
-        dict_zone    = dict(zip(sc, df_v['Hubcode'].fillna('3').str.strip()))
-        dict_area    = dict(zip(sc, df_v['area'].fillna('C01').str.strip()))
-        dict_station = dict(zip(sc, df_v['Station_2'].fillna('').str.strip()))
-        print(f"   valid.csv : {len(dict_zone):,} sortcodes")
+        sc_col   = next((c for c in ['sortcode', 'Mã trạm', 'Dispatch_code'] if c in df_v.columns), None)
+        area_col = next((c for c in ['area', 'AreaID'] if c in df_v.columns), None)
+        st_col   = next((c for c in ['Bưu cục', 'Station_1', 'Station_2'] if c in df_v.columns), None)
+        zone_col = next((c for c in ['Zone', 'Hubcode'] if c in df_v.columns), None)
+
+        if sc_col and area_col:
+            sc = df_v[sc_col].dropna().str.strip().str.upper()
+            if zone_col: dict_zone = dict(zip(sc, df_v[zone_col].fillna('3').str.strip()))
+            dict_area = dict(zip(sc, df_v[area_col].fillna('C01').str.strip()))
+            if st_col:   dict_station = dict(zip(sc, df_v[st_col].fillna('').str.strip()))
+            print(f"   valid.csv : {len(dict_area):,} sortcodes (Master Google Sheet Config)")
+        elif area_col and st_col:
+            for _, r_v in df_v.iterrows():
+                a_id = str(r_v.get(area_col) or '').strip()
+                b_c  = str(r_v.get(st_col) or '').strip()
+                z_n  = str(r_v.get(zone_col) or '3').strip()
+                if a_id:
+                    dict_area[a_id] = a_id
+                    dict_station[a_id] = b_c
+                    dict_zone[a_id] = z_n
+            print(f"   valid.csv : {len(dict_area):,} AreaIDs (Master Google Sheet Config)")
     else:
         print(f"   ⚠️  valid.csv not found — zone/area mapping empty")
 
