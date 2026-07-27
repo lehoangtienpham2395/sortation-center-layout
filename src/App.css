@@ -1,13 +1,3 @@
-
-.chart-header h2,
-.chart-container-card h2,
-.dual-line-wrapper h2,
-.donut-wrapper h2,
-.table-header h2,
-h2.chart-title {
-  color: #B8F7E4 !important;
-  text-shadow: none !important;
-}
 .counter {
   font-size: 16px;
   padding: 5px 10px;
@@ -191,55 +181,4 @@ h2.chart-title {
     right: 0;
     border-right-color: var(--border);
   }
-}
-
-/* KPI 1 & KPI 2 Mint Green #B8F7E4 styling */
-
-
-
-.kpi-card.accent-green .kpi-unit {
-  color: #B8F7E4 !important;
-}
-
-.kpi-card.accent-green {
-  border-bottom: 2px solid #B8F7E4 !important;
-  box-shadow: 0 4px 20px rgba(184, 247, 228, 0.15) !important;
-}
-
-
-/* Make KPI cards and Report cards use exact report-glow-card glow-cyan #B8F7E4 */
-.glow-cyan {
-  --glow-color-start: #B8F7E4;
-  --glow-color-end: rgba(184, 247, 228, 0.4);
-  --glow-shadow: rgba(184, 247, 228, 0.35);
-}
-
-.report-glow-card.glow-cyan:hover::before,
-.report-glow-card.glow-cyan:active::before {
-  opacity: 1 !important;
-}
-
-
-
-.kpi-card.accent-green .kpi-value {
-  color: #B8F7E4 !important;
-}
-
-/* Clean #B8F7E4 Titles Without Text Glow */
-.chart-header h2,
-.chart-header h2 span,
-.kpi-card .kpi-title,
-.kpi-title {
-  color: #B8F7E4 !important;
-  text-shadow: none !important;
-}
-
-.chart-header h2,
-.chart-container-card h2,
-.dual-line-wrapper h2,
-.donut-wrapper h2,
-.table-header h2,
-h2.chart-title {
-  color: #B8F7E4 !important;
-  text-shadow: none !important;
 }

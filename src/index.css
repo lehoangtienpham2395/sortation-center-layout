@@ -8,9 +8,9 @@
   --line: rgba(255, 255, 255, 0.05);
   --ink: #f8fafc;
   --muted: #94a3b8;
-  --accent: #10b981;
+  --accent: #B8F7E4;
   --cyan: #06b6d4;
-  --green: #10b981;
+  --green: #B8F7E4;
   --yellow: #f59e0b;
   --orange: #f97316;
   --red: #ef4444;
@@ -190,9 +190,9 @@ body {
 
 /* Specific Card Color Variables */
 .glow-cyan {
-  --glow-color-start: #B8F7E4;
-  --glow-color-end: rgba(184, 247, 228, 0.4);
-  --glow-shadow: rgba(184, 247, 228, 0.35);
+  --glow-color-start: #00e5ff;
+  --glow-color-end: #0284c7;
+  --glow-shadow: rgba(0, 229, 255, 0.25);
 }
 
 .glow-purple {
@@ -202,7 +202,7 @@ body {
 }
 
 .glow-emerald {
-  --glow-color-start: #10b981;
+  --glow-color-start: #B8F7E4;
   --glow-color-end: #047857;
   --glow-shadow: rgba(16, 185, 129, 0.25);
 }
@@ -442,7 +442,7 @@ body {
   --accent-lime-glow: rgba(200, 255, 61, 0.15);
   --accent-lime-border: rgba(200, 255, 61, 0.3);
   
-  --accent-green: #10b981;
+  --accent-green: #B8F7E4;
   --accent-green-glow: rgba(184, 247, 228, 0.15);
   --accent-green-border: rgba(184, 247, 228, 0.3);
   
@@ -1019,19 +1019,11 @@ body {
 }
 
 .legend-item .dot.cyan {
-  background-color: #B8F7E4 !important;
-  box-shadow: 0 0 8px #B8F7E4 !important;
-} /*
-  background-color: #B8F7E4 !important;
+  background-color: #B8F7E4;
   box-shadow: 0 0 6px rgba(184, 247, 228, 0.6);
 }
 
 .chart-canvas-wrapper {
-  position: relative;
-  flex: 1;
-  min-height: 250px;
-  height: 250px;
-} /*
   position: relative;
   flex: 1;
   min-height: 250px;
@@ -1507,7 +1499,7 @@ body {
 
 .badge-count.emerald {
   background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
+  color: #B8F7E4;
   border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
@@ -1637,45 +1629,4 @@ body {
   display: none !important;
   visibility: hidden !important;
   height: 0 !important;
-}
-
-/* KPI 1 & KPI 2 Mint Green #B8F7E4 styling */
-
-
-
-.kpi-card.accent-green .kpi-unit {
-  color: #B8F7E4 !important;
-}
-
-.kpi-card.accent-green {
-  border-bottom: 2px solid #B8F7E4 !important;
-  box-shadow: 0 4px 20px rgba(184, 247, 228, 0.15) !important;
-}
-
-
-/* Make KPI cards and Report cards use exact report-glow-card glow-cyan #B8F7E4 */
-.glow-cyan {
-  --glow-color-start: #B8F7E4;
-  --glow-color-end: rgba(184, 247, 228, 0.4);
-  --glow-shadow: rgba(184, 247, 228, 0.35);
-}
-
-.report-glow-card.glow-cyan:hover::before,
-.report-glow-card.glow-cyan:active::before {
-  opacity: 1 !important;
-}
-
-
-
-.kpi-card.accent-green .kpi-value {
-  color: #B8F7E4 !important;
-}
-
-/* Clean #B8F7E4 Titles Without Text Glow */
-.chart-header h2,
-.chart-header h2 span,
-.kpi-card .kpi-title,
-.kpi-title {
-  color: #B8F7E4 !important;
-  text-shadow: none !important;
 }

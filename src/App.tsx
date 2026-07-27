@@ -59,6 +59,7 @@ export const BACKEND_STATUS_MAP: Record<string, string> = {
   // Capitalized canonical values
   'Inbound': 'Inbound',
   'Transporting': 'Transporting',
+  'Pickup Done': 'Pickup Done',
   'Created': 'Created',
   'Outbound': 'Outbound',
 
@@ -70,9 +71,9 @@ export const BACKEND_STATUS_MAP: Record<string, string> = {
   'transporting': 'Transporting',
   'Đang trên đường': 'Transporting',
 
-  'pickup_done': 'Created',
+  'pickup_done': 'Pickup Done',
   'created': 'Created',
-  'Đã lấy hàng': 'Created',
+  'Đã lấy hàng': 'Pickup Done',
   'Đã điều phối bưu cục': 'Created',
 
   'outbound_done': 'Outbound',
@@ -466,7 +467,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Inventory');
   const [outboundRate, setOutboundRate] = useState<string>('0.0');
-  const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Created'];
+  const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Created', 'Pickup Done'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([...INVENTORY_STATUSES]);
 
   const [selectedDetailRack, setSelectedDetailRack] = useState<any | null>(null);
