@@ -907,9 +907,16 @@ def main():
         from psycopg2.extras import execute_values
         pg_pass = os.environ.get('PGPASSWORD', 'Tien@giang0203')
         pg_db   = os.environ.get('PGDATABASE', 'logistics_db')
-        conn = psycopg2.connect(host='127.0.0.1', port=5433, dbname=pg_db, user='postgres', password=pg_pass)
+        conn = psycopg2.connect(
+            host='127.0.0.1', port=5433, dbname=pg_db, user='postgres', password=pg_pass,
+            connect_timeout=10, options='-c statement_timeout=30000'
+        )
         cur = conn.cursor()
-        cur.execute('TRUNCATE TABLE enriched.dispatch_enriched CASCADE;')
+        try:
+            cur.execute('TRUNCATE TABLE enriched.dispatch_enriched CASCADE;')
+        except Exception:
+            conn.rollback()
+            cur.execute('DELETE FROM enriched.dispatch_enriched;')
 
         records = []
         for _, r in df.iterrows():

@@ -40,16 +40,36 @@ function NumberTicker({ value }: { value: number }) {
 }
 
 const MASTER_CONFIG_MAP: { [key: string]: string } = {};
+const NAME_TO_AREA_ID_MAP: { [key: string]: string } = {};
+
 try {
-  (configData as any[]).forEach(c => {
+  const cfgList = Array.isArray(configData) ? configData : ((configData as any)?.pivot_data || []);
+  cfgList.forEach((c: any) => {
     const key = c?.AreaID || c?.areaId;
     const name = c?.['Bưu cục'] || c?.buuCuc;
     if (key && name) {
-      MASTER_CONFIG_MAP[String(key).trim()] = String(name).trim();
+      const k = String(key).trim();
+      const n = String(name).trim();
+      MASTER_CONFIG_MAP[k] = n;
+      NAME_TO_AREA_ID_MAP[n.toUpperCase()] = k;
     }
   });
 } catch (e) {
   console.error("Error loading master config map:", e);
+}
+
+export function resolveAreaId(rawAreaId?: string, buuCucName?: string): string {
+  const aId = (rawAreaId || '').trim();
+  if (aId && aId !== 'FC' && aId !== 'KHO VÙNG KHÁC' && aId !== 'None') {
+    return aId;
+  }
+  if (buuCucName) {
+    const normName = buuCucName.trim().toUpperCase();
+    if (NAME_TO_AREA_ID_MAP[normName]) {
+      return NAME_TO_AREA_ID_MAP[normName];
+    }
+  }
+  return aId || 'FC';
 }
 
 // ============================================================
@@ -191,6 +211,12 @@ ALL_RACKS.forEach(item => {
   if (MASTER_CONFIG_MAP[item.areaId]) {
     item.name = MASTER_CONFIG_MAP[item.areaId];
   }
+  if (item.name && item.areaId) {
+    const n = item.name.trim().toUpperCase();
+    if (!NAME_TO_AREA_ID_MAP[n]) {
+      NAME_TO_AREA_ID_MAP[n] = item.areaId;
+    }
+  }
 });
 
 function generateMockData() {
@@ -307,8 +333,9 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
 
     for (const item of data) {
       const zone       = String(item['zone'] ?? item['Zone'] ?? item['round'] ?? item['Round'] ?? '');
-      const areaId     = String(item['area_id'] ?? item['AreaID'] ?? item['rank'] ?? item['Rank'] ?? '');
+      const rawAreaId  = String(item['area_id'] ?? item['AreaID'] ?? item['rank'] ?? item['Rank'] ?? '');
       const buuCuc     = String(item['station_name'] ?? item['Bu cc'] ?? item['Bưu cục'] ?? item['name'] ?? item['Next_station'] ?? item['Pickup_station'] ?? '');
+      const areaId     = resolveAreaId(rawAreaId, buuCuc);
       const volumeRaw  = item['volume'] ?? item['Volume'] ?? item['Orders_num'];
       const weightRaw  = item['weight_ton'] ?? item['weight'] ?? item['Weight'] ?? item['Orders_weight'];
       const capRaw     = item['capacity'] ?? item['Sc cha'] ?? item['Sức chứa'] ?? 780;
@@ -467,7 +494,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Inventory');
   const [outboundRate, setOutboundRate] = useState<string>('0.0');
-  const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Created', 'Pickup Done'];
+  const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Created', 'Pickup Done', 'Outbound'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([...INVENTORY_STATUSES]);
 
   const [selectedDetailRack, setSelectedDetailRack] = useState<any | null>(null);
@@ -648,7 +675,7 @@ export default function App() {
     const inventoryMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
 
     rawSheetRows.forEach(row => {
-      const key = row.areaId;
+      const key = resolveAreaId(row.areaId, row.buuCuc);
       if (!key) return;
 
       const dateMatched = isDateMatch(row.date, selectedDate) || (row.type === 'Inventory' && (!selectedDate || selectedDate === row.date));
