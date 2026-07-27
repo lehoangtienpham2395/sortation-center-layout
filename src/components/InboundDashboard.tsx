@@ -392,97 +392,84 @@ export default function InboundDashboard({
   });
 
   // 1. Transporting hourly: tính từ mốc thời gian phát hàng (Arrival Time / scantime) trong inboundData
-  //    - Lấy theo cycle 6-6 (mốc thời gian < 06:00 sáng thuộc ngày vận hành hôm trước)
-  //    - Gắn trực tiếp lên bộ lọc ngày activeDate
   inboundData.forEach(d => {
-    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
+    const station = (d['Bu cc'] || d['Bưu cục'] || d['Pickup_station'] || d['pickup_station'] || '').trim().toUpperCase();
     if (isNorthStation(station)) return;
 
-    const arrTime = d['Arrival Time'] || d['Arrival_time'] || '';
+    const arrTime = d['Arrival Time'] || d['Arrival_time'] || d['arrival_scanDate'] || d['arrival_scandate'] || d['transporing_time'] || '';
     if (!arrTime) return;
 
-    // Tính ngày vận hành (cycle 6-6) từ Arrival Time
-    const arrOpDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || getOperatingDateFromTimestamp(arrTime);
-
-    // Gắn lên bộ lọc ngày activeDate
+    const arrOpDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || d['op_date_arrival'] || getOperatingDateFromTimestamp(arrTime);
     if (arrOpDate !== activeDate) return;
 
-    // Lấy giờ thực tế (00-23h) từ Arrival Time
     const hrVal = getHourFromTimestamp(arrTime);
     if (hrVal >= 0 && hrVal < 24) {
       const hour = `${String(hrVal).padStart(2, '0')}:00`;
-      const vol = parseInt(d['Volume'] || 1, 10);
+      const vol = parseInt(d['Volume'] || d['orders_num'] || d['Orders_num'] || 1, 10);
       if (hourlyArrived[hour] !== undefined) {
         hourlyArrived[hour] += vol;
       }
     }
   });
 
-  // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast hoặc ngày vận hành của Forecast Time khớp với activeDate
+  // 2. Forecast / Created Time (Dự báo - Tạo đơn):
   inboundData.filter(d => {
-    const fcTime = d['Forecast Time'] || '';
-    const fcDate = getOperatingDateFromTimestamp(fcTime);
-    const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
+    const fcTime = d['Forecast Time'] || d['created_time'] || d['Created_time'] || d['Created Time'] || '';
+    const fcDate = fcTime ? getOperatingDateFromTimestamp(fcTime) : '';
+    const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || d['op_date_created'] || d['operation_date_created'] || fcDate;
     return opDate === activeDate || fcDate === activeDate;
   }).forEach(d => {
-    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    if (isNorthStation(station)) {
-      return;
-    }
-    const fcTime = d['Forecast Time'] || '';
+    const station = (d['Bu cc'] || d['Bưu cục'] || d['Pickup_station'] || d['pickup_station'] || '').trim().toUpperCase();
+    if (isNorthStation(station)) return;
+
+    const fcTime = d['Forecast Time'] || d['created_time'] || d['Created_time'] || d['Created Time'] || '';
     if (fcTime) {
       const fcDate = getOperatingDateFromTimestamp(fcTime);
-      const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
-      // Nếu là ngày forecast gốc (fcDate === activeDate), ta HIỂN THỊ bất kể loaiRot là gì để giữ đúng lịch sử ca đêm
-      // Nếu là ngày gối đầu (opDate === activeDate và fcDate !== activeDate), ta lọc bỏ 'Rớt hôm trước' để tránh lặp lại
+      const loaiRot = d['Loi rt'] || d['Loại rớt'] || d['drop_type'] || '';
       if (fcDate === activeDate || loaiRot !== 'Rớt hôm trước') {
         const hrVal = getHourFromTimestamp(fcTime);
         if (hrVal >= 0 && hrVal < 24) {
           const hour = `${String(hrVal).padStart(2, '0')}:00`;
           if (hourlyForecast[hour] !== undefined) {
-            hourlyForecast[hour] += parseInt(d['Volume'], 10) || 0;
+            hourlyForecast[hour] += parseInt(d['Volume'] || d['orders_num'] || d['Orders_num'] || 1, 10);
           }
         }
       }
     }
   });
 
-  // 3. Pickup Time (Shipper đã lấy): CHỈ đếm các đơn có mốc lấy hàng thực tế và trạng thái đã lấy hàng (Pickup Done / Transporting / Inbound)
+  // 3. Pickup Time (Shipper đã lấy):
   inboundData.filter(d => {
-    const status = d['Trng thi'] || d['Trạng thái'] || '';
-    const opPk = d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || '';
+    const status = d['Trng thi'] || d['Trạng thái'] || d['status'] || d['status_sys'] || '';
+    const opPk = d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['op_date_pickup'] || getOperatingDateFromTimestamp(d['pickup_time'] || d['Pickup Time'] || '');
     return opPk === activeDate && status !== 'Created' && status !== 'Đã điều phối bưu cục';
   }).forEach(d => {
-    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    if (isNorthStation(station)) {
-      return;
-    }
-    const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
-      ? d['Pickup Time']
-      : undefined;
-    if (pkTime !== undefined) {
+    const station = (d['Bu cc'] || d['Bưu cục'] || d['Pickup_station'] || d['pickup_station'] || '').trim().toUpperCase();
+    if (isNorthStation(station)) return;
+
+    const pkTime = d['Pickup Time'] || d['pickup_time'] || d['Pickup_time'] || d['Pickup_Time'] || '';
+    if (pkTime) {
       const hrVal = getHourFromTimestamp(pkTime);
       if (hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
         if (hourlyPickup[hour] !== undefined) {
-          hourlyPickup[hour] += parseInt(d['Volume'], 10) || 0;
+          hourlyPickup[hour] += parseInt(d['Volume'] || d['orders_num'] || d['Orders_num'] || 1, 10);
         }
       }
     }
   });
 
   // 4. Inbound (Nhập kho HUB): Hiển thị các đơn nhập kho trong ngày activeDate
-  filteredInbound.forEach(d => {
-    if ((d['Trng thi'] || d['Trạng thái']) === 'Inbound') {
-      const ibTime = d['Inbound Hour'] !== undefined && d['Inbound Hour'] !== null && d['Inbound Hour'] !== '' 
-        ? d['Inbound Hour'] 
-        : d['Inbound Time'];
-      if (ibTime !== undefined && ibTime !== null && ibTime !== '') {
+  filteredInbound.forEach((d: any) => {
+    const status = d['Trng thi'] || d['Trạng thái'] || d['status'] || d['status_sys'] || '';
+    if (status === 'Inbound') {
+      const ibTime = d['Inbound Hour'] || d['Inbound Time'] || d['inbound_scanDate'] || d['inbound_scandate'] || d['inbound_time'] || '';
+      if (ibTime) {
         const hrVal = getHourFromTimestamp(ibTime);
         if (hrVal >= 0 && hrVal < 24) {
           const hour = `${String(hrVal).padStart(2, '0')}:00`;
           if (hourlyInbound[hour] !== undefined) {
-            hourlyInbound[hour] += parseInt(d['Volume'], 10) || 0;
+            hourlyInbound[hour] += parseInt(d['Volume'] || d['orders_num'] || d['Orders_num'] || 1, 10);
           }
         }
       }
