@@ -416,9 +416,13 @@ def pull_linehaul_consol(session, token_mgr, start_str, end_str):
 # ============================================================
 def pull_arrival(session, arr_tmgr, ib_headers, start_str, end_str):
     label = 'Arrival'
-    master_path = os.path.join(CONFIG_DIR, 'stations_master.csv')
+    try:
+        master_path = cfg('stations_master.csv')
+    except Exception:
+        master_path = ''
+
     station_names = []
-    if os.path.exists(master_path):
+    if master_path and os.path.exists(master_path):
         try:
             df_m = pd.read_csv(master_path)
             df_f = df_m[
@@ -430,8 +434,12 @@ def pull_arrival(session, arr_tmgr, ib_headers, start_str, end_str):
             pass
 
     d_sc = {}
-    vp   = VALID_FILE if os.path.exists(VALID_FILE) else os.path.join(CONFIG_DIR, 'valid.csv')
-    if os.path.exists(vp):
+    try:
+        vp = cfg('valid.csv')
+    except Exception:
+        vp = ''
+
+    if vp and os.path.exists(vp):
         try:
             df_v = pd.read_csv(vp, dtype=str)
             df_v.columns = df_v.columns.str.strip()
@@ -456,6 +464,11 @@ def pull_arrival(session, arr_tmgr, ib_headers, start_str, end_str):
                     code = v; break
         if code:
             stations.append({'name': name.strip(), 'code': code})
+
+    # Robust fallback: If stations list is empty, populate directly from d_sc sortcodes
+    if not stations and d_sc:
+        for k, v in d_sc.items():
+            stations.append({'name': k, 'code': v})
 
     print('   ' + label + ': ' + str(len(stations)) + ' buu cuc...')
     arr_params = {'sqlCode': 'realtime_sca_sen_mon_dtl',
