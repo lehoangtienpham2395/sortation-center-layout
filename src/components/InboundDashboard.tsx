@@ -253,20 +253,25 @@ export default function InboundDashboard({
       'Created': { orders: 0, weight: 0 }
     };
 
-  [...filteredInbound, ...filteredChuaVeHub].forEach(d => {
-    const status = d['Trng thi'] || d['Trạng thái'];
-    const vol = parseInt(d['Volume'], 10) || 0;
+  // Filter unique inbound rows for activeDate once to eliminate duplicate counting
+  const activeInboundRows = inboundData.filter(d => {
+    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
+    if (isNorthStation(station)) return false;
+    const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['Ngày vận hành'] || d['op_date'] || '';
+    return isDateMatch(opDate, activeDate);
+  });
+
+  activeInboundRows.forEach(d => {
+    const status = getStatus(d);
+    const vol = parseInt(d['Volume'] || 1, 10) || 0;
     const wt = parseFloat(d['Weight']) || 0;
     const stageKey = stages[status] ? status : 'Created';
     stages[stageKey].orders += vol;
     stages[stageKey].weight += wt;
-    // Chỉ cộng vào ordersWithWeight khi row này có dữ liệu weight thực tế
     if (wt > 0) {
       stagesWithWeight[stageKey] += vol;
     }
   });
-
-
 
   inboundData.forEach(d => {
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
@@ -275,12 +280,11 @@ export default function InboundDashboard({
     const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
     const arDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || '';
-    const status = d['Trng thi'] || d['Trạng thái'] || '';
+    const status = getStatus(d);
 
     const loiRot = d['Loi rt'] || d['Loại rớt'] || '';
-    const vol = parseInt(d['Volume'], 10) || 1;
+    const vol = parseInt(d['Volume'] || 1, 10) || 0;
 
-    // Subtraction rule: If order has reached HUB (ibDate, arDate, Outbound), it is NOT in un-arrived backlog
     const hasHubEvent = Boolean(ibDate || arDate || status === 'Outbound' || status === 'Inbound' || status === 'Transporting');
 
     if ((loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) && !hasHubEvent) {
@@ -295,30 +299,8 @@ export default function InboundDashboard({
     forecastRotHomNay = lastUpdateObj.rot_hom_nay;
   }
 
-  const filteredTruckEta = (truckEtaData || [])
-    .filter(d => {
-      const opDate = d.op_date || d['Ngày vận hành'] || (d.eta ? d.eta.slice(0, 10) : '') || (d.predictArriveTime ? d.predictArriveTime.slice(0, 10) : '');
-      if (!opDate) return true;
-      return isDateMatch(opDate, activeDate);
-    })
-    .map(d => ({
-      ...d,
-      'Mã chuyến': d.shipmentName || d.plateNumber || d.plate_number,
-      'Biển số': d.plateNumber || d.plate_number,
-      'Nhà xe': d.carrierName || d.carrier_name,
-      'Bưu cục đi': d.sendNetworkName || d.send_network || 'BN HUB',
-      'Bưu cục đến': d.arriveNetworkName || d.arrive_network || 'HCM HUB',
-      'Tổng số đơn': d.orders_count ?? d.loadscanwaybillnum ?? d.volume ?? 0,
-      'Tổng trọng lượng (kg)': d.weight_kg ?? d.loadpackageweight ?? 0,
-      'Giờ đến bãi': d.eta || d.actualArrivalTime || d.predictArriveTime || ''
-    }));
-
-  let totalOrders = stages['Inbound'].orders;
-  let totalWeight = stages['Inbound'].weight;
-  // Số đơn có weight thực tế > 0 → dùng để tính avg chính xác
-  const ordersWithWeight = stagesWithWeight['Inbound'];
-  // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
-  let totalForecast = forecastRotHomTruoc + forecastRotHomNay;
+  const forecastTodayVolume = activeInboundRows.reduce((sum, r) => sum + (parseInt(r['Volume'] || 1, 10) || 0), 0);
+  let totalForecast = forecastTodayVolume + forecastRotHomTruoc;
 
 
 
