@@ -334,7 +334,7 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
     for (const item of data) {
       const zone       = String(item['zone'] ?? item['Zone'] ?? item['round'] ?? item['Round'] ?? '');
       const rawAreaId  = String(item['area_id'] ?? item['AreaID'] ?? item['rank'] ?? item['Rank'] ?? '');
-      const buuCuc     = String(item['station_name'] ?? item['Bu cc'] ?? item['Bưu cục'] ?? item['name'] ?? item['Next_station'] ?? item['Pickup_station'] ?? '');
+      const buuCuc     = String(item['Next_station'] ?? item['next_network'] ?? item['station_name'] ?? item['Bu cc'] ?? item['Bưu cục'] ?? item['name'] ?? item['Pickup_station'] ?? '');
       const areaId     = resolveAreaId(rawAreaId, buuCuc);
       const volumeRaw  = item['volume'] ?? item['Volume'] ?? item['Orders_num'];
       const weightRaw  = item['weight_ton'] ?? item['weight'] ?? item['Weight'] ?? item['Orders_weight'];
@@ -494,7 +494,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Inventory');
   const [outboundRate, setOutboundRate] = useState<string>('0.0');
-  const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Created', 'Pickup Done', 'Outbound'];
+  const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Created', 'Pickup Done'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([...INVENTORY_STATUSES]);
 
   const [selectedDetailRack, setSelectedDetailRack] = useState<any | null>(null);
