@@ -58,6 +58,11 @@ try {
   console.error("Error loading master config map:", e);
 }
 
+NAME_TO_AREA_ID_MAP['BN HUB'] = 'A06';
+NAME_TO_AREA_ID_MAP['BNI001'] = 'A06';
+NAME_TO_AREA_ID_MAP['BẮC NINH HUB'] = 'A06';
+NAME_TO_AREA_ID_MAP['BAC NINH HUB'] = 'A06';
+
 export function resolveAreaId(rawAreaId?: string, buuCucName?: string): string {
   const aId = (rawAreaId || '').trim();
   if (aId && aId !== 'FC' && aId !== 'KHO VÙNG KHÁC' && aId !== 'None') {

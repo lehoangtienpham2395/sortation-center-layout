@@ -358,12 +358,16 @@ def sync_postgre_to_dashboard():
         station   = mapped_st or (next_st if next_st and next_st != 'KHÔ VÙNG KHÁC' else 'KHÔ VÙNG KHÁC')
         zone      = ZONE_MAP.get(dict_zone.get(sc, '3'), '3')
         area_id   = dict_area.get(sc)
+
+        if next_st == 'BN HUB' or station == 'BN HUB' or sc.startswith('BNI') or 'BN HUB' in next_st.upper():
+            area_id = 'A06'
+            station = 'BN HUB'
+            zone = '1'
+            cap = 1400
+
         valid_area = area_id is not None
         area_id   = area_id or 'C01'
-        cap       = 780
-
-        if area_id == 'A06':
-            station, zone, cap = 'BN HUB', '1', 1400
+        cap       = cap if 'cap' in locals() and area_id == 'A06' else 780
 
         wt_kg    = float(r.get('orders_weight') or 0)
         cr_t     = clean_ts_str(r.get('created_time'))
