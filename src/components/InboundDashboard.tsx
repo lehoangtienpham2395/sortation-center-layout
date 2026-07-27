@@ -174,13 +174,29 @@ export default function InboundDashboard({
     return clean === 'BN HUB' || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ') || NORTH_POST_OFFICES.has(clean);
   };
 
+  const normalizeDateStr = (dStr: string): string => {
+    if (!dStr) return '';
+    const str = String(dStr).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+    const dt = new Date(str);
+    if (!isNaN(dt.getTime())) {
+      const yyyy = dt.getFullYear();
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const dd = String(dt.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    return str.slice(0, 10);
+  };
+
   const isDateMatch = (dStr: string, aDate: string) => {
     if (!dStr || !aDate) return false;
+    const normR = normalizeDateStr(dStr);
+    const normA = normalizeDateStr(aDate);
     if (aDate.includes('..')) {
       const [start, end] = aDate.split('..');
-      return dStr >= start && dStr <= end;
+      return normR >= normalizeDateStr(start) && normR <= normalizeDateStr(end);
     }
-    return aDate.length === 7 ? dStr.startsWith(aDate) : dStr === aDate;
+    return aDate.length === 7 ? normR.startsWith(normA) : normR === normA;
   };
 
   const getDatePickup = (d: any) => d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];

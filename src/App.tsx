@@ -557,15 +557,29 @@ export default function App() {
   useEffect(() => {
     if (rawSheetRows.length === 0) return;
 
+    const normalizeDateStr = (dStr: string): string => {
+      if (!dStr) return '';
+      const str = String(dStr).trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+      const dt = new Date(str);
+      if (!isNaN(dt.getTime())) {
+        const yyyy = dt.getFullYear();
+        const mm = String(dt.getMonth() + 1).padStart(2, '0');
+        const dd = String(dt.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      }
+      return str.slice(0, 10);
+    };
+
     const isDateMatch = (rDate: string, sDate: string) => {
       if (!rDate || !sDate) return true;
-      const cleanR = String(rDate).slice(0, 10);
-      const cleanS = String(sDate).slice(0, 10);
+      const normR = normalizeDateStr(rDate);
+      const normS = normalizeDateStr(sDate);
       if (sDate.includes('..')) {
         const [start, end] = sDate.split('..');
-        return cleanR >= start.slice(0, 10) && cleanR <= end.slice(0, 10);
+        return normR >= normalizeDateStr(start) && normR <= normalizeDateStr(end);
       }
-      return cleanR === cleanS;
+      return normR === normS;
     };
 
     // Create lookup maps for both Backlog and the selectedType for the selectedDate
