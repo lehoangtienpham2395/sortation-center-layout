@@ -301,9 +301,15 @@ export default function InboundDashboard({
       // FIX: Chỉ lấy xe đến HCM HUB (arrive_network = 'HCM HUB')
       const dest = (d.arrive_network || d.arriveNetworkName || d['arrive_network_name'] || '').trim().toUpperCase();
       if (dest && dest !== 'HCM HUB') return false;
-      const opDate = d.op_date || d['Ngày vận hành'] || (d.planned_arrival ? d.planned_arrival.slice(0, 10) : '') || (d.eta ? d.eta.slice(0, 10) : '') || (d.predictArriveTime ? d.predictArriveTime.slice(0, 10) : '');
-      if (!opDate) return false;
-      return isDateMatch(opDate, activeDate);
+      // FIX: Lọc theo ngày ĐẾN (planned_arrival), không phải ngày xuất phát (op_date)
+      // Xe xuất phát tối hôm nay nhưng đến sáng mai → thuộc ngày mai
+      const arrivalDate = d.planned_arrival ? d.planned_arrival.slice(0, 10) : '';
+      const etaDate     = d.eta            ? d.eta.slice(0, 10) : '';
+      const opDate      = d.op_date        || d['Ngày vận hành'] || '';
+      // Ưu tiên: arrival date → eta date → op_date (fallback cuối)
+      const filterDate  = arrivalDate || etaDate || opDate;
+      if (!filterDate) return false;
+      return isDateMatch(filterDate, activeDate);
     })
     .map(d => ({
       ...d,

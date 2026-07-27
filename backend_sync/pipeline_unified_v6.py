@@ -934,8 +934,9 @@ def main():
             connect_timeout=10, options='-c statement_timeout=30000'
         )
         cur = conn.cursor()
+        # FIX: Không dùng CASCADE để tránh rollback các bảng phụ thuộc
         try:
-            cur.execute('TRUNCATE TABLE enriched.dispatch_enriched CASCADE;')
+            cur.execute('TRUNCATE TABLE enriched.dispatch_enriched;')
         except Exception:
             conn.rollback()
             cur.execute('DELETE FROM enriched.dispatch_enriched;')
@@ -991,6 +992,7 @@ def main():
                 op_inb or None,                          # operation_date_inbound
                 is_backlog,                              # is_backlog
                 is_active,                               # is_active
+                is_transit,                              # is_transit
             ))
 
         insert_sql = """
@@ -1002,7 +1004,7 @@ def main():
                 inbound_scandate, outbound_scandate, arrival_scandate,
                 trip_code, transporing_time, transported_time, dispatch_actual,
                 operation_date_created, operation_date_inbound,
-                is_backlog, is_active
+                is_backlog, is_active, is_transit
             ) VALUES %s
             ON CONFLICT (tracking) DO UPDATE SET
                 data_source          = EXCLUDED.data_source,
@@ -1016,6 +1018,7 @@ def main():
                 transported_time     = EXCLUDED.transported_time,
                 is_backlog           = EXCLUDED.is_backlog,
                 is_active            = EXCLUDED.is_active,
+                is_transit           = EXCLUDED.is_transit,
                 last_updated         = CURRENT_TIMESTAMP
         """
         execute_values(cur, insert_sql, records, page_size=2000)
