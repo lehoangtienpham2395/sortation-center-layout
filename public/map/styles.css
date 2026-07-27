@@ -1,0 +1,616 @@
+/* J&T Cargo Official Dashboard Brand Colors Theme */
+:root {
+  --jt-green: #00b050;
+  --jt-green-glow: rgba(0, 176, 80, 0.4);
+  --jt-orange: #ff5722;
+  --jt-amber: #f59e0b;
+  --jt-lime: #9be52c;
+  
+  --bg-dark: #121316;
+  --bg-sidebar: #18191c;
+  --bg-card: #202226;
+  --bg-glass: rgba(24, 25, 28, 0.95);
+  
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-jt: #00b050;
+  
+  --text-main: #ffffff;
+  --text-sub: #a0aec0;
+  --text-muted: #64748b;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: 'Inter', sans-serif;
+  background: var(--bg-dark);
+  color: var(--text-main);
+  overflow: hidden;
+}
+
+.map-app-root {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+/* Sidebar Layout */
+.sidebar-panel {
+  width: 380px;
+  min-width: 380px;
+  max-width: 380px;
+  height: 100vh;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.6);
+}
+
+.sidebar-header {
+  padding: 16px;
+  background: #141518;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* J&T Cargo Green Logo Badge */
+.jt-logo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--jt-green);
+  padding: 6px 14px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  box-shadow: 0 0 12px var(--jt-green-glow);
+}
+
+.jt-logo-badge .jt-text {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #ffffff;
+  font-style: italic;
+  letter-spacing: 0.5px;
+}
+
+.jt-logo-badge .cargo-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.brand-box h1 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.brand-box p {
+  font-size: 0.72rem;
+  color: var(--text-sub);
+  margin-top: 2px;
+}
+
+.stats-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.stat-item {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 6px;
+  text-align: center;
+}
+
+.stat-item .lbl {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--text-sub);
+  margin-bottom: 2px;
+}
+
+.stat-item .val {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.stat-item.green .val { color: var(--jt-green); }
+.stat-item.green-sub .val { color: var(--jt-lime); }
+.stat-item.orange .val { color: var(--jt-orange); }
+
+/* Controls Box */
+.controls-box {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.search-field {
+  position: relative;
+  width: 100%;
+}
+
+.search-field i {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.search-field input {
+  width: 100%;
+  padding: 8px 12px 8px 36px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.82rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.search-field input:focus {
+  border-color: var(--jt-green);
+  box-shadow: 0 0 10px var(--jt-green-glow);
+}
+
+.toolbar-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.tool-btn {
+  flex: 1;
+  padding: 7px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.tool-btn.jt-btn {
+  background: var(--jt-green);
+  border-color: var(--jt-green);
+  color: #ffffff;
+}
+
+.tool-btn:hover {
+  background: rgba(0, 176, 80, 0.2);
+  border-color: var(--jt-green);
+}
+
+.tool-btn.active {
+  background: rgba(255, 87, 34, 0.2);
+  border-color: var(--jt-orange);
+}
+
+.tool-btn.icon-only {
+  flex: 0 0 32px;
+  padding: 0;
+}
+
+/* Tabs */
+.tab-container {
+  display: flex;
+  padding: 8px 16px;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-sub);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn.active {
+  background: rgba(0, 176, 80, 0.15);
+  border-color: var(--jt-green);
+  color: var(--jt-green);
+}
+
+/* Province Scroll */
+.province-scroll {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--jt-green) transparent;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.prov-pill {
+  white-space: nowrap;
+  padding: 3px 9px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  font-size: 0.7rem;
+  color: var(--text-sub);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.prov-pill:hover, .prov-pill.active {
+  background: var(--jt-green);
+  color: #fff;
+  border-color: var(--jt-green);
+}
+
+/* Scrollable Routes List */
+.routes-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.route-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.route-card:hover, .route-card.selected {
+  background: rgba(0, 176, 80, 0.12);
+  border-color: var(--jt-green);
+  box-shadow: 0 4px 14px rgba(0, 176, 80, 0.2);
+}
+
+.route-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.route-code {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--jt-green);
+}
+
+.route-type-tag {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.route-type-tag.ghep {
+  background: rgba(0, 176, 80, 0.15);
+  color: var(--jt-green);
+  border: 1px solid rgba(0, 176, 80, 0.3);
+}
+
+.route-type-tag.don {
+  background: rgba(255, 87, 34, 0.15);
+  color: var(--jt-orange);
+  border: 1px solid rgba(255, 87, 34, 0.3);
+}
+
+.waypoint-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 6px;
+  font-size: 0.75rem;
+  color: var(--text-sub);
+}
+
+.waypoint-item.hub {
+  color: var(--jt-green);
+  font-weight: 700;
+}
+
+.waypoint-item .arrow {
+  font-size: 0.58rem;
+  color: var(--text-muted);
+}
+
+.route-footer {
+  font-size: 0.73rem;
+  color: var(--text-sub);
+}
+
+/* Map Main Viewport */
+.map-view {
+  flex: 1;
+  width: calc(100vw - 380px);
+  height: 100vh;
+  position: relative;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-dark);
+}
+
+/* Floating Detail Card (Positioned bottom-right over map canvas) */
+.detail-card-overlay {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  width: 360px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 14px;
+  z-index: 1000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.detail-card-overlay.active {
+  border-color: var(--jt-green);
+  box-shadow: 0 0 20px var(--jt-green-glow);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 6px;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mode-tag {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  background: rgba(0, 176, 80, 0.2);
+  color: var(--jt-green);
+  border: 1px solid rgba(0, 176, 80, 0.4);
+}
+
+.mode-tag.shuttle {
+  background: rgba(255, 87, 34, 0.2);
+  color: var(--jt-orange);
+  border-color: rgba(255, 87, 34, 0.4);
+}
+
+.mode-tag.hub-center {
+  background: var(--jt-green);
+  color: #ffffff;
+  border-color: var(--jt-green);
+}
+
+.header-title h4 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.card-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: color 0.2s;
+}
+
+.card-close-btn:hover {
+  color: var(--jt-orange);
+}
+
+.empty-notice {
+  text-align: center;
+  padding: 12px 6px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.empty-notice i {
+  font-size: 1.4rem;
+  margin-bottom: 4px;
+  color: var(--jt-green);
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.grid-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.grid-box .lbl {
+  font-size: 0.68rem;
+  color: var(--text-sub);
+  margin-bottom: 2px;
+}
+
+.grid-box .val {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.grid-box .val.cyan { color: var(--jt-green); }
+.grid-box .val.amber { color: var(--jt-amber); }
+.grid-box .val.emerald { color: var(--jt-lime); }
+.grid-box .val.purple { color: var(--jt-orange); }
+.grid-box .val.empty { color: var(--text-muted); font-size: 0.78rem; font-style: italic; font-weight: 400; }
+
+/* Custom Leaflet Markers */
+.custom-leaflet-marker {
+  background: transparent;
+  border: none;
+}
+
+.hub-marker-icon {
+  width: 22px;
+  height: 22px;
+  background: var(--jt-green);
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 16px var(--jt-green);
+}
+
+.po-marker-pin {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+}
+
+/* J&T Cargo Leaflet Popup Card */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: #18191c !important;
+  border: 1px solid rgba(0, 176, 80, 0.5) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8) !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  line-height: 1.4 !important;
+}
+
+.leaflet-popup-close-button {
+  color: #a0aec0 !important;
+  padding: 8px 8px 0 0 !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: var(--jt-green) !important;
+}
+
+.po-popup-card {
+  font-family: 'Inter', sans-serif;
+  background: #18191c;
+  color: var(--text-main);
+  padding: 12px 14px;
+  border-radius: 10px;
+  min-width: 250px;
+}
+
+.po-popup-card h3 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.05rem;
+  color: var(--jt-green);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.po-popup-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  padding: 4px 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.po-popup-row .lbl {
+  color: var(--text-sub);
+}
+
+.po-popup-row .val {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.po-popup-row .val.highlight {
+  color: var(--jt-amber);
+}
+
+.po-popup-row .val.empty {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.popup-tag {
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.popup-tag.hub-center {
+  background: var(--jt-green);
+  color: #ffffff;
+  border: 1px solid var(--jt-green);
+}
+
+.popup-tag.shuttle {
+  background: rgba(255, 87, 34, 0.2);
+  color: var(--jt-orange);
+  border: 1px solid rgba(255, 87, 34, 0.4);
+}
+
+.popup-tag.linehaul {
+  background: rgba(0, 176, 80, 0.2);
+  color: var(--jt-green);
+  border: 1px solid rgba(0, 176, 80, 0.4);
+}

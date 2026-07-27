@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bản Đồ Tuyến Vận Chuyển Bưu Cục ➔ HCM HUB (J&amp;T Cargo Theme)</title>
+  
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div class="map-app-root">
+    
+    <!-- Left Navigation Sidebar -->
+    <aside class="sidebar-panel">
+      
+      <!-- Brand & Header with J&T Cargo Badge -->
+      <div class="sidebar-header">
+        <div class="jt-logo-badge">
+          <span class="jt-text">J&amp;T</span>
+          <span class="cargo-text">Cargo</span>
+        </div>
+        
+        <div class="brand-box">
+          <div>
+            <h1>HCM HUB Inbound Dashboard</h1>
+            <p>Mạng Lưới Tuyến Bưu Cục ➔ HCM HUB</p>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-item green">
+            <span class="lbl">Tuyến Ghép</span>
+            <span class="val" id="stat-total-ghep">12</span>
+          </div>
+          <div class="stat-item green-sub">
+            <span class="lbl">Tuyến Đơn</span>
+            <span class="val" id="stat-total-don">35</span>
+          </div>
+          <div class="stat-item orange">
+            <span class="lbl">Bưu Cục</span>
+            <span class="val" id="stat-total-po">62</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls & Search -->
+      <div class="controls-box">
+        <div class="search-field">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="search-input" placeholder="Tìm bưu cục, mã tuyến, tỉnh..." />
+        </div>
+
+        <div class="toolbar-btns">
+          <button id="btn-toggle-traffic" class="tool-btn">
+            <i class="fa-solid fa-traffic-light" style="color: #ff5722;"></i> Live Traffic
+          </button>
+          <button id="btn-export" class="tool-btn jt-btn">
+            <i class="fa-solid fa-file-excel"></i> CSV
+          </button>
+          <button id="btn-reset-view" class="tool-btn icon-only" title="Reset Góc Nhìn">
+            <i class="fa-solid fa-rotate-left"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Filter Tabs -->
+      <div class="tab-container">
+        <button class="tab-btn active" data-tab="ghep">Tuyến Ghép (12)</button>
+        <button class="tab-btn" data-tab="don">Tuyến Đơn (35)</button>
+        <button class="tab-btn" data-tab="all">Tất Cả</button>
+      </div>
+
+      <!-- Province Scroll Pills -->
+      <div class="province-scroll" id="province-filter">
+        <span class="prov-pill active" data-province="ALL">Tất cả</span>
+        <span class="prov-pill" data-province="SG">HCM</span>
+        <span class="prov-pill" data-province="BN">Bắc Ninh</span>
+        <span class="prov-pill" data-province="LA">Long An</span>
+        <span class="prov-pill" data-province="BD">Bình Dương</span>
+        <span class="prov-pill" data-province="CT">Cần Thơ</span>
+        <span class="prov-pill" data-province="ST">Sóc Trăng</span>
+        <span class="prov-pill" data-province="DT">Đồng Tháp</span>
+        <span class="prov-pill" data-province="VL">Vĩnh Long</span>
+        <span class="prov-pill" data-province="TG">Tiền Giang</span>
+        <span class="prov-pill" data-province="VT">Vũng Tàu</span>
+        <span class="prov-pill" data-province="AG">An Giang</span>
+      </div>
+
+      <!-- Scrollable Routes List -->
+      <div class="routes-scroll-area" id="routes-list">
+        <!-- Rendered via JS -->
+      </div>
+    </aside>
+
+    <!-- Main Fullscreen Map Container -->
+    <main class="map-view">
+      <div id="map"></div>
+
+      <!-- Floating Lockable Route/PO Detail Panel (Bottom-Right) -->
+      <div class="detail-card-overlay" id="inbound-detail-panel">
+        <div class="card-header">
+          <div class="header-title">
+            <span class="mode-tag" id="panel-badge-type">LINEHAUL</span>
+            <h4 id="panel-title">Thông Tin Vận Hành</h4>
+          </div>
+          <button class="card-close-btn" id="panel-close-btn" title="Đóng">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="card-body" id="panel-body">
+          <div class="empty-notice">
+            <i class="fa-solid fa-hand-pointer"></i>
+            <p>Click hoặc rê chuột vào tuyến đường / bưu cục để xem thông tin chi tiết.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- App JS -->
+  <script src="app.js"></script>
+</body>
+</html>
