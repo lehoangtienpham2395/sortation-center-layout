@@ -823,7 +823,7 @@ export default function InboundDashboard({
             onClick={handleExportCSV}
             style={{ width: 'auto', padding: '10px 18px', background: '#092518' }}
           >
-            <i className="fa-solid fa-file-excel text-[#10b981]" style={{ marginRight: '6px' }}></i>
+            <i className="fa-solid fa-file-excel" style={{ color: "#B8F7E4", marginRight: "6px" }}></i>
             Xuất Báo Cáo
           </button>
 
@@ -890,8 +890,8 @@ export default function InboundDashboard({
         {/* KPI 1: Inbound (orders) */}
         <div className="kpi-card accent-green glass-card report-glow-card glow-cyan">
           <div className="kpi-card-header">
-            <span className="kpi-title">Inbound (orders)</span>
-            <i className="fa-solid fa-warehouse kpi-icon"></i>
+            <span className="kpi-title" style={{ color: "#B8F7E4" }}>Inbound (orders)</span>
+            <i className="fa-solid fa-warehouse kpi-icon" style={{ color: "#B8F7E4" }}></i>
           </div>
           <div className="kpi-card-body">
             <span className="kpi-value"><NumberTicker value={totalOrders} /></span>
