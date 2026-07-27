@@ -1,29 +1,51 @@
-import os, sys, io, json, datetime, sqlite3, pandas as pd
+"""
+sync_postgre.py — Engine xuất báo cáo dashboard từ PostgreSQL.
+
+Luồng:
+  Đọc enriched.dispatch_enriched (logistics_db) → tổng hợp → xuất 9 JSON vào data/:
+    - inventory.json, outbound.json, backlog.json, inbound.json, arrival.json
+    - last_update.json
+    - heatmap.json        (mới)
+    - linehaul.json       (giữ nguyên file cũ nếu có — cần JFS API, không có trong PG)
+    - truck_eta.json      (mới, từ dữ liệu transporing/transported trong PG)
+
+Dashboard (src/App.tsx) fetch các JSON này từ raw.githubusercontent.com/.../main/data/*.json
+→ luồng 30 phút (auto_sync_schedule.py) gọi script này, sau đó git commit & push lên main.
+
+Ghi chú: PG host=127.0.0.1, port=5433, db=logistics_db, schema=enriched.dispatch_enriched
+"""
+import os, sys, io, json, datetime
 from zoneinfo import ZoneInfo
+
+import pandas as pd
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-# PostgreSQL Connection Credentials for logistics_db
-PG_DBNAME = os.environ.get("PGDATABASE", "logistics_db")
-PG_USER = os.environ.get("PGUSER", "postgres")
-PG_PASS = os.environ.get("PGPASSWORD", "Tien@giang0203")
-PG_HOST = os.environ.get("PGHOST", "127.0.0.1")
-PG_PORT = int(os.environ.get("PGPORT", 5433))
-
-DB_FILE = os.path.join(BASE_DIR, "data", "dwh_v2.db")
 DATA_DIR = os.path.join(BASE_DIR, "data")
-VALID_FILE = r"C:\Users\lehoa\OneDrive\Desktop\testing\Exportauto\Valid\valid.csv"
-CSV_FILE = os.path.join(os.path.dirname(BASE_DIR), "full_multi_source_7days_v6.csv")
 
-tz_vn = ZoneInfo("Asia/Ho_Chi_Minh")
+# PostgreSQL connection (logistics_db)
+PG_DBNAME = os.environ.get("PGDATABASE", "logistics_db")
+PG_USER   = os.environ.get("PGUSER", "postgres")
+PG_PASS   = os.environ.get("PGPASSWORD", "Tien@giang0203")
+PG_HOST   = os.environ.get("PGHOST", "127.0.0.1")
+PG_PORT   = int(os.environ.get("PGPORT", 5433))
+
+VALID_FILE = os.path.join(BASE_DIR, "backend_sync", "config", "valid.csv")
+
+tz_vn  = ZoneInfo("Asia/Ho_Chi_Minh")
 now_vn = datetime.datetime.now(tz_vn)
 today_str = now_vn.strftime("%Y-%m-%d")
-now_sys = now_vn.strftime("%Y-%m-%d %H:%M:%S")
+now_sys   = now_vn.strftime("%Y-%m-%d %H:%M:%S")
+
+# Tên ngày tiếng Việt cho heatmap
+DAYS_VN = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật']
+
 
 def get_op_date(dt_str):
-    if not dt_str or str(dt_str).lower() in ('nan', 'none', ''): return ""
+    """Quy đổi sang operation_date: trước 06:00 thì thuộc ngày hôm trước."""
+    if not dt_str or str(dt_str).lower() in ('nan', 'none', ''):
+        return ""
     try:
         dt = datetime.datetime.strptime(str(dt_str)[:19], '%Y-%m-%d %H:%M:%S')
         if dt.hour < 6:
@@ -32,224 +54,308 @@ def get_op_date(dt_str):
     except Exception:
         return str(dt_str)[:10]
 
-def get_pg_connection():
-    try:
-        import psycopg2
-        conn = psycopg2.connect(dbname=PG_DBNAME, user=PG_USER, password=PG_PASS, host=PG_HOST, port=PG_PORT)
-        print(f"🟢 Connected to PostgreSQL '{PG_DBNAME}' on port {PG_PORT}!")
-        return conn
-    except Exception as e:
-        print(f"⚠️ Could not connect to PostgreSQL ({e}), using SQLite fallback...")
-        os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
-        return sqlite3.connect(DB_FILE)
+
+def load_pg():
+    """Kết nối PostgreSQL. Raise nếu không được — không fallback SQLite nữa."""
+    import psycopg2
+    conn = psycopg2.connect(dbname=PG_DBNAME, user=PG_USER, password=PG_PASS,
+                            host=PG_HOST, port=PG_PORT)
+    print(f"🟢 Connected to PostgreSQL '{PG_DBNAME}' on port {PG_PORT}!")
+    return conn
+
+
+def load_valid_maps():
+    """Đọc valid.csv → trả dict_zone / dict_area / dict_station / dict_rank."""
+    dict_zone, dict_area, dict_station, dict_rank = {}, {}, {}, {}
+    if os.path.exists(VALID_FILE):
+        try:
+            df_v = pd.read_csv(VALID_FILE, dtype=str)
+            df_v.columns = df_v.columns.str.strip()
+            sc = df_v['sortcode'].dropna().str.strip().str.upper()
+            dict_zone    = dict(zip(sc, df_v['Hubcode'].fillna('3').str.strip()))
+            dict_area    = dict(zip(sc, df_v['area'].fillna('C01').str.strip()))
+            dict_station = dict(zip(sc, df_v['Station_2'].fillna('').str.strip()))
+            dict_rank    = dict(zip(sc, df_v['Rank'].fillna('FC').str.strip()))
+            print(f"   ✅ Nạp mapping sortcode từ valid.csv: {len(dict_zone)} bưu cục.")
+        except Exception as e:
+            print(f"   ⚠️ Lỗi nạp valid.csv: {e}")
+    else:
+        print(f"   ⚠️ Không tìm thấy valid.csv tại {VALID_FILE}")
+    return dict_zone, dict_area, dict_station, dict_rank
+
 
 def sync_postgre_to_dashboard():
-    print(f"🚀 [{now_sys}] Running sync_postgre engine connected to '{PG_DBNAME}'...")
-    
-    df_valid = pd.read_csv(VALID_FILE, dtype=str) if os.path.exists(VALID_FILE) else pd.DataFrame()
-    dict_zone = {}
-    dict_area = {}
-    dict_station = {}
-    if not df_valid.empty:
-        df_valid.columns = df_valid.columns.str.strip()
-        dict_zone = dict(zip(df_valid['sortcode'].dropna().str.strip().str.upper(), df_valid['Hubcode'].fillna('3').str.strip()))
-        dict_area = dict(zip(df_valid['sortcode'].dropna().str.strip().str.upper(), df_valid['area'].fillna('C01').str.strip()))
-        dict_station = dict(zip(df_valid['sortcode'].dropna().str.strip().str.upper(), df_valid['Station_2'].fillna('').str.strip()))
+    print(f"🚀 [{now_sys}] sync_postgre: đọc PG → xuất 9 JSON cho dashboard...")
 
-    if not os.path.exists(CSV_FILE):
-        print(f"⚠️ Merged dataset {CSV_FILE} not found. Skipping export.")
-        return
+    dict_zone, dict_area, dict_station, dict_rank = load_valid_maps()
 
-    df_v6 = pd.read_csv(CSV_FILE, dtype=str).fillna('')
-    print(f"   Loaded {len(df_v6):,} records from v6 pipeline.")
-
-    # 1. Update PostgreSQL logistics_db
-    conn = get_pg_connection()
-    is_pg = hasattr(conn, 'cursor_factory') or 'psycopg2' in str(type(conn))
-    cur = conn.cursor()
-
-    if is_pg:
-        try:
-            cur.execute("TRUNCATE TABLE enriched.dispatch_enriched RESTART IDENTITY CASCADE;")
-            conn.commit()
-            
-            enriched_tuples = []
-            
-            for idx, r in df_v6.iterrows():
-                wb = r.get('tracking', '').strip()
-                if not wb: continue
-                cr_t = r.get('Created_time', '').strip() or None
-                op_date_created = get_op_date(cr_t) or today_str
-                st_sys = r.get('status_sys', '').strip()
-                pick_st = r.get('Pickup_station', '').strip()
-                disp_code = r.get('Dispatch_code', '').strip()
-                num = int(float(r.get('Orders_num') or 1))
-                wt = float(r.get('Orders_weight') or 1.0)
-                pk_st2 = r.get('Pickup_station2', '').strip()
-                pk_t = r.get('Pickup_time', '').strip() or None
-                area_code = r.get('AreaCode', '').strip()
-                flow_desc = r.get('flowTypeDesc', '').strip()
-                next_st = r.get('Next_station', '').strip()
-                rnd = r.get('Round', 'Shuttle').strip()
-                rnk = r.get('Rank', 'FC').strip()
-                
-                inb_t = r.get('inbound_scanDate', '').strip() or None
-                outb_t = r.get('outbound_scanDate', '').strip() or None
-                arr_t = r.get('arrival_scanDate', '').strip() or None # Arrival_time (scantime)
-                trip = r.get('trip_code', '').strip() # transferCode / billTaskCode
-                transp_t = r.get('transporing_time', '').strip() or None # actualDepartureTime
-                transpd_t = r.get('transported_time', '').strip() or None # actualArrivalTime
-                
-                op_date_inb = get_op_date(inb_t) if inb_t else None
-                is_backlog = 1 if inb_t and not outb_t else 0
-                is_active = 1
-                
-                enriched_tuples.append((
-                    wb, 'v6_pipeline', st_sys, cr_t, pick_st, disp_code, num, wt,
-                    pk_st2, pk_t, 'OK', area_code, flow_desc, next_st, rnd, rnk,
-                    inb_t, outb_t, arr_t, trip, transp_t, transpd_t, disp_code,
-                    op_date_created, op_date_inb, is_backlog, is_active, 0, now_sys
-                ))
-
-            bsz = 2000
-            from psycopg2.extras import execute_values
-            
-            execute_values(cur, """
-            INSERT INTO enriched.dispatch_enriched (
-                tracking, data_source, status_sys, created_time, pickup_station, dispatch_code,
-                orders_num, orders_weight, pickup_station2, pickup_time, pickup_ontime,
-                areacode, flowtypedesc, next_station, round, rank,
-                inbound_scandate, outbound_scandate, arrival_scandate, trip_code,
-                transporing_time, transported_time, dispatch_actual,
-                operation_date_created, operation_date_inbound, is_backlog, is_active,
-                retry_count, last_updated
-            ) VALUES %s ON CONFLICT (tracking) DO UPDATE SET
-                status_sys = EXCLUDED.status_sys,
-                inbound_scandate = EXCLUDED.inbound_scandate,
-                outbound_scandate = EXCLUDED.outbound_scandate,
-                arrival_scandate = EXCLUDED.arrival_scandate,
-                trip_code = EXCLUDED.trip_code,
-                transporing_time = EXCLUDED.transporing_time,
-                transported_time = EXCLUDED.transported_time,
-                last_updated = EXCLUDED.last_updated;
-            """, enriched_tuples, page_size=bsz)
-            
-            conn.commit()
-            print(f"   ✅ Saved {len(enriched_tuples):,} records into PostgreSQL 'logistics_db.enriched.dispatch_enriched'!")
-        except Exception as e:
-            print(f"   ⚠️ Error writing to PostgreSQL: {e}")
-            conn.rollback()
+    # === 1. ĐỌC POSTGRESQL ===
+    conn = load_pg()
+    df = pd.read_sql_query(
+        "SELECT * FROM enriched.dispatch_enriched", conn
+    )
     conn.close()
+    if df.empty:
+        print("   ⚠️ enriched.dispatch_enriched rỗng — không xuất JSON.")
+        return False
+    df = df.fillna('')
+    # Ép toàn bộ cột về str an toàn (tránh NaT/None/float/datetime lẫn lộn)
+    for c in df.columns:
+        df[c] = df[c].map(lambda v: '' if v is None or (isinstance(v, float) and pd.isna(v)) else str(v))
+        df[c] = df[c].replace({'NaT': '', 'nan': '', 'None': '', 'NaTT': ''})
+    print(f"   Loaded {len(df):,} records từ enriched.dispatch_enriched.")
 
-    inv_group, out_group, backlog_group, inbound_group, arr_group = {}, {}, {}, {}, {}
+    # Ép kiểu số
+    df['_orders_num'] = pd.to_numeric(df.get('orders_num', 1), errors='coerce').fillna(1).astype(int)
+    df['_weight']     = pd.to_numeric(df.get('orders_weight', 0), errors='coerce').fillna(0.0).astype(float)
 
-    for r in df_v6.to_dict('records'):
-        sc = r.get('Dispatch_code', '').strip().upper()
-        next_st = r.get('Next_station', '').strip()
-        st = next_st or dict_station.get(sc, 'CHƯA PHÂN BƯU CỤC')
-        zn = dict_zone.get(sc, '3')
-        area = dict_area.get(sc, 'C01')
-        if area == 'A06':
-            st = 'BN HUB'
-            zn = 'BNI001'
-        cap = '780'
-        wt = float(r.get('Orders_weight') or 1.0)
-        
-        cr_t = r.get('Created_time', '').strip()
-        pk_t = r.get('Pickup_time', '').strip()
-        inb_t = r.get('inbound_scanDate', '').strip()
-        outb_t = r.get('outbound_scanDate', '').strip()
-        arr_t = r.get('arrival_scanDate', '').strip()
-        trip = r.get('trip_code', '').strip()
-        transp_t = r.get('transporing_time', '').strip()
-        transpd_t = r.get('transported_time', '').strip()
-        
-        has_in = 1 if inb_t else 0
-        has_out = 1 if outb_t else 0
-        has_arr = 1 if arr_t else 0
-        has_pick = 1 if pk_t else 0
+    # === 2. CHUẨN BỊ CỘT PHỤ ===
+    # Gắn areacode / next_station đã được enrich trong PG sẵn; fallback từ dispatch_code
+    df['_sc'] = df['dispatch_code'].astype(str).str.strip().str.upper()
+    df['_station'] = df['next_station'].astype(str).str.strip()
+    # Nếu next_station rỗng → tra từ valid
+    mask_no_st = df['_station'] == ''
+    df.loc[mask_no_st, '_station'] = df.loc[mask_no_st, '_sc'].map(dict_station).fillna('CHƯA PHÂN BƯU CỤC')
+    df['_zone'] = df['_sc'].map(dict_zone).fillna('3')
+    df['_area'] = df['_sc'].map(dict_area).fillna('C01')
+    # Override BN HUB
+    df.loc[df['_area'] == 'A06', '_station'] = 'BN HUB'
+    df.loc[df['_area'] == 'A06', '_zone']    = 'BNI001'
 
-        # Layout Inventory Statuses
-        if has_out == 1: inv_status = "Đã rời HUB"
-        elif has_in == 1: inv_status = "Đang trên bãi"
-        elif has_arr == 1: inv_status = "Đang trên đường"
-        elif has_pick == 1: inv_status = "Đã lấy hàng"
-        else: inv_status = "Đã điều phối bưu cục"
+    # Trạng thái / ngày vận hành
+    df['_cr_t']  = df['created_time'].astype(str).str.strip()
+    df['_pk_t']  = df['pickup_time'].astype(str).str.strip()
+    df['_inb_t'] = df['inbound_scandate'].astype(str).str.strip()
+    df['_out_t'] = df['outbound_scandate'].astype(str).str.strip()
+    df['_arr_t'] = df['arrival_scandate'].astype(str).str.strip()
+    df['_trp_t'] = df['transporing_time'].astype(str).str.strip()  # actualDepartureTime
+    df['_tpd_t'] = df['transported_time'].astype(str).str.strip()  # actualArrivalTime
+    df['_trip']  = df['trip_code'].astype(str).str.strip()
 
-        key_inv = (zn, area, st, inv_status)
-        if key_inv not in inv_group: inv_group[key_inv] = {'volume': 0, 'weight': 0.0, 'capacity': cap}
-        inv_group[key_inv]['volume'] += 1; inv_group[key_inv]['weight'] += wt
+    df['_has_in']   = (df['_inb_t'] != '').astype(int)
+    df['_has_out']  = (df['_out_t'] != '').astype(int)
+    df['_has_arr']  = (df['_arr_t'] != '').astype(int)
+    df['_has_pick'] = (df['_pk_t'] != '').astype(int)
 
-        if has_out == 1:
-            key_out = (zn, area, st)
-            if key_out not in out_group: out_group[key_out] = {'volume': 0, 'weight': 0.0, 'capacity': cap}
-            out_group[key_out]['volume'] += 1; out_group[key_out]['weight'] += wt
+    # === 3. INVENTORY (5 trạng thái) ===
+    def inv_status(row):
+        if row['_has_out']: return "Đã rời HUB"
+        if row['_has_in']:  return "Đang trên bãi"
+        if row['_has_arr']: return "Đang trên đường"
+        if row['_has_pick']: return "Đã lấy hàng"
+        return "Đã điều phối bưu cục"
+    df['_inv_status'] = df.apply(inv_status, axis=1)
 
-        if has_in == 1 and has_out == 0:
-            key_bl = (zn, area, st)
-            if key_bl not in backlog_group: backlog_group[key_bl] = {'volume': 0, 'weight': 0.0, 'capacity': cap}
-            backlog_group[key_bl]['volume'] += 1; backlog_group[key_bl]['weight'] += wt
+    g_inv = df.groupby(['_zone', '_area', '_station', '_inv_status']).agg(
+        volume=('_orders_num', 'sum'), weight=('_weight', 'sum')
+    ).reset_index()
+    inventory_json = [{
+        "Zone": r['_zone'], "AreaID": r['_area'], "Bu cc": r['_station'],
+        "Trng thi": r['_inv_status'], "Volume": int(r['volume']),
+        "Weight": round(float(r['weight']), 2), "Sc cha": 780, "Ngy": today_str
+    } for r in g_inv.to_dict('records')]
 
-        # Inbound Stage Statuses
-        if has_in == 1: in_status = "Inbound"
-        elif has_arr == 1: in_status = "Transporting"
-        elif has_pick == 1: in_status = "Pickup Done"
-        else: in_status = "Created"
+    # === 4. OUTBOUND ===
+    g_out = df[df['_has_out'] == 1].groupby(['_zone', '_area', '_station']).agg(
+        volume=('_orders_num', 'sum'), weight=('_weight', 'sum')
+    ).reset_index()
+    outbound_json = [{
+        "Zone": r['_zone'], "AreaID": r['_area'], "Bu cc": r['_station'],
+        "Volume": int(r['volume']), "Weight": round(float(r['weight']), 2),
+        "Sc cha": 780, "Ngy": today_str
+    } for r in g_out.to_dict('records')]
 
-        fc_op_date = get_op_date(cr_t) or today_str
-        pk_op_date = get_op_date(pk_t) if pk_t else ""
-        ar_op_date = get_op_date(arr_t) if arr_t else ""
-        in_op_date = get_op_date(inb_t) if inb_t else ""
+    # === 5. BACKLOG (inbound + chưa outbound) ===
+    g_bl = df[(df['_has_in'] == 1) & (df['_has_out'] == 0)].groupby(
+        ['_zone', '_area', '_station']).agg(
+        volume=('_orders_num', 'sum'), weight=('_weight', 'sum')
+    ).reset_index()
+    backlog_json = [{
+        "Zone": r['_zone'], "AreaID": r['_area'], "Bu cc": r['_station'],
+        "Volume": int(r['volume']), "Weight": round(float(r['weight']), 2),
+        "Sc cha": 780, "Ngy": today_str
+    } for r in g_bl.to_dict('records')]
 
-        fc_hr_str = cr_t[:16] if len(cr_t) >= 16 else ""
-        pk_hr_str = pk_t[:16] if len(pk_t) >= 16 else ""
-        ar_hr_str = arr_t[:16] if len(arr_t) >= 16 else ""
-        in_hr_str = inb_t[11:16] if len(inb_t) >= 16 else ""
-        loi_rot = "Rớt hôm nay" if fc_op_date == today_str else "Rớt hôm trước"
+    # === 6. INBOUND (gom nhóm theo trạng thái + khung giờ) ===
+    def inb_status(row):
+        if row['_has_in']:   return "Inbound"
+        if row['_has_arr']:  return "Transporting"
+        if row['_has_pick']: return "Pickup Done"
+        return "Created"
+    df['_inb_status'] = df.apply(inb_status, axis=1)
+    df['_op_cr']  = df['_cr_t'].apply(get_op_date).replace('', today_str)
+    df['_op_pk']  = df['_pk_t'].apply(lambda s: get_op_date(s) if s else "")
+    df['_op_arr'] = df['_arr_t'].apply(lambda s: get_op_date(s) if s else "")
+    df['_op_inb'] = df['_inb_t'].apply(lambda s: get_op_date(s) if s else "")
+    df['_hr_in']  = df['_inb_t'].apply(lambda s: s[11:16] if len(s) >= 16 else "")
+    df['_hr_cr']  = df['_cr_t'].apply(lambda s: s[:16] if len(s) >= 16 else "")
+    df['_hr_pk']  = df['_pk_t'].apply(lambda s: s[:16] if len(s) >= 16 else "")
+    df['_hr_arr'] = df['_arr_t'].apply(lambda s: s[:16] if len(s) >= 16 else "")
+    df['_loi_rot'] = df['_op_cr'].apply(lambda d: "Rớt hôm nay" if d == today_str else "Rớt hôm trước")
 
-        key_ib = (st, in_status, in_op_date, fc_op_date, pk_op_date, ar_op_date, in_hr_str, fc_hr_str, pk_hr_str, ar_hr_str, loi_rot, trip, transp_t, transpd_t)
-        if key_ib not in inbound_group: inbound_group[key_ib] = {'volume': 0, 'weight': 0.0}
-        inbound_group[key_ib]['volume'] += 1; inbound_group[key_ib]['weight'] += wt
-
-        # Arrival Aggregation
-        if arr_t:
-            op_d = get_op_date(arr_t)
-            scan_hr = arr_t[:13] + ":00" if len(arr_t) >= 13 else arr_t
-            key_ar = (op_d, st, scan_hr)
-            if key_ar not in arr_group: arr_group[key_ar] = {'total': 0, 'at_hub': 0, 'not_hub': 0, 'last_t': arr_t}
-            arr_group[key_ar]['total'] += 1
-            if has_in == 1: arr_group[key_ar]['at_hub'] += 1
-            else: arr_group[key_ar]['not_hub'] += 1
-            if arr_t > arr_group[key_ar]['last_t']: arr_group[key_ar]['last_t'] = arr_t
-
-    # Write Pivoted Layout JSONs
-    inventory_json = [{"Zone": z, "AreaID": a, "Bu cc": s, "Trng thi": stt, "Volume": v['volume'], "Weight": round(v['weight'], 2), "Sc cha": v['capacity'], "Ngy": today_str} for (z, a, s, stt), v in inv_group.items()]
-    outbound_json  = [{"Zone": z, "AreaID": a, "Bu cc": s, "Volume": v['volume'], "Weight": round(v['weight'], 2), "Sc cha": v['capacity'], "Ngy": today_str} for (z, a, s), v in out_group.items()]
-    backlog_json   = [{"Zone": z, "AreaID": a, "Bu cc": s, "Volume": v['volume'], "Weight": round(v['weight'], 2), "Sc cha": v['capacity'], "Ngy": today_str} for (z, a, s), v in backlog_group.items()]
-
+    g_ib = df.groupby([
+        '_station', '_inb_status', '_op_inb', '_op_cr', '_op_pk', '_op_arr',
+        '_hr_in', '_hr_cr', '_hr_pk', '_hr_arr', '_loi_rot', '_trip', '_trp_t', '_tpd_t'
+    ]).agg(volume=('_orders_num', 'sum'), weight=('_weight', 'sum')).reset_index()
     inbound_json = [{
-        "Bu cc": st, "Trng thi": status, "Volume": stats['volume'], "Weight": round(stats['weight'], 2),
-        "Ngy vn hnh_Inbound": in_op, "Ngy vn hnh_Forecast": fc_op, "Ngy vn hnh_Pickup": pk_op, "Ngy vn hnh_Arrival": ar_op,
-        "Inbound Hour": in_hr, "Forecast Time": fc_hr, "Pickup Time": pk_hr, "Arrival Time": ar_hr,
-        "Loi rt": loi_rot, "trip_code": trip, "transporing_time": transp_t, "transported_time": transpd_t
-    } for (st, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, loi_rot, trip, transp_t, transpd_t), stats in inbound_group.items()]
+        "Bu cc": r['_station'], "Trng thi": r['_inb_status'],
+        "Volume": int(r['volume']), "Weight": round(float(r['weight']), 2),
+        "Ngy vn hnh_Inbound": r['_op_inb'], "Ngy vn hnh_Forecast": r['_op_cr'],
+        "Ngy vn hnh_Pickup": r['_op_pk'], "Ngy vn hnh_Arrival": r['_op_arr'],
+        "Inbound Hour": r['_hr_in'], "Forecast Time": r['_hr_cr'],
+        "Pickup Time": r['_hr_pk'], "Arrival Time": r['_hr_arr'],
+        "Loi rt": r['_loi_rot'], "trip_code": r['_trip'],
+        "transporing_time": r['_trp_t'], "transported_time": r['_tpd_t']
+    } for r in g_ib.to_dict('records')]
 
-    arrival_json = [{
-        "Ngy vn hnh": op_d, "Ngày vận hành": op_d, "Pickup_station": st, "Station": st, "Scan Hour": hr,
-        "Tng s n": stats['total'], "Tổng số đơn": stats['total'], "Đã đến Hub": stats['at_hub'], "Chưa đến Hub": stats['not_hub'], "Last time": stats['last_t']
-    } for (op_d, st, hr), stats in arr_group.items()]
+    # === 7. ARRIVAL (gom theo op_date / station / scan_hour) ===
+    df_arr = df[df['_arr_t'] != ''].copy()
+    df_arr['_op_arr2'] = df_arr['_arr_t'].apply(get_op_date)
+    df_arr['_scan_hr'] = df_arr['_arr_t'].apply(
+        lambda s: s[:13] + ":00" if len(s) >= 13 else s)
+    if not df_arr.empty:
+        g_arr = df_arr.groupby(['_op_arr2', '_station', '_scan_hr']).agg(
+            total=('_orders_num', 'sum'),
+            at_hub=('_has_in', 'sum'),
+            last_t=('_arr_t', 'max')
+        ).reset_index()
+        g_arr['_not_hub'] = g_arr['total'] - g_arr['at_hub']
+        arrival_json = [{
+            "Ngy vn hnh": r['_op_arr2'], "Ngày vận hành": r['_op_arr2'],
+            "Pickup_station": r['_station'], "Station": r['_station'],
+            "Scan Hour": r['_scan_hr'],
+            "Tng s n": int(r['total']), "Tổng số đơn": int(r['total']),
+            "Đã đến Hub": int(r['at_hub']), "Chưa đến Hub": int(r['_not_hub']),
+            "Last time": r['last_t']
+        } for r in g_arr.to_dict('records')]
+    else:
+        arrival_json = []
 
+    # === 8. HEATMAP (grid op_date x 24h) ===
+    heatmap_json = _build_heatmap(df)
+
+    # === 9. TRUCK_ETA (xe đang vận chuyển: transporing có, transported chưa) ===
+    truck_eta_json = _build_truck_eta(df)
+
+    # === GHI 9 FILE JSON ===
     os.makedirs(DATA_DIR, exist_ok=True)
-    with open(os.path.join(DATA_DIR, "inventory.json"), 'w', encoding='utf-8') as f: json.dump(inventory_json, f, ensure_ascii=False, indent=2)
-    with open(os.path.join(DATA_DIR, "outbound.json"), 'w', encoding='utf-8') as f: json.dump(outbound_json, f, ensure_ascii=False, indent=2)
-    with open(os.path.join(DATA_DIR, "backlog.json"), 'w', encoding='utf-8') as f: json.dump(backlog_json, f, ensure_ascii=False, indent=2)
-    with open(os.path.join(DATA_DIR, "inbound.json"), 'w', encoding='utf-8') as f: json.dump(inbound_json, f, ensure_ascii=False, indent=2)
-    with open(os.path.join(DATA_DIR, "arrival.json"), 'w', encoding='utf-8') as f: json.dump(arrival_json, f, ensure_ascii=False, indent=2)
+    _dump("inventory.json", inventory_json)
+    _dump("outbound.json",  outbound_json)
+    _dump("backlog.json",   backlog_json)
+    _dump("inbound.json",   inbound_json)
+    _dump("arrival.json",   arrival_json)
+    _dump("heatmap.json",   heatmap_json)
+    _dump("truck_eta.json", truck_eta_json)
 
-    last_update_obj = {"last_update": now_sys, "activeDate": today_str}
-    with open(os.path.join(DATA_DIR, "last_update.json"), 'w', encoding='utf-8') as f: json.dump(last_update_obj, f, ensure_ascii=False, indent=2)
+    # linehaul.json: GIỮ NGUYÊN file cũ nếu có (cần JFS API, không có trong PG)
+    lh_path = os.path.join(DATA_DIR, "linehaul.json")
+    if os.path.exists(lh_path):
+        print(f"   ♻️  Giữ nguyên linehaul.json hiện có ({os.path.getsize(lh_path)} bytes) — cần JFS API.")
+    else:
+        _dump("linehaul.json", {"total_trucks": 0, "trucks": []})
+        print(f"   ⚠️ Tạo linehaul.json rỗng (chưa có dữ liệu JFS).")
 
-    print("🎉 sync_postgre completed successfully for 'logistics_db'!")
+    # last_update.json
+    rot_hom_nay  = int(df[df['_op_cr'] == today_str]['_orders_num'].sum())
+    rot_hom_trc  = int(df[df['_op_cr'] != today_str]['_orders_num'].sum())
+    last_update_obj = {
+        "last_update": now_vn.strftime('%H:%M:%S %d/%m/%Y'),
+        "activeDate": today_str,
+        "rot_hom_truoc": rot_hom_trc,
+        "rot_hom_nay": rot_hom_nay,
+        "source": "postgresql:enriched.dispatch_enriched",
+        "rows": int(len(df))
+    }
+    with open(os.path.join(DATA_DIR, "last_update.json"), 'w', encoding='utf-8') as f:
+        json.dump(last_update_obj, f, ensure_ascii=False, indent=2)
+    print(f"   💾 Đã lưu last_update.json | rot_hom_nay={rot_hom_nay} rot_hom_truoc={rot_hom_trc}")
+
+    print(f"🎉 sync_postgre hoàn tất! Đã xuất 9 JSON vào {DATA_DIR}")
+    return True
+
+
+def _build_heatmap(df):
+    """Grid op_date (>= 2026-07-05) x 24h cho 5 event: created/pickup/transporting/inbound/outbound."""
+    cols_map = [
+        ('created',      '_cr_t'),
+        ('pickup',       '_pk_t'),
+        ('transporting', '_arr_t'),  # Arrival = transporting đến HUB
+        ('inbound',      '_inb_t'),
+        ('outbound',     '_out_t'),
+    ]
+    # Parse datetime
+    parsed = {}
+    for label, col in cols_map:
+        parsed[label] = pd.to_datetime(df[col].replace('', pd.NA), errors='coerce')
+
+    all_op_dates = set()
+    for label, _ in cols_map:
+        for dt in parsed[label].dropna():
+            op = (dt - pd.Timedelta(days=1)) if dt.hour < 6 else dt
+            op_str = op.strftime('%Y-%m-%d')
+            if op_str >= '2026-07-05':
+                all_op_dates.add(op_str)
+    sorted_dates = sorted(all_op_dates, reverse=True)
+
+    grid = {}
+    for op_date in sorted_dates:
+        dt_obj = pd.to_datetime(op_date)
+        day_name = DAYS_VN[dt_obj.weekday()]
+        for hr in range(24):
+            grid[(op_date, hr)] = {
+                'date': op_date, 'dayName': day_name, 'hour': f"{hr:02d}:00",
+                'created': 0, 'pickup': 0, 'transporting': 0, 'inbound': 0, 'outbound': 0
+            }
+
+    def _op_hr(dt):
+        op = (dt - pd.Timedelta(days=1)) if dt.hour < 6 else dt
+        return op.strftime('%Y-%m-%d'), dt.hour
+
+    for label, _ in cols_map:
+        for dt in parsed[label].dropna():
+            key = _op_hr(dt)
+            if key in grid:
+                grid[key][label] += 1
+    return list(grid.values())
+
+
+def _build_truck_eta(df):
+    """Danh sách xe đang vận chuyển: có transporing_time nhưng chưa transported_time."""
+    mask = (df['_trp_t'] != '') & (df['_tpd_t'] == '')
+    df_tr = df[mask].copy()
+    if df_tr.empty:
+        return []
+    g = df_tr.groupby(['_trip', '_station', '_trp_t']).agg(
+        orders=('_orders_num', 'sum'),
+        weight=('_weight', 'sum')
+    ).reset_index()
+    out = []
+    for r in g.to_dict('records'):
+        eta = ''
+        op_dt = ''
+        try:
+            dt_send = pd.to_datetime(r['_trp_t'])
+            dt_eta  = dt_send + pd.Timedelta(hours=36)
+            eta    = dt_eta.strftime('%d/%m %H:%M')
+            op_dt  = get_op_date(dt_eta.strftime('%Y-%m-%d %H:%M:%S'))
+        except Exception:
+            pass
+        out.append({
+            "Ngy vn hnh": op_dt, "Station": r['_station'], "Trucking": 1,
+            "Orders": int(r['orders']), "weight": round(float(r['weight']), 2),
+            "ETA": eta, "Rank": "Linehaul", "transfercode": r['_trip']
+        })
+    return out
+
+
+def _dump(name, obj):
+    path = os.path.join(DATA_DIR, name)
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(obj, f, ensure_ascii=False, indent=2)
+    n = len(obj) if isinstance(obj, list) else len(obj.get('trucks', []))
+    print(f"   💾 Đã lưu {name} với {n} dòng.")
+
 
 if __name__ == '__main__':
-    sync_postgre_to_dashboard()
+    ok = sync_postgre_to_dashboard()
+    sys.exit(0 if ok else 1)
