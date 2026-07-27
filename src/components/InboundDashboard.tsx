@@ -963,7 +963,7 @@ export default function InboundDashboard({
         {/* Line Chart */}
         <div className="chart-container-card dual-line-wrapper report-glow-card glow-cyan">
           <div className="chart-header">
-            <h2 style={{ color: "#B8F7E4 !important" }}>Hourly Processing Trend</h2>
+            <h2 style={{ color: "#B8F7E4 !important", textShadow: "none !important" }}>Hourly Processing Trend</h2>
             <div className="chart-legend-custom">
               <span className="legend-item"><span className="dot orange"></span>Created</span>
               <span className="legend-item"><span className="dot blue"></span>Pickup Volume</span>
@@ -979,7 +979,7 @@ export default function InboundDashboard({
         {/* Donut Chart */}
         <div className="chart-container-card donut-wrapper report-glow-card glow-emerald">
           <div className="chart-header">
-            <h2 style={{ color: "#B8F7E4 !important" }}>Orders status</h2>
+            <h2 style={{ color: "#B8F7E4 !important", textShadow: "none !important" }}>Orders status</h2>
           </div>
           <div className="donut-chart-box">
             {/* SVG concentric arcs + centre label */}
