@@ -334,13 +334,16 @@ def sync_postgre_to_dashboard():
     ZONE_MAP = {'SR0001': '1', 'BNI001': '1', '1': '1', '2': '2', '3': '3'}
 
     for _, r in df.iterrows():
-        sc        = str(r.get('dispatch_code', '')).strip().upper()
+        sc_raw    = str(r.get('dispatch_code', '')).strip().upper()
+        sc        = sc_raw
         next_st   = str(r.get('next_station',  '')).strip()
         mapped_st = dict_station.get(sc, '')
-        station   = mapped_st or (next_st if next_st and next_st != 'KHO VÙNG KHÁC' else 'KHO VÙNG KHÁC')
-        zone    = ZONE_MAP.get(dict_zone.get(sc, '3'), '3')
-        area_id = dict_area.get(sc, 'C01')
-        cap     = 780
+        station   = mapped_st or (next_st if next_st and next_st != 'KHÔ VÙNG KHÁC' else 'KHÔ VÙNG KHÁC')
+        zone      = ZONE_MAP.get(dict_zone.get(sc, '3'), '3')
+        area_id   = dict_area.get(sc)
+        valid_area = area_id is not None
+        area_id   = area_id or 'C01'
+        cap       = 780
 
         if area_id == 'A06':
             station, zone, cap = 'BN HUB', '1', 1400
@@ -367,24 +370,24 @@ def sync_postgre_to_dashboard():
                       'Đang trên đường'      if has_arr else
                       'Đã lấy hàng'           if has_pick else 'Đã điều phối bưu cục')
 
-        # inventory group — CHỈ đơn CHƯA RỜI HUB (loại đơn đã có outbound scan)
-        if not has_out:
+        # inventory group — CHỈ đơn CHƯA RỜI HUB và có area_id hợp lệ
+        if not has_out and valid_area:
             ki = (zone, area_id, station, inv_status)
             if ki not in inv_group:
                 inv_group[ki] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
             inv_group[ki]['volume']    += 1
             inv_group[ki]['weight_kg'] += wt_kg
 
-        # outbound group
-        if has_out:
+        # outbound group — chỉ record có area_id hợp lệ
+        if has_out and valid_area:
             ko = (zone, area_id, station)
             if ko not in out_group:
                 out_group[ko] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
             out_group[ko]['volume']    += 1
             out_group[ko]['weight_kg'] += wt_kg
 
-        # backlog group
-        if has_in and not has_out:
+        # backlog group — chỉ record có area_id hợp lệ
+        if has_in and not has_out and valid_area:
             kb = (zone, area_id, station)
             if kb not in backlog_group:
                 backlog_group[kb] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
