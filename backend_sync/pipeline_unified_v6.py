@@ -908,18 +908,7 @@ def main():
         df['transporing_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transporing_time', '') if tc else '')
         df['transported_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transported_time', '') if tc else '')
 
-        # Optimal Forecast Batch fill for missing Next_station
-        missing_ns = df[df['Next_station'] == '']['tracking'].tolist()
-        if missing_ns:
-            fc_payload = load_json(cfg('forecastpayload.json'))
-            fc_recs = pull_forecast_by_bills(session_main, tkn_main, fc_payload, missing_ns)
-            fc_map = {}
-            for r in fc_recs:
-                w = clean_wb(r.get('waybillNo'))
-                d = str(r.get('dispatchNetworkName') or '').strip()
-                if w and d: fc_map[w] = d
-            if fc_map:
-                df.loc[df['Next_station'] == '', 'Next_station'] = df['tracking'].map(fc_map).fillna('')
+
 
     # ── Phase 6: PostgreSQL (psycopg2) ────────────────────────
     print('\nPhase 6 -- PostgreSQL (psycopg2)...')
