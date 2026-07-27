@@ -131,7 +131,7 @@ const getSvgArcPath = (cx: number, cy: number, rIn: number, rOut: number, startA
 export default function InboundDashboard({
   inboundData,
   linehaulData,
-  arrivalData: _arrivalData,
+  arrivalData,
   truckEtaData,
   selectedInboundDate,
   setSelectedInboundDate,
