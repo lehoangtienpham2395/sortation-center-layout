@@ -1657,3 +1657,25 @@ body {
   border-bottom: 2px solid #B8F7E4 !important;
   box-shadow: 0 4px 20px rgba(184, 247, 228, 0.25) !important;
 }
+
+/* BRIGHT NEON MINT #B8F7E4 GLOW FOR KPI 1 & KPI 2 AND NAV */
+.kpi-card.accent-green,
+.kpi-card.glow-cyan {
+  border-bottom: 3px solid #B8F7E4 !important;
+  box-shadow: 0 6px 25px rgba(184, 247, 228, 0.4), 0 0 15px rgba(184, 247, 228, 0.5) !important;
+}
+
+.kpi-card.accent-green .kpi-title,
+.kpi-card.accent-green .kpi-icon,
+.kpi-card.accent-green .kpi-value,
+.kpi-card.accent-green .kpi-unit,
+.kpi-card.accent-green * {
+  color: #B8F7E4 !important;
+  text-shadow: 0 0 12px rgba(184, 247, 228, 0.5) !important;
+}
+
+/* Active Nav Button Glow */
+.nav-item.active, [class*="nav-item"].active {
+  color: #B8F7E4 !important;
+  text-shadow: 0 0 12px rgba(184, 247, 228, 0.6) !important;
+}
