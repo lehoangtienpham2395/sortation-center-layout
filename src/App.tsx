@@ -302,19 +302,7 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
 
     const rows: SheetRow[] = [];
 
-    const STATUS_MAP: Record<string, string> = {
-      'at_hub': 'Inbound',
-      'transporting': 'Transporting',
-      'pickup_done': 'Created',
-      'created': 'Created',
-      'outbound_done': 'Outbound',
-      'Đang trên bãi': 'Inbound',
-      'Đang trên đường': 'Transporting',
-      'Đã lấy hàng': 'Created',
-      'Đã điều phối bưu cục': 'Created',
-      'Đã xuất khỏi HUB': 'Outbound',
-      'Đã rời HUB': 'Outbound',
-    };
+
 
     for (const item of data) {
       const zone       = String(item['zone'] ?? item['Zone'] ?? item['round'] ?? item['Round'] ?? '');
