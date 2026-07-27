@@ -272,7 +272,6 @@ export default function InboundDashboard({
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
     if (isNorthStation(station)) return;
 
-    const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
     const arDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || '';
     const status = d['Trng thi'] || d['Trạng thái'] || '';

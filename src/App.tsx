@@ -121,7 +121,8 @@ export function normalizeStatus(rawStatus?: string): string {
 }
 
 export function normalizeDropType(rawDropType?: string): string {
-  if (!rawDropType) return 'Rớt hôm nay';
+  // FIX: trả về '' khi rỗng — không tự động gán 'Rớm hôm nay' cho đơn không có drop_type
+  if (!rawDropType || String(rawDropType).trim() === '') return '';
   const str = String(rawDropType).trim();
   return BACKEND_DROP_TYPE_MAP[str] || str;
 }
@@ -284,6 +285,13 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
       'total_orders': 'Tổng số đơn',
       'volume': 'Volume',
       'weight_ton': 'Weight',
+      // FIX: Thêm mapping cho các field thời gian (dùng trong hourly trend chart)
+      'inbound_hour':   'Inbound Hour',
+      'arrival_time':   'Arrival Time',
+      'forecast_time':  'Forecast Time',
+      'pickup_time':    'Pickup Time',
+      'transporing_time': 'transporing_time',
+      'transported_time': 'transported_time',
 
       'Bu cc': 'Bưu cục',
       'Trng thi': 'Trạng thái',
