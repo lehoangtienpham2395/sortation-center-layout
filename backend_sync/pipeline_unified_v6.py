@@ -36,8 +36,13 @@ URL_LINEHAUL_OPS  = 'https://gw.jtcargo.com.vn/operatingplatform/traceSub/queryT
 URL_SHUTTLE_TRACK = 'https://gw.jtcargo.com.vn/transportation/tmsBranchTrackingDetail/page'
 URL_FORECAST      = 'https://gw.jtcargo.com.vn/networkmanagement/omsWaybill/shippingWaybillList'
 
-BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
-CONFIG_DIR  = os.path.join(BASE_DIR, 'config')
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+_cfg_candidates = [
+    os.path.join(BASE_DIR, 'config'),
+    os.path.join(BASE_DIR, 'backend_sync', 'config'),
+    os.path.join(BASE_DIR, 'sortation-center-layout', 'backend_sync', 'config'),
+]
+CONFIG_DIR  = next((p for p in _cfg_candidates if os.path.exists(os.path.join(p, 'inboundheaders.json'))), _cfg_candidates[0])
 VALID_FILE  = os.path.join(CONFIG_DIR, 'valid.csv')
 OUTPUT_FILE = os.path.join(BASE_DIR, 'full_multi_source_7days_v6.csv')
 
@@ -72,13 +77,10 @@ def load_json(path):
         return json.load(f)
 
 def cfg(filename):
-    p = os.path.join(CONFIG_DIR, filename)
-    if os.path.exists(p):
-        return p
-    # Fallback to local BASE_DIR if not found in CONFIG_DIR
-    p_alt = os.path.join(BASE_DIR, filename)
-    if os.path.exists(p_alt):
-        return p_alt
+    for d in [CONFIG_DIR, os.path.join(BASE_DIR, 'config'), os.path.join(BASE_DIR, 'backend_sync', 'config'), os.path.join(BASE_DIR, 'sortation-center-layout', 'backend_sync', 'config')]:
+        p = os.path.join(d, filename)
+        if os.path.exists(p):
+            return p
     raise FileNotFoundError('Khong tim thay: ' + filename + ' trong ' + CONFIG_DIR)
 
 def clean_wb(val):
