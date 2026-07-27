@@ -381,10 +381,9 @@ def sync_postgre_to_dashboard():
         has_pick = bool(pk_t)
 
         # Inventory status (trùng khớp 100% với bộ lọc Control Center trong React UI)
-        inv_status = ('Đã xuất khỏi HUB'      if has_out else
-                      'Đang trên bãi'         if has_in  else
-                      'Đang trên đường'      if has_arr else
-                      'Đã lấy hàng'           if has_pick else 'Đã điều phối bưu cục')
+        inv_status = ('Outbound'      if has_out else
+                      'Inbound'       if has_in  else
+                      'Transporting'  if has_arr else 'Created')
 
         # inventory group — CHỈ đơn CHƯA RỜI HUB và có area_id hợp lệ
         if not has_out and valid_area:

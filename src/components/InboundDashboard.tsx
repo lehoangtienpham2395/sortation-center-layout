@@ -892,9 +892,9 @@ export default function InboundDashboard({
       {/* Row 1: KPI Cards with Thematic Border Tracing Glow */}
       <section className="kpi-grid">
         {/* KPI 1: Inbound (orders) */}
-        <div className="kpi-card accent-green glass-card report-glow-card glow-cyan" style={{ borderBottom: "3px solid #B8F7E4", boxShadow: "0 8px 30px rgba(184, 247, 228, 0.4), 0 0 15px rgba(184, 247, 228, 0.6)" }}>
+        <div className="kpi-card accent-green glass-card report-glow-card glow-cyan" style={{ borderBottom: "3px solid #B8F7E4", boxShadow: "0 8px 30px rgba(184, 247, 228, 0.6), 0 0 20px rgba(184, 247, 228, 0.8)" }}>
           <div className="kpi-card-header">
-            <span className="kpi-title">Inbound (orders)</span>
+            <span className="kpi-title" style={{ color: "#B8F7E4", textShadow: "0 0 10px rgba(184, 247, 228, 0.8)" }} >Inbound (orders)</span>
             <i className="fa-solid fa-warehouse kpi-icon"></i>
           </div>
           <div className="kpi-card-body">

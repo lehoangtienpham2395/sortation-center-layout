@@ -243,11 +243,17 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
     const rows: SheetRow[] = [];
 
     const STATUS_MAP: Record<string, string> = {
-      'at_hub': 'Đang trên bãi',
-      'transporting': 'Đang trên đường',
-      'pickup_done': 'Đã lấy hàng',
-      'created': 'Đã điều phối bưu cục',
-      'outbound_done': 'Đã xuất khỏi HUB',
+      'at_hub': 'Inbound',
+      'transporting': 'Transporting',
+      'pickup_done': 'Created',
+      'created': 'Created',
+      'outbound_done': 'Outbound',
+      'Đang trên bãi': 'Inbound',
+      'Đang trên đường': 'Transporting',
+      'Đã lấy hàng': 'Created',
+      'Đã điều phối bưu cục': 'Created',
+      'Đã xuất khỏi HUB': 'Outbound',
+      'Đã rời HUB': 'Outbound',
     };
 
     for (const item of data) {
@@ -408,7 +414,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Outbound');
   const [outboundRate, setOutboundRate] = useState<string>('0.0');
-  const INVENTORY_STATUSES = ['Đang trên bãi', 'Đang trên đường', 'Đã lấy hàng', 'Đã điều phối bưu cục'];
+  const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Created'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([...INVENTORY_STATUSES]);
 
   const [selectedDetailRack, setSelectedDetailRack] = useState<any | null>(null);
@@ -1844,7 +1850,7 @@ export default function App() {
                             }`}
                           >
                             {selectedStatuses.length === INVENTORY_STATUSES.length && <i className="fa-solid fa-check text-[10px] text-emerald-400"></i>}
-                            <span>Tất cả</span>
+                            <span>Total</span>
                           </button>
                           {INVENTORY_STATUSES.map(status => {
                             const isChecked = selectedStatuses.includes(status);
