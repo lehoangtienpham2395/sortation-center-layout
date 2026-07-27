@@ -968,7 +968,7 @@ export default function InboundDashboard({
               <span className="legend-item"><span className="dot orange"></span>Created</span>
               <span className="legend-item"><span className="dot blue"></span>Pickup Volume</span>
               <span className="legend-item"><span className="dot green"></span>Transporting</span>
-              <span className="legend-item"><span className="dot cyan"></span>Inbound</span>
+              <span className="legend-item"><span className="dot cyan" style={{ background: "#B8F7E4", boxShadow: "0 0 8px #B8F7E4" }}></span>Inbound</span>
             </div>
           </div>
           <div className="chart-canvas-wrapper">
