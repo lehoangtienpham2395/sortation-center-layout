@@ -171,7 +171,8 @@ export default function InboundDashboard({
   // Northern / BN HUB Station Filter helper
   const isNorthStation = (stName: string) => {
     const clean = (stName || '').trim().toUpperCase();
-    return clean === 'BN HUB' || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ') || NORTH_POST_OFFICES.has(clean);
+    if (clean === 'BN HUB') return false; // Always include BN HUB
+    return clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ') || NORTH_POST_OFFICES.has(clean);
   };
 
   const normalizeDateStr = (dStr: string): string => {
@@ -202,10 +203,10 @@ export default function InboundDashboard({
   const getDatePickup = (d: any) => d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
   const getDateArrival = (d: any) => d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
-  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && getDateInbound(d) === activeDate && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
-  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && Boolean(getDateForecast(d)) && (getDateForecast(d) === activeDate || d['Ngy vn hnh_Forecast'] === activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
-  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && (getDatePickup(d) === activeDate || d['Ngy vn hnh_Pickup'] === activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
-  const filteredTransportingInbound = inboundData.filter(d => getStatus(d) === 'Transporting' && (getDateArrival(d) === activeDate || d['Ngy vn hnh_Arrival'] === activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
+  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && isDateMatch(getDateInbound(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
+  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && Boolean(getDateForecast(d)) && isDateMatch(getDateForecast(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
+  const filteredPickup = inboundData.filter(d => (getStatus(d) === 'Created' || getStatus(d) === 'Transporting' || getStatus(d) === 'Inbound') && Boolean(d['Pickup Time'] || d['pickup_time']) && isDateMatch(getDatePickup(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
+  const filteredTransportingInbound = inboundData.filter(d => (getStatus(d) === 'Transporting') && (isDateMatch(getDateArrival(d), activeDate) || isDateMatch(getDatePickup(d), activeDate) || isDateMatch(getDateForecast(d), activeDate)) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
   const filteredArrivalData = ((arrivalData as any[]) || []).map(d => ({
     'Bu cc': d['last_dept_name'] || d['scansitename'] || 'BƯU CỤC CẦN',
     'Trng thi': 'Transporting',
@@ -214,7 +215,7 @@ export default function InboundDashboard({
     'Ngày vận hành': activeDate,
     'Ngy vn hnh_Arrival': activeDate
   })).filter(d => !isNorthStation(d['Bu cc']));
-  const filteredTransporting = filteredTransportingInbound.length >= filteredArrivalData.length ? filteredTransportingInbound : filteredArrivalData;
+  const filteredTransporting = filteredTransportingInbound.length > 0 ? filteredTransportingInbound : filteredArrivalData;
   const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
 
   const getLinehaulOperatingDate = (row: any) => {
@@ -253,15 +254,7 @@ export default function InboundDashboard({
       'Created': { orders: 0, weight: 0 }
     };
 
-  // Filter unique inbound rows for activeDate once to eliminate duplicate counting
-  const activeInboundRows = inboundData.filter(d => {
-    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
-    if (isNorthStation(station)) return false;
-    const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['Ngày vận hành'] || d['op_date'] || '';
-    return isDateMatch(opDate, activeDate);
-  });
-
-  activeInboundRows.forEach(d => {
+  [...filteredInbound, ...filteredChuaVeHub].forEach(d => {
     const status = getStatus(d);
     const vol = parseInt(d['Volume'] || 1, 10) || 0;
     const wt = parseFloat(d['Weight']) || 0;
@@ -273,6 +266,8 @@ export default function InboundDashboard({
     }
   });
 
+
+
   inboundData.forEach(d => {
     const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
     if (isNorthStation(station)) return;
@@ -280,11 +275,12 @@ export default function InboundDashboard({
     const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
     const arDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || '';
-    const status = getStatus(d);
+    const status = d['Trng thi'] || d['Trạng thái'] || '';
 
     const loiRot = d['Loi rt'] || d['Loại rớt'] || '';
-    const vol = parseInt(d['Volume'] || 1, 10) || 0;
+    const vol = parseInt(d['Volume'], 10) || 1;
 
+    // Subtraction rule: If order has reached HUB (ibDate, arDate, Outbound), it is NOT in un-arrived backlog
     const hasHubEvent = Boolean(ibDate || arDate || status === 'Outbound' || status === 'Inbound' || status === 'Transporting');
 
     if ((loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) && !hasHubEvent) {
@@ -299,18 +295,36 @@ export default function InboundDashboard({
     forecastRotHomNay = lastUpdateObj.rot_hom_nay;
   }
 
-  const forecastTodayVolume = activeInboundRows.reduce((sum, r) => sum + (parseInt(r['Volume'] || 1, 10) || 0), 0);
-  let totalForecast = forecastTodayVolume + forecastRotHomTruoc;
+  const filteredTruckEta = (truckEtaData || [])
+    .filter(d => {
+      const opDate = d.op_date || d['Ngày vận hành'] || (d.eta ? d.eta.slice(0, 10) : '') || (d.planned_arrival ? d.planned_arrival.slice(0, 10) : '') || (d.predictArriveTime ? d.predictArriveTime.slice(0, 10) : '');
+      if (!opDate) return false;
+      return isDateMatch(opDate, activeDate);
+    })
+    .map(d => ({
+      ...d,
+      'Mã chuyến': d.shipmentName || d.plateNumber || d.plate_number || d.trip_code,
+      'Biển số': d.plateNumber || d.plate_number || d.vehicle_number,
+      'Nhà xe': d.carrierName || d.carrier_name,
+      'Bưu cục đi': d.sendNetworkName || d.send_network || d.send_network_name || d.station_name || d.pickup_station || d.Pickup_station || d.Station || '',
+      'Bưu cục đến': d.arriveNetworkName || d.arrive_network || d.arrive_network_name || d.next_station || '',
+      'Tổng số đơn': d.orders_count ?? d.loadscanwaybillnum ?? d.volume ?? 0,
+      'Tổng trọng lượng (kg)': d.weight_kg ?? d.loadpackageweight ?? 0,
+      'Giờ đến bãi': d.eta || d.actualArrivalTime || d.predictArriveTime || d.planned_arrival || ''
+    }));
 
-
-
-  // Trucking in transit: map directly from filteredTruckEta and apply exclusions
+  let totalOrders = stages['Inbound'].orders;
+  let totalWeight = stages['Inbound'].weight;
+  // Số đơn có weight thực tế > 0 → dùng để tính avg chính xác
+  const ordersWithWeight = stagesWithWeight['Inbound'];
+  // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
+  let totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
   // Group filteredTruckEta by unique station to avoid duplicate scan-hour rows
   const groupedStationVehicles: Record<string, any> = {};
 
   (filteredTruckEta || []).forEach(d => {
-    const st = (d['Station'] || d['Pickup_station'] || d['sendNetworkName'] || d['Bưu cục đi'] || '').trim();
+    const st = (d['Bưu cục đi'] || d['sendNetworkName'] || d['send_network'] || d['send_network_name'] || d['station_name'] || d['Pickup_station'] || d['Station'] || '').trim();
     if (!st) return;
     const cleanKey = st.toUpperCase();
     if (cleanKey !== 'BN HUB' && isNorthStation(cleanKey)) return;
@@ -318,7 +332,7 @@ export default function InboundDashboard({
     // Ưu tiên lấy đơn Chưa đến Hub (hàng đang trên đường)
     const inTransitOrders = Number(d['Chưa đến Hub'] ?? d['Chua dn Hub'] ?? d['Orders'] ?? d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
     const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
-    const lastTime = d['Last time'] || d['ETA'] || d['Giờ đến bãi'] || d['actualArrivalTime'] || d['predictArriveTime'] || '';
+    const lastTime = d['Last time'] || d['ETA'] || d['Giờ đến bãi'] || d['actualArrivalTime'] || d['predictArriveTime'] || d['planned_arrival'] || '';
     const wt = Number(d['weight'] ?? d['weight_kg'] ?? d['package_charge_weight'] ?? d['loadpackageweight'] ?? d['Tổng trọng lượng (kg)'] ?? 0);
 
     if (!groupedStationVehicles[st]) {
@@ -328,7 +342,7 @@ export default function InboundDashboard({
         orders: 0,
         weight: 0,
         eta: lastTime,
-        rank: (cleanKey.includes('BN')) ? 'Linehaul' : (d['Rank'] || 'Shuttle'),
+        rank: (cleanKey.includes('BN')) ? 'Linehaul' : (d['Rank'] || d['rank'] || 'Shuttle'),
         chuaDenHub: 0,
         tongDon: 0,
         vehicles: 1,
@@ -949,12 +963,12 @@ export default function InboundDashboard({
         {/* Line Chart */}
         <div className="chart-container-card dual-line-wrapper report-glow-card glow-cyan">
           <div className="chart-header">
-            <h2>Hourly Processing Trend</h2>
+            <h2 style={{ color: "#B8F7E4 !important", textShadow: "none !important" }}>Hourly Processing Trend</h2>
             <div className="chart-legend-custom">
               <span className="legend-item"><span className="dot orange"></span>Created</span>
               <span className="legend-item"><span className="dot blue"></span>Pickup Volume</span>
               <span className="legend-item"><span className="dot green"></span>Transporting</span>
-              <span className="legend-item"><span className="dot cyan"></span>Inbound</span>
+              <span className="legend-item"><span className="dot cyan" style={{ background: "#B8F7E4", boxShadow: "0 0 8px #B8F7E4" }}></span>Inbound</span>
             </div>
           </div>
           <div className="chart-canvas-wrapper">
@@ -965,7 +979,7 @@ export default function InboundDashboard({
         {/* Donut Chart */}
         <div className="chart-container-card donut-wrapper report-glow-card glow-emerald">
           <div className="chart-header">
-            <h2>Orders status</h2>
+            <h2 style={{ color: "#B8F7E4 !important", textShadow: "none !important" }}>Orders status</h2>
           </div>
           <div className="donut-chart-box">
             {/* SVG concentric arcs + centre label */}
