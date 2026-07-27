@@ -226,23 +226,24 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
     const rows: SheetRow[] = [];
 
     for (const item of data) {
-      const zone       = String(item['Zone'] ?? '');
-      const areaId     = String(item['AreaID'] ?? '');
-      const buuCuc     = String(item['Bu cc'] ?? item['Bưu cục'] ?? '');
-      const volumeRaw  = item['Volume'];
-      const weightRaw  = item['Weight'];
-      const capRaw     = item['Sc cha'] ?? item['Sức chứa'] ?? 780;
-      const dateRaw    = item['Ngy'] ?? item['Ngày'] ?? todayStr;
-      const statusRaw  = item['Trng thi'] ?? item['Trạng thái'] ?? undefined;
+      const zone       = String(item['Zone'] ?? item['zone'] ?? '');
+      const areaId     = String(item['AreaID'] ?? item['area_id'] ?? item['areaId'] ?? '');
+      const buuCuc     = String(item['Bu cc'] ?? item['Bưu cục'] ?? item['name'] ?? '');
+      const volumeRaw  = item['Volume'] ?? item['volume'];
+      const weightRaw  = item['Weight'] ?? item['weight_ton'] ?? item['weight'] ?? item['Orders_weight'];
+      const capRaw     = item['Sc cha'] ?? item['Sức chứa'] ?? item['capacity'] ?? 780;
+      const dateRaw    = item['Ngy'] ?? item['Ngày'] ?? item['date'] ?? item['operation_date_created'] ?? item['operation_date'] ?? todayStr;
+      const statusRaw  = item['Trng thi'] ?? item['Trạng thái'] ?? item['status_sys'] ?? item['status'] ?? undefined;
 
       const volume   = Number(volumeRaw);
-      const weight   = Number(weightRaw) || 0;
+      let weight     = Number(weightRaw) || 0;
+      if (weight > 100) weight = Number((weight / 1000.0).toFixed(3)); // Convert kg to ton if needed
       const capacity = Number(capRaw) || 780;
 
-      if (areaId && zone) {
+      if (areaId || buuCuc) {
         rows.push({
-          zone,
-          areaId,
+          zone: zone || 'ZONE 1',
+          areaId: areaId || 'A01',
           buuCuc,
           volume: isNaN(volume) ? 0 : volume,
           weight,
