@@ -198,20 +198,11 @@ def fetch_linehaul_json(session, token_mgr) -> dict:
 
 def fetch_truck_eta_json(session, token_mgr) -> dict:
     """
-    Gọi pull_shuttle → lọc xe CHƯA arrived → chuẩn hóa.
-    {
-      "generated_at": "...",
-      "total_trucks_en_route": N,
-      "trucks": [{
-        "send_network", "arrive_network", "trip_code",
-        "orders_count", "weight_kg",
-        "planned_departure", "planned_arrival", "actual_departure",
-        "eta", "rank", "status", "op_date"
-      }]
-    }
+    Gọi pull_shuttle từ hôm nay -> ngày mai → lọc xe CHƯA arrived & chỉ lấy chuyến từ hôm nay.
     """
     try:
-        recs = pull_shuttle(session, token_mgr, start_str, end_plus1)
+        today_start = today + ' 00:00:00'
+        recs = pull_shuttle(session, token_mgr, today_start, end_plus1)
     except Exception as e:
         print(f"   ⚠️  pull_shuttle failed: {e}")
         recs = []
@@ -221,19 +212,28 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
         actual_arr = str(row.get('actualArrivalTime') or '').strip()
         if actual_arr:          # bỏ xe đã đến
             continue
+
+        p_dep = str(row.get('plannedDepartureTime') or row.get('createTime') or '').strip()
+        # Bỏ qua các chuyến lên lịch trước ngày hôm nay
+        if p_dep and p_dep[:10] < today:
+            continue
+
         actual_dep = str(row.get('actualDepartureTime') or row.get('appDepartureTime') or '').strip()
         status     = 'in_transit' if actual_dep else 'loading'
         trip       = str(row.get('shipmentNo') or row.get('taskNo') or '').strip().upper()
-        # Rank từ nguồn gốc: lh_ops có traceCode khác shuttle
-        src  = str(row.get('ngon_anh_xa') or '').lower()
-        rank = 'Linehaul' if 'linehaul' in src else 'Shuttle'
+        src        = str(row.get('ngon_anh_xa') or '').lower()
+        rank       = 'Linehaul' if 'linehaul' in src else 'Shuttle'
+
+        send_net = str(row.get('sendNetworkName') or row.get('startName') or '').strip()
+        arr_net  = str(row.get('arriveNetworkName') or row.get('endName') or '').strip()
+
         trucks.append({
-            "send_network":     str(row.get('sendNetworkName')      or '').strip(),
-            "arrive_network":   str(row.get('arriveNetworkName')    or '').strip(),
+            "send_network":     send_net,
+            "arrive_network":   arr_net,
             "trip_code":        trip,
             "orders_count":     int(row.get('loadscanwaybillnum')   or 0),
             "weight_kg":        float(row.get('loadpackageweight')  or 0),
-            "planned_departure":str(row.get('plannedDepartureTime') or '').strip(),
+            "planned_departure":p_dep,
             "planned_arrival":  str(row.get('plannedArrivalTime')   or '').strip(),
             "actual_departure": actual_dep,
             "eta":              str(row.get('estimateArrivalTime')  or '').strip(),
@@ -242,8 +242,8 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
             "op_date":          today,
         })
 
-    trucks.sort(key=lambda x: x.get('eta') or '9999')
-    print(f"   ✅ Truck ETA (en route): {len(trucks)} trucks")
+    trucks.sort(key=lambda x: x.get('eta') or x.get('planned_departure') or '9999')
+    print(f"   ✅ Truck ETA (en route today/tomorrow): {len(trucks)} trucks")
     return {"generated_at": now_sys, "total_trucks_en_route": len(trucks), "trucks": trucks}
 
 
@@ -321,12 +321,13 @@ def sync_postgre_to_dashboard():
     hourly        = {f"{h:02d}:00": 0 for h in range(24)}
 
     for _, r in df.iterrows():
-        sc       = str(r.get('dispatch_code', '')).strip().upper()
-        next_st  = str(r.get('next_station',  '')).strip()
-        station  = next_st or dict_station.get(sc, 'UNKNOWN')
-        zone     = dict_zone.get(sc, '3')
-        area_id  = dict_area.get(sc, 'C01')
-        cap      = 780
+        sc        = str(r.get('dispatch_code', '')).strip().upper()
+        next_st   = str(r.get('next_station',  '')).strip()
+        mapped_st = dict_station.get(sc, '')
+        station   = mapped_st or (next_st if next_st and next_st != 'KHO VÙNG KHÁC' else 'KHO VÙNG KHÁC')
+        zone      = dict_zone.get(sc, '3')
+        area_id   = dict_area.get(sc, 'C01')
+        cap       = 780
 
         if area_id == 'A06':
             station, zone, cap = 'BN HUB', 'BNI001', 1400
