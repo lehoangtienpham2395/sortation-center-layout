@@ -214,3 +214,12 @@
 .kpi-card.accent-green .kpi-value {
   color: #B8F7E4 !important;
 }
+
+/* Clean #B8F7E4 Titles Without Text Glow */
+.chart-header h2,
+.chart-header h2 span,
+.kpi-card .kpi-title,
+.kpi-title {
+  color: #B8F7E4 !important;
+  text-shadow: none !important;
+}

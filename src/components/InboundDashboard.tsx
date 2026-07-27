@@ -894,7 +894,7 @@ export default function InboundDashboard({
         {/* KPI 1: Inbound (orders) */}
         <div className="kpi-card accent-green glass-card report-glow-card glow-cyan">
           <div className="kpi-card-header">
-            <span className="kpi-title" style={{ color: "#B8F7E4", textShadow: "0 0 10px rgba(184, 247, 228, 0.8)" }} >Inbound (orders)</span>
+            <span className="kpi-title" style={{ color: "#B8F7E4" }}>Inbound (orders)</span>
             <i className="fa-solid fa-warehouse kpi-icon"></i>
           </div>
           <div className="kpi-card-body">
@@ -967,7 +967,7 @@ export default function InboundDashboard({
         {/* Line Chart */}
         <div className="chart-container-card dual-line-wrapper report-glow-card glow-cyan">
           <div className="chart-header">
-            <h2 style={{ color: "#B8F7E4", textShadow: "0 0 10px rgba(184, 247, 228, 0.6)" }}>Hourly Processing Trend</h2>
+            <h2 style={{ color: "#B8F7E4" }}>Hourly Processing Trend</h2>
             <div className="chart-legend-custom">
               <span className="legend-item"><span className="dot orange"></span>Created</span>
               <span className="legend-item"><span className="dot blue"></span>Pickup Volume</span>
@@ -983,7 +983,7 @@ export default function InboundDashboard({
         {/* Donut Chart */}
         <div className="chart-container-card donut-wrapper report-glow-card glow-emerald">
           <div className="chart-header">
-            <h2 style={{ color: "#B8F7E4", textShadow: "0 0 10px rgba(184, 247, 228, 0.6)" }}>Orders status</h2>
+            <h2 style={{ color: "#B8F7E4" }}>Orders status</h2>
           </div>
           <div className="donut-chart-box">
             {/* SVG concentric arcs + centre label */}
