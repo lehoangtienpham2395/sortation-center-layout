@@ -414,7 +414,7 @@ def pull_linehaul_consol(session, token_mgr, start_str, end_str):
 # ============================================================
 def pull_arrival(session, arr_tmgr, ib_headers, start_str, end_str):
     label = 'Arrival'
-    master_path = MASTER_FILE if os.path.exists(MASTER_FILE) else os.path.join(CONFIG_DIR, 'stations_master.csv')
+    master_path = os.path.join(CONFIG_DIR, 'stations_master.csv')
     station_names = []
     if os.path.exists(master_path):
         try:
