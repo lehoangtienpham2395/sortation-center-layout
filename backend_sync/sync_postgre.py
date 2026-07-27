@@ -1,31 +1,24 @@
 """
-sync_postgre.py — Dashboard Data Pipeline
-==========================================
-Đọc từ PostgreSQL enriched.dispatch_enriched → xuất JSON files cho dashboard React.
+sync_postgre.py — Dashboard Data Pipeline (3 phần)
+====================================================
+🌐 Phase 1: Kéo dữ liệu từ JFS API → PostgreSQL (pipeline_unified_v6)
+   - pull_dispatch, pull_scan (Inbound/Outbound), pull_arrival, pull_shuttle
+   - Dữ liệu được upsert vào enriched.dispatch_enriched
 
-Tích hợp JFS API từ pipeline_unified_v6.py (cùng thư mục scratch):
-  - TokenManager, build_session, auth_post     → auth + retry
-  - pull_linehaul_consol                        → linehaul.json
-  - pull_shuttle                                → truck_eta.json (xe en-route)
-  - pull_arrival                                → bổ sung arrival data từ API nếu cần
+📦 Phase 2: Đọc PostgreSQL → xuất JSON files cho dashboard React
+   - inventory.json, outbound.json, backlog.json, inbound.json,
+     arrival.json, heatmap.json, linehaul.json, truck_eta.json,
+     hub_inventory_pivot.json, last_update.json, latest.json.gz
 
-Field names: 100% English snake_case — không tiếng Việt có dấu hay bỏ dấu.
+🚀 Phase 3: Git commit + push lên GitHub
+   - `git add data/ src/`
+   - `git commit -m "chore(data): auto-sync [timestamp]"`
+   - `git push origin main`
 
-JSON outputs:
-  data/inventory.json         — Tồn kho tổng hợp mọi trạng thái
-  data/outbound.json          — Chỉ đơn has outbound_scandate
-  data/backlog.json           — Đã inbound nhưng chưa outbound
-  data/inbound.json           — Inbound tracking (2 ngày gần nhất, < 2MB)
-  data/arrival.json           — Arrival scans group by op_date/station/hour
-  data/heatmap.json           — {"HH:00": count} inbound by hour hôm nay
-  data/linehaul.json          — Xe linehaul từ JFS API
-  data/truck_eta.json         — Xe đang en-route (chưa đến)
-  data/hub_inventory_pivot.json — Pivot tóm tắt cho layout map
-  data/last_update.json       — Metadata + thống kê
-  data/latest.json.gz         — inbound.json nén (lưu trữ)
+Field names: 100% English snake_case.
 """
 
-import os, sys, io, json, gzip, datetime, time as _time, threading, math
+import os, sys, io, json, gzip, datetime, time as _time, threading, math, subprocess
 from zoneinfo import ZoneInfo
 
 # ── UTF-8 stdout ─────────────────────────────────────────────────────────────
@@ -272,58 +265,35 @@ def sync_postgre_to_dashboard():
     else:
         print(f"   ⚠️  valid.csv not found — zone/area mapping empty")
 
-    # ── 1.1 JFS API Live Pull (Kéo mới từ JFS API -> Nạp PostgreSQL) ─────────
-    if _HAS_PIPELINE:
-        print("\n🌐 Phase 1: Pulling live data from JFS API (7 sources)...")
+    # ── Phase 1: Chạy pipeline_unified_v6.py → JFS API → PostgreSQL ──────────
+    pipeline_script = os.path.join(PIPELINE_DIR, 'pipeline_unified_v6.py')
+    if os.path.exists(pipeline_script):
+        print("\n🌐 Phase 1: JFS API crawl → PostgreSQL (pipeline_unified_v6.py)...")
+        t1 = _time.time()
         try:
-            session_main = build_session()
-            session_arr  = build_session()
-            tkn_main     = TokenManager(session_main, ACCOUNT, PASSWORD, label='660021')
-            tkn_arr      = TokenManager(session_arr,  ARR_ACCOUNT, ARR_PASSWORD, label='660085')
-
-            # Pre-warm logins
-            from concurrent.futures import ThreadPoolExecutor
-            with ThreadPoolExecutor(max_workers=2) as ex:
-                fa = ex.submit(tkn_main.get_token)
-                fb = ex.submit(tkn_arr.get_token)
-                fa.result(); fb.result()
-
-            ih_headers = _pv6.load_json(_pv6.cfg('inboundheaders.json'))
-            ip_payload = _pv6.load_json(_pv6.cfg('inboundpayload.json'))
-            oh_headers = _pv6.load_json(_pv6.cfg('outboundheaders.json'))
-            op_payload = _pv6.load_json(_pv6.cfg('outboundpayload.json'))
-            dh_headers = _pv6.load_json(_pv6.cfg('dispatchheaders.json'))
-            dp_payload = _pv6.load_json(_pv6.cfg('dispatchpayload.json'))
-
-            ip_payload['beginDate'] = start_str; ip_payload['endDate'] = end_str
-            op_payload['beginDate'] = start_str; op_payload['endDate'] = end_str
-            dp_payload['startInputTime'] = start_str; dp_payload['endInputTime'] = end_str
-            dp_payload['current'] = '1'; dp_payload['size'] = str(_pv6.PAGE_SIZE)
-
-            i_params = {'sqlCode': ip_payload.get('sqlCode', ''), 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693'}
-            o_params = {'sqlCode': op_payload.get('sqlCode', ''), 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693'}
-
-            raw = {}
-            with ThreadPoolExecutor(max_workers=5) as ex:
-                fut = {
-                    ex.submit(_pv6.pull_dispatch, session_main, tkn_main, dh_headers, dp_payload): 'dispatch',
-                    ex.submit(_pv6.pull_scan, session_main, tkn_main, ih_headers, i_params, ip_payload, 'Inbound'): 'inbound',
-                    ex.submit(_pv6.pull_scan, session_main, tkn_main, oh_headers, o_params, op_payload, 'Outbound'): 'outbound',
-                    ex.submit(_pv6.pull_arrival, session_arr, tkn_arr, ih_headers, start_str, end_str): 'arrival',
-                    ex.submit(_pv6.pull_shuttle, session_arr, tkn_arr, start_str, end_str): 'shuttle',
-                }
-                for f in _pv6.as_completed(fut):
-                    k = fut[f]
-                    try: raw[k] = f.result()
-                    except Exception as _e: raw[k] = []
-
-            print(f"   📥 JFS Dispatch: {len(raw.get('dispatch', [])):,} đơn")
-            print(f"   📥 JFS Inbound : {len(raw.get('inbound', [])):,} quét")
-            print(f"   📥 JFS Outbound: {len(raw.get('outbound', [])):,} quét")
-            print(f"   📥 JFS Arrival : {len(raw.get('arrival', [])):,} quét")
-            print(f"   📥 JFS Shuttle : {len(raw.get('shuttle', [])):,} chuyến xe")
+            result = subprocess.run(
+                [sys.executable, pipeline_script],
+                capture_output=True, text=True, encoding='utf-8', errors='replace',
+                timeout=600  # 10 phút timeout
+            )
+            # In log từ pipeline ra stdout để thấy metrics
+            if result.stdout:
+                for line in result.stdout.strip().splitlines():
+                    print(f"   {line}")
+            if result.stderr:
+                for line in result.stderr.strip().splitlines()[-10:]:  # chỉ in 10 dòng cuối stderr
+                    if any(k in line for k in ['Traceback', 'Error', 'Exception', 'dong', 'total']):
+                        print(f"   ⚠️  {line}")
+            if result.returncode == 0:
+                print(f"   ✅ Phase 1 xong ({_time.time()-t1:.0f}s) — PostgreSQL đã cập nhật")
+            else:
+                print(f"   ⚠️  pipeline_unified_v6 exit code {result.returncode} — tiếp tục Phase 2 từ DB cũ")
+        except subprocess.TimeoutExpired:
+            print("   ⚠️  Phase 1 timeout (>10 phút) — tiếp tục Phase 2 từ DB cũ")
         except Exception as e:
-            print(f"   ⚠️  Phase 1 JFS API Live Pull skipped/error: {e}")
+            print(f"   ⚠️  Phase 1 error: {e} — tiếp tục Phase 2 từ DB cũ")
+    else:
+        print(f"\n🌐 Phase 1: pipeline_unified_v6.py không tìm thấy tại {pipeline_script} — bỏ qua")
 
     # ── 2. PostgreSQL fetch & export ──────────────────────────────────────────
     print("\n📦 Phase 2: Reading from PostgreSQL logistics_db & generating JSONs...")
@@ -617,6 +587,65 @@ def sync_postgre_to_dashboard():
           f"backlog={len(backlog_json):,}  inbound={len(inbound_json):,}  "
           f"arrival={len(arrival_json):,}")
     print("=" * 60)
+
+    # ── Phase 3: Git push lên GitHub ───────────────────────────
+    git_push(BASE_DIR, now_sys)
+
+
+def git_push(repo_dir: str, timestamp: str) -> None:
+    """
+    Phase 3: Tự động git add data/ src/ -> commit -> push origin main.
+    Kông dừng pipeline nếu push thất bại, chỉ log lỗi.
+    """
+    print("\n🚀 Phase 3: Git push → GitHub...")
+    try:
+        # 1. git add data/ và src/ (chỉ JSON data + code thay đổi)
+        add = subprocess.run(
+            ["git", "add", "data/", "src/", "backend_sync/"],
+            cwd=repo_dir, capture_output=True, text=True, timeout=30
+        )
+        if add.returncode != 0:
+            print(f"   ⚠️  git add failed: {add.stderr.strip()}")
+            return
+
+        # 2. Kiểm tra có gì thay đổi không
+        status = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=repo_dir, capture_output=True, text=True, timeout=10
+        )
+        if not status.stdout.strip():
+            print("   ℹ️  Không có thay đổi mới — bỏ qua commit")
+            return
+
+        # 3. git commit
+        msg = f"chore(data): auto-sync {timestamp}"
+        commit = subprocess.run(
+            ["git", "commit", "-m", msg],
+            cwd=repo_dir, capture_output=True, text=True, timeout=30
+        )
+        if commit.returncode != 0:
+            print(f"   ⚠️  git commit failed: {commit.stderr.strip()}")
+            return
+        print(f"   ✅ git commit: {msg}")
+
+        # 4. git push
+        push = subprocess.run(
+            ["git", "push", "origin", "main"],
+            cwd=repo_dir, capture_output=True, text=True, timeout=60
+        )
+        if push.returncode != 0:
+            print(f"   ❌ git push failed: {push.stderr.strip()}")
+        else:
+            print(f"   ✅ git push origin main — Dashboard đã cập nhật!")
+            if push.stdout.strip():
+                print(f"      {push.stdout.strip()}")
+
+    except subprocess.TimeoutExpired:
+        print("   ❌ Git operation timeout (>60s)")
+    except FileNotFoundError:
+        print("   ❌ `git` không tìm thấy trong PATH")
+    except Exception as e:
+        print(f"   ❌ Git push error: {e}")
 
 
 if __name__ == '__main__':
