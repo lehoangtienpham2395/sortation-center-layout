@@ -248402,7 +248402,7 @@ function showRouteDetail(route) {
         <div class="lbl"><i class="fa-solid fa-pause"></i> Dừng Ghép (+30m)</div>
         <div class="val amber">+${penaltyM}m</div>
       </div>
-      <div class="grid-box" style="grid-column: span 2; background: rgba(0, 242, 254, 0.08); border-color: rgba(0, 242, 254, 0.3);">
+      <div class="grid-box" style="grid-column: span 2; background: rgba(184, 247, 228, 0.08); border-color: rgba(184, 247, 228, 0.3);">
         <div class="lbl" style="color: var(--neon-cyan);"><i class="fa-solid fa-flag-checkered"></i> TỔNG ETA VẬN HÀNH THỰC TẾ</div>
         <div class="val amber" style="font-size: 1.15rem;">${formatDuration(totalEtaM)}</div>
       </div>

@@ -1630,3 +1630,30 @@ body {
   visibility: hidden !important;
   height: 0 !important;
 }
+
+/* KPI 1 & KPI 2 Mint Green #B8F7E4 styling */
+.kpi-card.accent-green .kpi-title,
+.kpi-card.accent-green .kpi-icon,
+.kpi-card.accent-green .kpi-value,
+.kpi-card.accent-green .kpi-unit {
+  color: #B8F7E4 !important;
+}
+
+.kpi-card.accent-green {
+  border-bottom: 2px solid #B8F7E4 !important;
+  box-shadow: 0 4px 20px rgba(184, 247, 228, 0.15) !important;
+}
+
+/* 2 Inbound KPI Cards (#B8F7E4 Mint Green) */
+.kpi-card.accent-green .kpi-title,
+.kpi-card.accent-green .kpi-icon,
+.kpi-card.accent-green .kpi-value,
+.kpi-card.accent-green .kpi-unit,
+.kpi-card.accent-green * {
+  color: #B8F7E4 !important;
+}
+
+.kpi-card.accent-green {
+  border-bottom: 2px solid #B8F7E4 !important;
+  box-shadow: 0 4px 20px rgba(184, 247, 228, 0.25) !important;
+}
