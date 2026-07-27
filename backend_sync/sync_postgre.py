@@ -127,6 +127,7 @@ def get_pg_conn():
     return psycopg2.connect(
         dbname=PG_DBNAME, user=PG_USER, password=PG_PASS,
         host=PG_HOST, port=PG_PORT, connect_timeout=15,
+        options='-c statement_timeout=30000'
     )
 
 
