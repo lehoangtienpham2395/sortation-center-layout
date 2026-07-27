@@ -378,13 +378,15 @@ def sync_postgre_to_dashboard():
             inv_group[ki]['volume']    += 1
             inv_group[ki]['weight_kg'] += wt_kg
 
-        # outbound group — chỉ record có area_id hợp lệ
+        # outbound group — chỉ record có area_id hợp lệ và tính chuẩn ngày vận hành xuất kho (op_date_outb)
         if has_out and valid_area:
-            ko = (zone, area_id, station)
-            if ko not in out_group:
-                out_group[ko] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
-            out_group[ko]['volume']    += 1
-            out_group[ko]['weight_kg'] += wt_kg
+            op_date_outb = get_op_date(outb_t)
+            if op_date_outb in (today, yesterday):
+                ko = (zone, area_id, station, op_date_outb)
+                if ko not in out_group:
+                    out_group[ko] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
+                out_group[ko]['volume']    += 1
+                out_group[ko]['weight_kg'] += wt_kg
 
         # backlog group — chỉ record có area_id hợp lệ
         if has_in and not has_out and valid_area:
@@ -449,8 +451,8 @@ def sync_postgre_to_dashboard():
     outbound_json = [
         {"zone": z, "area_id": a, "station_name": s,
          "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000, 3),
-         "capacity": v['capacity'], "op_date": today}
-        for (z, a, s), v in out_group.items()
+         "capacity": v['capacity'], "op_date": op_d}
+        for (z, a, s, op_d), v in out_group.items()
     ]
 
     backlog_json = [
