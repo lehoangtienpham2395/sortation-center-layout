@@ -442,10 +442,10 @@ def load_valid_mapping() -> dict:
         try:
             df = pd.read_csv(path, dtype=str)
             df.columns = df.columns.str.strip()
-            sc_col = next((c for c in ['sortcode', 'Mã trạm'] if c in df.columns), None)
-            st_col = next((c for c in ['Bưu cục final', 'Bưu cục'] if c in df.columns), None)
-            rd_col = next((c for c in ['Round', 'Tuyến'] if c in df.columns), None)
-            rk_col = next((c for c in ['Rank', 'Phân hạng'] if c in df.columns), None)
+            sc_col = next((c for c in ['sortcode', 'Mã trạm', 'dispatch_code'] if c in df.columns), None)
+            st_col = next((c for c in ['Bưu cục final', 'Bưu cục', 'Station_1', 'Station_2'] if c in df.columns), None)
+            rd_col = next((c for c in ['Round', 'Tuyến', 'round'] if c in df.columns), None)
+            rk_col = next((c for c in ['Rank', 'Phân hạng', 'rank'] if c in df.columns), None)
             
             if sc_col and st_col:
                 for _, row in df.iterrows():

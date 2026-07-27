@@ -300,8 +300,7 @@ def sync_postgre_to_dashboard():
             operation_date_created, operation_date_inbound,
             is_backlog, is_active
         FROM enriched.dispatch_enriched
-        WHERE is_active = 1
-          AND operation_date_created >= CURRENT_DATE - INTERVAL '7 days'
+        WHERE operation_date_created >= CURRENT_DATE - INTERVAL '7 days'
         ORDER BY operation_date_created DESC, created_time DESC
     """
     try:
