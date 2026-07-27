@@ -562,12 +562,15 @@ def pull_forecast_by_bills(session, token_mgr, base_payload, bills_list):
     
     all_records = []
     lock = threading.Lock()
+    unauthorized = threading.Event()
     hdrs = {'Accept': 'application/json, text/plain, */*',
             'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
             'lang': 'VN', 'langtype': 'VN',
             'routeName': 'shippingWaybillList', 'User-Agent': 'Mozilla/5.0'}
 
     def fetch_batch(batch):
+        if unauthorized.is_set():
+            return
         pl = dict(base_payload)
         pl.update({'waybillNos': ','.join(batch), 'size': batch_size, 'current': 1,
                    'timeStart': '', 'timeEnd': '', 'inputTimeStart': '', 'inputTimeEnd': ''})
@@ -579,7 +582,12 @@ def pull_forecast_by_bills(session, token_mgr, base_payload, bills_list):
             with lock:
                 all_records.extend(data)
         except Exception as e:
-            print('   Loi forecast batch: ' + str(e))
+            if '401' in str(e) or '403' in str(e):
+                if not unauthorized.is_set():
+                    print('   ⚠️  Forecast API không có quyền truy cập (401 Unauthorized) — bỏ qua tra cứu Forecast batch.')
+                    unauthorized.set()
+            else:
+                pass
 
     with ThreadPoolExecutor(max_workers=PAGE_WORKERS) as ex:
         ex.map(fetch_batch, batches)
