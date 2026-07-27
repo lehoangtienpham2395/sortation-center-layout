@@ -243,6 +243,14 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
 
     const rows: SheetRow[] = [];
 
+    const STATUS_MAP: Record<string, string> = {
+      'at_hub': 'Đang trên bãi',
+      'transporting': 'Đang trên đường',
+      'pickup_done': 'Đã lấy hàng',
+      'created': 'Đã điều phối bưu cục',
+      'outbound_done': 'Đã xuất khỏi HUB',
+    };
+
     for (const item of data) {
       const zone       = String(item['zone'] ?? item['Zone'] ?? item['round'] ?? item['Round'] ?? '');
       const areaId     = String(item['area_id'] ?? item['AreaID'] ?? item['rank'] ?? item['Rank'] ?? '');
@@ -251,7 +259,8 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
       const weightRaw  = item['weight_ton'] ?? item['weight'] ?? item['Weight'] ?? item['Orders_weight'];
       const capRaw     = item['capacity'] ?? item['Sc cha'] ?? item['Sức chứa'] ?? 780;
       const dateRaw    = item['op_date'] ?? item['Ngy'] ?? item['Ngày'] ?? item['date'] ?? item['operation_date_created'] ?? item['operation_date'] ?? item['operation_date_inbound'] ?? todayStr;
-      const statusRaw  = item['status'] ?? item['Trng thi'] ?? item['Trạng thái'] ?? item['status_sys'] ?? undefined;
+      const rawSt      = item['status'] ?? item['Trng thi'] ?? item['Trạng thái'] ?? item['status_sys'] ?? undefined;
+      const statusRaw  = rawSt ? (STATUS_MAP[String(rawSt)] ?? String(rawSt)) : undefined;
 
       const volume   = Number(volumeRaw);
       let weight     = Number(weightRaw) || 0;
