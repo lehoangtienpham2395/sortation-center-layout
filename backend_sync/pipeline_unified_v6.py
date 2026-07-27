@@ -38,6 +38,8 @@ URL_FORECAST      = 'https://gw.jtcargo.com.vn/networkmanagement/omsWaybill/ship
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _cfg_candidates = [
+    r'C:\Users\lehoa\OneDrive\Desktop\testing',
+    r'C:\Users\lehoa\OneDrive\Desktop\testing\config',
     os.path.join(BASE_DIR, 'config'),
     os.path.join(BASE_DIR, 'backend_sync', 'config'),
     os.path.join(BASE_DIR, 'sortation-center-layout', 'backend_sync', 'config'),
@@ -77,11 +79,11 @@ def load_json(path):
         return json.load(f)
 
 def cfg(filename):
-    for d in [CONFIG_DIR, os.path.join(BASE_DIR, 'config'), os.path.join(BASE_DIR, 'backend_sync', 'config'), os.path.join(BASE_DIR, 'sortation-center-layout', 'backend_sync', 'config')]:
+    for d in _cfg_candidates:
         p = os.path.join(d, filename)
         if os.path.exists(p):
             return p
-    raise FileNotFoundError('Khong tim thay: ' + filename + ' trong ' + CONFIG_DIR)
+    raise FileNotFoundError('Khong tim thay: ' + filename + ' trong bat ky thu muc config nao!')
 
 def clean_wb(val):
     if val is None:
