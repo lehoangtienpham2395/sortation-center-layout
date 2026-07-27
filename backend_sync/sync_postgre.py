@@ -76,7 +76,20 @@ PG_PASS   = os.environ.get("PGPASSWORD", "Tien@giang0203")
 PG_HOST   = os.environ.get("PGHOST",     "127.0.0.1")
 PG_PORT   = int(os.environ.get("PGPORT", 5433))
 
-# ── Time ──────────────────────────────────────────────────────────────────────
+def is_valid_ts(val) -> bool:
+    if val is None or pd.isna(val):
+        return False
+    s = str(val).strip()
+    if not s or s.lower() in ('nat', 'none', 'nan', 'null'):
+        return False
+    return True
+
+def clean_ts_str(val) -> str:
+    return str(val).strip() if is_valid_ts(val) else ""
+
+# ════════════════════════════════════════════════════════════════════
+# MAIN
+# ════════════════════════════════════════════════════════════════════
 tz_vn     = ZoneInfo("Asia/Ho_Chi_Minh")
 now_vn    = datetime.datetime.now(tz_vn)
 today     = now_vn.strftime("%Y-%m-%d")
@@ -319,14 +332,14 @@ def sync_postgre_to_dashboard():
             station, zone, cap = 'BN HUB', 'BNI001', 1400
 
         wt_kg    = float(r.get('orders_weight') or 0)
-        cr_t     = str(r.get('created_time',       '')).strip()
-        pk_t     = str(r.get('pickup_time',         '')).strip()
-        inb_t    = str(r.get('inbound_scandate',    '')).strip()
-        outb_t   = str(r.get('outbound_scandate',   '')).strip()
-        arr_t    = str(r.get('arrival_scandate',    '')).strip()
+        cr_t     = clean_ts_str(r.get('created_time'))
+        pk_t     = clean_ts_str(r.get('pickup_time'))
+        inb_t    = clean_ts_str(r.get('inbound_scandate'))
+        outb_t   = clean_ts_str(r.get('outbound_scandate'))
+        arr_t    = clean_ts_str(r.get('arrival_scandate'))
         trip     = str(r.get('trip_code',           '')).strip()
-        transp_t = str(r.get('transporing_time',    '')).strip()
-        transpd_t= str(r.get('transported_time',    '')).strip()
+        transp_t = clean_ts_str(r.get('transporing_time'))
+        transpd_t= clean_ts_str(r.get('transported_time'))
         op_date  = str(r.get('operation_date_created', today))[:10] or today
 
         has_in   = bool(inb_t)
