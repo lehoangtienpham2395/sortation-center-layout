@@ -63,12 +63,24 @@ interface InboundDashboardProps {
 }
 
 /**
- * Trích xuất giờ từ chuỗi timestamp (ví dụ: "2026-07-09 21:00" -> 21)
- * độc lập với việc check ngày/lùi ngày vì việc lọc theo ngày vận hành đã được thực hiện trước đó.
+ * Trích xuất giờ từ chuỗi timestamp (ví dụ: "2026-07-09 21:00" -> 21),
+ * tự động quy đổi từ múi giờ UTC (+00:00 hoặc Z) sang giờ Việt Nam (+7).
  */
 function getHourFromTimestamp(val: any): number {
   if (val === undefined || val === null || val === '') return -1;
   const strVal = String(val).trim();
+  if (!strVal) return -1;
+
+  if (strVal.includes('+00') || strVal.endsWith('Z')) {
+    const dt = new Date(strVal);
+    if (!isNaN(dt.getTime())) {
+      const options: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Ho_Chi_Minh', hour: 'numeric', hour12: false };
+      const formatter = new Intl.DateTimeFormat('en-US', options);
+      const hr = parseInt(formatter.format(dt), 10);
+      if (!isNaN(hr)) return hr % 24;
+    }
+  }
+
   if (strVal.includes(' ')) {
     const timePart = strVal.split(' ')[1] || '';
     const hour = parseInt(timePart.split(':')[0], 10);
@@ -84,19 +96,47 @@ function getHourFromTimestamp(val: any): number {
 }
 
 /**
- * Trích xuất ngày vận hành từ chuỗi timestamp (ví dụ: "2026-07-16 02:00" -> "2026-07-15")
- * dựa trên giờ vận hành J&T (< 06h sáng tính cho ngày hôm trước)
+ * Trích xuất ngày vận hành từ chuỗi timestamp (ví dụ: "2026-07-16 02:00" -> "2026-07-15"),
+ * hỗ trợ quy đổi múi giờ UTC (+00:00 / Z) sang giờ Việt Nam trước khi kiểm tra khung < 06h.
  */
 function getOperatingDateFromTimestamp(timestamp: string): string {
   if (!timestamp) return '';
-  const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
-  if (match) {
-    const datePart = match[1];
-    const hour = parseInt(match[2], 10);
+  const strVal = String(timestamp).trim();
+  if (!strVal) return '';
+
+  let datePart = '';
+  let hour = 12;
+
+  if (strVal.includes('+00') || strVal.endsWith('Z')) {
+    const dt = new Date(strVal);
+    if (!isNaN(dt.getTime())) {
+      const formatter = new Intl.DateTimeFormat('en-CA', { 
+        timeZone: 'Asia/Ho_Chi_Minh', 
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', hour12: false 
+      });
+      const parts = formatter.format(dt).split(', ');
+      datePart = parts[0];
+      hour = parseInt(parts[1] || '12', 10) % 24;
+    }
+  }
+
+  if (!datePart) {
+    const match = strVal.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
+    if (match) {
+      datePart = match[1];
+      hour = parseInt(match[2], 10);
+    }
+  }
+
+  if (datePart) {
     if (hour < 6) {
-      const d = new Date(datePart);
+      const d = new Date(datePart + 'T12:00:00');
       d.setDate(d.getDate() - 1);
-      return d.toISOString().split('T')[0];
+      const yr = d.getFullYear();
+      const mo = String(d.getMonth() + 1).padStart(2, '0');
+      const dy = String(d.getDate()).padStart(2, '0');
+      return `${yr}-${mo}-${dy}`;
     }
     return datePart;
   }
