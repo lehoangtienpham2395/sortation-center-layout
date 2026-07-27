@@ -281,15 +281,15 @@ def sync_postgre_to_dashboard():
     else:
         print(f"   ⚠️  valid.csv not found — zone/area mapping empty")
 
-    # ── Phase 1: JFS API → PostgreSQL (import trực tiếp run_etl.py) ──────────
+    # ── Phase 1: JFS API → PostgreSQL (import trực tiếp pipeline_unified_v6.py) ──
     _etl_dir = os.path.dirname(os.path.abspath(__file__))  # backend_sync/
     if _etl_dir not in sys.path:
         sys.path.insert(0, _etl_dir)
     try:
-        import run_etl as _etl
-        print("\n🌐 Phase 1: JFS API → PostgreSQL (run_etl.run_pipeline())...")
+        import pipeline_unified_v6 as _pipe6
+        print("\n🌐 Phase 1: JFS API → PostgreSQL (pipeline_unified_v6.main())...")
         t1 = _time.time()
-        _etl.run_pipeline()
+        _pipe6.main()
         print(f"   ✅ Phase 1 xong ({_time.time()-t1:.0f}s) — PostgreSQL đã cập nhật")
     except Exception as _e1:
         print(f"   ⚠️  Phase 1 error: {_e1} — tiếp tục Phase 2 từ DB hiện tại")
