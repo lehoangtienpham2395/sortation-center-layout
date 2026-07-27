@@ -70,8 +70,10 @@ REQUEST_TIMEOUT = 30
 MAX_RETRIES = 3
 BACKOFF_FACTOR = 2
 
-VALID_FILE_PATH = os.path.join(BASE_DIR, "config", "valid.csv")
+_VALID_PRIMARY  = os.path.join(os.path.expanduser("~"), "OneDrive", "Desktop", "testing", "Exportauto", "Valid", "valid.csv")
+VALID_FILE_PATH = _VALID_PRIMARY if os.path.exists(_VALID_PRIMARY) else os.path.join(BASE_DIR, "config", "valid.csv")
 CACHE_FILE = os.path.join(BASE_DIR, ".token_cache")
+
 
 # ==============================================================================
 # SECTION 2: LOGGER SETUP & UTILITIES
