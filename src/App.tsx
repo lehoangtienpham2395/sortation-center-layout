@@ -226,13 +226,13 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
     const rows: SheetRow[] = [];
 
     for (const item of data) {
-      const zone       = String(item['Zone'] ?? item['zone'] ?? '');
-      const areaId     = String(item['AreaID'] ?? item['area_id'] ?? item['areaId'] ?? '');
-      const buuCuc     = String(item['Bu cc'] ?? item['Bưu cục'] ?? item['name'] ?? '');
-      const volumeRaw  = item['Volume'] ?? item['volume'];
+      const zone       = String(item['Zone'] ?? item['zone'] ?? item['Round'] ?? item['round'] ?? '');
+      const areaId     = String(item['AreaID'] ?? item['area_id'] ?? item['areaId'] ?? item['Rank'] ?? item['rank'] ?? '');
+      const buuCuc     = String(item['Bu cc'] ?? item['Bưu cục'] ?? item['name'] ?? item['Next_station'] ?? item['Pickup_station'] ?? '');
+      const volumeRaw  = item['Volume'] ?? item['volume'] ?? item['Orders_num'];
       const weightRaw  = item['Weight'] ?? item['weight_ton'] ?? item['weight'] ?? item['Orders_weight'];
       const capRaw     = item['Sc cha'] ?? item['Sức chứa'] ?? item['capacity'] ?? 780;
-      const dateRaw    = item['Ngy'] ?? item['Ngày'] ?? item['date'] ?? item['operation_date_created'] ?? item['operation_date'] ?? todayStr;
+      const dateRaw    = item['Ngy'] ?? item['Ngày'] ?? item['date'] ?? item['operation_date_created'] ?? item['operation_date'] ?? item['operation_date_inbound'] ?? todayStr;
       const statusRaw  = item['Trng thi'] ?? item['Trạng thái'] ?? item['status_sys'] ?? item['status'] ?? undefined;
 
       const volume   = Number(volumeRaw);
@@ -242,10 +242,10 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
 
       if (areaId || buuCuc) {
         rows.push({
-          zone: zone || 'ZONE 1',
-          areaId: areaId || 'A01',
+          zone: (zone && zone !== 'None') ? zone : 'ZONE 1',
+          areaId: (areaId && areaId !== 'None') ? areaId : 'A01',
           buuCuc,
-          volume: isNaN(volume) ? 0 : volume,
+          volume: isNaN(volume) ? 1 : volume,
           weight,
           capacity,
           date: String(dateRaw),
