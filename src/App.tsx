@@ -174,8 +174,6 @@ interface SheetRow {
 
 async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival' | 'Truck_ETA'): Promise<any[] | null> {
   try {
-
-
     const t = Date.now();
     let response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
     if (!response.ok) {
@@ -183,9 +181,26 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
     }
     if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
     const data = await response.json();
-    if (!Array.isArray(data)) return [];
-    // Remap unaccented column keys back to accented Vietnamese column names used by the dashboard
+    if (!Array.isArray(data)) {
+      if (data && typeof data === 'object' && Array.isArray(data.trucks)) {
+        return data.trucks;
+      }
+      return [];
+    }
+    // Remap column keys (supports English snake_case and legacy unaccented keys)
     const keyMap: Record<string, string> = {
+      'station_name': 'Bưu cục',
+      'status': 'Trạng thái',
+      'op_date_inbound': 'Ngày vận hành_Inbound',
+      'op_date_forecast': 'Ngày vận hành_Forecast',
+      'op_date_pickup': 'Ngày vận hành_Pickup',
+      'op_date_arrival': 'Ngày vận hành_Arrival',
+      'drop_type': 'Loại rớt',
+      'op_date': 'Ngày vận hành',
+      'total_orders': 'Tổng số đơn',
+      'volume': 'Volume',
+      'weight_ton': 'Weight',
+
       'Bu cc': 'Bưu cục',
       'Trng thi': 'Trạng thái',
       'Ngy vn hnh_Inbound': 'Ngày vận hành_Inbound',
@@ -197,9 +212,11 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
       'Tng s n': 'Tổng số đơn',
     };
     return data.map((row: Record<string, any>) => {
-      const out: Record<string, any> = {};
+      const out: Record<string, any> = { ...row };
       for (const [k, v] of Object.entries(row)) {
-        out[keyMap[k] ?? k] = v;
+        if (keyMap[k]) {
+          out[keyMap[k]] = v;
+        }
       }
       return out;
     });
@@ -212,9 +229,6 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
 async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[] | null> {
   try {
     const todayStr = new Date().toISOString().split('T')[0];
-    
-
-
     const t = Date.now();
     let response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
     if (!response.ok) {
@@ -230,18 +244,18 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
     const rows: SheetRow[] = [];
 
     for (const item of data) {
-      const zone       = String(item['Zone'] ?? item['zone'] ?? item['Round'] ?? item['round'] ?? '');
-      const areaId     = String(item['AreaID'] ?? item['area_id'] ?? item['areaId'] ?? item['Rank'] ?? item['rank'] ?? '');
-      const buuCuc     = String(item['Bu cc'] ?? item['Bưu cục'] ?? item['name'] ?? item['Next_station'] ?? item['Pickup_station'] ?? '');
-      const volumeRaw  = item['Volume'] ?? item['volume'] ?? item['Orders_num'];
-      const weightRaw  = item['Weight'] ?? item['weight_ton'] ?? item['weight'] ?? item['Orders_weight'];
-      const capRaw     = item['Sc cha'] ?? item['Sức chứa'] ?? item['capacity'] ?? 780;
-      const dateRaw    = item['Ngy'] ?? item['Ngày'] ?? item['date'] ?? item['operation_date_created'] ?? item['operation_date'] ?? item['operation_date_inbound'] ?? todayStr;
-      const statusRaw  = item['Trng thi'] ?? item['Trạng thái'] ?? item['status_sys'] ?? item['status'] ?? undefined;
+      const zone       = String(item['zone'] ?? item['Zone'] ?? item['round'] ?? item['Round'] ?? '');
+      const areaId     = String(item['area_id'] ?? item['AreaID'] ?? item['rank'] ?? item['Rank'] ?? '');
+      const buuCuc     = String(item['station_name'] ?? item['Bu cc'] ?? item['Bưu cục'] ?? item['name'] ?? item['Next_station'] ?? item['Pickup_station'] ?? '');
+      const volumeRaw  = item['volume'] ?? item['Volume'] ?? item['Orders_num'];
+      const weightRaw  = item['weight_ton'] ?? item['weight'] ?? item['Weight'] ?? item['Orders_weight'];
+      const capRaw     = item['capacity'] ?? item['Sc cha'] ?? item['Sức chứa'] ?? 780;
+      const dateRaw    = item['op_date'] ?? item['Ngy'] ?? item['Ngày'] ?? item['date'] ?? item['operation_date_created'] ?? item['operation_date'] ?? item['operation_date_inbound'] ?? todayStr;
+      const statusRaw  = item['status'] ?? item['Trng thi'] ?? item['Trạng thái'] ?? item['status_sys'] ?? undefined;
 
       const volume   = Number(volumeRaw);
       let weight     = Number(weightRaw) || 0;
-      if (weight > 100) weight = Number((weight / 1000.0).toFixed(3)); // Convert kg to ton if needed
+      if (weight > 100) weight = Number((weight / 1000.0).toFixed(3));
       const capacity = Number(capRaw) || 780;
 
       if (areaId || buuCuc) {
