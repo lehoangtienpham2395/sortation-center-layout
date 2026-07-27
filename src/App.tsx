@@ -1548,7 +1548,7 @@ export default function App() {
             {lastUpdate && (
               <div style={{ 
                 fontSize: '11px', 
-                color: '#B8F7E4', 
+                color: '#10b981', 
                 background: 'rgba(184, 247, 228, 0.05)', 
                 border: '1px solid rgba(184, 247, 228, 0.2)', 
                 padding: '5px 14px', 
@@ -1612,8 +1612,8 @@ export default function App() {
               <div className="space-y-1 font-outfit">
                 {[
                   { id: 'master', label: 'Layout', color: '#4F8CFF', active: currentView === 'master', onClick: () => setCurrentView('master') },
-                  { id: 'inbound', label: 'Inbound', color: '#B8F7E4', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
-                  { id: 'heatmap', label: 'Heatmap', color: '#B8F7E4', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
+                  { id: 'inbound', label: 'Inbound', color: '#10b981', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
+                  { id: 'heatmap', label: 'Heatmap', color: '#10b981', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
                   { id: 'kpi', label: 'KPI', color: '#F59E0B', active: currentView === 'kpi', onClick: () => setCurrentView('kpi') },
     { id: 'maps', label: 'Maps', color: '#00F2FE', active: currentView === 'maps', onClick: () => setCurrentView('maps') },
                 ].map(item => {
@@ -1773,7 +1773,7 @@ export default function App() {
                   {/* Zone cards 3-column grid */}
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     {[
-                      { id: 3, shortName: 'ZONE 3', sub: '', color: '#B8F7E4', colorBg: 'rgba(16,185,129,0.1)', colorBorder: 'rgba(16,185,129,0.3)' },
+                      { id: 3, shortName: 'ZONE 3', sub: '', color: '#10b981', colorBg: 'rgba(16,185,129,0.1)', colorBorder: 'rgba(16,185,129,0.3)' },
                       { id: 2, shortName: 'ZONE 2', sub: '', color: '#f59e0b', colorBg: 'rgba(245,158,11,0.1)', colorBorder: 'rgba(245,158,11,0.3)' },
                       { id: 1, shortName: 'ZONE 1', sub: '', color: '#f97316', colorBg: 'rgba(249,115,22,0.1)', colorBorder: 'rgba(249,115,22,0.3)' }
                     ].map(zone => {
@@ -1796,9 +1796,9 @@ export default function App() {
                         >
                           <div className="mono font-extrabold" style={{ fontSize: '13px', color: zone.color, lineHeight: 1.2, textShadow: `0 0 8px ${zone.color}88` }}>{zone.shortName}</div>
                           <div className="mono font-bold" style={{ fontSize: '13px', color: zone.color, lineHeight: 1.2 }}>{stats.fillRate}%</div>
-                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#B8F7E4', lineHeight: 1.2 }}>{stats.current.toLocaleString()}</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#10b981', lineHeight: 1.2 }}>{stats.current.toLocaleString()}</div>
                           <div className="mono font-bold" style={{ fontSize: '13px', color: '#f1f5f9', lineHeight: 1.2 }}>{(stats as any).totalShare}%</div>
-                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#B8F7E4', lineHeight: 1.2 }}>{(stats.weight / 1000).toFixed(1)} tấn</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#10b981', lineHeight: 1.2 }}>{(stats.weight / 1000).toFixed(1)} tấn</div>
                         </div>
                       );
                     })}
@@ -1840,13 +1840,13 @@ export default function App() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <div className="flex justify-between items-center">
                       <span style={{ fontSize: '13px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng đơn hàng</span>
-                      <span className="mono font-bold" style={{ fontSize: '15px', color: '#B8F7E4', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
+                      <span className="mono font-bold" style={{ fontSize: '15px', color: '#10b981', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
                         <NumberTicker value={totalOrders} /> <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Đơn</span>
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span style={{ fontSize: '13px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng trọng lượng</span>
-                      <span className="mono font-bold" style={{ fontSize: '15px', color: '#B8F7E4', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
+                      <span className="mono font-bold" style={{ fontSize: '15px', color: '#10b981', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
                         {(totalWeight / 1000).toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
                       </span>
                     </div>
@@ -2011,7 +2011,7 @@ export default function App() {
                               <td className="font-bold text-white uppercase" style={{ fontSize: '11px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2' }} title={chute.name}>
                                 {chute.name}
                               </td>
-                              <td className="mono font-bold text-center" style={{ color: '#B8F7E4', fontSize: '12px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
+                              <td className="mono font-bold text-center" style={{ color: '#10b981', fontSize: '12px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
                               <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>{(chute.weight / 1000).toFixed(1)} Tấn</td>
                               <td className="mono font-bold text-center" style={{ color: UTILCOL[chute.bucket], fontSize: '11.5px', textShadow: chute.bucket === 'darkred' || chute.bucket === 'red' ? '0 0 8px rgba(239,68,68,0.6)' : '0 0 8px rgba(16,185,129,0.5)' }}>{chute.utilization}%</td>
                             </tr>
