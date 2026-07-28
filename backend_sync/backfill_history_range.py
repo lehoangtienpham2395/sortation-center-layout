@@ -51,6 +51,14 @@ os.makedirs(HIST_DIR, exist_ok=True)
 dict_zone, dict_area, dict_station = load_valid_csv()
 
 
+import re
+
+def extract_ma10(val):
+    if not val or str(val).strip() == '': return ''
+    ms = re.findall(r'[A-Z]{2,3}\d{3}[A-Z0-9]', str(val))
+    return ms[0] if ms else ''
+
+
 def process_single_date(d_str: str):
     print(f"\n============================================================")
     print(f"📅 [GIAI ĐOẠN {d_str}] Bắt đầu xử lý ngày vận hành {d_str}")
@@ -79,7 +87,7 @@ def process_single_date(d_str: str):
             pk2 = str(r.get('realPickNetworkName') or '').strip()
             stn = pipe.clean_status_sys(str(r.get('orderStatusName') or '').strip())
             dr  = str(r.get('terminalDispatchCode') or '').strip().upper()
-            dc  = pipe.extract_ma10(dr) or dr
+            dc  = extract_ma10(dr) or dr
             num = int(r.get('packageNumber') or 1)
             wt  = float(r.get('packageChargeWeight') or 0.0)
             ac  = str(r.get('proxyAreaCode') or '').strip()
