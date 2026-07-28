@@ -261,52 +261,110 @@ def fetch_linehaul_json(session, token_mgr) -> dict:
 
 def fetch_truck_eta_json(session, token_mgr) -> dict:
     """
-    Gọi pull_shuttle từ hôm nay -> ngày mai → lọc xe CHƯA arrived & chỉ lấy chuyến từ hôm nay.
+    Tạo danh sách Truck ETA (xe đang về / chờ nhập kho HCM HUB) từ 2 nguồn:
+      1. PostgreSQL dispatch_enriched: các bưu cục có đơn đã Pickup/Arrival nhưng chưa Inbound.
+      2. JFS API pull_shuttle & pull_linehaul_consol: các chuyến xe thực tế có sản lượng > 0.
+    Loại bỏ hoàn toàn các 423 lịch trình chuyến rỗng (orders_count = 0).
     """
+    trucks = []
+    seen_keys = set()
+
+    # ── 1. PostgreSQL DB: Gom các bưu cục/chuyến thực tế đang có đơn vận chuyển về HUB ──
+    try:
+        conn = get_pg_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT 
+                COALESCE(NULLIF(TRIM(pickup_station), ''), 'KHÔNG XÁC ĐỊNH') as send_net,
+                'HCM HUB' as arr_net,
+                COALESCE(NULLIF(TRIM(trip_code), ''), 'DIRECT') as trip_c,
+                COUNT(*) as vol,
+                ROUND(SUM(orders_weight)::numeric, 2) as wt_kg,
+                MAX(arrival_scandate) as max_arr,
+                MAX(transporing_time) as max_transp
+            FROM enriched.dispatch_enriched
+            WHERE flag_inbound = 0 
+              AND (flag_arrival = 1 OR flag_pickup = 1)
+              AND (is_completed = FALSE OR is_active = 1)
+            GROUP BY send_net, trip_c
+            HAVING COUNT(*) > 0
+            ORDER BY vol DESC;
+        """)
+        rows = cur.fetchall()
+        conn.close()
+
+        for r in rows:
+            send_st, arr_st, trip, vol, wt_kg, max_arr, max_transp = r
+            ref_t = str(max_arr or max_transp or '')[:16]
+            op_d = get_op_date(ref_t) if ref_t else today
+
+            if op_d in (today, yesterday):
+                key = (send_st, trip)
+                seen_keys.add(key)
+                trucks.append({
+                    "send_network":     send_st,
+                    "arrive_network":   arr_st,
+                    "trip_code":        trip,
+                    "orders_count":     int(vol),
+                    "weight_kg":        float(wt_kg),
+                    "weight_ton":       round(float(wt_kg) / 1000.0, 3),
+                    "planned_departure":ref_t,
+                    "planned_arrival":  ref_t,
+                    "actual_departure": ref_t,
+                    "eta":              ref_t,
+                    "rank":             "Shuttle",
+                    "status":           "arrived" if max_arr else "in_transit",
+                    "op_date":          op_d,
+                })
+    except Exception as e:
+        print(f"   ⚠️ PostgreSQL truck_eta aggregation error: {e}")
+
+    # ── 2. JFS API: Bổ sung các chuyến shuttle có đơn thực tế (orders_count > 0) ──
     try:
         today_start = today + ' 00:00:00'
         recs = pull_shuttle(session, token_mgr, today_start, end_plus1)
+        for row in recs:
+            actual_arr = str(row.get('actualArrivalTime') or '').strip()
+            if actual_arr:
+                continue
+
+            orders_cnt = int(row.get('loadscanwaybillnum') or row.get('waybillNum') or 0)
+            if orders_cnt <= 0:
+                continue  # Bỏ qua 423 khung lịch trình rỗng không có đơn
+
+            p_dep = str(row.get('plannedDepartureTime') or row.get('createTime') or '').strip()
+            actual_dep = str(row.get('actualDepartureTime') or row.get('appDepartureTime') or '').strip()
+            trip = str(row.get('shipmentNo') or row.get('taskNo') or '').strip().upper()
+            send_net = str(row.get('sendNetworkName') or row.get('startName') or '').strip()
+            arr_net  = str(row.get('arriveNetworkName') or row.get('endName') or '').strip()
+
+            key = (send_net, trip)
+            if key not in seen_keys:
+                seen_keys.add(key)
+                ref_t = actual_dep or p_dep
+                op_d = get_op_date(ref_t) if ref_t else today
+                if op_d in (today, yesterday):
+                    wt_kg = float(row.get('loadpackageweight') or 0)
+                    trucks.append({
+                        "send_network":     send_net,
+                        "arrive_network":   arr_net,
+                        "trip_code":        trip,
+                        "orders_count":     orders_cnt,
+                        "weight_kg":        wt_kg,
+                        "weight_ton":       round(wt_kg / 1000.0, 3),
+                        "planned_departure":p_dep,
+                        "planned_arrival":  str(row.get('plannedArrivalTime') or '').strip(),
+                        "actual_departure": actual_dep,
+                        "eta":              str(row.get('estimateArrivalTime') or '').strip(),
+                        "rank":             "Shuttle",
+                        "status":           "in_transit" if actual_dep else "loading",
+                        "op_date":          op_d,
+                    })
     except Exception as e:
-        print(f"   ⚠️  pull_shuttle failed: {e}")
-        recs = []
+        print(f"   ⚠️ pull_shuttle API call skipped/failed: {e}")
 
-    trucks = []
-    for row in recs:
-        actual_arr = str(row.get('actualArrivalTime') or '').strip()
-        if actual_arr:          # bỏ xe đã đến
-            continue
-
-        p_dep = str(row.get('plannedDepartureTime') or row.get('createTime') or '').strip()
-        # Bỏ qua các chuyến lên lịch trước ngày hôm nay
-        if p_dep and p_dep[:10] < today:
-            continue
-
-        actual_dep = str(row.get('actualDepartureTime') or row.get('appDepartureTime') or '').strip()
-        status     = 'in_transit' if actual_dep else 'loading'
-        trip       = str(row.get('shipmentNo') or row.get('taskNo') or '').strip().upper()
-        src        = str(row.get('ngon_anh_xa') or '').lower()
-        rank       = 'Linehaul' if 'linehaul' in src else 'Shuttle'
-
-        send_net = str(row.get('sendNetworkName') or row.get('startName') or '').strip()
-        arr_net  = str(row.get('arriveNetworkName') or row.get('endName') or '').strip()
-
-        trucks.append({
-            "send_network":     send_net,
-            "arrive_network":   arr_net,
-            "trip_code":        trip,
-            "orders_count":     int(row.get('loadscanwaybillnum')   or 0),
-            "weight_kg":        float(row.get('loadpackageweight')  or 0),
-            "planned_departure":p_dep,
-            "planned_arrival":  str(row.get('plannedArrivalTime')   or '').strip(),
-            "actual_departure": actual_dep,
-            "eta":              str(row.get('estimateArrivalTime')  or '').strip(),
-            "rank":             rank,
-            "status":           status,
-            "op_date":          today,
-        })
-
-    trucks.sort(key=lambda x: x.get('eta') or x.get('planned_departure') or '9999')
-    print(f"   ✅ Truck ETA (en route today/tomorrow): {len(trucks)} trucks")
+    trucks.sort(key=lambda x: x.get('orders_count', 0), reverse=True)
+    print(f"   ✅ Truck ETA (en route real orders): {len(trucks)} active trucks/trips")
     return {"generated_at": now_sys, "total_trucks_en_route": len(trucks), "trucks": trucks}
 
 
