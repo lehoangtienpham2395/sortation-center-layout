@@ -525,9 +525,8 @@ export default function InboundDashboard({
   const totalPickupDone = stages['Pickup Done'].orders;
   totalInTransitOrders = stages['Transporting'].orders;
 
-  // FIX: Tổng Forecast = Tất cả đơn cần nhập kho trong ngày (Inbound + Transporting + Pickup Done + Rớt chưa về HUB)
-  const backlogOrders = forecastRotHomTruoc + forecastRotHomNay;
-  totalForecast = totalInbound + totalInTransitOrders + totalPickupDone + backlogOrders;
+  // FIX: Tổng Forecast = Tổng sản lượng HUB cần xử lý trong ngày (Inbound đã nhập kho + Rớt hôm trước + Rớt hôm nay)
+  totalForecast = totalInbound + forecastRotHomTruoc + forecastRotHomNay;
   const totalCreated = backlogOrders;
 
   const inboundTrendData  = labels.map(l => hourlyInbound[l]);
