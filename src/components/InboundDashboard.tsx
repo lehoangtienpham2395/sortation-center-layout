@@ -164,7 +164,7 @@ export default function InboundDashboard({
   loading,
   fetchAndUpdateData,
   lastUpdate,
-  lastUpdateObj
+  lastUpdateObj: _lastUpdateObj
 }: InboundDashboardProps) {
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -313,35 +313,22 @@ export default function InboundDashboard({
     }
   });
 
-  // 5. BACKLOG & OUTBOUND: Calculated based on created date vs activeDate
+  // 5. BACKLOG: Rớt hôm trước / Rớt hôm nay
+  // Nguồn duy nhất: trường drop_type đã được backend tính chính xác theo ngày vận hành.
+  // KHÔNG dùng fcDate < activeDate → tránh đếm nhầm đơn ngày khác khi xem lịch sử.
+  // KHÔNG override bằng lastUpdateObj → tránh stale data từ file JSON cũ ghi đè.
   inboundData.forEach(d => {
-    const station = getStation(d).toUpperCase();
-    if (isNorthStation(station)) return;
-
+    const loiRot = getLoiRot(d);
+    const vol = getVol(d);
     const ibDate = getDateInbound(d);
     const arDate = getDateArrival(d);
     const status = getStatus(d);
-    const rawStatus = String(d.status_sys || d['Trạng thái'] || '').trim();
-
-    const loiRot = getLoiRot(d);
-    const vol = getVol(d);
-    const fcDate = getDateForecast(d);
-
+    // Chỉ đếm đơn chưa về HUB (chưa có Inbound / Arrival scan)
     const hasHubEvent = Boolean(ibDate || arDate || status === 'Inbound' || status === 'Transporting');
-
-    if (!hasHubEvent && rawStatus !== 'Đã hủy') {
-      if (loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) {
-        forecastRotHomTruoc += vol;
-      } else if (loiRot === 'Rớt hôm nay' || (fcDate && fcDate === activeDate)) {
-        forecastRotHomNay += vol;
-      }
-    }
+    if (hasHubEvent) return;
+    if (loiRot === 'rot_yesterday') forecastRotHomTruoc += vol;
+    else if (loiRot === 'rot_today')  forecastRotHomNay   += vol;
   });
-
-  if (lastUpdateObj && typeof lastUpdateObj.rot_hom_truoc === 'number') {
-    forecastRotHomTruoc = lastUpdateObj.rot_hom_truoc;
-    forecastRotHomNay = lastUpdateObj.rot_hom_nay;
-  }
 
   // 6. INBOUND TRUCK ETA: Strictly filtered by activeDate
   const filteredTruckEta = (truckEtaData || [])
@@ -365,7 +352,14 @@ export default function InboundDashboard({
       'Tổng số đơn': d.orders_count ?? d.loadscanwaybillnum ?? d.volume ?? 0,
       'Tổng trọng lượng (kg)': d.weight_kg ?? d.loadpackageweight ?? 0,
       // FIX: Dùng planned_arrival khi eta rỗng (shuttle_tracking chỉ có kế hoạch)
-      'Giờ đến bãi': d.eta || d.actual_arrival || d.actualArrivalTime || d.predictArriveTime || d.planned_arrival || ''
+      // ETA: chỉ hiển thị giờ:phút — KHÔNG hiển thị ngày để tránh nhầm lẫn ngày cũ
+      'Giờ đến bãi': (() => {
+        const raw = d.eta || d.actual_arrival || d.actualArrivalTime || d.predictArriveTime || d.planned_arrival || '';
+        if (!raw) return '';
+        // raw dạng "2026-07-22 16:22:00" → chỉ lấy "16:22"
+        const m = raw.match(/(\d{2}:\d{2})(:\d{2})?$/) || raw.match(/(\d{2}:\d{2})/);
+        return m ? m[1] : raw;
+      })()
     }));
 
   let totalOrders = stages['Inbound'].orders;
@@ -488,43 +482,29 @@ export default function InboundDashboard({
     }
   });
 
-  // 2. Forecast / Created Time (Dự báo - Tạo đơn):
-  inboundData.forEach(d => {
-    const station = getStation(d).toUpperCase();
-    if (isNorthStation(station)) return;
-
+  // 2. Created Hourly: CHỈ dùng filteredForecast (đã lọc cứng theo activeDate)
+  // KHÔNG dùng inboundData thô → tránh đổ toàn bộ Created từ mọi ngày vào biểu đồ
+  filteredForecast.forEach((d: any) => {
     const fcTime = getCreatedTime(d);
-    const fcDate = fcTime ? getOperatingDateFromTimestamp(fcTime) : getDateForecast(d);
-    const loaiRot = getLoiRot(d);
-    if (!fcDate || fcDate === activeDate || loaiRot !== 'Rớt hôm trước') {
-      let hrVal = getHourFromTimestamp(fcTime);
-      if (hrVal < 0 && fcTime) hrVal = 8;
-      if (hrVal >= 0 && hrVal < 24) {
-        const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyForecast[hour] !== undefined) {
-          hourlyForecast[hour] += getVol(d);
-        }
+    let hrVal = getHourFromTimestamp(fcTime);
+    if (hrVal < 0) hrVal = 8; // fallback cho snapshot lịch sử thiếu giờ
+    if (hrVal >= 0 && hrVal < 24) {
+      const hour = `${String(hrVal).padStart(2, '0')}:00`;
+      if (hourlyForecast[hour] !== undefined) {
+        hourlyForecast[hour] += getVol(d);
       }
     }
   });
 
-  // 3. Pickup Time (Shipper đã lấy):
-  inboundData.forEach(d => {
-    const status = getStatus(d);
-    if (status !== 'Pickup Done' && status !== 'Transporting' && status !== 'Inbound') return;
-    const station = getStation(d).toUpperCase();
-    if (isNorthStation(station)) return;
-
+  // 3. Pickup Done Hourly: CHỈ dùng filteredPickup (đã lọc cứng theo activeDate)
+  filteredPickup.forEach((d: any) => {
     const pkTime = getPickupTime(d);
-    const pkDate = pkTime ? getOperatingDateFromTimestamp(pkTime) : getDatePickup(d);
-    if (!pkDate || pkDate === activeDate) {
-      let hrVal = getHourFromTimestamp(pkTime);
-      if (hrVal < 0) hrVal = 8;
-      if (hrVal >= 0 && hrVal < 24) {
-        const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyPickup[hour] !== undefined) {
-          hourlyPickup[hour] += getVol(d);
-        }
+    let hrVal = getHourFromTimestamp(pkTime);
+    if (hrVal < 0) hrVal = 8;
+    if (hrVal >= 0 && hrVal < 24) {
+      const hour = `${String(hrVal).padStart(2, '0')}:00`;
+      if (hourlyPickup[hour] !== undefined) {
+        hourlyPickup[hour] += getVol(d);
       }
     }
   });
