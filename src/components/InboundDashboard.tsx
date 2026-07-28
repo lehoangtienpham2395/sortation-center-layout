@@ -190,7 +190,15 @@ export default function InboundDashboard({
   const activeDate = selectedInboundDate || inboundDates[0] || '';
 
   // 2. Filter datasets by active date
-  const getStatus = (d: any) => d['Trng thi'] || d['Trạng thái'];
+  const getStatus = (d: any) => {
+    const rawSt = String(d['Trng thi'] || d['Trạng thái'] || d['status'] || d['status_sys'] || '').trim();
+    if (rawSt === 'Inbound' || rawSt === 'Đã nhập kho') return 'Inbound';
+    if (rawSt === 'Transporting' || rawSt === 'Đang vận chuyển' || rawSt === 'Đến bưu cục phát') return 'Transporting';
+    
+    const pkTime = d['Pickup Time'] || d['pickup_time'] || d['Pickup_time'] || '';
+    if (rawSt === 'Pickup Done' || rawSt === 'Đã lấy hàng' || Boolean(pkTime)) return 'Pickup Done';
+    return 'Created';
+  };
   const getDateInbound = (d: any) => d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'];
   const getDateForecast = (d: any) => d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
@@ -225,10 +233,10 @@ export default function InboundDashboard({
   const getDatePickup = (d: any) => d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
   const getDateArrival = (d: any) => d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
-  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && isDateMatch(getDateInbound(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
-  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && Boolean(getDateForecast(d)) && isDateMatch(getDateForecast(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
-  const filteredPickup = inboundData.filter(d => (getStatus(d) === 'Created') && Boolean(d['Pickup Time'] || d['pickup_time']) && isDateMatch(getDatePickup(d), activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
-  const filteredTransportingInbound = inboundData.filter(d => (getStatus(d) === 'Transporting') && (isDateMatch(getDateArrival(d), activeDate) || isDateMatch(getDatePickup(d), activeDate) || isDateMatch(getDateForecast(d), activeDate)) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
+  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && isDateMatch(getDateInbound(d), activeDate));
+  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && isDateMatch(getDateForecast(d), activeDate));
+  const filteredPickup = inboundData.filter(d => (getStatus(d) === 'Pickup Done') && isDateMatch(getDatePickup(d), activeDate));
+  const filteredTransportingInbound = inboundData.filter(d => (getStatus(d) === 'Transporting') && (isDateMatch(getDateArrival(d), activeDate) || isDateMatch(getDatePickup(d), activeDate) || isDateMatch(getDateForecast(d), activeDate)));
   const filteredArrivalData = ((arrivalData as any[]) || []).map(d => ({
     'Bu cc': d['last_dept_name'] || d['scansitename'] || 'BƯU CỤC CẦN',
     'Trng thi': 'Transporting',
