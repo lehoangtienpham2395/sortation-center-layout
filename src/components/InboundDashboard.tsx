@@ -244,11 +244,11 @@ export default function InboundDashboard({
   };
 
   // STRICT OPERATIONAL STREAMS FILTERING:
-  // 1. INBOUND: Must match activeDate
+  // 1. INBOUND: Must match activeDate (Sản lượng Inbound ca hôm nay)
   const filteredInbound = inboundData.filter(d => getStatus(d) === 'Inbound' && isDateMatch(getDateInbound(d), activeDate));
 
-  // 2. ARRIVAL / TRANSPORTING: Must match activeDate
-  const filteredTransportingInbound = inboundData.filter(d => getStatus(d) === 'Transporting' && isDateMatch(getDateArrival(d), activeDate));
+  // 2. ARRIVAL / TRANSPORTING: Bao gồm tất cả đơn đang trên đường / chưa Inbound
+  const filteredTransportingInbound = inboundData.filter(d => getStatus(d) === 'Transporting');
   const filteredArrivalData = ((arrivalData as any[]) || []).map(d => ({
     'Bu cc': d['last_dept_name'] || d['scansitename'] || 'BƯU CỤC CẦN',
     'Trng thi': 'Transporting',
@@ -259,11 +259,11 @@ export default function InboundDashboard({
   }));
   const filteredTransporting = filteredTransportingInbound.length > 0 ? filteredTransportingInbound : filteredArrivalData;
 
-  // 3. PICKUP: Must match activeDate
-  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && isDateMatch(getDatePickup(d), activeDate));
+  // 3. PICKUP: Bao gồm tất cả đơn đã lấy hàng chưa Inbound
+  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done');
 
-  // 4. CREATED / TODAY FORECAST: Created in activeDate shift
-  const filteredForecast = inboundData.filter(d => getStatus(d) === 'Created' && isDateMatch(getDateForecast(d), activeDate));
+  // 4. CREATED / FORECAST: Bao gồm tất cả đơn chưa Inbound (bao gồm Rớt hôm trước + Rớt hôm nay)
+  const filteredForecast = inboundData.filter(d => getStatus(d) === 'Created');
 
   const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
 
