@@ -248271,10 +248271,11 @@ function initMap() {
 
   L.control.zoom({ position: 'topright' }).addTo(map);
 
-  L.tileLayer('https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
-    attribution: '&copy; Google Maps Terrain (Địa hình)',
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    maxZoom: 20,
+    // Primary Light Terrain / Street Tile Layer (Google Terrain + CartoDB Voyager fallback)
+  const mainTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO (J&T Cargo South Region)',
+    subdomains: 'abcd',
+    maxZoom: 19,
     bounds: vnBounds
   }).addTo(map);
 
