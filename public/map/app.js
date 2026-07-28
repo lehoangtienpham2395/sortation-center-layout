@@ -248236,8 +248236,9 @@ function getRouteTotalDistance(route) {
 }
 
 let map;
-let activeTab = 'ghep';
+let activeTab = 'all';
 let selectedProvince = 'ALL';
+let selectedPoType = 'ALL';
 let searchQuery = '';
 let selectedRouteCode = null;
 let mapLayersGroup;
@@ -248508,7 +248509,7 @@ function renderMapMarkersAndRoutes() {
       color: isSelected ? '#B8F7E4' : color,
       weight: lineWeight,
       opacity: lineOpacity,
-      dashArray: isSelected ? '10, 10' : (route.type === 'ghep' ? '8, 6' : null),
+      dashArray: null,
       lineCap: 'round',
       lineJoin: 'round'
     });
@@ -248531,9 +248532,15 @@ function getFilteredRoutes() {
   return ALL_ROUTES.filter(route => {
     if (activeTab !== 'all' && route.type !== activeTab) return false;
 
-    if (selectedProvince !== 'ALL') {
-      const hasProvince = route.stops.some(id => POST_OFFICES[id] && POST_OFFICES[id].province === selectedProvince);
-      if (!hasProvince) return false;
+    if (typeof selectedPoType !== 'undefined' && selectedPoType !== 'ALL') {
+      const hasType = route.stops.some(id => {
+        const po = POST_OFFICES[id];
+        if (!po) return false;
+        if (selectedPoType === 'Shuttle') return po.poType === 'Shuttle';
+        if (selectedPoType === 'Linehaul') return po.poType === 'Linehaul' || id.includes('BN') || id.includes('BẮC NINH');
+        return true;
+      });
+      if (!hasType) return false;
     }
 
     if (searchQuery.trim() !== '') {

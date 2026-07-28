@@ -639,3 +639,67 @@ html, body {
   color: #ffffff;
   line-height: 1.25;
 }
+
+/* Sidebar Header & Panel Dark Charcoal Styling (#121316 / #18191c) */
+.sidebar-panel {
+  background: rgba(18, 19, 22, 0.95) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+.sidebar-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.sidebar-header h1 {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+.sidebar-header p {
+  color: #94a3b8 !important;
+}
+
+.stat-item .lbl {
+  color: #94a3b8 !important;
+}
+
+.search-field {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+.search-field input {
+  color: #ffffff !important;
+}
+
+.tool-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #ffffff !important;
+}
+
+.prov-pill {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #cbd5e1 !important;
+  cursor: pointer !important;
+}
+
+.prov-pill:hover {
+  background: rgba(184, 247, 228, 0.2) !important;
+  color: #B8F7E4 !important;
+}
+
+.prov-pill.active {
+  background: #B8F7E4 !important;
+  color: #0d1117 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 10px rgba(184, 247, 228, 0.4) !important;
+}
+
+.floating-panel, .po-detail-card, .leaflet-popup-content-wrapper {
+  background: rgba(24, 25, 28, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
