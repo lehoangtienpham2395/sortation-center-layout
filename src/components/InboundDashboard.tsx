@@ -191,16 +191,24 @@ export default function InboundDashboard({
 
   // 2. Filter datasets by active date
   const getStatus = (d: any) => {
-    const rawSt = String(d['Trng thi'] || d['Trạng thái'] || d['status'] || d['status_sys'] || '').trim();
+    const rawSt = String(d['status'] || d['status_sys'] || d['Trng thi'] || d['Trạng thái'] || '').trim();
     if (rawSt === 'Inbound' || rawSt === 'Đã nhập kho') return 'Inbound';
     if (rawSt === 'Transporting' || rawSt === 'Đang vận chuyển' || rawSt === 'Đến bưu cục phát') return 'Transporting';
     
-    const pkTime = d['Pickup Time'] || d['pickup_time'] || d['Pickup_time'] || '';
+    const pkTime = d['Pickup Time'] || d['pickup_time'] || d['Pickup_time'] || d['op_date_pickup'] || '';
     if (rawSt === 'Pickup Done' || rawSt === 'Đã lấy hàng' || Boolean(pkTime)) return 'Pickup Done';
     return 'Created';
   };
-  const getDateInbound = (d: any) => d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'];
-  const getDateForecast = (d: any) => d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
+
+  const getDateInbound  = (d: any) => d['op_date_inbound']  || d['Ngy vn hnh_Inbound']  || d['Ngày vận hành_Inbound'] || '';
+  const getDateForecast = (d: any) => d['op_date_forecast'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || d['op_date_created'] || d['operation_date_created'] || '';
+  const getDatePickup   = (d: any) => d['op_date_pickup']   || d['Ngy vn hnh_Pickup']   || d['Ngày vận hành_Pickup']   || getDateForecast(d);
+  const getDateArrival  = (d: any) => d['op_date_arrival']  || d['Ngy vn hnh_Arrival']  || d['Ngày vận hành_Arrival']  || getDateForecast(d);
+
+  const getVol = (d: any) => parseInt(d['Volume'] || d['volume'] || d['orders_num'] || 1, 10) || 1;
+  const getWt  = (d: any) => parseFloat(d['Weight'] || d['weight_ton'] || d['orders_weight'] || 0) || 0;
+  const getStation = (d: any) => (d['Bu cc'] || d['Bưu cục'] || d['station_name'] || d['pickup_station'] || '').trim();
+  const getLoiRot = (d: any) => d['Loi rt'] || d['Loại rớt'] || d['drop_type'] || '';
 
   // Northern / BN HUB Station Filter helper — Đã loại bỏ lọc cứng, bao gồm 100% tất cả trạm từ Inbound Scan API
   const isNorthStation = (_stName: string) => false;
@@ -230,12 +238,9 @@ export default function InboundDashboard({
     return aDate.length === 7 ? normR.startsWith(normA) : normR === normA;
   };
 
-  const getDatePickup = (d: any) => d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
-  const getDateArrival = (d: any) => d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
-
-  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && isDateMatch(getDateInbound(d), activeDate));
-  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && isDateMatch(getDateForecast(d), activeDate));
-  const filteredPickup = inboundData.filter(d => (getStatus(d) === 'Pickup Done') && isDateMatch(getDatePickup(d), activeDate));
+  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && (isDateMatch(getDateInbound(d), activeDate) || !getDateInbound(d)));
+  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && (isDateMatch(getDateForecast(d), activeDate) || isDateMatch(getDatePickup(d), activeDate)));
+  const filteredPickup = inboundData.filter(d => (getStatus(d) === 'Pickup Done') && (isDateMatch(getDatePickup(d), activeDate) || isDateMatch(getDateForecast(d), activeDate)));
   const filteredTransportingInbound = inboundData.filter(d => (getStatus(d) === 'Transporting') && (isDateMatch(getDateArrival(d), activeDate) || isDateMatch(getDatePickup(d), activeDate) || isDateMatch(getDateForecast(d), activeDate)));
   const filteredArrivalData = ((arrivalData as any[]) || []).map(d => ({
     'Bu cc': d['last_dept_name'] || d['scansitename'] || 'BƯU CỤC CẦN',
@@ -286,8 +291,8 @@ export default function InboundDashboard({
 
   [...filteredInbound, ...filteredChuaVeHub].forEach(d => {
     const status = getStatus(d);
-    const vol = parseInt(d['Volume'] || 1, 10) || 0;
-    const wt = parseFloat(d['Weight']) || 0;
+    const vol = getVol(d);
+    const wt = getWt(d);
     const stageKey = stages[status] ? status : 'Created';
     stages[stageKey].orders += vol;
     stages[stageKey].weight += wt;
@@ -296,21 +301,19 @@ export default function InboundDashboard({
     }
   });
 
-
-
   inboundData.forEach(d => {
-    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
+    const station = getStation(d).toUpperCase();
     if (isNorthStation(station)) return;
 
-    const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
-    const arDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || '';
-    const status = d['Trng thi'] || d['Trạng thái'] || '';
+    const ibDate = getDateInbound(d);
+    const arDate = getDateArrival(d);
+    const status = getStatus(d);
 
-    const loiRot = d['Loi rt'] || d['Loại rớt'] || '';
-    const vol = parseInt(d['Volume'], 10) || 1;
+    const loiRot = getLoiRot(d);
+    const vol = getVol(d);
 
     // Subtraction rule: If order has reached HUB (ibDate, arDate, Outbound), it is NOT in un-arrived backlog
-    const hasHubEvent = Boolean(ibDate || arDate || status === 'Outbound' || status === 'Inbound' || status === 'Transporting');
+    const hasHubEvent = Boolean(ibDate || arDate || status === 'Inbound' || status === 'Transporting');
 
     // FIX: Chỉ dùng trường Loi rt (không kết hợp fcDate) để tránh sai phân loại
     if (loiRot === 'Rớt hôm trước' && !hasHubEvent) {
