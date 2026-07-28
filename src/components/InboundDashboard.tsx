@@ -741,7 +741,7 @@ export default function InboundDashboard({
                 pointHoverBorderWidth: 3
               },
               {
-                label: 'Pickup Volume',
+                label: 'Pickup Done',
                 data: pickupTrendData,
                 borderColor: '#38BDF8',
                 backgroundColor: pickupGrad,
@@ -1020,7 +1020,7 @@ export default function InboundDashboard({
             <h2 style={{ color: "#B8F7E4 !important", textShadow: "none !important" }}>Hourly Processing Trend</h2>
             <div className="chart-legend-custom">
               <span className="legend-item"><span className="dot orange"></span>Created</span>
-              <span className="legend-item"><span className="dot blue"></span>Pickup Volume</span>
+              <span className="legend-item"><span className="dot blue"></span>Pickup Done</span>
               <span className="legend-item"><span className="dot green"></span>Transporting</span>
               <span className="legend-item"><span className="dot cyan" style={{ background: "#B8F7E4", boxShadow: "0 0 8px #B8F7E4" }}></span>Inbound</span>
             </div>
@@ -1232,10 +1232,11 @@ export default function InboundDashboard({
             <table className="premium-table">
               <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
-                  <th style={{ width: '50px' }}>#</th>
+                  <th style={{ width: '40px' }}>#</th>
                   <th>Bưu cục gửi</th>
                   <th style={{ textAlign: 'center' }}>Chuyến xe</th>
-                  <th style={{ textAlign: 'center' }}>Trạng thái</th>
+                  <th style={{ textAlign: 'right' }}>Số đơn</th>
+                  <th style={{ textAlign: 'right' }}>Trọng lượng (tấn)</th>
                   <th style={{ textAlign: 'center' }}>ETA (Dự kiến)</th>
                 </tr>
               </thead>
@@ -1245,7 +1246,12 @@ export default function InboundDashboard({
                     <td className="table-index">-</td>
                     <td className="table-buucuc" style={{ color: '#f59e0b' }}>TỔNG CỘNG ({incomingVehicles.length} bưu cục)</td>
                     <td className="num-tabular" style={{ textAlign: 'center', color: '#f59e0b' }}>{totalTransitVehicles} xe</td>
-                    <td style={{ textAlign: 'center', color: '#f59e0b' }}>-</td>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
+                      {incomingVehicles.reduce((acc: number, v: any) => acc + (v.orders || 0), 0).toLocaleString()}
+                    </td>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
+                      {(incomingVehicles.reduce((acc: number, v: any) => acc + (v.weight || 0), 0) / 1000.0).toFixed(2)}
+                    </td>
                     <td style={{ textAlign: 'center', color: '#f59e0b' }}>-</td>
                   </tr>
                 )}
@@ -1253,6 +1259,7 @@ export default function InboundDashboard({
                   const etaDisplay = v.eta ? (v.eta.slice(11, 16) || v.eta.slice(0, 10)) : '--:--';
                   const etaDate    = v.eta ? v.eta.slice(0, 10) : '';
                   const isToday    = etaDate === activeDate;
+                  const weightTons = v.weight > 0 ? (v.weight / 1000.0).toFixed(2) : '0.00';
                   return (
                     <tr key={v.station + '-' + idx}>
                       <td className="table-index">{idx + 1}</td>
@@ -1262,15 +1269,11 @@ export default function InboundDashboard({
                           {v.trucking} xe
                         </span>
                       </td>
-                      <td className="num-tabular" style={{ textAlign: 'center' }}>
-                        <span style={{
-                          fontSize: '0.7rem', fontWeight: 600, padding: '2px 8px', borderRadius: '4px',
-                          background: v.rank === 'Linehaul' ? 'rgba(167,139,250,0.2)' : 'rgba(200,255,61,0.15)',
-                          color: v.rank === 'Linehaul' ? '#a78bfa' : '#C8FF3D',
-                          border: `1px solid ${v.rank === 'Linehaul' ? 'rgba(167,139,250,0.4)' : 'rgba(200,255,61,0.3)'}`
-                        }}>
-                          {v.rank || 'Shuttle'}
-                        </span>
+                      <td className="num-tabular" style={{ textAlign: 'right', color: '#e2e8f0' }}>
+                        {(v.orders || 0).toLocaleString()}
+                      </td>
+                      <td className="num-tabular" style={{ textAlign: 'right', color: '#e2e8f0' }}>
+                        {weightTons}
                       </td>
                       <td className="num-tabular" style={{ textAlign: 'center', color: isToday ? '#f59e0b' : '#64748b', fontWeight: isToday ? 600 : 400 }}>
                         {v.eta ? (
@@ -1282,7 +1285,7 @@ export default function InboundDashboard({
                 })}
                 {incomingVehicles.length === 0 && (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', color: '#5a6578', padding: '24px' }}>Không có xe đang di chuyển đến HCM HUB</td>
+                    <td colSpan={6} style={{ textAlign: 'center', color: '#5a6578', padding: '24px' }}>Không có xe đang di chuyển đến HCM HUB</td>
                   </tr>
                 )}
               </tbody>
