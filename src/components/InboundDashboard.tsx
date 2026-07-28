@@ -267,24 +267,7 @@ export default function InboundDashboard({
 
   const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
 
-  const getLinehaulOperatingDate = (row: any) => {
-    if (row['Ngày vận hành']) return row['Ngày vận hành'];
-    const timeStr = row['unloadingStartTime'] || row['unloadingEndTime'] || row['sendTime'] || '';
-    if (!timeStr) return '';
-    const match = timeStr.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
-    if (match) {
-      const datePart = match[1];
-      const hour = parseInt(match[2], 10);
-      if (hour < 6) {
-        const d = new Date(datePart);
-        d.setDate(d.getDate() - 1);
-        return d.toISOString().split('T')[0];
-      }
-      return datePart;
-    }
-    return '';
-  };
-  const filteredLinehaul = linehaulData.filter((d: any) => isDateMatch(getLinehaulOperatingDate(d), activeDate));
+
 
   // 3. Aggregate operational statistics
   let forecastRotHomTruoc = 0;
@@ -647,24 +630,7 @@ export default function InboundDashboard({
     }
   });
 
-  filteredLinehaul.forEach(d => {
-    // linehaul.json structure: send_network = bưu cục NGUỒN (gửi hàng đến HUB)
-    // arrive_network = bưu cục ĐÍCH (HCM HUB hoặc BN HUB)
-    const fcName = d['send_network'] || d['sendNetworkName'] || d['nextNetworkName'] || d['send_network_name'] || '';
-    const lhWaybill = d['orders_count'] ?? d['loadscanwaybillnum'] ?? d['unloadingBillPiece'] ?? 0;
-    // weight_kg từ linehaul.json tính bằng kg → quy đổi ra Tấn (/ 1000)
-    const lhWeightKg = d['weight_kg'] ?? d['loadpackageweight'] ?? d['unloadingWeight'] ?? 0;
-    const vehicleKey = d['trip_code'] || d['plate_number'] || d['Phiếu nhiệm vụ'] || d['shipmentName'] || '';
-    if (fcName && vehicleKey) {
-      const clean = fcName.trim().toUpperCase();
-      if (!fcMetrics[clean]) {
-        fcMetrics[clean] = { fc: fcName.trim(), vehicles: new Set(), orders: 0, weight: 0 };
-      }
-      fcMetrics[clean].vehicles.add(vehicleKey);
-      fcMetrics[clean].orders += parseInt(lhWaybill as any, 10) || 0;
-      fcMetrics[clean].weight += (parseFloat(lhWeightKg as any) || 0) / 1000;
-    }
-  });
+  // Note: Linehaul trips belong strictly to INBOUND TRUCK ETA, not to scanned Inbound packages table
 
   // Hiển thị đầy đủ bưu cục (bỏ slice(0,10))
   const allSendingFCs = Object.values(fcMetrics)

@@ -564,12 +564,13 @@ def sync_postgre_to_dashboard():
         op_inb_2  = str(r.get('operation_date_inbound_2') or '')[:10]
         has_out_2 = bool(outb_t_2)
 
-        # Fix Rủi ro 1 & 2: Dynamic Rot calculation theo tiêu chí USER
-        # - Rớt Hôm Nay   : Đơn chưa về HUB (flag_inb=0, flag_arr=0), trừ Đã hủy, thuộc ca today (op_cr == today hoặc op_pk == today)
-        # - Rớt Hôm Trước : Đơn chưa về HUB (flag_inb=0, flag_arr=0), trừ Đã hủy, thuộc ca các ngày trước (< today)
+        # Dynamic Rot calculation theo tiêu chí USER:
+        # - Tất cả đơn CHƯA NHẬP KHO (flag_inb=0), trừ Đã hủy/Rebound, đều là ĐƠN RỚT CHƯA VỀ HUB
+        # - Rớt Hôm Nay   : Thuộc ca today (op_pk == today hoặc op_cr == today) - bao gồm cả Pickup, Arrival, Transporting
+        # - Rớt Hôm Trước : Thuộc ca các ngày trước (< today) - gối đầu tồn
         stn = str(r.get('next_station', '')).strip()
         is_canceled = (stn == 'Đã hủy' or r.get('status_sys') == 'Đã hủy')
-        is_rot = (not has_in) and (not has_arr) and (not is_canceled) and (not is_reb)
+        is_rot = (not has_in) and (not is_canceled) and (not is_reb)
 
         ref_rot_date = str(r.get('op_date_pickup') or get_op_date(cr_t) or op_date or '')[:10]
         if is_rot:
