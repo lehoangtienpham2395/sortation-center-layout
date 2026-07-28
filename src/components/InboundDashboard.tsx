@@ -366,6 +366,17 @@ export default function InboundDashboard({
   // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
   let totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
+  // Tính chỉ số đơn Rebound (Quay đầu / Giao thất bại)
+  let reboundOrders = 0;
+  let reboundWeight = 0;
+  filteredInbound.forEach(d => {
+    const isReb = Number(d['is_rebound'] ?? d['isRebound'] ?? 0) === 1;
+    if (isReb) {
+      reboundOrders += parseInt(d['Volume'] || d['volume'] || 1, 10) || 0;
+      reboundWeight += parseFloat(d['Weight'] || d['weight_ton'] || 0) || 0;
+    }
+  });
+
   // Group filteredTruckEta by unique send_network (origin station)
   const groupedStationVehicles: Record<string, any> = {};
 
@@ -1008,6 +1019,28 @@ export default function InboundDashboard({
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Rớt hôm nay:</span>
                 <strong style={{ color: '#ffa066', fontSize: '1.1rem' }}><NumberTicker value={forecastRotHomNay} /></strong>
+              </div>
+            </div>
+          </div>
+          <div className="kpi-glow"></div>
+        </div>
+
+        {/* KPI 5: Rebound (Giao thất bại quay đầu) */}
+        <div className="kpi-card glass-card report-glow-card glow-purple" style={{ borderLeft: '4px solid #a855f7' }}>
+          <div className="kpi-card-header">
+            <span className="kpi-title" style={{ color: "#c084fc" }}>Rebound (Quay đầu)</span>
+            <i className="fa-solid fa-rotate-left kpi-icon" style={{ color: "#c084fc" }}></i>
+          </div>
+          <div className="kpi-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span className="kpi-value" style={{ color: "#e9d5ff" }}><NumberTicker value={reboundOrders} /></span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.95rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', marginTop: '4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Tỷ lệ Rebound:</span>
+                <strong style={{ color: '#c084fc', fontSize: '1.05rem' }}>{totalOrders > 0 ? ((reboundOrders / totalOrders) * 100).toFixed(1) : 0}%</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Trọng lượng:</span>
+                <strong style={{ color: '#e9d5ff', fontSize: '1.05rem' }}>{reboundWeight.toFixed(2)} Tấn</strong>
               </div>
             </div>
           </div>

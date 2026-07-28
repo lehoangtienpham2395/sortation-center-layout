@@ -1015,16 +1015,40 @@ def main():
 
             is_transit = 1 if (has_in and not has_out and bool(arr_t)) else 0
 
+            # ── 4 ĐIỂM TINH CHỈNH KIẾN TRÚC REBOUND & FREEZING ───────
+            is_rebound = 0
+            return_count = 0
+            cycle_no = 1
+            inb_t_2 = None
+            op_inb_2 = None
+            outb_t_2 = None
+
+            if has_out and inb_t and inb_t > outb_t:
+                # Đơn đã xuất kho Lần 1 nhưng phát hiện lượt Inbound 2 (Rebound quay đầu về kho HUB)
+                is_rebound = 1
+                return_count = 1
+                cycle_no = 2
+                inb_t_2 = inb_t
+                op_inb_2 = get_op_date(inb_t)
+                is_completed = False # Trả về False để nhảy lại vào Tồn bãi Rebound thực tế
+                is_active = 1
+                is_backlog = 1
+            elif has_out:
+                is_completed = True
+                is_active = 0
+                is_backlog = 0
+            else:
+                is_completed = False
+
             # operation_date_created là NOT NULL → fallback sang target_date nếu rỗng
             op_cr_val = op_cr or str(r.get('Ngay_van_hanh') or r.get('Ngày vận hành') or '')[:10] or None
-            # Nếu vẫn None, dùng created_date extract từ cr_t
             if not op_cr_val and cr_t:
                 op_cr_val = cr_t[:10]
 
             records.append((
                 str(r.get('tracking') or ''),           # tracking NOT NULL
                 'pipeline_v6',                           # data_source NOT NULL
-                clean_status_sys(str(r.get('status_sys') or '')), # status_sys đã chuẩn hóa 100%
+                clean_status_sys(str(r.get('status_sys') or '')), # status_sys
                 cr_t or None,                            # created_time
                 str(r.get('Pickup_station') or ''),      # pickup_station
                 str(r.get('Dispatch_code') or ''),       # dispatch_code
@@ -1045,11 +1069,18 @@ def main():
                 str(r.get('transporing_time') or '') or None,   # transporing_time
                 str(r.get('transported_time') or '') or None,   # transported_time
                 str(r.get('dispatch_actual') or ''),     # dispatch_actual
-                op_cr_val,                               # operation_date_created NOT NULL
+                op_cr_val,                               # operation_date_created
                 op_inb or None,                          # operation_date_inbound
                 is_backlog,                              # is_backlog
                 is_active,                               # is_active
                 is_transit,                              # is_transit
+                is_completed,                            # is_completed
+                cycle_no,                                # cycle_no
+                is_rebound,                              # is_rebound
+                return_count,                            # return_count
+                inb_t_2,                                 # inbound_scandate_2
+                op_inb_2,                                # operation_date_inbound_2
+                outb_t_2,                                # outbound_scandate_2
             ))
 
         insert_sql = """
@@ -1061,24 +1092,58 @@ def main():
                 inbound_scandate, outbound_scandate, arrival_scandate,
                 trip_code, transporing_time, transported_time, dispatch_actual,
                 operation_date_created, operation_date_inbound,
-                is_backlog, is_active, is_transit
+                is_backlog, is_active, is_transit,
+                is_completed, cycle_no, is_rebound, return_count,
+                inbound_scandate_2, operation_date_inbound_2, outbound_scandate_2
             ) VALUES %s
             ON CONFLICT (tracking) DO UPDATE SET
-                data_source          = EXCLUDED.data_source,
-                status_sys           = EXCLUDED.status_sys,
-                inbound_scandate     = EXCLUDED.inbound_scandate,
-                outbound_scandate    = EXCLUDED.outbound_scandate,
-                arrival_scandate     = EXCLUDED.arrival_scandate,
-                next_station         = EXCLUDED.next_station,
-                trip_code            = EXCLUDED.trip_code,
-                transporing_time     = EXCLUDED.transporing_time,
-                transported_time     = EXCLUDED.transported_time,
-                is_backlog           = EXCLUDED.is_backlog,
-                is_active            = EXCLUDED.is_active,
-                is_transit           = EXCLUDED.is_transit,
-                last_updated         = CURRENT_TIMESTAMP
+                data_source              = EXCLUDED.data_source,
+                status_sys               = EXCLUDED.status_sys,
+                inbound_scandate         = EXCLUDED.inbound_scandate,
+                outbound_scandate        = EXCLUDED.outbound_scandate,
+                arrival_scandate         = EXCLUDED.arrival_scandate,
+                next_station             = EXCLUDED.next_station,
+                trip_code                = EXCLUDED.trip_code,
+                transporing_time         = EXCLUDED.transporing_time,
+                transported_time         = EXCLUDED.transported_time,
+                is_backlog               = EXCLUDED.is_backlog,
+                is_active                = EXCLUDED.is_active,
+                is_transit               = EXCLUDED.is_transit,
+                is_completed             = EXCLUDED.is_completed,
+                cycle_no                 = EXCLUDED.cycle_no,
+                is_rebound               = EXCLUDED.is_rebound,
+                return_count             = EXCLUDED.return_count,
+                inbound_scandate_2       = EXCLUDED.inbound_scandate_2,
+                operation_date_inbound_2 = EXCLUDED.operation_date_inbound_2,
+                outbound_scandate_2      = EXCLUDED.outbound_scandate_2,
+                last_updated             = CURRENT_TIMESTAMP;
         """
         execute_values(cur, insert_sql, records, page_size=2000)
+
+        # Batch insert raw scan logs into raw.scan_logs (Append-Only Data Log)
+        scan_log_records = []
+        for r in raw.get('inbound', []):
+            wb = clean_wb(r.get('billNo') or r.get('waybillNo'))
+            st = str(r.get('scanDate') or '').strip()
+            site = str(r.get('upOrNextStation') or r.get('sendSite') or r.get('sendNetworkName') or '').strip()
+            tc = clean_wb(r.get('transferCode') or r.get('transfercode') or r.get('billTaskCode'))
+            if wb and st and st.lower() not in ('nan', 'none', ''):
+                scan_log_records.append((wb, 'INBOUND', st, site or None, tc or None, 1))
+
+        for r in raw.get('outbound', []):
+            wb = clean_wb(r.get('billNo') or r.get('waybillNo'))
+            st = str(r.get('scanDate') or '').strip()
+            if wb and st and st.lower() not in ('nan', 'none', ''):
+                scan_log_records.append((wb, 'OUTBOUND', st, None, None, 1))
+
+        if scan_log_records:
+            log_sql = """
+                INSERT INTO raw.scan_logs (tracking, scan_type, scan_time, station, trip_code, cycle_no)
+                VALUES %s ON CONFLICT DO NOTHING;
+            """
+            execute_values(cur, log_sql, scan_log_records, page_size=2000)
+            print(f"   raw.scan_logs: {len(scan_log_records):,} scan events recorded")
+
         conn.commit()
         cur.execute("SELECT COUNT(*) FROM enriched.dispatch_enriched;")
         cnt = cur.fetchone()[0]

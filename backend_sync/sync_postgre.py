@@ -315,9 +315,12 @@ def sync_postgre_to_dashboard():
             inbound_scandate, outbound_scandate, arrival_scandate,
             trip_code, transporing_time, transported_time,
             operation_date_created, operation_date_inbound,
-            is_backlog, is_active
+            is_backlog, is_active,
+            is_completed, cycle_no, is_rebound, return_count,
+            inbound_scandate_2, operation_date_inbound_2, outbound_scandate_2
         FROM enriched.dispatch_enriched
         WHERE operation_date_created >= CURRENT_DATE - INTERVAL '7 days'
+           OR operation_date_inbound_2 >= CURRENT_DATE - INTERVAL '7 days'
         ORDER BY operation_date_created DESC, created_time DESC
     """
     try:
@@ -415,22 +418,30 @@ def sync_postgre_to_dashboard():
         op_date_pick = get_op_date(pk_t)   if pk_t   else ''
         op_date_arr  = get_op_date(arr_t)  if arr_t  else ''
 
-        if op_date_inb in (today, yesterday) or op_date_fc in (today, yesterday):
-            in_status  = ('Inbound'      if has_in   else
+        is_reb    = int(r.get('is_rebound') or 0)
+        ret_cnt   = int(r.get('return_count') or 0)
+        inb_t_2   = clean_ts_str(r.get('inbound_scandate_2'))
+        op_inb_2  = str(r.get('operation_date_inbound_2') or '')[:10]
+
+        final_op_date_inb = op_inb_2 if (is_reb and op_inb_2) else (op_date_inb if inb_t else '')
+        final_inb_hour    = inb_t_2[11:16] if (is_reb and len(inb_t_2) >= 16) else (inb_t[11:16] if len(inb_t) >= 16 else '')
+
+        if final_op_date_inb in (today, yesterday) or op_date_fc in (today, yesterday):
+            in_status  = ('Inbound'      if (has_in or is_reb) else
                           'Transporting' if has_arr  else
                           'Created'      if has_pick else 'Created')
             drop_type  = 'rot_today' if op_date_fc == today else 'rot_yesterday'
             key_ib = (
                 station, in_status,
-                op_date_inb, op_date_fc, op_date_pick, op_date_arr,
-                inb_t[11:16]  if len(inb_t)  >= 16 else '',
+                final_op_date_inb, op_date_fc, op_date_pick, op_date_arr,
+                final_inb_hour,
                 cr_t[:16]     if len(cr_t)   >= 16 else '',
                 pk_t[:16]     if len(pk_t)   >= 16 else '',
                 arr_t[:16]    if len(arr_t)  >= 16 else '',
-                drop_type, trip, transp_t, transpd_t,
+                drop_type, trip, transp_t, transpd_t, is_reb
             )
             if key_ib not in inbound_group:
-                inbound_group[key_ib] = {'volume': 0, 'weight_kg': 0.0}
+                inbound_group[key_ib] = {'volume': 0, 'weight_kg': 0.0, 'return_count': ret_cnt}
             inbound_group[key_ib]['volume']    += 1
             inbound_group[key_ib]['weight_kg'] += wt_kg
 
@@ -442,15 +453,15 @@ def sync_postgre_to_dashboard():
             if ka not in arr_group:
                 arr_group[ka] = {'total': 0, 'at_hub': 0, 'not_hub': 0, 'last_scan_time': arr_t}
             arr_group[ka]['total'] += 1
-            arr_group[ka]['at_hub' if has_in else 'not_hub'] += 1
+            arr_group[ka]['at_hub' if (has_in or is_reb) else 'not_hub'] += 1
             if arr_t > arr_group[ka]['last_scan_time']:
                 arr_group[ka]['last_scan_time'] = arr_t
 
         # heatmap — inbound hôm nay
-        if inb_t and op_date_inb == today and len(inb_t) >= 13:
-            hk = inb_t[11:13] + ":00"
-            if hk in hourly:
-                hourly[hk] += 1
+        effective_inb_h = final_inb_hour[:2] + ":00" if len(final_inb_hour) >= 2 else ""
+        if (inb_t or is_reb) and final_op_date_inb == today and effective_inb_h:
+            if effective_inb_h in hourly:
+                hourly[effective_inb_h] += 1
 
     # ── 4. Build JSON payloads ────────────────────────────────────
 
@@ -483,10 +494,11 @@ def sync_postgre_to_dashboard():
          "inbound_hour": in_hr, "forecast_time": fc_hr,
          "pickup_time": pk_hr, "arrival_time": ar_hr,
          "drop_type": drop_t, "trip_code": tc,
-         "transporing_time": tr_t, "transported_time": trd_t}
+         "transporing_time": tr_t, "transported_time": trd_t,
+         "is_rebound": is_reb, "return_count": stats['return_count']}
         for (st, status, in_op, fc_op, pk_op, ar_op,
              in_hr, fc_hr, pk_hr, ar_hr,
-             drop_t, tc, tr_t, trd_t), stats in inbound_group.items()
+             drop_t, tc, tr_t, trd_t, is_reb), stats in inbound_group.items()
     ]
 
     arrival_json = [

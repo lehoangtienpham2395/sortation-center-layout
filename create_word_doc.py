@@ -217,8 +217,8 @@ def generate_docx():
     )
 
     # Section 2
-    add_heading_1(doc, "2. 19 NGUYÊN TẮC KỸ THUẬT CỐT LÕI")
-    add_body_p(doc, "Dưới đây là 19 nguyên tắc vận hành được lập trình trực tiếp trong mã nguồn Backend và Frontend để bảo đảm tính chính xác 100% của số liệu báo cáo:")
+    add_heading_1(doc, "2. CÁC NGUYÊN TẮC KỸ THUẬT CỐT LÕI (ĐÃ CHUẨN HÓA)")
+    add_body_p(doc, "Dưới đây là các nguyên tắc vận hành được lập trình trực tiếp trong mã nguồn Backend và Frontend để bảo đảm tính chính xác 100% của số liệu báo cáo:")
 
     principles = [
         ("1. Chu kỳ Vận hành (06:00 - 06:00):", "Hàm `get_op_date()` trong Python quy đổi mọi mốc thời gian (created_time, inbound_scandate, arrival_scandate, pickup_time) về đúng ca làm việc. Mọi mốc giờ từ 00:00:00 - 05:59:59 sẽ tự động tính lùi 1 ngày để thuộc ca đêm hôm trước."),
@@ -226,20 +226,15 @@ def generate_docx():
         ("3. Cập nhật ghi đè (Upsert Logic):", "Dùng câu lệnh `INSERT INTO ... ON CONFLICT (tracking) DO UPDATE SET` cho phép tự động cập nhật trạng thái mới nhất của vận đơn khi kiện hàng trôi qua các nấc vận hành mà không tạo dòng rác."),
         ("4. Mốc thời gian quét mới nhất (Latest Timestamp Mapping):", "Sử dụng `max(scanDate)` khi ghép nối các bảng Inbound, Outbound và Arrival Scan để bảo đảm luôn lấy mốc quét mới nhất nếu kiện hàng bị bắn mã nhiều lần."),
         ("5. Thứ tự Ưu tiên Trạng thái Tồn kho (inv_status):", "Quy định thứ tự ưu tiên: `Outbound` (Đã xuất) > `Inbound` (Đang tại bãi) > `Transporting` (Đang trên đường) > `Created` (Mới tạo). Đơn đã Outbound không bao giờ bị tính trùng ở khâu nhập kho."),
-        ("6. Phân loại cờ Vận hành (Operational Flags):", "Tự động tính 3 cờ dưới DB: `is_backlog = 1` (đã Inbound nhưng chưa Outbound), `is_active = 0` (đã Outbound), `is_transit = 1` (đã Inbound + Arrival nhưng chưa Outbound)."),
-        ("7. Chuẩn hóa Mã Bưu cục (Master Data Mapping):", "Đọc `valid.csv` để tra cứu `dict_zone`, `dict_area`, `dict_station`. Ưu tiên lookup bằng `dispatch_code` (sortcode 10 ký tự), nếu rỗng fallback sang `next_station`."),
-        ("8. Ghi đè luồng Miền Bắc (BN HUB Override):", "Nếu `next_station == 'BN HUB'` hoặc sortcode bắt đầu bằng `BNI`, hệ thống ép cứng về cụm quản lý `area_id = 'A06'`, `zone = '1'` và `capacity = 1400`."),
-        ("9. Cấu trúc Gom cụm Aggregate (inbound_group):", "Gom nhóm dữ liệu theo 14-tuple key (bưu cục, trạng thái, 4 ngày vận hành, 4 mốc giờ, drop_type, trip_code, thời gian xe). Cộng dồn `volume += 1` và `weight_kg += orders_weight`."),
-        ("10. Đơn vị Trọng lượng Chuẩn hóa (Weight Unit Backend):", "Chỉ số trọng lượng được quy chuẩn lưu trữ duy nhất dưới dạng Tấn: `weight_ton = weight_kg / 1000`."),
-        ("11. Đơn vị Trọng lượng Chuẩn hóa (Weight Unit Frontend):", "React Frontend đọc thẳng số từ JSON và append chuỗi 'Tấn' lên giao diện, loại bỏ hoàn toàn các hàm đoán đơn vị if-else chập chờn trước đây."),
-        ("12. Bộ lọc Cửa sổ Thời gian 2 Ngày (Rolling Window):", "Lọc `inbound_group` chỉ chứa dữ liệu Hôm nay (`today`) và Hôm qua (`yesterday`) để giữ kích thước JSON tối ưu mà vẫn đủ số liệu so sánh rớt đơn."),
-        ("13. Phân loại Rớt đơn không gán mặc định (Strict Drop Type):", "Backend gán `'rot_today'` nếu `op_date_forecast == today`, ngược lại `'rot_yesterday'`. Frontend `normalizeDropType('')` trả về chuỗi rỗng chứ không gán mặc định rớt."),
-        ("14. Phân slot Giờ Heatmap (Hourly Bucket):", "Tạo 24 slot giờ (`00:00` - `23:00`), lọc các đơn đã Inbound có `op_date_inbound == today` để đếm tần suất nhập kho theo khung giờ."),
-        ("15. Ánh xạ Tên thuộc tính Đa ngữ cảnh (Dual Key Mapping):", "Hàm `fetchInboundSheetData` tự động nhân bản song song key tiếng Anh (`station_name`, `status`, `volume`, `weight_ton`) và tiếng Việt (`Bưu cục`, `Trạng thái`, `Volume`, `Weight`) để tương thích mọi UI Component."),
-        ("16. Chuẩn hóa Trạng thái Frontend (Status Normalization):", "Hàm `normalizeStatus()` quy đổi tất cả alias (`at_hub`, `Đang trên bãi`, `pickup_done`...) về bộ enum chuẩn (`Inbound`, `Transporting`, `Pickup Done`, `Created`, `Outbound`)."),
-        ("17. Loại trừ Trạm Miền Bắc khỏi Biểu đồ Inbound:", "Hàm `isNorthStation()` lọc bỏ các trạm thuộc cụm BẮC NINH / HÀ NỘI khỏi biểu đồ sản lượng nhập kho HUB HCM."),
-        ("18. Chế độ Môi trường Linh hoạt (Dual Hostname Fetching):", "Tự động phát hiện môi trường: Nếu chạy trên `github.io` sẽ fetch CDN Raw GitHub Pages kèm timestamp chống cache (`?t=Date.now()`); nếu chạy local sẽ fetch `./data/`."),
-        ("19. Tách CI/CD Build khỏi Data Storage & Nén File:", "Cấu hình `.github/workflows/deploy.yml` chỉ trigger build React khi sửa code (`paths: ['src/**']`). Python push JSON không làm kích hoạt CI/CD. Đã nén `inbound.json` (37MB) thành `latest.json.gz` (271KB).")
+        ("6. Phân loại cờ Vận hành & Cờ Rớt Hôm Trước Cố Định (Operational & Baseline Flags):", "Tự động tính các cờ dưới DB: `is_backlog = 1` (đã Inbound nhưng chưa Outbound), `is_active = 0` (đã Outbound), `is_transit = 1` (đã Inbound + Arrival nhưng chưa Outbound). Đặc biệt: Cờ `is_rot_hom_truoc = 1` tính cho đơn đã tạo/lấy trước hôm nay nhưng chưa có mốc Inbound/Outbound tại mốc chốt 06:00. Con số này là mốc cố định bất biến (Baseline) đầu ngày, giữ nguyên số liệu báo cáo ca dù sau đó đơn có được quét xử lý."),
+        ("7. Chuẩn hóa Mã Bưu cục (Master Data Driven):", "Đọc `valid.csv` để tra cứu `dict_zone`, `dict_area`, `dict_station`. Ưu tiên lookup bằng `dispatch_code` (sortcode 10 ký tự), nếu rỗng fallback sang `next_station`. Toàn bộ cấu trúc khu vực, sức chứa (capacity) được đọc tự động 100% từ Master Config, loại bỏ hoàn toàn việc ghi đè cứng trong code."),
+        ("8. Trích xuất Trạm nguồn / Trạm trước (upOrNextStation & sendSite):", "Trích xuất trực tiếp 2 trường `upOrNextStation` (Trạm trước/Trạm tiếp theo) và `sendSite` (Bưu cục gửi) từ JFS Inbound API. Mọi đơn Inbound liên miền / Miền Bắc không có trong Dispatch local đều được tự động đưa vào cSDL PostgreSQL với tên trạm nguồn gốc chính xác. Đã loại bỏ hoàn toàn hàm lọc cứng `isNorthStation` ở Frontend."),
+        ("9. Cấu trúc Gom cụm Aggregate (inbound_group):", "Gom nhóm dữ liệu theo 14-tuple key (bưu cục, trạng thái, 4 ngày vận hành, 4 mốc giờ, drop_type, trip_code, thời gian xe). Cộng dồn `volume += 1` và `weight_kg += orders_weight` để nén file JSON siêu nhẹ mà vẫn giữ đủ độ phân giải phân tích."),
+        ("10. Quy chuẩn Đơn vị Trọng lượng Đồng nhất (Tấn - Single Source of Truth):", "Chỉ số trọng lượng được quy chuẩn lưu trữ duy nhất dưới dạng Tấn từ Backend ETL (`weight_ton = weight_kg / 1000`). Frontend đọc thẳng số từ JSON và append chuỗi 'Tấn' lên UI, loại bỏ hoàn toàn các hàm quy đổi 2 lần hay đoán đơn vị rủi ro."),
+        ("11. Phân slot Giờ Heatmap (Hourly Bucket):", "Tạo 24 slot giờ (`00:00` - `23:00`), lọc các đơn đã Inbound có `op_date_inbound == today` để đếm tần suất nhập kho theo khung giờ cao điểm."),
+        ("12. Chuẩn hóa Trạng thái từ Nguồn Backend (Source Status Normalization):", "Hàm `clean_status_sys()` quy đổi tất cả alias thô từ API (`at_hub`, `Đang trên bãi`, `pickup_done`, `Đã điều phối`...) về bộ enum chuẩn (`Inbound`, `Transporting`, `Pickup Done`, `Created`, `Outbound`) ngay tại tầng Backend ETL trước khi đẩy vào PostgreSQL."),
+        ("13. Chế độ Môi trường Linh hoạt (Dual Hostname Fetching):", "Tự động phát hiện môi trường: Nếu chạy trên `github.io` sẽ fetch CDN Raw GitHub Pages kèm timestamp chống cache (`?t=Date.now()`); nếu chạy local sẽ fetch `./data/`."),
+        ("14. Tách CI/CD Build khỏi Data Storage & Nén File:", "Cấu hình `.github/workflows/deploy.yml` chỉ trigger build React khi sửa code (`paths: ['src/**']`). Python push JSON không làm kích hoạt CI/CD. Đã nén `inbound.json` (37MB) thành `latest.json.gz` (271KB).")
     ]
 
     for title, text in principles:
@@ -351,8 +346,14 @@ def generate_docx():
     r_foot.font.color.rgb = RGBColor(120, 120, 120)
 
     output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Tai_Lieu_Ky_Thuat_System_Architecture_JFS_HUB.docx")
-    doc.save(output_path)
-    print(f"SUCCESS: Da tao thanh cong file Word tai: {output_path}")
+    try:
+        doc.save(output_path)
+        print(f"SUCCESS: Da tao thanh cong file Word tai: {output_path}")
+    except PermissionError:
+        alt_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Tai_Lieu_Ky_Thuat_System_Architecture_JFS_HUB_v2.docx")
+        doc.save(alt_path)
+        print(f"SUCCESS: File goc dang mo, da luu file v2 tai: {alt_path}")
+        output_path = alt_path
     return output_path
 
 if __name__ == '__main__':
