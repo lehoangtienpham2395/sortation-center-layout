@@ -148,7 +148,7 @@ const ZONE3_LIST = [
   { areaId: 'C22', name: 'VT LONG ĐẤT', zone: 3 },   { areaId: 'C23', name: 'SG BẢY HIỀN', zone: 3 },
   { areaId: 'C24', name: 'BD BÌNH HÒA', zone: 3 },
   { areaId: 'C25', name: 'LA BẾN LỨC', zone: 3 },
-  { areaId: 'C26', name: '3PL', zone: 3 }
+  { areaId: 'C26', name: 'SE TN', zone: 3 }
 ];
 
 const ZONE3_TRUCKS = Array.from({ length: 24 }, (_, i) => ({
@@ -987,7 +987,7 @@ export default function App() {
       const d = data[c.areaId] || { current: 0, weight: 0, capacity: 780, utilization: 0, bucket: 'green', name: c.name };
       return {
         areaId: c.areaId,
-        name: d.name || c.name,
+        name: c.name,
         current: d.current,
         weight: d.weight || 0,
         utilization: d.utilization,
