@@ -29,7 +29,7 @@ html, body {
   width: 100%;
   height: 100%;
   font-family: 'Inter', sans-serif;
-  background: #141518 !important;
+  background: var(--bg-dark);
   color: var(--text-main);
   overflow: hidden;
 }
@@ -56,40 +56,17 @@ html, body {
 }
 
 .sidebar-header {
-  background: #141518 !important;
-  color: #ffffff !important;
-
   padding: 16px;
-  background: #141518 !important;
+  background: var(--bg-sidebar);
   border-bottom: 1px solid var(--border-subtle);
 }
 
-/* J&T Cargo Green Logo Badge */
-.jt-logo-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--jt-green);
-  padding: 6px 14px;
-  border-radius: 8px;
-  margin-bottom: 12px;
-  box-shadow: 0 0 12px var(--jt-green-glow);
-}
-
-.jt-logo-badge .jt-text {
-  font-family: 'Outfit', sans-serif;
-  font-size: 1.2rem;
-  font-weight: 900;
-  color: #ffffff;
-  font-style: italic;
-  letter-spacing: 0.5px;
-}
-
-.jt-logo-badge .cargo-text {
-  font-family: 'Inter', sans-serif;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #ffffff;
+.inbound-logo-img {
+  height: 42px;
+  width: auto;
+  object-fit: contain;
+  margin-bottom: 10px;
+  filter: drop-shadow(0 0 8px rgba(184, 247, 228, 0.3));
 }
 
 .brand-box h1 {
@@ -101,30 +78,31 @@ html, body {
 }
 
 .brand-box p {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--text-sub);
   margin-top: 2px;
 }
 
+/* Statistics Header Badges */
 .stats-row {
-  display: flex;
-  gap: 6px;
-  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 14px;
 }
 
 .stat-item {
-  flex: 1;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  padding: 6px;
+  padding: 8px;
   text-align: center;
 }
 
 .stat-item .lbl {
+  font-size: 0.68rem;
+  color: var(--text-muted);
   display: block;
-  font-size: 0.65rem;
-  color: var(--text-sub);
   margin-bottom: 2px;
 }
 
@@ -185,70 +163,73 @@ html, body {
 
 .tool-btn {
   flex: 1;
-  padding: 7px;
-  background: rgba(255, 255, 255, 0.05);
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
-  color: #fff;
+  color: var(--text-main);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
   transition: all 0.2s;
+}
+
+.tool-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .tool-btn.jt-btn {
   background: var(--jt-green);
-  border-color: var(--jt-green);
-  color: #121316; font-weight: 700;
-}
-
-.tool-btn:hover {
-  background: rgba(184, 247, 228, 0.2);
+  color: #0d1117;
+  font-weight: 700;
   border-color: var(--jt-green);
 }
 
-.tool-btn.active {
-  background: rgba(255, 87, 34, 0.2);
-  border-color: var(--jt-orange);
+.tool-btn.jt-btn:hover {
+  box-shadow: 0 0 12px var(--jt-green-glow);
 }
 
 .tool-btn.icon-only {
-  flex: 0 0 32px;
-  padding: 0;
+  flex: 0 0 34px;
 }
 
-/* Tabs */
+/* Filter Tabs */
 .tab-container {
   display: flex;
   padding: 8px 16px;
-  gap: 6px;
-  background: rgba(0, 0, 0, 0.2);
+  gap: 4px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .tab-btn {
   flex: 1;
-  padding: 6px;
+  padding: 6px 4px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 6px;
-  color: var(--text-sub);
-  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  text-align: center;
+}
+
+.tab-btn:hover {
+  color: var(--text-sub);
 }
 
 .tab-btn.active {
-  background: rgba(184, 247, 228, 0.15);
-  border-color: var(--jt-green);
+  background: rgba(184, 247, 228, 0.12);
   color: var(--jt-green);
+  border-color: rgba(184, 247, 228, 0.3);
 }
 
-/* Province Scroll */
+/* Type Pills */
 .province-scroll {
   display: flex;
   gap: 6px;
@@ -261,11 +242,11 @@ html, body {
 
 .prov-pill {
   white-space: nowrap;
-  padding: 3px 9px;
-  background: rgba(255, 255, 255, 0.04);
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   color: var(--text-sub);
   cursor: pointer;
   transition: all 0.2s;
@@ -273,8 +254,10 @@ html, body {
 
 .prov-pill:hover, .prov-pill.active {
   background: var(--jt-green);
-  color: #fff;
+  color: #0d1117;
+  font-weight: 700;
   border-color: var(--jt-green);
+  box-shadow: 0 0 10px var(--jt-green-glow);
 }
 
 /* Scrollable Routes List */
@@ -351,35 +334,123 @@ html, body {
 }
 
 .waypoint-item .arrow {
-  font-size: 0.58rem;
+  font-size: 0.6rem;
   color: var(--text-muted);
+  margin: 0 2px;
 }
 
 .route-footer {
-  font-size: 0.73rem;
-  color: var(--text-sub);
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-muted);
 }
 
-/* Map Main Viewport */
-.map-view {
-  flex: 1;
-  width: calc(100vw - 380px);
-  height: 100vh;
-  position: relative;
-}
-
+/* Map Container */
 #map {
-  width: 100%;
-  height: 100%;
-  background: #141518 !important;
+  flex: 1;
+  height: 100vh;
+  background: #e2e8f0;
 }
 
-/* Floating Detail Card (Positioned bottom-right over map canvas) */
+/* Map Overlays */
+.floating-control-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 500;
+}
+
+/* Leaflet Custom Marker & Popup Overrides */
+.custom-leaflet-marker {
+  background: transparent;
+  border: none;
+}
+
+.hub-marker-icon {
+  width: 24px;
+  height: 24px;
+  background: var(--jt-green);
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 0 16px var(--jt-green-glow);
+  animation: pulseGlow 2s infinite;
+}
+
+.po-marker-pin {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
+
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 0 0 rgba(184, 247, 228, 0.7); }
+  70% { box-shadow: 0 0 0 12px rgba(184, 247, 228, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(184, 247, 228, 0); }
+}
+
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+  background: #18191c !important;
+  color: #fff !important;
+  border: 1px solid var(--border-jt) !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.8) !important;
+}
+
+.po-popup-card {
+  padding: 4px;
+  font-family: 'Inter', sans-serif;
+}
+
+.po-popup-card h3 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  color: var(--jt-green);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.po-popup-card .popup-tag {
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(184, 247, 228, 0.2);
+  color: var(--jt-green);
+}
+
+.po-popup-card .popup-tag.shuttle {
+  background: rgba(255, 87, 34, 0.2);
+  color: var(--jt-orange);
+}
+
+.po-popup-card .popup-tag.hub-center {
+  background: var(--jt-green);
+  color: #0d1117;
+  font-weight: 700;
+}
+
+.po-popup-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.po-popup-row .lbl { color: var(--text-sub); }
+.po-popup-row .val { font-weight: 600; color: #fff; }
+.po-popup-row .val.highlight { color: var(--jt-green); }
+.po-popup-row .val.empty { color: var(--text-muted); font-style: italic; }
+
+/* Detail Card Overlay Bottom Right */
 .detail-card-overlay {
   position: absolute;
   bottom: 24px;
   right: 24px;
-  width: 360px;
+  width: 380px;
   background: var(--bg-glass);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -431,7 +502,7 @@ html, body {
 
 .mode-tag.hub-center {
   background: var(--jt-green);
-  color: #ffffff;
+  color: #0d1117;
   border-color: var(--jt-green);
 }
 
@@ -442,34 +513,17 @@ html, body {
   color: #fff;
 }
 
-.card-close-btn {
+.close-btn {
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-size: 0.95rem;
   cursor: pointer;
-  padding: 2px 4px;
-  transition: color 0.2s;
+  font-size: 0.9rem;
 }
 
-.card-close-btn:hover {
-  color: var(--jt-orange);
-}
+.close-btn:hover { color: #fff; }
 
-.empty-notice {
-  text-align: center;
-  padding: 12px 6px;
-  color: var(--text-muted);
-  font-size: 0.8rem;
-}
-
-.empty-notice i {
-  font-size: 1.4rem;
-  margin-bottom: 4px;
-  color: var(--jt-green);
-}
-
-.info-grid {
+.detail-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
@@ -477,7 +531,7 @@ html, body {
 
 .grid-box {
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-subtle);
   border-radius: 6px;
   padding: 6px 8px;
 }
@@ -486,6 +540,9 @@ html, body {
   font-size: 0.68rem;
   color: var(--text-sub);
   margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .grid-box .val {
@@ -495,277 +552,20 @@ html, body {
   color: #fff;
 }
 
-.grid-box .val.cyan { color: var(--jt-green); }
 .grid-box .val.amber { color: var(--jt-amber); }
-.grid-box .val.emerald { color: var(--jt-lime); }
-.grid-box .val.purple { color: var(--jt-orange); }
-.grid-box .val.empty { color: var(--text-muted); font-size: 0.78rem; font-style: italic; font-weight: 400; }
+.grid-box .val.green { color: var(--jt-green); }
+.grid-box .val.purple { color: #c084fc; }
 
-/* Custom Leaflet Markers */
-.custom-leaflet-marker {
-  background: transparent;
-  border: none;
-}
-
-.hub-marker-icon {
-  width: 22px;
-  height: 22px;
-  background: var(--jt-green);
-  border: 3px solid #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 0 16px var(--jt-green);
-}
-
-.po-marker-pin {
-  width: 14px;
-  height: 14px;
-  border: 2px solid #ffffff;
-  border-radius: 50%;
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
-}
-
-/* J&T Cargo Leaflet Popup Card */
-.leaflet-popup-content-wrapper, .leaflet-popup-tip {
-  background: #18191c !important;
-  border: 1px solid rgba(184, 247, 228, 0.5) !important;
-  color: #ffffff !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8) !important;
-  border-radius: 12px !important;
-  padding: 0 !important;
-}
-
-.leaflet-popup-content {
-  margin: 0 !important;
-  line-height: 1.4 !important;
-}
-
-.leaflet-popup-close-button {
-  color: #a0aec0 !important;
-  padding: 8px 8px 0 0 !important;
-}
-
-.leaflet-popup-close-button:hover {
-  color: var(--jt-green) !important;
-}
-
-.po-popup-card {
-  font-family: 'Inter', sans-serif;
-  background: #18191c;
-  color: var(--text-main);
-  padding: 12px 14px;
-  border-radius: 10px;
-  min-width: 250px;
-}
-
-.po-popup-card h3 {
-  font-family: 'Outfit', sans-serif;
-  font-size: 1.05rem;
-  color: var(--jt-green);
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.po-popup-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.8rem;
-  padding: 4px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.po-popup-row .lbl {
+.placeholder-msg {
+  text-align: center;
+  padding: 12px;
   color: var(--text-sub);
+  font-size: 0.8rem;
 }
 
-.po-popup-row .val {
-  font-weight: 600;
-  color: #ffffff;
-}
-
-.po-popup-row .val.highlight {
-  color: var(--jt-amber);
-}
-
-.po-popup-row .val.empty {
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-.popup-tag {
-  font-size: 0.68rem;
-  padding: 2px 7px;
-  border-radius: 4px;
-  font-weight: 700;
-}
-
-.popup-tag.hub-center {
-  background: var(--jt-green);
-  color: #ffffff;
-  border: 1px solid var(--jt-green);
-}
-
-.popup-tag.shuttle {
-  background: rgba(255, 87, 34, 0.2);
-  color: var(--jt-orange);
-  border: 1px solid rgba(255, 87, 34, 0.4);
-}
-
-.popup-tag.linehaul {
-  background: rgba(184, 247, 228, 0.2);
+.placeholder-msg i {
+  font-size: 1.2rem;
+  margin-bottom: 6px;
   color: var(--jt-green);
-  border: 1px solid rgba(184, 247, 228, 0.4);
-}
-
-/* Inbound Logo & Flex Header Styling */
-.brand-header-flex {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-
-.inbound-logo-img {
-  height: 42px;
-  width: auto;
-  border-radius: 8px;
-  object-fit: contain;
-  box-shadow: 0 0 12px rgba(184, 247, 228, 0.4);
   display: block;
-}
-
-.brand-box h1 {
-  font-family: 'Outfit', sans-serif;
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: #ffffff;
-  line-height: 1.25;
-}
-
-/* Sidebar Header & Panel Dark Charcoal Styling (#121316 / #18191c) */
-.sidebar-panel {
-  background: rgba(18, 19, 22, 0.95) !important;
-  border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
-  color: #ffffff !important;
-}
-
-.sidebar-header {
-  background: #141518 !important;
-  color: #ffffff !important;
-
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
-
-.sidebar-header h1 {
-  color: #ffffff !important;
-  font-weight: 800 !important;
-}
-
-.sidebar-header p {
-  color: #94a3b8 !important;
-}
-
-.stat-item .lbl {
-  color: #94a3b8 !important;
-}
-
-.search-field {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-}
-
-.search-field input {
-  color: #ffffff !important;
-}
-
-.tool-btn {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  color: #ffffff !important;
-}
-
-.prov-pill {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  color: #cbd5e1 !important;
-  cursor: pointer !important;
-}
-
-.prov-pill:hover {
-  background: rgba(184, 247, 228, 0.2) !important;
-  color: #B8F7E4 !important;
-}
-
-.prov-pill.active {
-  background: #B8F7E4 !important;
-  color: #0d1117 !important;
-  font-weight: 700 !important;
-  box-shadow: 0 0 10px rgba(184, 247, 228, 0.4) !important;
-}
-
-.floating-panel, .po-detail-card, .leaflet-popup-content-wrapper {
-  background: rgba(24, 25, 28, 0.95) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  color: #ffffff !important;
-}
-
-/* FORCE DARK CHARCOAL BACKGROUND FOR SIDEBAR & HEADER (#141518) */
-.sidebar-panel,
-.sidebar-header,
-.brand-box {
-  background: #141518 !important;
-  color: #ffffff !important;
-}
-
-.sidebar-header h1,
-.brand-box h1 {
-  color: #ffffff !important;
-  text-shadow: none !important;
-}
-
-.sidebar-header p,
-.brand-box p {
-  color: #94a3b8 !important;
-}
-
-.stat-item .lbl {
-  color: #94a3b8 !important;
-}
-
-#map {
-  background: #e2e8f0 !important;
-}
-
-/* FORCE BRIGHT WHITE FOR BRAND TITLE & HEADER TEXT */
-.brand-box h1,
-.sidebar-header h1,
-.brand-box p,
-.sidebar-header p {
-  color: #ffffff !important;
-  opacity: 1 !important;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8) !important;
-}
-
-.brand-box h1 {
-  font-size: 1.15rem !important;
-  font-weight: 800 !important;
-  letter-spacing: -0.2px !important;
-}
-
-.brand-box p {
-  color: #94a3b8 !important;
-  font-size: 0.8rem !important;
-}
-
-/* Ensure Leaflet tiles and container are visible */
-#map {
-  background: #f1f5f9 !important;
-  width: 100% !important;
-  height: 100% !important;
-}
-
-.leaflet-tile-container img {
-  visibility: visible !important;
-  opacity: 1 !important;
 }

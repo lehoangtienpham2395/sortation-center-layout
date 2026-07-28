@@ -189,6 +189,9 @@ def process_single_date(d_str: str):
 
         fin_op_inb  = op_inb_2 if (is_reb and op_inb_2) else (op_inb if inb_t else '')
         fin_inb_hour= inb_t_2[11:16] if (is_reb and len(inb_t_2) >= 16) else (inb_t[11:16] if len(inb_t) >= 16 else '')
+        cr_hour     = cr_t[11:16] if len(cr_t) >= 16 else ''
+        pk_hour     = pk_t[11:16] if len(pk_t) >= 16 else ''
+        arr_hour    = arr_t[11:16] if len(arr_t) >= 16 else ''
 
         if has_in or (is_reb and inb_t_2): summary["total_inbound"] += 1
         if has_out or outb_t_2:            summary["total_outbound"] += 1
@@ -211,7 +214,7 @@ def process_single_date(d_str: str):
 
         # Inbound group
         in_status = ('Inbound' if (has_in or is_reb) else 'Transporting' if has_arr else 'Pickup Done' if has_pick else 'Created')
-        k_inb = (station, in_status, fin_op_inb, op_fc, op_pick, op_arr, fin_inb_hour, drop_type, trip, is_reb, ret_cnt)
+        k_inb = (station, in_status, fin_op_inb, op_fc, op_pick, op_arr, fin_inb_hour, cr_hour, pk_hour, arr_hour, drop_type, trip, is_reb, ret_cnt)
         if k_inb not in inbound_group:
             inbound_group[k_inb] = {'volume': 0, 'weight_kg': 0.0}
         inbound_group[k_inb]['volume'] += 1
@@ -234,7 +237,8 @@ def process_single_date(d_str: str):
     inbound_json = [
         {"station_name": k[0], "status": k[1], "volume": v["volume"], "weight_ton": round(v["weight_kg"]/1000.0, 4),
          "op_date_inbound": k[2], "op_date_forecast": k[3], "op_date_pickup": k[4], "op_date_arrival": k[5],
-         "inbound_hour": k[6], "drop_type": k[7], "trip_code": k[8], "is_rebound": k[9], "return_count": k[10]}
+         "inbound_hour": k[6], "created_hour": k[7], "pickup_hour": k[8], "arrival_hour": k[9],
+         "drop_type": k[10], "trip_code": k[11], "is_rebound": k[12], "return_count": k[13]}
         for k, v in inbound_group.items()
     ]
     outbound_json = [

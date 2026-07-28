@@ -248272,12 +248272,10 @@ function initMap() {
 
   L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // Primary Light Terrain / Street Tile Layer (Google Terrain + CartoDB Voyager fallback)
-  const mainTileLayer =   // Google Maps Terrain ("Địa hình") Tile Layer
-  const mainTileLayer =   // CartoDB Voyager Light Map Tile Layer (100% Reliable, No CORS/CORB blocking)
-  const mainTileLayer =   // 100% Reliable OpenStreetMap / CartoDB Light Tile Layer
-  const mainTileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors (J&T Cargo)',
+  // Light Map Tile Layer (CartoDB Voyager)
+  const mainTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd',
     maxZoom: 19,
     bounds: vnBounds
   }).addTo(map);

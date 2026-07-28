@@ -1509,7 +1509,23 @@ def update_inbound_sheets(ss, results, master_chutes, d_buucuc):
             
         final_rows = []
         for (fc_name, status, op_ib, op_fc, op_pk, op_arr, ib_hour, fc_hour, pk_hour, arr_hour, loai_rot), stats in grouped.items():
+            drop_type_code = 'rot_today' if loai_rot == 'Rớt hôm nay' else ('rot_yesterday' if loai_rot == 'Rớt hôm trước' else '')
             final_rows.append({
+                'station_name': fc_name,
+                'status': status,
+                'volume': stats['volume'],
+                'weight_ton': round(stats['weight'] / 1000.0, 4),
+                'op_date_inbound': op_ib,
+                'op_date_forecast': op_fc,
+                'op_date_pickup': op_pk,
+                'op_date_arrival': op_arr,
+                'inbound_hour': ib_hour,
+                'created_hour': fc_hour,
+                'pickup_hour': pk_hour,
+                'arrival_hour': arr_hour,
+                'drop_type': drop_type_code,
+                
+                # Legacy aliases
                 'Bưu cục': fc_name,
                 'Trạng thái': status,
                 'Volume': stats['volume'],

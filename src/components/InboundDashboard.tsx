@@ -191,24 +191,29 @@ export default function InboundDashboard({
 
   // 2. Filter datasets by active date
   const getStatus = (d: any) => {
-    const rawSt = String(d['status'] || d['status_sys'] || d['Trng thi'] || d['Trạng thái'] || '').trim();
+    const rawSt = String(d.status || d.status_sys || d['Trạng thái'] || d['Trng thi'] || '').trim();
     if (rawSt === 'Inbound' || rawSt === 'Đã nhập kho') return 'Inbound';
     if (rawSt === 'Transporting' || rawSt === 'Đang vận chuyển' || rawSt === 'Đến bưu cục phát') return 'Transporting';
     
-    const pkTime = d['Pickup Time'] || d['pickup_time'] || d['Pickup_time'] || d['op_date_pickup'] || '';
+    const pkTime = d.pickup_hour || d.op_date_pickup || d['Pickup Time'] || d.pickup_time || '';
     if (rawSt === 'Pickup Done' || rawSt === 'Đã lấy hàng' || Boolean(pkTime)) return 'Pickup Done';
     return 'Created';
   };
 
-  const getDateInbound  = (d: any) => d['op_date_inbound']  || d['Ngy vn hnh_Inbound']  || d['Ngày vận hành_Inbound'] || '';
-  const getDateForecast = (d: any) => d['op_date_forecast'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || d['op_date_created'] || d['operation_date_created'] || '';
-  const getDatePickup   = (d: any) => d['op_date_pickup']   || d['Ngy vn hnh_Pickup']   || d['Ngày vận hành_Pickup']   || getDateForecast(d);
-  const getDateArrival  = (d: any) => d['op_date_arrival']  || d['Ngy vn hnh_Arrival']  || d['Ngày vận hành_Arrival']  || getDateForecast(d);
+  const getDateInbound  = (d: any) => d.op_date_inbound  || d['Ngày vận hành_Inbound']  || d['Ngy vn hnh_Inbound']  || '';
+  const getDateForecast = (d: any) => d.op_date_forecast || d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast'] || d.op_date_created || '';
+  const getDatePickup   = (d: any) => d.op_date_pickup   || d['Ngày vận hành_Pickup']   || d['Ngy vn hnh_Pickup']   || getDateForecast(d);
+  const getDateArrival  = (d: any) => d.op_date_arrival  || d['Ngày vận hành_Arrival']  || d['Ngy vn hnh_Arrival']  || getDateForecast(d);
 
-  const getVol = (d: any) => parseInt(d['Volume'] || d['volume'] || d['orders_num'] || 1, 10) || 1;
-  const getWt  = (d: any) => parseFloat(d['Weight'] || d['weight_ton'] || d['orders_weight'] || 0) || 0;
-  const getStation = (d: any) => (d['Bu cc'] || d['Bưu cục'] || d['station_name'] || d['pickup_station'] || '').trim();
-  const getLoiRot = (d: any) => d['Loi rt'] || d['Loại rớt'] || d['drop_type'] || '';
+  const getVol       = (d: any) => parseInt(d.volume || d.Volume || d.orders_num || 1, 10) || 1;
+  const getWt        = (d: any) => parseFloat(d.weight_ton || d.Weight || d.orders_weight || 0) || 0;
+  const getStation   = (d: any) => (d.station_name || d['Bưu cục'] || d['Bu cc'] || d.pickup_station || '').trim();
+  const getLoiRot    = (d: any) => d.drop_type || d['Loại rớt'] || d['Loi rt'] || '';
+
+  const getCreatedTime = (d: any) => d.created_hour || d['Forecast Time'] || d.created_time || '';
+  const getPickupTime  = (d: any) => d.pickup_hour  || d['Pickup Time']    || d.pickup_time  || '';
+  const getArrivalTime = (d: any) => d.arrival_hour || d['Arrival Time']   || d.arrival_scandate || '';
+  const getInboundTime = (d: any) => d.inbound_hour || d['Inbound Hour']   || d.inbound_scandate || '';
 
   // Northern / BN HUB Station Filter helper — Đã loại bỏ lọc cứng, bao gồm 100% tất cả trạm từ Inbound Scan API
   const isNorthStation = (_stName: string) => false;
@@ -456,13 +461,13 @@ export default function InboundDashboard({
 
   // 1. Transporting hourly: tính từ mốc thời gian phát hàng (Arrival Time / scantime) trong inboundData
   inboundData.forEach(d => {
-    const station = (d['Bu cc'] || d['Bưu cục'] || d['Pickup_station'] || d['pickup_station'] || d['station_name'] || '').trim().toUpperCase();
+    const station = getStation(d).toUpperCase();
     if (isNorthStation(station)) return;
 
-    const arrTime = d['arrival_hour'] || d['Arrival Time'] || d['Arrival_time'] || d['arrival_scanDate'] || d['arrival_scandate'] || d['transporing_time'] || '';
+    const arrTime = getArrivalTime(d);
     if (!arrTime) return;
 
-    const arrOpDate = d['op_date_arrival'] || d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || getOperatingDateFromTimestamp(arrTime);
+    const arrOpDate = getDateArrival(d) || getOperatingDateFromTimestamp(arrTime);
     if (arrOpDate && arrOpDate !== activeDate) return;
 
     const hrVal = getHourFromTimestamp(arrTime);
@@ -477,10 +482,10 @@ export default function InboundDashboard({
 
   // 2. Forecast / Created Time (Dự báo - Tạo đơn):
   inboundData.forEach(d => {
-    const station = (d['Bu cc'] || d['Bưu cục'] || d['Pickup_station'] || d['pickup_station'] || d['station_name'] || '').trim().toUpperCase();
+    const station = getStation(d).toUpperCase();
     if (isNorthStation(station)) return;
 
-    const fcTime = d['created_hour'] || d['Forecast Time'] || d['created_time'] || d['Created_time'] || d['Created Time'] || '';
+    const fcTime = getCreatedTime(d);
     if (fcTime) {
       const fcDate = getOperatingDateFromTimestamp(fcTime);
       const loaiRot = getLoiRot(d);
@@ -498,10 +503,10 @@ export default function InboundDashboard({
 
   // 3. Pickup Time (Shipper đã lấy):
   inboundData.forEach(d => {
-    const station = (d['Bu cc'] || d['Bưu cục'] || d['Pickup_station'] || d['pickup_station'] || d['station_name'] || '').trim().toUpperCase();
+    const station = getStation(d).toUpperCase();
     if (isNorthStation(station)) return;
 
-    const pkTime = d['pickup_hour'] || d['Pickup Time'] || d['pickup_time'] || d['Pickup_time'] || '';
+    const pkTime = getPickupTime(d);
     if (pkTime) {
       const hrVal = getHourFromTimestamp(pkTime);
       if (hrVal >= 0 && hrVal < 24) {
@@ -517,7 +522,7 @@ export default function InboundDashboard({
   filteredInbound.forEach((d: any) => {
     const status = getStatus(d);
     if (status === 'Inbound') {
-      const ibTime = d['inbound_hour'] || d['Inbound Hour'] || d['Inbound Time'] || d['inbound_scanDate'] || d['inbound_scandate'] || d['inbound_time'] || '';
+      const ibTime = getInboundTime(d);
       if (ibTime) {
         const hrVal = getHourFromTimestamp(ibTime);
         if (hrVal >= 0 && hrVal < 24) {
