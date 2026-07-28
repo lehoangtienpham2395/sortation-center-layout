@@ -899,15 +899,37 @@ def main():
 
     # ── Phase 4: Lookup maps ─────────────────────────────────
     print('\nPhase 4 -- Lookup maps...')
-    ib_scan_map, ib_trip_map = {}, {}
+    ib_scan_map, ib_trip_map, ib_station_map = {}, {}, {}
     for r in raw.get('inbound', []):
         wb = clean_wb(r.get('billNo') or r.get('waybillNo'))
         st = str(r.get('scanDate') or '').strip()
         tc = clean_wb(r.get('transferCode') or r.get('transfercode') or r.get('billTaskCode'))
+        # Lấy "Trạm trước / Trạm tiếp theo" (upOrNextStation / sendSite) từ JFS Inbound API
+        send_st = str(r.get('upOrNextStation') or r.get('sendSite') or r.get('sendNetworkName') or '').strip()
+
         if wb and st and st.lower() not in ('nan', 'none', ''):
             if wb not in ib_scan_map or st > ib_scan_map[wb]:
                 ib_scan_map[wb] = st
                 if tc: ib_trip_map[wb] = tc
+                if send_st: ib_station_map[wb] = send_st
+
+        # Bổ sung các vận đơn Inbound liên miền / Miền Bắc không nằm trong Dispatch local
+        if wb and wb not in seen_wb:
+            seen_wb.add(wb)
+            wt = float(r.get('weight') or r.get('settlementWeight') or 0.0)
+            rows_v6.append({
+                'tracking': wb, 'status_sys': 'Inbound', 'Created_time': st,
+                'Pickup_station': send_st or 'BN HUB', 'Dispatch_code': '',
+                'Orders_num': int(r.get('piece') or 1),
+                'Orders_weight': wt * 1000.0 if (0 < wt < 500) else wt,
+                'Pickup_station2': send_st,
+                'Pickup_time': '', 'AreaCode': '',
+                'flowTypeDesc': 'Inbound Linehaul',
+                'Next_station': send_st or 'BN HUB', 'Round': '', 'Rank': '',
+                'inbound_scanDate': st, 'outbound_scanDate': '',
+                'arrival_scanDate': '', 'trip_code': tc,
+                'transporing_time': '', 'transported_time': '',
+            })
 
     ob_map = {}
     for r in raw.get('outbound', []):
@@ -928,7 +950,7 @@ def main():
                 arr_scan_map[wb] = st
                 if trip: arr_trip_map[wb] = trip
 
-    print('   Inbound  map: ' + str(len(ib_scan_map)) + ' don')
+    print('   Inbound  map: ' + str(len(ib_scan_map)) + ' don (bao gồm ' + str(len(ib_station_map)) + ' trạm nguồn upOrNextStation/sendSite)')
     print('   Outbound map: ' + str(len(ob_map)) + ' don')
     print('   Arrival  map: ' + str(len(arr_scan_map)) + ' don')
 
@@ -950,6 +972,10 @@ def main():
         df['trip_code']         = df['tracking'].apply(lambda wb: ib_trip_map.get(wb) or arr_trip_map.get(wb, ''))
         df['transporing_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transporing_time', '') if tc else '')
         df['transported_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transported_time', '') if tc else '')
+
+        # Cập nhật bưu cục nguồn/trạm trước (upOrNextStation / sendSite) từ Inbound API
+        df['Pickup_station'] = df.apply(lambda r: ib_station_map.get(r['tracking']) or r['Pickup_station'] or 'BN HUB', axis=1)
+        df['Next_station']   = df.apply(lambda r: ib_station_map.get(r['tracking']) if (not r['Next_station'] or r['Next_station'] == 'KHÔ VÙNG KHÁC') else r['Next_station'], axis=1)
 
 
 

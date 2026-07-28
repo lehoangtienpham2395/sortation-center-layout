@@ -208,12 +208,8 @@ export default function InboundDashboard({
   const getDateInbound = (d: any) => d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'];
   const getDateForecast = (d: any) => d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
-  // Northern / BN HUB Station Filter helper
-  const isNorthStation = (stName: string) => {
-    const clean = (stName || '').trim().toUpperCase();
-    if (clean === 'BN HUB') return false; // Always include BN HUB
-    return clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ') || NORTH_POST_OFFICES.has(clean);
-  };
+  // Northern / BN HUB Station Filter helper — Đã loại bỏ lọc cứng, bao gồm 100% tất cả trạm từ Inbound Scan API
+  const isNorthStation = (_stName: string) => false;
 
   const normalizeDateStr = (dStr: string): string => {
     if (!dStr) return '';
