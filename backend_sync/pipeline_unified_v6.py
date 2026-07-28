@@ -954,28 +954,65 @@ def main():
     print('   Outbound map: ' + str(len(ob_map)) + ' don')
     print('   Arrival  map: ' + str(len(arr_scan_map)) + ' don')
 
-    # ── Phase 5: Merge ───────────────────────────────────────
-    print('\nPhase 5 -- Merge...')
+    # ── Phase 5: Merge (FULL OUTER JOIN across all scan sources) ───────────────
+    print('\nPhase 5 -- Merge (FULL OUTER JOIN all scan sources & deduplicate)...')
     df = pd.DataFrame(rows_v6)
-    if df.empty:
-        df = pd.DataFrame(columns=['tracking','status_sys','Created_time',
-                                   'Pickup_station','Dispatch_code',
-                                   'Orders_num','Orders_weight',
-                                   'Pickup_station2','Pickup_time','AreaCode','flowTypeDesc',
-                                   'Next_station','Round','Rank',
-                                   'inbound_scanDate','outbound_scanDate','arrival_scanDate',
-                                   'trip_code','transporing_time','transported_time'])
-    else:
-        df['inbound_scanDate']  = df['tracking'].map(ib_scan_map).fillna('')
-        df['outbound_scanDate'] = df['tracking'].map(ob_map).fillna('')
-        df['arrival_scanDate']  = df['tracking'].map(arr_scan_map).fillna('')
-        df['trip_code']         = df['tracking'].apply(lambda wb: ib_trip_map.get(wb) or arr_trip_map.get(wb, ''))
-        df['transporing_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transporing_time', '') if tc else '')
-        df['transported_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transported_time', '') if tc else '')
+    
+    dispatch_trackings = set(df['tracking'].dropna().astype(str)) if not df.empty else set()
+    all_scan_trackings = set(ib_scan_map.keys()) | set(ob_map.keys()) | set(arr_scan_map.keys())
+    orphan_trackings   = all_scan_trackings - dispatch_trackings
 
-        # Cập nhật bưu cục nguồn/trạm trước (upOrNextStation / sendSite) từ Inbound API
-        df['Pickup_station'] = df.apply(lambda r: ib_station_map.get(r['tracking']) or r['Pickup_station'] or 'BN HUB', axis=1)
-        df['Next_station']   = df.apply(lambda r: ib_station_map.get(r['tracking']) if (not r['Next_station'] or r['Next_station'] == 'KHÔ VÙNG KHÁC') else r['Next_station'], axis=1)
+    print('   Dispatch trackings : ' + str(len(dispatch_trackings)) + ' don')
+    print('   Scan Log trackings : ' + str(len(all_scan_trackings)) + ' don')
+    print('   Orphan Scans (Missing Dispatch): ' + str(len(orphan_trackings)) + ' don -> Generating fallback records...')
+
+    orphan_rows = []
+    for wb in orphan_trackings:
+        inb_t  = ib_scan_map.get(wb, '')
+        outb_t = ob_map.get(wb, '')
+        arr_t  = arr_scan_map.get(wb, '')
+        st_name = ib_station_map.get(wb, 'KHO VÙNG KHÁC')
+        
+        st_sys = 'Inbound' if inb_t else ('Outbound' if outb_t else 'Arrival')
+        cr_t = inb_t or outb_t or arr_t
+        
+        orphan_rows.append({
+            'tracking': wb,
+            'status_sys': st_sys,
+            'Created_time': cr_t,
+            'Pickup_station': st_name,
+            'Dispatch_code': '',
+            'Orders_num': 1,
+            'Orders_weight': 0.5,
+            'Pickup_station2': '',
+            'Pickup_time': '',
+            'AreaCode': '',
+            'flowTypeDesc': '',
+            'Next_station': '',
+            'Round': '',
+            'Rank': 'Shuttle',
+            'inbound_scanDate': inb_t,
+            'outbound_scanDate': outb_t,
+            'arrival_scanDate': arr_t,
+            'trip_code': ib_trip_map.get(wb) or arr_trip_map.get(wb, ''),
+            'transporing_time': '',
+            'transported_time': '',
+            'flag_no_dispatch': 1
+        })
+
+    if orphan_rows:
+        df_orphans = pd.DataFrame(orphan_rows)
+        df = pd.concat([df, df_orphans], ignore_index=True)
+
+    df['inbound_scanDate']  = df.apply(lambda r: r.get('inbound_scanDate') or ib_scan_map.get(r['tracking'], ''), axis=1)
+    df['outbound_scanDate'] = df.apply(lambda r: r.get('outbound_scanDate') or ob_map.get(r['tracking'], ''), axis=1)
+    df['arrival_scanDate']  = df.apply(lambda r: r.get('arrival_scanDate') or arr_scan_map.get(r['tracking'], ''), axis=1)
+    df['trip_code']         = df.apply(lambda r: r.get('trip_code') or ib_trip_map.get(r['tracking']) or arr_trip_map.get(r['tracking'], ''), axis=1)
+    df['transporing_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transporing_time', '') if tc else '')
+    df['transported_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transported_time', '') if tc else '')
+
+    df['Pickup_station'] = df.apply(lambda r: ib_station_map.get(r['tracking']) or r.get('Pickup_station') or 'BN HUB', axis=1)
+    df['Next_station']   = df.apply(lambda r: ib_station_map.get(r['tracking']) if (not r.get('Next_station') or r.get('Next_station') == 'KHÔ VÙNG KHÁC') else r.get('Next_station'), axis=1)
 
 
 
