@@ -3,6 +3,16 @@ name: Ultra-Fast Deploy to GitHub Pages
 on:
   push:
     branches: ["main"]
+    paths:
+      # Chỉ build lại khi thay đổi source code — KHÔNG build khi Python push data JSON
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'tsconfig*.json'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:
 
 permissions:

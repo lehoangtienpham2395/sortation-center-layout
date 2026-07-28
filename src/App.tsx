@@ -367,12 +367,9 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
       const statusRaw  = rawSt ? normalizeStatus(rawSt) : undefined;
 
       const volume   = Number(volumeRaw);
-      let weight     = Number(weightRaw) || 0;
-      if (weight > 0 && weight < 500) {
-        weight = Number((weight * 1000.0).toFixed(2));
-      } else if (weight > 500000) {
-        weight = Number((weight / 1000.0).toFixed(2));
-      }
+      // ✅ Đơn vị chuẩn: Tấn — backend (sync_postgre.py) đã lưu weight_ton = weight_kg / 1000
+      // KHÔNG cần if-else đoán đơn vị nữa. Đọc thẳng giá trị Tấn từ JSON.
+      const weight   = Number(weightRaw) || 0;
       const capacity = Number(capRaw) || 780;
 
       if (areaId || buuCuc) {
@@ -1868,7 +1865,7 @@ export default function App() {
                           ['Mã ô', hoveredRack.areaId, 'var(--cyan)'],
                           ['Tên', hoveredRack.name, '#f1f5f9'],
                           ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#f1f5f9'],
-                          ['Trọng lượng', `${(hoveredRack.weight || 0).toLocaleString()} kg`, '#f1f5f9'],
+                          ['Trọng lượng', `${(hoveredRack.weight || 0).toFixed(3)} Tấn`, '#f1f5f9'],
                           [displayUtilizationLabelLc, `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
                         ].map(([k, v, c]) => (
                           <div key={k} className="flex justify-between" style={{ marginBottom: '4px' }}>
@@ -1902,7 +1899,7 @@ export default function App() {
                     <div className="flex justify-between items-center">
                       <span style={{ fontSize: '13px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng trọng lượng</span>
                       <span className="mono font-bold" style={{ fontSize: '15px', color: '#10b981', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
-                        {(totalWeight / 1000).toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
+                        {totalWeight.toFixed(2)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
                       </span>
                     </div>
                   </div>
@@ -2067,7 +2064,7 @@ export default function App() {
                                 {chute.name}
                               </td>
                               <td className="mono font-bold text-center" style={{ color: '#10b981', fontSize: '12px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
-                              <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>{(chute.weight / 1000).toFixed(1)} Tấn</td>
+                              <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>{(chute.weight).toFixed(1)} Tấn</td>
                               <td className="mono font-bold text-center" style={{ color: UTILCOL[chute.bucket], fontSize: '11.5px', textShadow: chute.bucket === 'darkred' || chute.bucket === 'red' ? '0 0 8px rgba(239,68,68,0.6)' : '0 0 8px rgba(16,185,129,0.5)' }}>{chute.utilization}%</td>
                             </tr>
                           );
@@ -2260,7 +2257,7 @@ export default function App() {
                         </div>
                         <div>
                           <div className="text-[9px] text-[var(--muted)]">Trọng lượng:</div>
-                          <div className="mono text-[11px] font-bold text-white">{hoveredRack.weight?.toLocaleString()} kg</div>
+                          <div className="mono text-[11px] font-bold text-white">{hoveredRack.weight?.toFixed(3)} Tấn</div>
                         </div>
                         <div>
                           <div className="text-[9px] text-[var(--muted)]">{displayUtilizationLabelLc}:</div>
@@ -2310,7 +2307,7 @@ export default function App() {
                               <td className="num-tabular font-bold" style={{ color: 'var(--cyan)' }}>{chute.areaId}</td>
                               <td className="table-buucuc">{chute.name}</td>
                               <td className="num-tabular" style={{ textAlign: 'right', fontWeight: 600 }}>{chute.current.toLocaleString()}</td>
-                              <td className="num-tabular" style={{ textAlign: 'right', color: '#cbd5e1' }}>{Math.round(chute.weight).toLocaleString()} kg</td>
+                              <td className="num-tabular" style={{ textAlign: 'right', color: '#cbd5e1' }}>{chute.weight.toFixed(1)} Tấn</td>
                               <td className="num-tabular" style={{ textAlign: 'right', fontWeight: 'bold', color: col }}>{chute.utilization}%</td>
                             </tr>
                           );
@@ -2335,7 +2332,7 @@ export default function App() {
                     <div className="p-3 text-center bg-[#101622]/30 rounded-md">
                       <div className="mono text-[9px] text-[var(--muted)] mb-1">TỔNG TRỌNG LƯỢNG</div>
                       <div className="disp font-extrabold text-xl text-[var(--green)]">
-                        {Math.ceil(totalWeight).toLocaleString()} kg
+                        {totalWeight.toFixed(2)} Tấn
                       </div>
                     </div>
                   </div>
@@ -2384,7 +2381,7 @@ export default function App() {
                           <div className="grid grid-cols-2 gap-2 text-[10px] text-[var(--muted)]">
                             <div>Bưu cục có hàng: <b className="text-white mono">{zInfo.activeChutesCount}/{zInfo.totalChutes}</b></div>
                             <div>Tổng lượng đơn: <b className="text-white mono">{zInfo.zoneOrders.toLocaleString()}</b></div>
-                            <div className="col-span-2 mt-1 border-t border-white/5 pt-1">Tổng trọng lượng: <b className="text-white mono">{zInfo.zoneWeight.toLocaleString()} kg</b></div>
+                            <div className="col-span-2 mt-1 border-t border-white/5 pt-1">Tổng trọng lượng: <b className="text-white mono">{zInfo.zoneWeight.toFixed(1)} Tấn</b></div>
                           </div>
                         </div>
                       );
@@ -2525,7 +2522,7 @@ export default function App() {
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400">Tổng trọng lượng:</span>
-                  <span className="mono font-bold text-[#f59e0b]">{(selectedDetailRack.detail?.weight || 0).toLocaleString()} kg</span>
+                  <span className="mono font-bold text-[#f59e0b]">{(selectedDetailRack.detail?.weight || 0).toFixed(3)} Tấn</span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400">Trạng thái vận hành:</span>
