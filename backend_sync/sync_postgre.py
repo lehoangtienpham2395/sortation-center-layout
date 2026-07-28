@@ -131,6 +131,19 @@ def get_pg_conn():
     )
 
 
+def get_sa_engine():
+    """SQLAlchemy engine for pd.read_sql (tránh UserWarning DBAPI2)."""
+    try:
+        from sqlalchemy import create_engine
+        return create_engine(
+            f"postgresql+psycopg2://{PG_USER}:{PG_PASS}@{PG_HOST}:{PG_PORT}/{PG_DBNAME}",
+            connect_args={'connect_timeout': 15, 'options': '-c statement_timeout=30000'},
+            pool_pre_ping=True,
+        )
+    except ImportError:
+        return None  # Fallback: caller will use raw psycopg2 conn
+
+
 # ════════════════════════════════════════════════════════════════════
 # JFS LINEHAUL + TRUCK ETA (dùng pipeline_unified_v6 functions)
 # ════════════════════════════════════════════════════════════════════
@@ -297,12 +310,6 @@ def sync_postgre_to_dashboard():
 
     # ── 2. PostgreSQL fetch & export ──────────────────────────────────────────
     print("\n📦 Phase 2: Reading from PostgreSQL logistics_db & generating JSONs...")
-    try:
-        conn = get_pg_conn()
-        print("   🟢 Connected to PostgreSQL")
-    except Exception as e:
-        print(f"   ❌ Cannot connect: {e}")
-        return
 
     query = """
         SELECT
@@ -324,11 +331,22 @@ def sync_postgre_to_dashboard():
         ORDER BY operation_date_created DESC, created_time DESC
     """
     try:
-        df = pd.read_sql(query, conn)
-        conn.close()
+        sa_engine = get_sa_engine()
+        if sa_engine:
+            df = pd.read_sql(query, sa_engine)
+            sa_engine.dispose()
+            print("   🟢 Connected to PostgreSQL (SQLAlchemy)")
+        else:
+            # Fallback nếu sqlalchemy chưa cài
+            import warnings
+            conn = get_pg_conn()
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                df = pd.read_sql(query, conn)
+            conn.close()
+            print("   🟢 Connected to PostgreSQL (psycopg2 fallback)")
     except Exception as e:
         print(f"   ❌ Query failed: {e}")
-        conn.close()
         return
 
     if len(df) == 0:
@@ -349,6 +367,12 @@ def sync_postgre_to_dashboard():
     inbound_group = {}   # 14-tuple key                          → {volume, weight_kg}
     arr_group     = {}   # (op_date, station_name, scan_hour)    → {total, at_hub, not_hub, last_scan_time}
     hourly        = {f"{h:02d}:00": 0 for h in range(24)}
+
+    # ── Cờ Rớt đơn (Nguyên tắc 6) ────────────────────────────────
+    # Rớt = đã Pickup Done nhưng CHƯA có Inbound scan tại HUB
+    # Phân loại theo ngày vận hành pickup (op_date_pickup vs today/yesterday)
+    rot_hom_truoc = 0   # Pickup hôm trước, chưa về HUB → tồn mặc định bất biến đầu ca
+    rot_hom_nay   = 0   # Pickup hôm nay, chưa về HUB  → đang trên đường
 
     # Normalize Hubcode → numeric zone for frontend ZONE_LIST
     ZONE_MAP = {'SR0001': '1', 'BNI001': '1', '1': '1', '2': '2', '3': '3'}
@@ -427,7 +451,7 @@ def sync_postgre_to_dashboard():
             backlog_group[kb]['volume']    += 1
             backlog_group[kb]['weight_kg'] += wt_kg
 
-        # 4. inbound (2 ngày gần nhất để giữ file nhỏ)
+        # 4. inbound group — nguồn dữ liệu cho inbound.json
         op_date_inb  = get_op_date(inb_t)  if inb_t  else ''
         op_date_fc   = get_op_date(cr_t)   if cr_t   else ''
         op_date_pick = get_op_date(pk_t)   if pk_t   else ''
@@ -436,11 +460,35 @@ def sync_postgre_to_dashboard():
         final_op_date_inb = op_inb_2 if (is_reb and op_inb_2) else (op_date_inb if inb_t else '')
         final_inb_hour    = inb_t_2[11:16] if (is_reb and len(inb_t_2) >= 16) else (inb_t[11:16] if len(inb_t) >= 16 else '')
 
-        if final_op_date_inb in (today, yesterday) or op_date_fc in (today, yesterday):
-            in_status  = ('Inbound'      if (has_in or is_reb) else
-                          'Transporting' if has_arr  else
-                          'Created'      if has_pick else 'Created')
-            drop_type  = 'rot_today' if op_date_fc == today else 'rot_yesterday'
+        # ── Nguyên tắc Op-Date Chưa Xác Định (Principle of Undefined Op-Date) ──
+        # Đơn "Rớt" = đã Pickup nhưng chưa Arrival/Inbound → op_date = CHƯA XÁC ĐỊNH ('')
+        # KHÔNG gắn created_time làm op_date → sẽ mất đơn khi cửa sổ today/yesterday trôi qua.
+        # Mốc chuẩn để đưa đơn vào cửa sổ rolling 2 ngày:
+        #   - Đơn đã Inbound/Rebound → dùng final_op_date_inb (ngày quét Inbound thực tế)
+        #   - Đơn đã Arrival → dùng op_date_arr (ngày xe đến HUB)
+        #   - Đơn Rớt (has_pick, NOT has_arr, NOT has_in) → dùng op_date_pick (ngày pickup)
+        #   - Đơn chưa pickup (Created only) → dùng op_date_fc (created date) -- đây là trường hợp duy nhất dùng created date
+        if has_in or is_reb:
+            ref_date = final_op_date_inb    # Đã Inbound/Rebound: ngày quét thực tế
+        elif has_arr:
+            ref_date = op_date_arr          # Đã Arrival (xe đến HUB): ngày xe đến
+        elif has_pick:
+            ref_date = op_date_pick         # Rớt (đã pickup, chưa về HUB): ngày lấy hàng
+        else:
+            ref_date = op_date_fc           # Chưa pickup: dùng created date (đơn mới tạo)
+
+        if ref_date in (today, yesterday):
+            in_status = ('Inbound'      if (has_in or is_reb) else
+                         'Transporting' if has_arr             else
+                         'Pickup Done'  if has_pick            else 'Created')
+
+            # drop_type phân loại theo NGÀY PICKUP thực tế, KHÔNG dùng created date
+            # Đơn chưa pickup → drop_type rỗng (chưa rớt, chỉ chờ lấy hàng)
+            if has_pick and not has_in and not has_arr and not is_reb:
+                drop_type = 'rot_today' if op_date_pick == today else 'rot_yesterday'
+            else:
+                drop_type = ''  # Không phân loại Rớt với đơn đã về HUB
+
             key_ib = (
                 station, in_status,
                 final_op_date_inb, op_date_fc, op_date_pick, op_date_arr,
@@ -454,6 +502,15 @@ def sync_postgre_to_dashboard():
                 inbound_group[key_ib] = {'volume': 0, 'weight_kg': 0.0, 'return_count': ret_cnt}
             inbound_group[key_ib]['volume']    += 1
             inbound_group[key_ib]['weight_kg'] += wt_kg
+
+        # ── Cờ Rớt (Nguyên tắc 6): Đã Pickup nhưng chưa Inbound ──
+        # Không tính đơn Rebound (is_reb=1) vì chúng đã từng vào HUB
+        if has_pick and not has_in and not is_reb:
+            op_date_pick_flag = get_op_date(pk_t)
+            if op_date_pick_flag == yesterday:
+                rot_hom_truoc += 1
+            elif op_date_pick_flag == today:
+                rot_hom_nay += 1
 
         # arrival
         if arr_t:
@@ -537,18 +594,27 @@ def sync_postgre_to_dashboard():
     ]
 
     now_display = now_vn.strftime("%H:%M:%S %d/%m/%Y")
+    # Tổng Inbound thực tế trong ca hôm nay (từ heatmap hourly)
+    total_inbound_today = sum(
+        v for h, v in hourly.items()
+        if h >= '06:00'  # từ 06:00 sáng (đầu ca vận hành)
+    )
     last_update_obj = {
         "last_update":           now_display,
         "active_date":           today,
         "yesterday":             yesterday,
         "total_records":         len(df),
-        "total_inbound_today":   int(hourly.get('06:00', 0) + sum(hourly.values())),
-        "total_backlog":         len(backlog_json),
-        "total_inventory":       len(inventory_json),
-        "rot_hom_truoc":         0,
-        "rot_hom_nay":           0,
+        "total_inbound_today":   total_inbound_today,
+        "total_backlog":         sum(v['volume'] for v in backlog_group.values()),
+        "total_inventory":       sum(v['volume'] for v in inv_group.values()),
+        # ── Cờ Rớt (Nguyên tắc 6): Đã Pickup nhưng chưa Inbound ──
+        # Đây là số bất biến đầu ca, được dùng làm Forecast KPI
+        "rot_hom_truoc":         rot_hom_truoc,
+        "rot_hom_nay":           rot_hom_nay,
+        "total_dropped":         rot_hom_truoc + rot_hom_nay,
         "sync_success":          True,
     }
+    print(f"   📊 Cờ Rớt: Rớt hôm trước={rot_hom_truoc:,}  |  Rớt hôm nay={rot_hom_nay:,}")
 
     # ── 5. Write dispatch JSONs ───────────────────────────────────
     print(f"\n📤 Writing JSON files → {DATA_DIR}")
