@@ -473,7 +473,15 @@ def sync_postgre_to_dashboard():
         elif has_arr:
             ref_date = op_date_arr          # Đã Arrival (xe đến HUB): ngày xe đến
         elif has_pick:
-            ref_date = op_date_pick         # Rớt (đã pickup, chưa về HUB): ngày lấy hàng
+            # Nguyên tắc Rớt đơn (Nguyên tắc 6 - đã hiệu chỉnh):
+            # Rớt hôm trước: op_date_pickup = yesterday → PHẢI dùng op_date_pickup
+            #   Lý do: created_time có thể từ 3-5 ngày trước, nếu dùng sẽ MẤT đơn
+            # Rớt hôm nay : op_date_pickup = today    → vẫn dùng op_date_created
+            #   Lý do: đơn tạo và pickup cùng ngày hôm nay, created_time vẫn trong cửa sổ 2 ngày
+            if op_date_pick == yesterday:
+                ref_date = op_date_pick     # Rớt hôm trước: dùng pickup date
+            else:
+                ref_date = op_date_fc       # Rớt hôm nay: dùng created date (vẫn hợp lệ)
         else:
             ref_date = op_date_fc           # Chưa pickup: dùng created date (đơn mới tạo)
 
