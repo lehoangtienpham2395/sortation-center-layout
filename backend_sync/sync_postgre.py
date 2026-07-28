@@ -78,7 +78,21 @@ def is_valid_ts(val) -> bool:
     return True
 
 def clean_ts_str(val) -> str:
-    return str(val).strip() if is_valid_ts(val) else ""
+    if not is_valid_ts(val):
+        return ""
+    try:
+        if isinstance(val, (pd.Timestamp, datetime.datetime)):
+            if val.tzinfo is not None:
+                val = val.astimezone(ZoneInfo("Asia/Ho_Chi_Minh"))
+            return val.strftime("%Y-%m-%d %H:%M:%S")
+        s = str(val).strip()
+        if '+00' in s or s.endswith('Z'):
+            dt = datetime.datetime.fromisoformat(s.replace('Z', '+00:00'))
+            dt_vn = dt.astimezone(ZoneInfo("Asia/Ho_Chi_Minh"))
+            return dt_vn.strftime("%Y-%m-%d %H:%M:%S")
+        return s
+    except Exception:
+        return str(val).strip()
 
 # ════════════════════════════════════════════════════════════════════
 # MAIN
@@ -552,20 +566,20 @@ def sync_postgre_to_dashboard():
         has_out_2 = bool(outb_t_2)
 
         # Fix Rủi ro 1 & 2: Dynamic Rot calculation theo tiêu chí USER
-        # - Rớt Hôm Nay   : Đơn tạo ca hôm nay (op_cr == today), chưa về HUB (flag_inb=0, flag_arr=0), trừ Đã hủy
-        # - Rớt Hôm Trước : Đơn tạo các ca trước (op_cr < today), chưa về HUB (flag_inb=0, flag_arr=0), trừ Đã hủy
+        # - Rớt Hôm Nay   : Đơn chưa về HUB (flag_inb=0, flag_arr=0), trừ Đã hủy, thuộc ca today (op_cr == today hoặc op_pk == today)
+        # - Rớt Hôm Trước : Đơn chưa về HUB (flag_inb=0, flag_arr=0), trừ Đã hủy, thuộc ca các ngày trước (< today)
         stn = str(r.get('next_station', '')).strip()
         is_canceled = (stn == 'Đã hủy' or r.get('status_sys') == 'Đã hủy')
-        is_rot = (not has_in) and (not has_arr) and (not is_canceled)
+        is_rot = (not has_in) and (not has_arr) and (not is_canceled) and (not is_reb)
+
+        ref_rot_date = str(r.get('op_date_pickup') or get_op_date(cr_t) or op_date or '')[:10]
         if is_rot:
-            if op_date == today or r.get('operation_date_created') == today:
+            if ref_rot_date == today:
                 rot_hom_nay   += 1
                 drop_type = 'rot_today'
-            elif op_date < today:
+            else:
                 rot_hom_truoc += 1
                 drop_type = 'rot_yesterday'
-            else:
-                drop_type = ''
         else:
             drop_type = ''
 
@@ -617,42 +631,24 @@ def sync_postgre_to_dashboard():
         final_op_date_inb = op_inb_2 if (is_reb and op_inb_2) else (op_date_inb if inb_t else '')
         final_inb_hour    = inb_t_2[11:16] if (is_reb and len(inb_t_2) >= 16) else (inb_t[11:16] if len(inb_t) >= 16 else '')
 
-        # ── Nguyên tắc Op-Date Chưa Xác Định (Principle of Undefined Op-Date) ──
-        # Đơn "Rớt" = đã Pickup nhưng chưa Arrival/Inbound → op_date = CHƯA XÁC ĐỊNH ('')
-        # KHÔNG gắn created_time làm op_date → sẽ mất đơn khi cửa sổ today/yesterday trôi qua.
-        # Mốc chuẩn để đưa đơn vào cửa sổ rolling 2 ngày:
-        #   - Đơn đã Inbound/Rebound → dùng final_op_date_inb (ngày quét Inbound thực tế)
-        #   - Đơn đã Arrival → dùng op_date_arr (ngày xe đến HUB)
-        #   - Đơn Rớt (has_pick, NOT has_arr, NOT has_in) → dùng op_date_pick (ngày pickup)
-        #   - Đơn chưa pickup (Created only) → dùng op_date_fc (created date) -- đây là trường hợp duy nhất dùng created date
+        # Mốc chuẩn để đưa đơn vào cửa sổ rolling 2 ngày của inbound.json:
+        #   - Đơn đã Inbound/Rebound → dùng final_op_date_inb
+        #   - Đơn đã Arrival → dùng op_date_arr
+        #   - Đơn Rớt (rot_today) → dùng today
+        #   - Đơn Rớt (rot_yesterday) → dùng yesterday (đảm bảo không bị mất đơn rớt các ngày trước)
         if has_in or is_reb:
-            ref_date = final_op_date_inb    # Đã Inbound/Rebound: ngày quét thực tế
+            ref_date = final_op_date_inb
         elif has_arr:
-            ref_date = op_date_arr          # Đã Arrival (xe đến HUB): ngày xe đến
-        elif has_pick:
-            # Nguyên tắc Rớt đơn (Nguyên tắc 6 - đã hiệu chỉnh):
-            # Rớt hôm trước: op_date_pickup = yesterday → PHẢI dùng op_date_pickup
-            #   Lý do: created_time có thể từ 3-5 ngày trước, nếu dùng sẽ MẤT đơn
-            # Rớt hôm nay : op_date_pickup = today    → vẫn dùng op_date_created
-            #   Lý do: đơn tạo và pickup cùng ngày hôm nay, created_time vẫn trong cửa sổ 2 ngày
-            if op_date_pick == yesterday:
-                ref_date = op_date_pick     # Rớt hôm trước: dùng pickup date
-            else:
-                ref_date = op_date_fc       # Rớt hôm nay: dùng created date (vẫn hợp lệ)
+            ref_date = op_date_arr
+        elif is_rot:
+            ref_date = today if drop_type == 'rot_today' else yesterday
         else:
-            ref_date = op_date_fc           # Chưa pickup: dùng created date (đơn mới tạo)
+            ref_date = op_date_fc
 
         if ref_date in (today, yesterday):
             in_status = ('Inbound'      if (has_in or is_reb) else
                          'Transporting' if has_arr             else
                          'Pickup Done'  if has_pick            else 'Created')
-
-            # drop_type phân loại theo NGÀY PICKUP thực tế, KHÔNG dùng created date
-            # Đơn chưa pickup → drop_type rỗng (chưa rớt, chỉ chờ lấy hàng)
-            if has_pick and not has_in and not has_arr and not is_reb:
-                drop_type = 'rot_today' if op_date_pick == today else 'rot_yesterday'
-            else:
-                drop_type = ''  # Không phân loại Rớt với đơn đã về HUB
 
             key_ib = (
                 station, in_status,
