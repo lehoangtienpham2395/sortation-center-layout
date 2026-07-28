@@ -381,22 +381,37 @@ def sync_postgre_to_dashboard():
         has_arr  = bool(arr_t)
         has_pick = bool(pk_t)
 
-        # Inventory status (trùng khớp 100% với bộ lọc Control Center trong React UI)
-        inv_status = ('Outbound'      if has_out else
-                      'Inbound'       if has_in  else
-                      'Transporting'  if has_arr else 'Created')
+        is_reb    = int(r.get('is_rebound') or 0)
+        ret_cnt   = int(r.get('return_count') or 0)
+        inb_t_2   = clean_ts_str(r.get('inbound_scandate_2'))
+        outb_t_2  = clean_ts_str(r.get('outbound_scandate_2'))
+        op_inb_2  = str(r.get('operation_date_inbound_2') or '')[:10]
+        has_out_2 = bool(outb_t_2)
 
-        # inventory group — CHỈ đơn CHƯA RỜI HUB và có area_id hợp lệ
-        if not has_out and valid_area:
+        # Trạng thái Rebound đang tồn bãi thực tế (Đã quay đầu nhập kho Lần 2 mà chưa xuất kho Lần 2)
+        is_active_rebound = (is_reb == 1 and not has_out_2)
+
+        # Đơn hiện tại đang NẰM TẠI KHO (chưa xuất kho lần 1, HOẶC đã Rebound quay đầu về kho mà chưa xuất kho lần 2)
+        is_currently_at_hub = (not has_out) or is_active_rebound
+
+        # Inventory status (trùng khớp 100% với bộ lọc Control Center trong React UI)
+        inv_status = ('Inbound'      if is_active_rebound else
+                      'Outbound'     if (has_out and not is_active_rebound) else
+                      'Inbound'      if has_in  else
+                      'Transporting' if has_arr else 'Created')
+
+        # 1. inventory group — Đơn hiện ĐANG TỒN TẠI KHO và có area_id hợp lệ
+        if is_currently_at_hub and valid_area:
             ki = (zone, area_id, station, inv_status)
             if ki not in inv_group:
                 inv_group[ki] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
             inv_group[ki]['volume']    += 1
             inv_group[ki]['weight_kg'] += wt_kg
 
-        # outbound group — chỉ record có area_id hợp lệ và tính chuẩn ngày vận hành xuất kho (op_date_outb)
-        if has_out and valid_area:
-            op_date_outb = get_op_date(outb_t)
+        # 2. outbound group — đơn đã xuất kho hoàn tất (Lần 1 hoặc Lần 2)
+        if (has_out_2 or (has_out and not is_active_rebound)) and valid_area:
+            effective_out_time = outb_t_2 if has_out_2 else outb_t
+            op_date_outb = get_op_date(effective_out_time)
             if op_date_outb in (today, yesterday):
                 ko = (zone, area_id, station, op_date_outb)
                 if ko not in out_group:
@@ -404,24 +419,19 @@ def sync_postgre_to_dashboard():
                 out_group[ko]['volume']    += 1
                 out_group[ko]['weight_kg'] += wt_kg
 
-        # backlog group — chỉ record có area_id hợp lệ
-        if has_in and not has_out and valid_area:
+        # 3. backlog group — đơn ĐANG TỒN KHO đã từng Inbound (Lần 1 hoặc Rebound Lần 2)
+        if is_currently_at_hub and (has_in or is_reb) and valid_area:
             kb = (zone, area_id, station)
             if kb not in backlog_group:
                 backlog_group[kb] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
             backlog_group[kb]['volume']    += 1
             backlog_group[kb]['weight_kg'] += wt_kg
 
-        # inbound (2 ngày gần nhất để giữ file nhỏ)
+        # 4. inbound (2 ngày gần nhất để giữ file nhỏ)
         op_date_inb  = get_op_date(inb_t)  if inb_t  else ''
         op_date_fc   = get_op_date(cr_t)   if cr_t   else ''
         op_date_pick = get_op_date(pk_t)   if pk_t   else ''
         op_date_arr  = get_op_date(arr_t)  if arr_t  else ''
-
-        is_reb    = int(r.get('is_rebound') or 0)
-        ret_cnt   = int(r.get('return_count') or 0)
-        inb_t_2   = clean_ts_str(r.get('inbound_scandate_2'))
-        op_inb_2  = str(r.get('operation_date_inbound_2') or '')[:10]
 
         final_op_date_inb = op_inb_2 if (is_reb and op_inb_2) else (op_date_inb if inb_t else '')
         final_inb_hour    = inb_t_2[11:16] if (is_reb and len(inb_t_2) >= 16) else (inb_t[11:16] if len(inb_t) >= 16 else '')
