@@ -73,8 +73,23 @@ def main():
         log(f"⚠️ Cannot create lock file: {e}")
 
     try:
+        now_vn = datetime.now(TZ_VN)
+
+        # ── 06:00 AM Snapshot: Chot so ngay van hanh hom truoc ──────────────
+        # Chay trong round 06:00-06:29 (truoc sync chinh thuc)
+        if now_vn.hour == 6 and now_vn.minute < 30:
+            snap_script = os.path.join(BASE_DIR, "backend_sync", "snapshot_daily.py")
+            if os.path.exists(snap_script):
+                python_exe = sys.executable
+                venv_py = os.path.join(BASE_DIR, ".venv", "Scripts", "python.exe")
+                if os.path.exists(venv_py):
+                    python_exe = venv_py
+                log("[0/4] 06:00 AM Snapshot: Chot so ngay van hanh hom truoc...")
+                run([python_exe, "-u", snap_script], timeout=120)
+                log("[0/4] Snapshot done!")
+
         # 1. Safe pull latest code/config (NO git reset --hard!)
-        log("📥 [1/4] Pulling latest code/config from GitHub (git pull --rebase)...")
+        log("[1/4] Pulling latest code/config from GitHub (git pull --rebase)...")
         run(["git", "pull", "--rebase", "origin", "main"], timeout=30)
 
         # 2. Run sync_postgre.py
@@ -129,8 +144,8 @@ def main():
             log(f"❌ Error running sync engine: {e}")
             return
 
-        # 3. Safe commit & push JSONs
-        log("☁️  [3/4] Commit & push updated JSONs to GitHub...")
+        # 3. Safe commit & push JSONs (CHI push rolling files, KHONG push history/)
+        log("[3/4] Commit & push updated JSONs to GitHub...")
         ts_str = datetime.now(TZ_VN).strftime('%Y-%m-%d %H:%M')
 
         run(["git", "add",
@@ -147,6 +162,8 @@ def main():
              "data/hub_inventory_pivot.json",
              "data/latest.json.gz",
              "backend_sync/config/valid.csv"])
+             # NOTE: data/history/ KHONG nam trong danh sach nay
+             # History chi duoc push boi snapshot_daily.py luc 06:00 AM
 
         r_status = subprocess.run(["git", "diff", "--staged", "--quiet"],
                                    cwd=BASE_DIR, capture_output=True)

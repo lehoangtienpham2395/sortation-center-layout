@@ -330,6 +330,53 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
   }
 }
 
+/**
+ * getTodayOpDate: Ngày vận hành hiện tại theo cá 06:00-05:59.
+ * Trước 06:00 sáng → tính là ngày hôm qua.
+ */
+function getTodayOpDate(): string {
+  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+  if (now.getHours() < 6) {
+    now.setDate(now.getDate() - 1);
+  }
+  return now.toISOString().split('T')[0];
+}
+
+/**
+ * fetchHistorySnapshot: Đọc file history/YYYY-MM-DD.json từ GitHub Pages.
+ * Trả về { inbound, outbound, inventory, heatmap, summary } hoặc null nếu không tìm thấy.
+ */
+async function fetchHistorySnapshot(date: string): Promise<any | null> {
+  const base = window.location.hostname.includes('github.io')
+    ? 'https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main'
+    : '.';
+  try {
+    const res = await fetch(`${base}/data/history/${date}.json?t=${Date.now()}`, { cache: 'no-cache' });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * fetchHistoryIndex: Đọc danh sách ngày có lịch sử snapshot từ history_index.json.
+ */
+async function fetchHistoryIndex(): Promise<string[]> {
+  const base = window.location.hostname.includes('github.io')
+    ? 'https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main'
+    : '.';
+  try {
+    const res = await fetch(`${base}/data/history_index.json?t=${Date.now()}`, { cache: 'no-cache' });
+    if (!res.ok) return [];
+    const idx = await res.json();
+    return idx.available_dates ?? [];
+  } catch {
+    return [];
+  }
+}
+
+
 async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[] | null> {
   try {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -486,6 +533,10 @@ export default function App() {
   const [arrivalData, setArrivalData] = useState<any[]>([]);
   const [truckEtaData, setTruckEtaData] = useState<any[]>([]);
   const [selectedInboundDate, setSelectedInboundDate] = useState<string>('');
+  // Backup today's data khi switch sang history
+  const todayInboundRef = React.useRef<any[]>([]);
+  const todayLinehaulRef = React.useRef<any[]>([]);
+  const todayArrivalRef = React.useRef<any[]>([]);
   const [showMonitor, setShowMonitor] = useState(true);
   const [showTelemetry, setShowTelemetry] = useState(true);
   const [showControls, setShowControls] = useState(true);
@@ -516,6 +567,11 @@ export default function App() {
   const [outboundRate, setOutboundRate] = useState<string>('0.0');
   const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Created', 'Pickup Done'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([...INVENTORY_STATUSES]);
+
+  // Historical snapshot dates (from history_index.json)
+  const [historicDates, setHistoricDates] = useState<string[]>([]);
+  // Flag: dang xem lich su hay du lieu hom nay
+  const [isViewingHistory, setIsViewingHistory] = useState<boolean>(false);
 
   const [selectedDetailRack, setSelectedDetailRack] = useState<any | null>(null);
 
@@ -574,6 +630,12 @@ export default function App() {
   // Fetch sheet records directly from Google Sheets (all 3 tabs in parallel)
   const fetchAndUpdateData = async () => {
     setLoading(true);
+
+    // Load history_index.json dể biết ngày nào có snapshot
+    fetchHistoryIndex().then(dates => {
+      setHistoricDates(dates);
+    });
+
     const [
       outboundRows, backlogRows, inventoryRows,
       ibRows, lhRows, arrivalRows, truckEtaRows, heatmapData
@@ -663,6 +725,57 @@ export default function App() {
 
     setLoading(false);
   };
+
+  // ── History Routing: DatePicker → history snapshot ─────────────────────────
+  // Khi chon ngay qua khu co trong historicDates → fetch data/history/YYYY-MM-DD.json
+  // Khi quay ve today → restore du lieu rolling hien tai
+  useEffect(() => {
+    const todayOpDate = getTodayOpDate();
+    const isHistory = selectedInboundDate &&
+                      selectedInboundDate !== todayOpDate &&
+                      historicDates.includes(selectedInboundDate);
+
+    if (isHistory) {
+      // Backup today data lan dau switch
+      if (!isViewingHistory) {
+        todayInboundRef.current = inboundData;
+        todayLinehaulRef.current = linehaulData;
+        todayArrivalRef.current = arrivalData;
+        setIsViewingHistory(true);
+      }
+      // Fetch snapshot
+      fetchHistorySnapshot(selectedInboundDate).then(snap => {
+        if (!snap) return;
+        // Remap inbound array tu snapshot
+        const remapped = (snap.inbound ?? []).map((row: Record<string, any>) => ({
+          ...row,
+          'Bưu cục': row.station_name ?? row['Bưu cục'] ?? '',
+          'Trạng thái': row.status ?? row['Trạng thái'] ?? '',
+          'Ngày vận hành_Inbound':  row.op_date_inbound  ?? '',
+          'Ngày vận hành_Forecast': row.op_date_forecast ?? '',
+          'Ngày vận hành_Pickup':   row.op_date_pickup   ?? '',
+          'Ngày vận hành_Arrival':  row.op_date_arrival  ?? '',
+          'Loại rớt':  row.drop_type  ?? '',
+          'Volume':    row.volume     ?? 0,
+          'Weight':    row.weight_ton ?? 0,
+          'Inbound Hour':   row.inbound_hour   ?? '',
+          'Arrival Time':   row.arrival_time   ?? '',
+          'Forecast Time':  row.forecast_time  ?? '',
+          'Pickup Time':    row.pickup_time     ?? '',
+        }));
+        setInboundData(remapped);
+        // Linehaul/Arrival khong co trong snapshot → dung mang rong (khong co du lieu lich su)
+        setLinehaulData([]);
+        setArrivalData([]);
+      });
+    } else if (!isHistory && isViewingHistory) {
+      // Quay ve today → restore du lieu rolling
+      setIsViewingHistory(false);
+      if (todayInboundRef.current.length > 0) setInboundData(todayInboundRef.current);
+      if (todayLinehaulRef.current.length > 0) setLinehaulData(todayLinehaulRef.current);
+      if (todayArrivalRef.current.length > 0) setArrivalData(todayArrivalRef.current);
+    }
+  }, [selectedInboundDate, historicDates]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Derived state/Filtering effect
   useEffect(() => {

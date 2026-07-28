@@ -711,9 +711,16 @@ def git_push(repo_dir: str, timestamp: str) -> None:
     """
     print("\n🚀 Phase 3: Git push → GitHub...")
     try:
-        # 1. git add data/ và src/ (chỉ JSON data + code thay đổi)
+        # 1. git add CHI 8 file rolling (KHONG add data/history/ — write-once)
+        ROLLING_FILES = [
+            "data/inbound.json", "data/inventory.json", "data/outbound.json",
+            "data/backlog.json", "data/last_update.json", "data/heatmap.json",
+            "data/truck_eta.json", "data/linehaul.json", "data/arrival.json",
+            "data/hub_inventory_pivot.json", "data/latest.json.gz",
+            "src/", "backend_sync/",
+        ]
         add = subprocess.run(
-            ["git", "add", "data/", "src/", "backend_sync/"],
+            ["git", "add"] + ROLLING_FILES,
             cwd=repo_dir, capture_output=True, text=True, timeout=30
         )
         if add.returncode != 0:
