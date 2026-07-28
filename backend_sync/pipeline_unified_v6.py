@@ -932,11 +932,16 @@ def main():
             })
 
     ob_map = {}
+    ob_next_station_map = {}
     for r in raw.get('outbound', []):
         wb = clean_wb(r.get('billNo') or r.get('waybillNo'))
         st = str(r.get('scanDate') or '').strip()
+        next_st = str(r.get('nextSite') or r.get('nextNetworkName') or r.get('next_network') or r.get('receiveSite') or '').strip()
         if wb and st and st.lower() not in ('nan', 'none', ''):
-            if wb not in ob_map or st > ob_map[wb]: ob_map[wb] = st
+            if wb not in ob_map or st > ob_map[wb]:
+                ob_map[wb] = st
+                if next_st:
+                    ob_next_station_map[wb] = next_st
 
     arr_scan_map, arr_trip_map = {}, {}
     for r in raw.get('arrival', []):
@@ -951,7 +956,7 @@ def main():
                 if trip: arr_trip_map[wb] = trip
 
     print('   Inbound  map: ' + str(len(ib_scan_map)) + ' don (bao gồm ' + str(len(ib_station_map)) + ' trạm nguồn upOrNextStation/sendSite)')
-    print('   Outbound map: ' + str(len(ob_map)) + ' don')
+    print('   Outbound map: ' + str(len(ob_map)) + ' don (bao gồm ' + str(len(ob_next_station_map)) + ' trạm đích nextSite)')
     print('   Arrival  map: ' + str(len(arr_scan_map)) + ' don')
 
     # ── Phase 5: Merge (FULL OUTER JOIN across all scan sources) ───────────────
@@ -1012,7 +1017,26 @@ def main():
     df['transported_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transported_time', '') if tc else '')
 
     df['Pickup_station'] = df.apply(lambda r: ib_station_map.get(r['tracking']) or r.get('Pickup_station') or 'BN HUB', axis=1)
-    df['Next_station']   = df.apply(lambda r: ib_station_map.get(r['tracking']) if (not r.get('Next_station') or r.get('Next_station') == 'KHÔ VÙNG KHÁC') else r.get('Next_station'), axis=1)
+
+    # Waterfall Next_station Lookup (Chính sách ưu tiên của USER: Inbound -> Outbound -> Backlog/Dispatch)
+    def resolve_waterfall_next_station(r):
+        wb = str(r['tracking']).strip()
+        ib_st = ib_station_map.get(wb, '')
+        ob_st = ob_next_station_map.get(wb, '')
+        disp_st = str(r.get('Next_station') or '').strip()
+
+        # 1. Ưu tiên 1: Inbound
+        if ib_st and ib_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'BN HUB'):
+            return ib_st
+        # 2. Ưu tiên 2: Outbound (nếu Inbound thiếu)
+        if ob_st and ob_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'BN HUB'):
+            return ob_st
+        # 3. Ưu tiên 3: Backlog / Dispatch (nếu cả 2 cùng thiếu)
+        if disp_st and disp_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'BN HUB'):
+            return disp_st
+        return ib_st or ob_st or disp_st or 'KHÔ VÙNG KHÁC'
+
+    df['Next_station'] = df.apply(resolve_waterfall_next_station, axis=1)
 
 
 
