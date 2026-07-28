@@ -464,21 +464,6 @@ export default function InboundDashboard({
     }
   });
 
-  // 1b. Bổ sung Truck ETA (Inbound Truck ETA - HCM HUB) vào đường Transporting trên biểu đồ
-  // Mỗi xe đang trên đường → phân bổ orders vào slot giờ ETA dự kiến đến Hub
-  filteredTruckEta.forEach((d: any) => {
-    const etaTime = d['actualArrivalTime'] || d['predictArriveTime'] || d['Giờ đến bãi'] || d['eta'] || d['planned_arrival'] || '';
-    if (!etaTime) return;
-    const hrVal = getHourFromTimestamp(etaTime);
-    if (hrVal < 0 || hrVal >= 24) return;
-    const hour = `${String(hrVal).padStart(2, '0')}:00`;
-    if (hourlyArrived[hour] === undefined) return;
-    const orders = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
-    if (orders > 0) {
-      hourlyArrived[hour] += orders;
-    }
-  });
-
   // 2. Forecast / Created Time (Dự báo - Tạo đơn):
   inboundData.filter(d => {
     const fcTime = d['Forecast Time'] || d['created_time'] || d['Created_time'] || d['Created Time'] || '';
