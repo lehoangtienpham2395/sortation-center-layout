@@ -248529,7 +248529,8 @@ function renderMapMarkersAndRoutes() {
 
 function getFilteredRoutes() {
   return ALL_ROUTES.filter(route => {
-    if (activeTab !== 'all' && route.type !== activeTab) return false;
+    if (activeTab === 'multiple' && !route.isMultipleStops) return false;
+    if (activeTab === 'single' && route.isMultipleStops) return false;
 
     if (typeof selectedPoType !== 'undefined' && selectedPoType !== 'ALL') {
       const hasType = route.stops.some(id => {

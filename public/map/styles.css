@@ -346,11 +346,18 @@ html, body {
   color: var(--text-muted);
 }
 
-/* Map Container */
-#map {
+.map-view {
   flex: 1;
   height: 100vh;
-  background: #e2e8f0;
+  position: relative;
+  display: flex;
+}
+
+/* Map Container */
+#map {
+  width: 100%;
+  height: 100%;
+  background: #1e293b;
 }
 
 /* Map Overlays */
