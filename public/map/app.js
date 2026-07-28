@@ -248652,48 +248652,69 @@ function selectRoute(code) {
 function initUIEvents() {
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", (e) => {
+      const targetBtn = e.currentTarget;
       document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-      e.target.classList.add("active");
-      activeTab = e.target.dataset.tab;
+      targetBtn.classList.add("active");
+      activeTab = targetBtn.getAttribute("data-tab") || "all";
+      selectedRouteCode = null;
       renderSidebar();
       renderMapMarkersAndRoutes();
       updateHeaderStats();
     });
   });
 
-  document.querySelectorAll(".province-pill").forEach(pill => {
+  document.querySelectorAll(".prov-pill, .province-pill").forEach(pill => {
     pill.addEventListener("click", (e) => {
-      document.querySelectorAll(".province-pill").forEach(p => p.classList.remove("active"));
-      e.target.classList.add("active");
-      selectedProvince = e.target.dataset.province;
+      const targetPill = e.currentTarget;
+      document.querySelectorAll(".prov-pill, .province-pill").forEach(p => p.classList.remove("active"));
+      targetPill.classList.add("active");
+      selectedPoType = targetPill.getAttribute("data-po-type") || targetPill.getAttribute("data-province") || "ALL";
+      selectedRouteCode = null;
       renderSidebar();
       renderMapMarkersAndRoutes();
     });
   });
 
   const searchInput = document.getElementById("search-input");
-  searchInput.addEventListener("input", (e) => {
-    searchQuery = e.target.value;
-    renderSidebar();
-    renderMapMarkersAndRoutes();
-  });
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      searchQuery = e.target.value;
+      renderSidebar();
+      renderMapMarkersAndRoutes();
+    });
+  }
 
-  document.getElementById("btn-export").addEventListener("click", exportRoutesToCSV);
-  document.getElementById("btn-toggle-traffic").addEventListener("click", toggleTrafficLayer);
+  const btnExport = document.getElementById("btn-export");
+  if (btnExport) btnExport.addEventListener("click", exportRoutesToCSV);
 
-  document.getElementById("btn-reset-view").addEventListener("click", () => {
-    selectedRouteCode = null;
-    const hub = POST_OFFICES['HCM_HUB'];
-    const centerLat = hub ? hub.lat : 10.8433;
-    const centerLng = hub ? hub.lng : 106.5133;
-    map.setView([centerLat, centerLng], 9);
-    renderSidebar();
-    renderMapMarkersAndRoutes();
-  });
+  const btnTraffic = document.getElementById("btn-toggle-traffic");
+  if (btnTraffic) btnTraffic.addEventListener("click", toggleTrafficLayer);
 
-  document.getElementById("panel-close-btn").addEventListener("click", () => {
-    document.getElementById("inbound-detail-panel").classList.remove("active");
-  });
+  const btnReset = document.getElementById("btn-reset-view");
+  if (btnReset) {
+    btnReset.addEventListener("click", () => {
+      selectedRouteCode = null;
+      selectedPoType = "ALL";
+      activeTab = "all";
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".tab-btn[data-tab='all']").forEach(b => b.classList.add("active"));
+      document.querySelectorAll(".prov-pill, .province-pill").forEach(p => p.classList.remove("active"));
+      document.querySelectorAll(".prov-pill[data-po-type='ALL']").forEach(p => p.classList.add("active"));
+      const hub = POST_OFFICES['HCM_HUB'];
+      const centerLat = hub ? hub.lat : 10.8433;
+      const centerLng = hub ? hub.lng : 106.5133;
+      map.setView([centerLat, centerLng], 9);
+      renderSidebar();
+      renderMapMarkersAndRoutes();
+    });
+  }
+
+  const panelCloseBtn = document.getElementById("panel-close-btn");
+  if (panelCloseBtn) {
+    panelCloseBtn.addEventListener("click", () => {
+      document.getElementById("inbound-detail-panel").classList.remove("active");
+    });
+  }
 }
 
 function updateHeaderStats() {
