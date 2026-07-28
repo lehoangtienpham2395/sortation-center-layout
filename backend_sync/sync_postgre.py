@@ -609,6 +609,15 @@ def sync_postgre_to_dashboard():
         # - Tất cả đơn CHƯA NHẬP KHO (flag_inb=0), trừ Đã hủy/Rebound, đều là ĐƠN RỚT CHƯA VỀ HUB
         # - Rớt Hôm Nay   : Thuộc ca today (op_pk == today hoặc op_cr == today) - bao gồm cả Pickup, Arrival, Transporting
         # - Rớt Hôm Trước : Thuộc ca các ngày trước (< today) - gối đầu tồn
+        #
+        # ⚠️ HỢP ĐỒNG DỮ LIỆU: drop_type xuất ra giá trị HIỂN THỊ SẴN (display-ready),
+        # y hệt cách `status`/`inv_status` bên dưới đang làm — để khớp trực tiếp với
+        # chuỗi so sánh cứng trong src/components/InboundDashboard.tsx
+        # (ví dụ: d['Loại rớt'] === 'Rớt hôm nay'). Nếu đổi giá trị ở đây, PHẢI đổi
+        # đồng thời BACKEND_DROP_TYPE_MAP trong src/App.tsx để 2 bên không bị lệch nữa.
+        DROP_TYPE_TODAY     = 'Rớt hôm nay'
+        DROP_TYPE_YESTERDAY = 'Rớt hôm trước'
+
         stn = str(r.get('next_station', '')).strip()
         is_canceled = (stn == 'Đã hủy' or r.get('status_sys') == 'Đã hủy')
         is_rot = (not has_in) and (not is_canceled) and (not is_reb)
@@ -617,10 +626,10 @@ def sync_postgre_to_dashboard():
         if is_rot:
             if ref_rot_date == today:
                 rot_hom_nay   += 1
-                drop_type = 'rot_today'
+                drop_type = DROP_TYPE_TODAY
             else:
                 rot_hom_truoc += 1
-                drop_type = 'rot_yesterday'
+                drop_type = DROP_TYPE_YESTERDAY
         else:
             drop_type = ''
 
@@ -634,6 +643,11 @@ def sync_postgre_to_dashboard():
         has_pk = bool(r.get('flag_pickup') or pk_t or st_sys_raw in ('Đã lấy hàng', 'Pickup Done', 'pickup_done'))
 
         # Inventory status (trùng khớp 100% với bộ lọc Control Center trong React UI)
+        # ⚠️ HỢP ĐỒNG DỮ LIỆU: đây là giá trị HIỂN THỊ SẴN (display-ready), phải khớp
+        # chính xác (kể cả hoa/thường) với danh sách INVENTORY_STATUSES trong src/App.tsx
+        # và BACKEND_STATUS_MAP dùng để chuẩn hoá dữ liệu. Nếu đổi giá trị ở đây,
+        # PHẢI đổi đồng thời bên frontend — nếu không dashboard sẽ lại sai âm thầm
+        # (không báo lỗi) giống lỗi drop_type đã từng gặp.
         inv_status = ('Inbound'      if is_active_rebound else
                       'Outbound'     if (has_out and not is_active_rebound) else
                       'Inbound'      if has_in  else
@@ -679,14 +693,14 @@ def sync_postgre_to_dashboard():
         # Mốc chuẩn để đưa đơn vào cửa sổ rolling 2 ngày của inbound.json:
         #   - Đơn đã Inbound/Rebound → dùng final_op_date_inb
         #   - Đơn đã Arrival → dùng op_date_arr
-        #   - Đơn Rớt (rot_today) → dùng today
-        #   - Đơn Rớt (rot_yesterday) → dùng yesterday (đảm bảo không bị mất đơn rớt các ngày trước)
+        #   - Đơn Rớt (DROP_TYPE_TODAY)     → dùng today
+        #   - Đơn Rớt (DROP_TYPE_YESTERDAY) → dùng yesterday (đảm bảo không bị mất đơn rớt các ngày trước)
         if has_in or is_reb:
             ref_date = final_op_date_inb
         elif has_arr:
             ref_date = op_date_arr
         elif is_rot:
-            ref_date = today if drop_type == 'rot_today' else yesterday
+            ref_date = today if drop_type == DROP_TYPE_TODAY else yesterday
         else:
             ref_date = op_date_fc
 

@@ -1,5 +1,5 @@
 import RouteMapDashboard from './components/RouteMapDashboard';
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import InboundDashboard from './components/InboundDashboard';
 import HeatmapDashboard from './components/HeatmapDashboard';
 import KpiDashboard from './components/KpiDashboard';
@@ -40,92 +40,16 @@ function NumberTicker({ value }: { value: number }) {
 }
 
 const MASTER_CONFIG_MAP: { [key: string]: string } = {};
-const NAME_TO_AREA_ID_MAP: { [key: string]: string } = {};
-
 try {
-  const cfgList = Array.isArray(configData) ? configData : ((configData as any)?.pivot_data || []);
-  cfgList.forEach((c: any) => {
+  (configData as any[]).forEach(c => {
     const key = c?.AreaID || c?.areaId;
     const name = c?.['Bưu cục'] || c?.buuCuc;
     if (key && name) {
-      const k = String(key).trim();
-      const n = String(name).trim();
-      MASTER_CONFIG_MAP[k] = n;
-      NAME_TO_AREA_ID_MAP[n.toUpperCase()] = k;
+      MASTER_CONFIG_MAP[String(key).trim()] = String(name).trim();
     }
   });
 } catch (e) {
   console.error("Error loading master config map:", e);
-}
-
-MASTER_CONFIG_MAP['A06'] = 'BN HUB';
-NAME_TO_AREA_ID_MAP['BN HUB'] = 'A06';
-NAME_TO_AREA_ID_MAP['BNI001'] = 'A06';
-NAME_TO_AREA_ID_MAP['BẮC NINH HUB'] = 'A06';
-NAME_TO_AREA_ID_MAP['BAC NINH HUB'] = 'A06';
-
-export function resolveAreaId(rawAreaId?: string, buuCucName?: string): string {
-  const aId = (rawAreaId || '').trim();
-  if (aId && aId !== 'FC' && aId !== 'KHO VÙNG KHÁC' && aId !== 'None') {
-    return aId;
-  }
-  if (buuCucName) {
-    const normName = buuCucName.trim().toUpperCase();
-    if (NAME_TO_AREA_ID_MAP[normName]) {
-      return NAME_TO_AREA_ID_MAP[normName];
-    }
-  }
-  return aId || 'FC';
-}
-
-// ============================================================
-// BACKEND <-> FRONTEND DATA CONTRACT & ENUM MAPS
-// ============================================================
-export const BACKEND_STATUS_MAP: Record<string, string> = {
-  // Capitalized canonical values
-  'Inbound': 'Inbound',
-  'Transporting': 'Transporting',
-  'Pickup Done': 'Pickup Done',
-  'Created': 'Created',
-  'Outbound': 'Outbound',
-
-  // Raw / Lowercase / Legacy status mappings
-  'inbound': 'Inbound',
-  'at_hub': 'Inbound',
-  'Đang trên bãi': 'Inbound',
-
-  'transporting': 'Transporting',
-  'Đang trên đường': 'Transporting',
-
-  'pickup_done': 'Pickup Done',
-  'created': 'Created',
-  'Đã lấy hàng': 'Pickup Done',
-  'Đã điều phối bưu cục': 'Created',
-
-  'outbound_done': 'Outbound',
-  'outbound': 'Outbound',
-  'Đã xuất khỏi HUB': 'Outbound',
-  'Đã rời HUB': 'Outbound',
-};
-
-export const BACKEND_DROP_TYPE_MAP: Record<string, string> = {
-  'rot_today': 'Rớt hôm nay',
-  'rot_yesterday': 'Rớt hôm trước',
-  'Rớt hôm nay': 'Rớt hôm nay',
-  'Rớt hôm trước': 'Rớt hôm trước',
-};
-
-export function normalizeStatus(rawStatus?: string): string {
-  if (!rawStatus) return 'Created';
-  const str = String(rawStatus).trim();
-  return BACKEND_STATUS_MAP[str] || BACKEND_STATUS_MAP[str.toLowerCase()] || str;
-}
-
-export function normalizeDropType(rawDropType?: string): string {
-  // FIX: trả về '' khi rỗng — không tự động gán 'Rớm hôm nay' cho đơn không có drop_type
-  if (!rawDropType || String(rawDropType).trim() === '') return '';
-  const str = String(rawDropType).trim();
-  return BACKEND_DROP_TYPE_MAP[str] || str;
 }
 
 // ── Rack / chute definitions (Chuẩn hóa 100% tên bưu cục theo valid.csv) ──
@@ -148,7 +72,7 @@ const ZONE3_LIST = [
   { areaId: 'C22', name: 'VT LONG ĐẤT', zone: 3 },   { areaId: 'C23', name: 'SG BẢY HIỀN', zone: 3 },
   { areaId: 'C24', name: 'BD BÌNH HÒA', zone: 3 },
   { areaId: 'C25', name: 'LA BẾN LỨC', zone: 3 },
-  { areaId: 'C26', name: 'SE TN', zone: 3 }
+  { areaId: 'C26', name: '3PL', zone: 3 }
 ];
 
 const ZONE3_TRUCKS = Array.from({ length: 24 }, (_, i) => ({
@@ -215,16 +139,8 @@ const CHUTE_RACKS = [...ZONE3_LIST, ...ZONE2_LIST, ...ZONE1_LIST];
 const ALL_RACKS = [...CHUTE_RACKS, ...ZONE3_TRUCKS, ...ZONE2_TRUCKS, ...ZONE1_TRUCKS, ...INBOUND_TRUCKS];
 
 ALL_RACKS.forEach(item => {
-  if (item.areaId === 'A06') {
-    item.name = 'BN HUB';
-  } else if (MASTER_CONFIG_MAP[item.areaId]) {
+  if (MASTER_CONFIG_MAP[item.areaId]) {
     item.name = MASTER_CONFIG_MAP[item.areaId];
-  }
-  if (item.name && item.areaId) {
-    const n = item.name.trim().toUpperCase();
-    if (!NAME_TO_AREA_ID_MAP[n]) {
-      NAME_TO_AREA_ID_MAP[n] = item.areaId;
-    }
   }
 });
 
@@ -257,16 +173,65 @@ interface SheetRow {
   status?: string;
 }
 
+// ════════════════════════════════════════════════════════════════════
+// ⚠️ HỢP ĐỒNG DỮ LIỆU BACKEND ↔ FRONTEND (single source of truth)
+// ════════════════════════════════════════════════════════════════════
+// backend_sync/sync_postgre.py xuất `status`/`inv_status`/`drop_type` dưới dạng
+// giá trị HIỂN THỊ SẴN (display-ready): 'Inbound', 'Transporting', 'Pickup Done',
+// 'Created', 'Outbound', 'Rớt hôm nay', 'Rớt hôm trước' — khớp trực tiếp với các
+// chuỗi so sánh cứng trong InboundDashboard.tsx.
+//
+// 2 bảng dưới đây là LỚP AN TOÀN DỰ PHÒNG (không phải lớp dịch bắt buộc):
+// nếu backend lỡ đổi về dạng snake_case (vd 'inbound', 'rot_today') hoặc dữ liệu
+// cũ từ Google Sheet còn sót lại, map vẫn tự quy về đúng giá trị UI cần — tránh
+// lặp lại lỗi cũ (dashboard sai âm thầm, không báo lỗi).
+//
+// ➜ Nguyên tắc bắt buộc: MỌI so sánh status/drop_type trong toàn bộ app phải đi
+//   qua normalizeStatus()/normalizeDropType(), KHÔNG so sánh chuỗi cứng rải rác
+//   ở nơi khác. Nếu backend đổi enum, chỉ cần thêm dòng vào map này.
+const BACKEND_STATUS_MAP: Record<string, string> = {
+  // phòng trường hợp backend đổi về snake_case
+  'inbound':        'Inbound',
+  'transporting':   'Transporting',
+  'pickup_done':    'Pickup Done',
+  'created':        'Created',
+  'outbound':       'Outbound',
+  'outbound_done':  'Outbound',
+  // giữ tương thích ngược với data cũ từ Google Sheet (trước khi có pipeline JSON)
+  'at_hub':                 'Inbound',
+  'Đang trên bãi':          'Inbound',
+  'Đang trên đường':        'Transporting',
+  'Đã lấy hàng':            'Created',
+  'Đã điều phối bưu cục':   'Created',
+  'Đã xuất khỏi HUB':       'Outbound',
+  'Đã rời HUB':             'Outbound',
+};
+
+const BACKEND_DROP_TYPE_MAP: Record<string, string> = {
+  // phòng trường hợp backend đổi về snake_case (giá trị cũ trước khi thống nhất)
+  'rot_today':      'Rớt hôm nay',
+  'rot_yesterday':  'Rớt hôm trước',
+};
+
+function normalizeStatus(raw: unknown): string | undefined {
+  if (raw === undefined || raw === null || raw === '') return undefined;
+  const key = String(raw);
+  return BACKEND_STATUS_MAP[key] ?? key; // fallback: giữ nguyên nếu đã là giá trị hiển thị (vd nhập tay)
+}
+
+function normalizeDropType(raw: unknown): string | undefined {
+  if (raw === undefined || raw === null || raw === '') return undefined;
+  const key = String(raw);
+  return BACKEND_DROP_TYPE_MAP[key] ?? key;
+}
+
 
 
 async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival' | 'Truck_ETA'): Promise<any[] | null> {
   try {
     const t = Date.now();
-    let response: Response;
-    try {
-      response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
-      if (!response.ok) throw new Error();
-    } catch {
+    let response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+    if (!response.ok) {
       response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
     }
     if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
@@ -286,13 +251,6 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
       'total_orders': 'Tổng số đơn',
       'volume': 'Volume',
       'weight_ton': 'Weight',
-      // FIX: Thêm mapping cho các field thời gian (dùng trong hourly trend chart)
-      'inbound_hour':   'Inbound Hour',
-      'arrival_time':   'Arrival Time',
-      'forecast_time':  'Forecast Time',
-      'pickup_time':    'Pickup Time',
-      'transporing_time': 'transporing_time',
-      'transported_time': 'transported_time',
 
       'Bu cc': 'Bưu cục',
       'Trng thi': 'Trạng thái',
@@ -311,18 +269,14 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
           out[keyMap[k]] = v;
         }
       }
-
-      // Contract normalization
-      const rawSt = row['status'] ?? row['Trạng thái'] ?? row['Trng thi'] ?? row['status_sys'];
-      const stNorm = normalizeStatus(rawSt);
-      out['status'] = stNorm;
-      out['Trạng thái'] = stNorm;
-
-      const rawDrop = row['drop_type'] ?? row['Loại rớt'] ?? row['Loi rt'];
-      const dropNorm = normalizeDropType(rawDrop);
-      out['drop_type'] = dropNorm;
-      out['Loại rớt'] = dropNorm;
-
+      // Chuẩn hóa enum status/drop_type qua hợp đồng dữ liệu tập trung
+      // (backend snake_case → chuỗi hiển thị UI dùng để so sánh)
+      if (out['Trạng thái'] !== undefined) {
+        out['Trạng thái'] = normalizeStatus(out['Trạng thái']);
+      }
+      if (out['Loại rớt'] !== undefined) {
+        out['Loại rớt'] = normalizeDropType(out['Loại rớt']);
+      }
       return out;
     });
   } catch (error) {
@@ -331,65 +285,13 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
   }
 }
 
-/**
- * getTodayOpDate: Ngày vận hành hiện tại theo cá 06:00-05:59.
- * Trước 06:00 sáng → tính là ngày hôm qua.
- */
-function getTodayOpDate(): string {
-  const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-  if (now.getHours() < 6) {
-    now.setDate(now.getDate() - 1);
-  }
-  return now.toISOString().split('T')[0];
-}
-
-/**
- * fetchHistorySnapshot: Đọc file history/YYYY-MM-DD.json từ GitHub Pages.
- * Trả về { inbound, outbound, inventory, heatmap, summary } hoặc null nếu không tìm thấy.
- */
-async function fetchHistorySnapshot(date: string): Promise<any | null> {
-  const base = window.location.hostname.includes('github.io')
-    ? 'https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main'
-    : '.';
-  try {
-    const res = await fetch(`${base}/data/history/${date}.json?t=${Date.now()}`, { cache: 'no-cache' });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
-
-/**
- * fetchHistoryIndex: Đọc danh sách ngày có lịch sử snapshot từ history_index.json.
- */
-async function fetchHistoryIndex(): Promise<string[]> {
-  const base = window.location.hostname.includes('github.io')
-    ? 'https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main'
-    : '.';
-  try {
-    const res = await fetch(`${base}/data/history_index.json?t=${Date.now()}`, { cache: 'no-cache' });
-    if (!res.ok) return [];
-    const idx = await res.json();
-    return idx.available_dates ?? [];
-  } catch {
-    return [];
-  }
-}
-
-
 async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[] | null> {
   try {
     const todayStr = new Date().toISOString().split('T')[0];
     const t = Date.now();
-    let response: Response;
-    if (window.location.hostname.includes('github.io')) {
-      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-cache' });
-    } else {
-      response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-cache' });
-    }
+    let response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
     if (!response.ok) {
-      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-cache' });
+      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
     }
     if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
     const rawData = await response.json();
@@ -400,24 +302,22 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
 
     const rows: SheetRow[] = [];
 
-
-
+    // NOTE: status ở đây dùng chung BACKEND_STATUS_MAP (khai báo phía trên) —
+    // KHÔNG khai báo map riêng nữa để tránh lệch với Inbound dashboard.
     for (const item of data) {
       const zone       = String(item['zone'] ?? item['Zone'] ?? item['round'] ?? item['Round'] ?? '');
-      const rawAreaId  = String(item['area_id'] ?? item['AreaID'] ?? item['rank'] ?? item['Rank'] ?? '');
-      const buuCuc     = String(item['Next_station'] ?? item['next_network'] ?? item['station_name'] ?? item['Bu cc'] ?? item['Bưu cục'] ?? item['name'] ?? item['Pickup_station'] ?? '');
-      const areaId     = resolveAreaId(rawAreaId, buuCuc);
+      const areaId     = String(item['area_id'] ?? item['AreaID'] ?? item['rank'] ?? item['Rank'] ?? '');
+      const buuCuc     = String(item['station_name'] ?? item['Bu cc'] ?? item['Bưu cục'] ?? item['name'] ?? item['Next_station'] ?? item['Pickup_station'] ?? '');
       const volumeRaw  = item['volume'] ?? item['Volume'] ?? item['Orders_num'];
       const weightRaw  = item['weight_ton'] ?? item['weight'] ?? item['Weight'] ?? item['Orders_weight'];
       const capRaw     = item['capacity'] ?? item['Sc cha'] ?? item['Sức chứa'] ?? 780;
       const dateRaw    = item['op_date'] ?? item['Ngy'] ?? item['Ngày'] ?? item['date'] ?? item['operation_date_created'] ?? item['operation_date'] ?? item['operation_date_inbound'] ?? todayStr;
       const rawSt      = item['status'] ?? item['Trng thi'] ?? item['Trạng thái'] ?? item['status_sys'] ?? undefined;
-      const statusRaw  = rawSt ? normalizeStatus(rawSt) : undefined;
+      const statusRaw  = normalizeStatus(rawSt);
 
       const volume   = Number(volumeRaw);
-      // ✅ Đơn vị chuẩn: Tấn — backend (sync_postgre.py) đã lưu weight_ton = weight_kg / 1000
-      // KHÔNG cần if-else đoán đơn vị nữa. Đọc thẳng giá trị Tấn từ JSON.
-      const weight   = Number(weightRaw) || 0;
+      let weight     = Number(weightRaw) || 0;
+      if (weight > 100) weight = Number((weight / 1000.0).toFixed(3));
       const capacity = Number(capRaw) || 780;
 
       if (areaId || buuCuc) {
@@ -534,10 +434,6 @@ export default function App() {
   const [arrivalData, setArrivalData] = useState<any[]>([]);
   const [truckEtaData, setTruckEtaData] = useState<any[]>([]);
   const [selectedInboundDate, setSelectedInboundDate] = useState<string>('');
-  // Backup today's data khi switch sang history
-  const todayInboundRef = useRef<any[]>([]);
-  const todayLinehaulRef = useRef<any[]>([]);
-  const todayArrivalRef = useRef<any[]>([]);
   const [showMonitor, setShowMonitor] = useState(true);
   const [showTelemetry, setShowTelemetry] = useState(true);
   const [showControls, setShowControls] = useState(true);
@@ -564,15 +460,10 @@ export default function App() {
   const [heatmapRows, setHeatmapRows] = useState<any[]>([]);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Inventory');
+  const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Outbound');
   const [outboundRate, setOutboundRate] = useState<string>('0.0');
-  const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Created', 'Pickup Done'];
+  const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Created'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([...INVENTORY_STATUSES]);
-
-  // Historical snapshot dates (from history_index.json)
-  const [historicDates, setHistoricDates] = useState<string[]>([]);
-  // Flag: dang xem lich su hay du lieu hom nay
-  const [isViewingHistory, setIsViewingHistory] = useState<boolean>(false);
 
   const [selectedDetailRack, setSelectedDetailRack] = useState<any | null>(null);
 
@@ -631,12 +522,6 @@ export default function App() {
   // Fetch sheet records directly from Google Sheets (all 3 tabs in parallel)
   const fetchAndUpdateData = async () => {
     setLoading(true);
-
-    // Load history_index.json dể biết ngày nào có snapshot
-    fetchHistoryIndex().then(dates => {
-      setHistoricDates(dates);
-    });
-
     const [
       outboundRows, backlogRows, inventoryRows,
       ibRows, lhRows, arrivalRows, truckEtaRows, heatmapData
@@ -722,57 +607,6 @@ export default function App() {
     setLoading(false);
   };
 
-  // ── History Routing: DatePicker → history snapshot ─────────────────────────
-  // Khi chon ngay qua khu co trong historicDates → fetch data/history/YYYY-MM-DD.json
-  // Khi quay ve today → restore du lieu rolling hien tai
-  useEffect(() => {
-    const todayOpDate = getTodayOpDate();
-    const isHistory = selectedInboundDate &&
-                      selectedInboundDate !== todayOpDate &&
-                      historicDates.includes(selectedInboundDate);
-
-    if (isHistory) {
-      // Backup today data lan dau switch
-      if (!isViewingHistory) {
-        todayInboundRef.current = inboundData;
-        todayLinehaulRef.current = linehaulData;
-        todayArrivalRef.current = arrivalData;
-        setIsViewingHistory(true);
-      }
-      // Fetch snapshot
-      fetchHistorySnapshot(selectedInboundDate).then(snap => {
-        if (!snap) return;
-        // Remap inbound array tu snapshot
-        const remapped = (snap.inbound ?? []).map((row: Record<string, any>) => ({
-          ...row,
-          'Bưu cục': row.station_name ?? row['Bưu cục'] ?? '',
-          'Trạng thái': row.status ?? row['Trạng thái'] ?? '',
-          'Ngày vận hành_Inbound':  row.op_date_inbound  ?? '',
-          'Ngày vận hành_Forecast': row.op_date_forecast ?? '',
-          'Ngày vận hành_Pickup':   row.op_date_pickup   ?? '',
-          'Ngày vận hành_Arrival':  row.op_date_arrival  ?? '',
-          'Loại rớt':  row.drop_type  ?? '',
-          'Volume':    row.volume     ?? 0,
-          'Weight':    row.weight_ton ?? 0,
-          'Inbound Hour':   row.inbound_hour   ?? '',
-          'Arrival Time':   row.arrival_time   ?? '',
-          'Forecast Time':  row.forecast_time  ?? '',
-          'Pickup Time':    row.pickup_time     ?? '',
-        }));
-        setInboundData(remapped);
-        // Linehaul/Arrival khong co trong snapshot → dung mang rong (khong co du lieu lich su)
-        setLinehaulData([]);
-        setArrivalData([]);
-      });
-    } else if (!isHistory && isViewingHistory) {
-      // Quay ve today → restore du lieu rolling
-      setIsViewingHistory(false);
-      if (todayInboundRef.current.length > 0) setInboundData(todayInboundRef.current);
-      if (todayLinehaulRef.current.length > 0) setLinehaulData(todayLinehaulRef.current);
-      if (todayArrivalRef.current.length > 0) setArrivalData(todayArrivalRef.current);
-    }
-  }, [selectedInboundDate, historicDates]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Derived state/Filtering effect
   useEffect(() => {
     if (rawSheetRows.length === 0) return;
@@ -809,10 +643,10 @@ export default function App() {
     const inventoryMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
 
     rawSheetRows.forEach(row => {
-      const key = resolveAreaId(row.areaId, row.buuCuc);
+      const key = row.areaId;
       if (!key) return;
 
-      const dateMatched = isDateMatch(row.date, selectedDate) || (row.type === 'Inventory' && (!selectedDate || selectedDate === row.date));
+      const dateMatched = isDateMatch(row.date, selectedDate);
       if (!dateMatched) return;
 
       // Volume tab matches Volume or exact row type
@@ -882,17 +716,12 @@ export default function App() {
         const blItem = backlogMap[key];
         const invEntry = inventoryMap[key];
 
-        if (selectedType === 'Inventory' && (invEntry || blItem)) {
-          capacity = (invEntry ? invEntry.capacity : 0) || (key === 'A06' ? 1400 : 780);
-          const invVol = (invEntry && invEntry.volume > 0) ? invEntry.volume : 0;
-          const blVol  = (blItem  && blItem.volume  > 0) ? blItem.volume  : 0;
-          const invWt  = (invEntry && invEntry.weight > 0)  ? invEntry.weight : 0;
-          const blWt   = (blItem  && blItem.weight > 0)   ? blItem.weight  : 0;
-          // USER DIRECTIVE: Số Inventory = Forecast + Backlog
-          current  = invVol + blVol;
-          weight   = invWt + blWt;
+        if (selectedType === 'Inventory' && invEntry) {
+          capacity = invEntry.capacity || 780;
+          current = invEntry.volume;
+          weight = invEntry.weight || 0;
           isMocked = false;
-          util     = Math.floor((current / capacity) * 100);
+          util = Math.floor((current / capacity) * 100);
         } else if (item) {
           capacity = item.capacity;
           if (item.volume !== -1) {
@@ -987,7 +816,7 @@ export default function App() {
       const d = data[c.areaId] || { current: 0, weight: 0, capacity: 780, utilization: 0, bucket: 'green', name: c.name };
       return {
         areaId: c.areaId,
-        name: c.name,
+        name: d.name || c.name,
         current: d.current,
         weight: d.weight || 0,
         utilization: d.utilization,
@@ -1726,7 +1555,7 @@ export default function App() {
                 gap: '6px',
                 textShadow: '0 0 8px rgba(184,247,228,0.3)'
               }}>
-                <span className="w-1.5 h-1.5 rounded-full bg-[#B8F7E4] animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
                 Update: {lastUpdate}
               </div>
             )}
@@ -1778,8 +1607,8 @@ export default function App() {
               <div className="space-y-1 font-outfit">
                 {[
                   { id: 'master', label: 'Layout', color: '#4F8CFF', active: currentView === 'master', onClick: () => setCurrentView('master') },
-                  { id: 'inbound', label: 'Inbound', color: '#10b981', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
-                  { id: 'heatmap', label: 'Heatmap', color: '#10b981', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
+                  { id: 'inbound', label: 'Inbound', color: '#B8F7E4', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
+                  { id: 'heatmap', label: 'Heatmap', color: '#B8F7E4', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
                   { id: 'kpi', label: 'KPI', color: '#F59E0B', active: currentView === 'kpi', onClick: () => setCurrentView('kpi') },
     { id: 'maps', label: 'Maps', color: '#00F2FE', active: currentView === 'maps', onClick: () => setCurrentView('maps') },
                 ].map(item => {
@@ -1939,7 +1768,7 @@ export default function App() {
                   {/* Zone cards 3-column grid */}
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     {[
-                      { id: 3, shortName: 'ZONE 3', sub: '', color: '#10b981', colorBg: 'rgba(16,185,129,0.1)', colorBorder: 'rgba(16,185,129,0.3)' },
+                      { id: 3, shortName: 'ZONE 3', sub: '', color: '#B8F7E4', colorBg: 'rgba(16,185,129,0.1)', colorBorder: 'rgba(16,185,129,0.3)' },
                       { id: 2, shortName: 'ZONE 2', sub: '', color: '#f59e0b', colorBg: 'rgba(245,158,11,0.1)', colorBorder: 'rgba(245,158,11,0.3)' },
                       { id: 1, shortName: 'ZONE 1', sub: '', color: '#f97316', colorBg: 'rgba(249,115,22,0.1)', colorBorder: 'rgba(249,115,22,0.3)' }
                     ].map(zone => {
@@ -1962,9 +1791,9 @@ export default function App() {
                         >
                           <div className="mono font-extrabold" style={{ fontSize: '13px', color: zone.color, lineHeight: 1.2, textShadow: `0 0 8px ${zone.color}88` }}>{zone.shortName}</div>
                           <div className="mono font-bold" style={{ fontSize: '13px', color: zone.color, lineHeight: 1.2 }}>{stats.fillRate}%</div>
-                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#10b981', lineHeight: 1.2 }}>{stats.current.toLocaleString()}</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#B8F7E4', lineHeight: 1.2 }}>{stats.current.toLocaleString()}</div>
                           <div className="mono font-bold" style={{ fontSize: '13px', color: '#f1f5f9', lineHeight: 1.2 }}>{(stats as any).totalShare}%</div>
-                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#10b981', lineHeight: 1.2 }}>{(stats.weight / 1000).toFixed(1)} tấn</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#B8F7E4', lineHeight: 1.2 }}>{(stats.weight / 1000).toFixed(1)} tấn</div>
                         </div>
                       );
                     })}
@@ -1979,7 +1808,7 @@ export default function App() {
                           ['Mã ô', hoveredRack.areaId, 'var(--cyan)'],
                           ['Tên', hoveredRack.name, '#f1f5f9'],
                           ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#f1f5f9'],
-                          ['Trọng lượng', `${(hoveredRack.weight || 0).toFixed(3)} Tấn`, '#f1f5f9'],
+                          ['Trọng lượng', `${(hoveredRack.weight || 0).toLocaleString()} kg`, '#f1f5f9'],
                           [displayUtilizationLabelLc, `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
                         ].map(([k, v, c]) => (
                           <div key={k} className="flex justify-between" style={{ marginBottom: '4px' }}>
@@ -2006,14 +1835,14 @@ export default function App() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <div className="flex justify-between items-center">
                       <span style={{ fontSize: '13px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng đơn hàng</span>
-                      <span className="mono font-bold" style={{ fontSize: '15px', color: '#10b981', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
+                      <span className="mono font-bold" style={{ fontSize: '15px', color: '#B8F7E4', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
                         <NumberTicker value={totalOrders} /> <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Đơn</span>
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span style={{ fontSize: '13px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng trọng lượng</span>
-                      <span className="mono font-bold" style={{ fontSize: '15px', color: '#10b981', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
-                        {totalWeight.toFixed(2)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
+                      <span className="mono font-bold" style={{ fontSize: '15px', color: '#B8F7E4', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
+                        {(totalWeight / 1000).toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
                       </span>
                     </div>
                   </div>
@@ -2177,8 +2006,8 @@ export default function App() {
                               <td className="font-bold text-white uppercase" style={{ fontSize: '11px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2' }} title={chute.name}>
                                 {chute.name}
                               </td>
-                              <td className="mono font-bold text-center" style={{ color: '#10b981', fontSize: '12px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
-                              <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>{(chute.weight).toFixed(1)} Tấn</td>
+                              <td className="mono font-bold text-center" style={{ color: '#B8F7E4', fontSize: '12px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
+                              <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>{(chute.weight / 1000).toFixed(1)} Tấn</td>
                               <td className="mono font-bold text-center" style={{ color: UTILCOL[chute.bucket], fontSize: '11.5px', textShadow: chute.bucket === 'darkred' || chute.bucket === 'red' ? '0 0 8px rgba(239,68,68,0.6)' : '0 0 8px rgba(16,185,129,0.5)' }}>{chute.utilization}%</td>
                             </tr>
                           );
@@ -2283,7 +2112,6 @@ export default function App() {
                 loading={loading}
                 fetchAndUpdateData={fetchAndUpdateData}
                 lastUpdate={lastUpdate}
-                lastUpdateObj={lastUpdateObj}
               />
             )}
           </div>
@@ -2372,7 +2200,7 @@ export default function App() {
                         </div>
                         <div>
                           <div className="text-[9px] text-[var(--muted)]">Trọng lượng:</div>
-                          <div className="mono text-[11px] font-bold text-white">{hoveredRack.weight?.toFixed(3)} Tấn</div>
+                          <div className="mono text-[11px] font-bold text-white">{hoveredRack.weight?.toLocaleString()} kg</div>
                         </div>
                         <div>
                           <div className="text-[9px] text-[var(--muted)]">{displayUtilizationLabelLc}:</div>
@@ -2422,7 +2250,7 @@ export default function App() {
                               <td className="num-tabular font-bold" style={{ color: 'var(--cyan)' }}>{chute.areaId}</td>
                               <td className="table-buucuc">{chute.name}</td>
                               <td className="num-tabular" style={{ textAlign: 'right', fontWeight: 600 }}>{chute.current.toLocaleString()}</td>
-                              <td className="num-tabular" style={{ textAlign: 'right', color: '#cbd5e1' }}>{chute.weight.toFixed(1)} Tấn</td>
+                              <td className="num-tabular" style={{ textAlign: 'right', color: '#cbd5e1' }}>{Math.round(chute.weight).toLocaleString()} kg</td>
                               <td className="num-tabular" style={{ textAlign: 'right', fontWeight: 'bold', color: col }}>{chute.utilization}%</td>
                             </tr>
                           );
@@ -2447,7 +2275,7 @@ export default function App() {
                     <div className="p-3 text-center bg-[#101622]/30 rounded-md">
                       <div className="mono text-[9px] text-[var(--muted)] mb-1">TỔNG TRỌNG LƯỢNG</div>
                       <div className="disp font-extrabold text-xl text-[var(--green)]">
-                        {totalWeight.toFixed(2)} Tấn
+                        {Math.ceil(totalWeight).toLocaleString()} kg
                       </div>
                     </div>
                   </div>
@@ -2496,7 +2324,7 @@ export default function App() {
                           <div className="grid grid-cols-2 gap-2 text-[10px] text-[var(--muted)]">
                             <div>Bưu cục có hàng: <b className="text-white mono">{zInfo.activeChutesCount}/{zInfo.totalChutes}</b></div>
                             <div>Tổng lượng đơn: <b className="text-white mono">{zInfo.zoneOrders.toLocaleString()}</b></div>
-                            <div className="col-span-2 mt-1 border-t border-white/5 pt-1">Tổng trọng lượng: <b className="text-white mono">{zInfo.zoneWeight.toFixed(1)} Tấn</b></div>
+                            <div className="col-span-2 mt-1 border-t border-white/5 pt-1">Tổng trọng lượng: <b className="text-white mono">{zInfo.zoneWeight.toLocaleString()} kg</b></div>
                           </div>
                         </div>
                       );
@@ -2637,7 +2465,7 @@ export default function App() {
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400">Tổng trọng lượng:</span>
-                  <span className="mono font-bold text-[#f59e0b]">{(selectedDetailRack.detail?.weight || 0).toFixed(3)} Tấn</span>
+                  <span className="mono font-bold text-[#f59e0b]">{(selectedDetailRack.detail?.weight || 0).toLocaleString()} kg</span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400">Trạng thái vận hành:</span>
