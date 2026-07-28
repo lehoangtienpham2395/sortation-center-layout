@@ -120,6 +120,37 @@ def get_op_date(dt_str: str) -> str:
     except Exception:
         return str(dt_str)[:10]
 
+BACKEND_STATUS_MAP = {
+    'Inbound':              'Inbound',
+    'inbound':              'Inbound',
+    'at_hub':               'Inbound',
+    'Đang trên bãi':        'Inbound',
+    'Transporting':         'Transporting',
+    'transporting':         'Transporting',
+    'in_transit':           'Transporting',
+    'Đang trên đường':      'Transporting',
+    'Pickup Done':          'Pickup Done',
+    'pickup_done':          'Pickup Done',
+    'Đã lấy hàng':          'Pickup Done',
+    'Created':              'Created',
+    'created':              'Created',
+    'Dispatched':           'Created',
+    'Đã điều phối bưu cục': 'Created',
+    'Đã điều phối':         'Created',
+    'Outbound':             'Outbound',
+    'outbound':             'Outbound',
+    'outbound_done':        'Outbound',
+    'Đã xuất khỏi HUB':     'Outbound',
+    'Đã rời HUB':           'Outbound',
+}
+
+def clean_status_sys(raw_status: str) -> str:
+    """Chuẩn hóa trạng thái ngay tại nguồn Backend ETL trước khi đẩy vào PostgreSQL."""
+    if not raw_status:
+        return 'Created'
+    s = str(raw_status).strip()
+    return BACKEND_STATUS_MAP.get(s, BACKEND_STATUS_MAP.get(s.lower(), s))
+
 # ============================================================
 # SESSION + TOKEN MANAGER
 # ============================================================
@@ -837,7 +868,7 @@ def main():
         if str(rec.get('orderStatusName') or '').strip() == 'Da huy': continue
 
         dc   = extract_ma10(dr) or dr
-        stn  = str(rec.get('orderStatusName') or '').strip()
+        stn  = clean_status_sys(str(rec.get('orderStatusName') or '').strip())
         pkn  = str(rec.get('pickNetworkName') or '').strip()
         num  = int(rec.get('packageNumber') or 1)
         wt   = float(rec.get('packageChargeWeight') or 0.0)
@@ -967,7 +998,7 @@ def main():
             records.append((
                 str(r.get('tracking') or ''),           # tracking NOT NULL
                 'pipeline_v6',                           # data_source NOT NULL
-                str(r.get('status_sys') or ''),          # status_sys
+                clean_status_sys(str(r.get('status_sys') or '')), # status_sys đã chuẩn hóa 100%
                 cr_t or None,                            # created_time
                 str(r.get('Pickup_station') or ''),      # pickup_station
                 str(r.get('Dispatch_code') or ''),       # dispatch_code
