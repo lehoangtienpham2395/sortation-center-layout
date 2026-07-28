@@ -524,11 +524,13 @@ export default function InboundDashboard({
   const totalInbound = stages['Inbound'].orders;
   const totalPickupDone = stages['Pickup Done'].orders;
   totalInTransitOrders = stages['Transporting'].orders;
+  const totalCreated = stages['Created'].orders;
 
-  const backlogOrders = forecastRotHomTruoc + forecastRotHomNay;
-  // FIX: Tổng Forecast = Tổng sản lượng HUB cần xử lý trong ngày (Inbound đã nhập kho + Rớt hôm trước + Rớt hôm nay)
-  totalForecast = totalInbound + backlogOrders;
-  const totalCreated = backlogOrders;
+  // TỔNG SẢN LƯỢNG VẬN HÀNH TOÀN BỘ = Inbound + Transporting + Pickup Done + Created
+  const totalOperationalBase = totalInbound + totalInTransitOrders + totalPickupDone + totalCreated;
+
+  // Khóa cứng: Thẻ Forecast và Orders Status dùng chung 1 tổng sản lượng duy nhất (KHÔNG HỤT ĐƠN)
+  totalForecast = totalOperationalBase;
 
   const inboundTrendData  = labels.map(l => hourlyInbound[l]);
   const arrivedTrendData  = labels.map(l => hourlyArrived[l]);
@@ -536,7 +538,7 @@ export default function InboundDashboard({
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
   // Orders status: các trạng thái lấy Forecast làm hệ quy chiếu (100%)
-  const totalBase = totalForecast > 0 ? totalForecast : (totalInbound + totalInTransitOrders + totalPickupDone + stages['Created'].orders);
+  const totalBase = totalForecast;
 
   const pendingOrders = totalCreated; // for fallback UI components
   totalOrders = totalInbound;
