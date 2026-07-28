@@ -1023,17 +1023,32 @@ def main():
             op_inb_2 = None
             outb_t_2 = None
 
+            has_pick = bool(str(r.get('Pickup_time') or '').strip())
+            has_transp = bool(str(r.get('transporing_time') or '').strip()) or bool(arr_t)
+
+            # ═══════════════════════════════════════════════════════════════
+            # NGUYÊN TẮC ĐÓNG BĂNG (Completed Order Freezing) — 2 Ưu tiên
+            # ═══════════════════════════════════════════════════════════════
+            # Ưu tiên 1 — Full Journey (đủ 5 mốc):
+            #   Created → Pickup → Transporting → Inbound → Outbound
+            priority_1 = bool(cr_t) and has_pick and has_transp and has_in and has_out
+
+            # Ưu tiên 2 — HUB Completion tối thiểu (2 mốc HUB):
+            #   Inbound + Outbound VÀ outbound_scandate > inbound_scandate
+            priority_2 = has_in and has_out and (outb_t > inb_t)
+
             if has_out and inb_t and inb_t > outb_t:
-                # Đơn đã xuất kho Lần 1 nhưng phát hiện lượt Inbound 2 (Rebound quay đầu về kho HUB)
+                # Rebound: Đơn đã xuất kho Lần 1 nhưng phát hiện Inbound lần 2
                 is_rebound = 1
                 return_count = 1
                 cycle_no = 2
                 inb_t_2 = inb_t
                 op_inb_2 = get_op_date(inb_t)
-                is_completed = False # Trả về False để nhảy lại vào Tồn bãi Rebound thực tế
+                is_completed = False  # Mở lại → nhảy vào Tồn bãi Rebound
                 is_active = 1
                 is_backlog = 1
-            elif has_out:
+            elif priority_1 or priority_2:
+                # Đóng băng: thỏa ưu tiên 1 HOẶC ưu tiên 2
                 is_completed = True
                 is_active = 0
                 is_backlog = 0

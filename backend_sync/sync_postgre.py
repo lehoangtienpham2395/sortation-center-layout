@@ -326,8 +326,24 @@ def sync_postgre_to_dashboard():
             is_completed, cycle_no, is_rebound, return_count,
             inbound_scandate_2, operation_date_inbound_2, outbound_scandate_2
         FROM enriched.dispatch_enriched
-        WHERE operation_date_created >= CURRENT_DATE - INTERVAL '7 days'
-           OR operation_date_inbound_2 >= CURRENT_DATE - INTERVAL '7 days'
+        WHERE
+            -- ═══════════════════════════════════════════════════════════
+            -- POOL 1: Mọi đơn ĐANG hoạt động / tồn kho (bất kể tuổi đơn)
+            -- Đơn ngâm 15 ngày, đơn Rebound, đơn Rớt chưa về HUB → giữ lại
+            -- Dùng composite index idx_enriched_active_completed
+            -- ═══════════════════════════════════════════════════════════
+            is_active = 1
+            OR is_completed = FALSE
+
+            -- ═══════════════════════════════════════════════════════════
+            -- POOL 2: Đơn đã hoàn thành nhưng có thao tác mới trong 2 ngày
+            -- (Dùng cho KPI sản lượng Inbound/Outbound ca hôm nay + hôm qua)
+            -- ═══════════════════════════════════════════════════════════
+            OR operation_date_inbound   >= CURRENT_DATE - INTERVAL '2 days'
+            OR operation_date_inbound_2 >= CURRENT_DATE - INTERVAL '2 days'
+            OR outbound_scandate        >= CURRENT_TIMESTAMP - INTERVAL '2 days'
+            OR last_updated             >= CURRENT_TIMESTAMP - INTERVAL '2 days'
+
         ORDER BY operation_date_created DESC, created_time DESC
     """
     try:
