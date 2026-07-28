@@ -260,13 +260,11 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
   try {
     const t = Date.now();
     let response: Response;
-    if (window.location.hostname.includes('github.io')) {
-      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-cache' });
-    } else {
-      response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-cache' });
-    }
-    if (!response.ok) {
-      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-cache' });
+    try {
+      response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error();
+    } catch {
+      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
     }
     if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
     const rawData = await response.json();
