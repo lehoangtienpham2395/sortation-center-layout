@@ -952,18 +952,14 @@ export default function InboundDashboard({
           </div>
           <div className="kpi-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span className="kpi-value"><NumberTicker value={totalForecast} /></span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.85rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', marginTop: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.95rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', marginTop: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Đã nhập kho (Inbound):</span>
-                <strong style={{ color: '#B8F7E4', fontSize: '0.95rem' }}><NumberTicker value={totalInbound} /></strong>
+                <span>Rớt hôm trước:</span>
+                <strong style={{ color: '#FC6C26', fontSize: '1.1rem' }}><NumberTicker value={forecastRotHomTruoc} /></strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Rớt hôm nay (gồm Pickup/Arrival):</span>
-                <strong style={{ color: '#ffa066', fontSize: '0.95rem' }}><NumberTicker value={forecastRotHomNay} /></strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Rớt hôm trước (tồn gối đầu):</span>
-                <strong style={{ color: '#FC6C26', fontSize: '0.95rem' }}><NumberTicker value={forecastRotHomTruoc} /></strong>
+                <span>Rớt hôm nay:</span>
+                <strong style={{ color: '#ffa066', fontSize: '1.1rem' }}><NumberTicker value={forecastRotHomNay} /></strong>
               </div>
             </div>
           </div>
