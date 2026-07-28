@@ -34,20 +34,6 @@ function NumberTicker({ value, decimals = 0 }: { value: number; decimals?: numbe
   return <span ref={ref}>0</span>;
 }
 
-const NORTH_POST_OFFICES = new Set([
-  'HN THANH XUÂN', 'HN SÓC SƠN', 'HN THUẬN AN', 'HN PHÚC THỌ', 'HN XUÂN ĐỈNH',
-  'HN THƯỜNG TÍN', 'HN HOÀNG MAI', 'HD KINH MÔN', 'HY VĂN GIANG', 'HN NGỌC HỒI',
-  'HN MỸ ĐỨC', 'HN ĐÔNG ANH', 'HN HÀ ĐÔNG', 'HN THANH TRÌ', 'HN THANH LIỆT',
-  'HN HOÀI ĐỨC', 'HN MÊ LINH', 'HN AN KHÁNH', 'HN CẦU GIẤY', 'HN THANH OAI',
-  'HN ĐỐNG ĐA', 'HN CHƯƠNG MỸ', 'HN CHÚC SƠN', 'HN HẠ BẰNG', 'HN HÁT MÔN',
-  'HN BA VÌ', 'HN SƠN TÂY', 'HN THẠCH THẤT', 'HN QUỐC OAI', 'HN GIA LÂM',
-  'HN ĐAN PHƯỢNG', 'HN KIM CHUNG', 'HN VÂN HÀ', 'HN ĐỒNG QUANG', 'HN TIÊN DƯỢC',
-  'HN XUÂN MAI', 'HN YÊN NGHĨA', 'HN VÂN ĐÌNH', 'HN ĐẠI NGHĨA', 'HN PHÚ XUYÊN',
-  'HN THƯỜNG TÍN 2', 'HN THANH OAI 2', 'HN CHƯƠNG MỸ 2', 'HN MÊ LINH 2', 'HN ĐÔNG ANH 2',
-  'HN SOC SON 2', 'HN PHÚC THỌ 2', 'HN THẠCH THẤT 2', 'HN QUỐC OAI 2', 'HN BA VÌ 2',
-  'HN SƠN TÂY 2', 'HN VÂN ĐÌNH 2', 'HN ĐẠI NGHĨA 2', 'HN PHÚ XUYÊN 2', 'HN THƯỜNG TÍN 3',
-  'HN THANH OAI 3', 'HN CHƯƠNG MỸ 3', 'HN MÊ LINH 3', 'HN ĐÔNG ANH 3', 'HN SOC SON 3'
-]);
 
 interface InboundDashboardProps {
   inboundData: any[];
