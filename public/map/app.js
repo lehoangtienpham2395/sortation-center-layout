@@ -248271,10 +248271,10 @@ function initMap() {
 
   L.control.zoom({ position: 'topright' }).addTo(map);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO (Inbound Logistics)',
-    subdomains: 'abcd',
-    maxZoom: 19,
+  L.tileLayer('https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+    attribution: '&copy; Google Maps Terrain (Địa hình)',
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    maxZoom: 20,
     bounds: vnBounds
   }).addTo(map);
 

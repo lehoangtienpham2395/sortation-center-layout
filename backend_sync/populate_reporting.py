@@ -1,4 +1,4 @@
-﻿import sys, os, datetime, warnings
+import sys, os, datetime, warnings
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath('.')), 'backend_sync'))
 sys.path.insert(0, 'backend_sync')
 import pandas as pd
@@ -39,9 +39,11 @@ cur.execute("""
     SELECT tracking, dispatch_code, next_station, orders_weight,
            created_time, pickup_time, inbound_scandate, outbound_scandate,
            arrival_scandate, transporing_time, trip_code,
-           is_rebound, return_count, is_backlog,
+           is_rebound, return_count, is_backlog, status_sys,
            operation_date_created, operation_date_inbound,
-           inbound_scandate_2, operation_date_inbound_2, outbound_scandate_2
+           inbound_scandate_2, operation_date_inbound_2, outbound_scandate_2,
+           flag_created, flag_pickup, flag_arrival, flag_inbound, flag_outbound,
+           op_date_pickup, op_date_inbound_effective
     FROM enriched.dispatch_enriched
     WHERE operation_date_created >= CURRENT_DATE - 14
        OR operation_date_inbound >= CURRENT_DATE - 14
@@ -99,12 +101,13 @@ for op_date_str in op_dates:
         outb_t2= clean_ts_str(r.get('outbound_scandate_2'))
         op_inb2= str(r.get('operation_date_inbound_2') or '')[:10]
 
-        has_in  = bool(inb_t)
-        has_out = bool(outb_t)
-        has_pick= bool(pk_t)
+        has_in  = int(r.get('flag_inbound') or 0) == 1
+        has_out = int(r.get('flag_outbound') or 0) == 1
+        has_arr = int(r.get('flag_arrival') or 0) == 1
+        has_pick= int(r.get('flag_pickup') or 0) == 1
 
-        op_inb  = str(r.get('operation_date_inbound') or '')[:10]
-        op_pick = get_op_date(pk_t)
+        op_inb  = str(r.get('op_date_inbound_effective') or r.get('operation_date_inbound') or '')[:10]
+        op_pick = str(r.get('op_date_pickup') or '')[:10] or get_op_date(pk_t)
         op_arr  = get_op_date(arr_t)
         op_fc   = get_op_date(cr_t)
         op_outb = get_op_date(outb_t)
@@ -120,10 +123,13 @@ for op_date_str in op_dates:
         if is_reb:                        kpi['tr']+=1
         if has_in and not has_out:        kpi['tb']+=1
 
+        stn_raw = str(r.get('status_sys', '')).strip()
+        is_canceled = (stn_raw == 'Đã hủy')
+        op_cr_date = str(r.get('operation_date_created') or '')[:10] or op_fc
         drop_type = ''
-        if has_pick and not has_in and not bool(arr_t) and not is_reb:
-            if op_pick == op_date_str:   drop_type='rot_today'; kpi['rrn']+=1
-            elif op_pick:                drop_type='rot_yesterday'; kpi['rrt']+=1
+        if not has_in and not bool(arr_t) and not is_canceled:
+            if op_cr_date == op_date_str:   drop_type='rot_today'; kpi['rrn']+=1
+            elif op_cr_date and op_cr_date < op_date_str: drop_type='rot_yesterday'; kpi['rrt']+=1
 
         status = ('Inbound' if (has_in or is_reb) else
                   'Transporting' if bool(arr_t) else

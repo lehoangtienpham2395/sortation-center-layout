@@ -1,4 +1,4 @@
-﻿"""
+"""
 snapshot_daily.py — Daily 06:00 AM Historical Snapshot
 =======================================================
 Chot so ngay van hanh hom truoc, dong goi vao data/history/YYYY-MM-DD.json
@@ -191,12 +191,18 @@ def snapshot():
         if not has_pick:                   summary["total_created"] += 1
         if is_reb:                         summary["total_rebound"] += 1
 
-        # Rot flag
-        if has_pick and not has_in and not has_arr and not is_reb:
-            if op_pick == SNAP_DATE:
+        # Rot flag (theo tiêu chí USER: tất cả đơn chưa về HUB, trừ Đã hủy)
+        stn_raw = str(r.get('status_sys', '')).strip()
+        is_canceled = (stn_raw == 'Đã hủy')
+        op_cr_date = str(r.get('operation_date_created') or '')[:10] or op_fc
+        drop_type = ''
+        if not has_in and not has_arr and not is_canceled:
+            if op_cr_date == SNAP_DATE:
                 summary["rot_hom_nay"] += 1
-            elif op_pick:
+                drop_type = 'rot_today'
+            elif op_cr_date and op_cr_date < SNAP_DATE:
                 summary["rot_hom_truoc"] += 1
+                drop_type = 'rot_yesterday'
 
         # Inbound records
         in_status = ('Inbound' if (has_in or is_reb) else

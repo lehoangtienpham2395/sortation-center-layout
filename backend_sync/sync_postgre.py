@@ -493,6 +493,24 @@ def sync_postgre_to_dashboard():
         op_inb_2  = str(r.get('operation_date_inbound_2') or '')[:10]
         has_out_2 = bool(outb_t_2)
 
+        # Fix Rủi ro 1 & 2: Dynamic Rot calculation theo tiêu chí USER
+        # - Rớt Hôm Nay   : Đơn tạo ca hôm nay (op_cr == today), chưa về HUB (flag_inb=0, flag_arr=0), trừ Đã hủy
+        # - Rớt Hôm Trước : Đơn tạo các ca trước (op_cr < today), chưa về HUB (flag_inb=0, flag_arr=0), trừ Đã hủy
+        stn = str(r.get('next_station', '')).strip()
+        is_canceled = (stn == 'Đã hủy' or r.get('status_sys') == 'Đã hủy')
+        is_rot = (not has_in) and (not has_arr) and (not is_canceled)
+        if is_rot:
+            if op_date == today or r.get('operation_date_created') == today:
+                rot_hom_nay   += 1
+                drop_type = 'rot_today'
+            elif op_date < today:
+                rot_hom_truoc += 1
+                drop_type = 'rot_yesterday'
+            else:
+                drop_type = ''
+        else:
+            drop_type = ''
+
         # Trạng thái Rebound đang tồn bãi thực tế (Đã quay đầu nhập kho Lần 2 mà chưa xuất kho Lần 2)
         is_active_rebound = (is_reb == 1 and not has_out_2)
 
