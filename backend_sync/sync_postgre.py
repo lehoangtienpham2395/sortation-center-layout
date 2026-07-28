@@ -579,6 +579,7 @@ def sync_postgre_to_dashboard():
             area_id = OFFICIAL_STATION_TO_AREA.get(station.upper(), 'C01')
             zone    = OFFICIAL_LAYOUT_MAP.get(area_id, ('', '3'))[1]
 
+        valid_area = bool(area_id)
         cap = 1400 if area_id == 'A06' else 780
 
         wt_kg    = float(r.get('orders_weight') or 0)
