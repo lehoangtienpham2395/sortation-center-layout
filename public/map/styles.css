@@ -736,3 +736,36 @@ html, body {
 #map {
   background: #e2e8f0 !important;
 }
+
+/* FORCE BRIGHT WHITE FOR BRAND TITLE & HEADER TEXT */
+.brand-box h1,
+.sidebar-header h1,
+.brand-box p,
+.sidebar-header p {
+  color: #ffffff !important;
+  opacity: 1 !important;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8) !important;
+}
+
+.brand-box h1 {
+  font-size: 1.15rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.2px !important;
+}
+
+.brand-box p {
+  color: #94a3b8 !important;
+  font-size: 0.8rem !important;
+}
+
+/* Ensure Leaflet tiles and container are visible */
+#map {
+  background: #f1f5f9 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.leaflet-tile-container img {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
