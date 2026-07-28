@@ -372,8 +372,8 @@ export default function InboundDashboard({
     const st = (d['Bưu cục đi'] || d['send_network'] || d['sendNetworkName'] || '').trim();
     if (!st) return;
     const cleanKey = st.toUpperCase();
-    // Bỏ qua bưu cục miền Bắc ngoại trừ BN HUB
-    if (cleanKey !== 'BN HUB' && isNorthStation(cleanKey)) return;
+    // Bỏ qua bưu cục miền Bắc và BN HUB khỏi danh sách xe chở Inbound HCM HUB
+    if (cleanKey === 'BN HUB' || isNorthStation(cleanKey)) return;
 
     const orders = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? 0);
     const wt = Number(d['Tổng trọng lượng (kg)'] ?? d['weight_kg'] ?? 0);

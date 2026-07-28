@@ -58,6 +58,7 @@ try {
   console.error("Error loading master config map:", e);
 }
 
+MASTER_CONFIG_MAP['A06'] = 'BN HUB';
 NAME_TO_AREA_ID_MAP['BN HUB'] = 'A06';
 NAME_TO_AREA_ID_MAP['BNI001'] = 'A06';
 NAME_TO_AREA_ID_MAP['BẮC NINH HUB'] = 'A06';
@@ -214,7 +215,9 @@ const CHUTE_RACKS = [...ZONE3_LIST, ...ZONE2_LIST, ...ZONE1_LIST];
 const ALL_RACKS = [...CHUTE_RACKS, ...ZONE3_TRUCKS, ...ZONE2_TRUCKS, ...ZONE1_TRUCKS, ...INBOUND_TRUCKS];
 
 ALL_RACKS.forEach(item => {
-  if (MASTER_CONFIG_MAP[item.areaId]) {
+  if (item.areaId === 'A06') {
+    item.name = 'BN HUB';
+  } else if (MASTER_CONFIG_MAP[item.areaId]) {
     item.name = MASTER_CONFIG_MAP[item.areaId];
   }
   if (item.name && item.areaId) {
@@ -884,12 +887,17 @@ export default function App() {
         const blItem = backlogMap[key];
         const invEntry = inventoryMap[key];
 
-        if (selectedType === 'Inventory' && invEntry) {
-          capacity = invEntry.capacity || 780;
-          current = invEntry.volume;
-          weight = invEntry.weight || 0;
+        if (selectedType === 'Inventory' && (invEntry || blItem)) {
+          capacity = (invEntry ? invEntry.capacity : 0) || (key === 'A06' ? 1400 : 780);
+          const invVol = (invEntry && invEntry.volume > 0) ? invEntry.volume : 0;
+          const blVol  = (blItem  && blItem.volume  > 0) ? blItem.volume  : 0;
+          const invWt  = (invEntry && invEntry.weight > 0)  ? invEntry.weight : 0;
+          const blWt   = (blItem  && blItem.weight > 0)   ? blItem.weight  : 0;
+          // USER DIRECTIVE: Số Inventory = Forecast + Backlog
+          current  = invVol + blVol;
+          weight   = invWt + blWt;
           isMocked = false;
-          util = Math.floor((current / capacity) * 100);
+          util     = Math.floor((current / capacity) * 100);
         } else if (item) {
           capacity = item.capacity;
           if (item.volume !== -1) {
