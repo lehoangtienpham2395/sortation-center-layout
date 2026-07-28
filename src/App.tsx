@@ -704,14 +704,9 @@ export default function App() {
     // Fetch last_update.json for the last sync timestamp
     try {
       const t = Date.now();
-      let res: Response;
-      if (window.location.hostname.includes('github.io')) {
-        res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, { cache: 'no-cache' });
-      } else {
-        res = await fetch(`./data/last_update.json?t=${t}`, { cache: 'no-cache' });
-      }
+      let res = await fetch(`./data/last_update.json?t=${t}`, { cache: 'no-store' });
       if (!res.ok) {
-        res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, { cache: 'no-cache' });
+        res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, { cache: 'no-store' });
       }
       if (res.ok) {
         const d = await res.json();
