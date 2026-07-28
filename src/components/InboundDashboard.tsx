@@ -313,10 +313,6 @@ export default function InboundDashboard({
     }
   });
 
-  // 5. BACKLOG: Rớt hôm trước / Rớt hôm nay
-  // Nguồn duy nhất: trường drop_type đã được backend tính chính xác theo ngày vận hành.
-  // KHÔNG dùng fcDate < activeDate → tránh đếm nhầm đơn ngày khác khi xem lịch sử.
-  // KHÔNG override bằng lastUpdateObj → tránh stale data từ file JSON cũ ghi đè.
   inboundData.forEach(d => {
     const loiRot = getLoiRot(d);
     const vol = getVol(d);
@@ -329,6 +325,12 @@ export default function InboundDashboard({
     if (loiRot === 'rot_yesterday') forecastRotHomTruoc += vol;
     else if (loiRot === 'rot_today')  forecastRotHomNay   += vol;
   });
+
+  // Fallback từ _lastUpdateObj do backend tính nguyên tử nếu xem ca hiện tại
+  if (_lastUpdateObj && typeof _lastUpdateObj.rot_hom_truoc === 'number') {
+    if (forecastRotHomTruoc === 0) forecastRotHomTruoc = _lastUpdateObj.rot_hom_truoc;
+    if (forecastRotHomNay === 0) forecastRotHomNay = _lastUpdateObj.rot_hom_nay;
+  }
 
   // 6. INBOUND TRUCK ETA: Strictly filtered by activeDate
   const filteredTruckEta = (truckEtaData || [])
