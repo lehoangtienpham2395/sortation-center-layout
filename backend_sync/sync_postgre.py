@@ -630,11 +630,15 @@ def sync_postgre_to_dashboard():
         # Đơn hiện tại đang NẰM TẠI KHO (chưa xuất kho lần 1, HOẶC đã Rebound quay đầu về kho mà chưa xuất kho lần 2)
         is_currently_at_hub = (not has_out) or is_active_rebound
 
+        st_sys_raw = str(r.get('status_sys', '')).strip()
+        has_pk = bool(r.get('flag_pickup') or pk_t or st_sys_raw in ('Đã lấy hàng', 'Pickup Done', 'pickup_done'))
+
         # Inventory status (trùng khớp 100% với bộ lọc Control Center trong React UI)
         inv_status = ('Inbound'      if is_active_rebound else
                       'Outbound'     if (has_out and not is_active_rebound) else
                       'Inbound'      if has_in  else
-                      'Transporting' if has_arr else 'Created')
+                      'Transporting' if has_arr else
+                      'Pickup Done'  if has_pk else 'Created')
 
         # 1. inventory group — Đơn hiện ĐANG TỒN TẠI KHO và có area_id hợp lệ
         if is_currently_at_hub and valid_area:

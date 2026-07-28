@@ -309,10 +309,10 @@ export default function InboundDashboard({
     else if (loiRot === 'rot_today')  forecastRotHomNay   += vol;
   });
 
-  // Fallback từ _lastUpdateObj do backend tính nguyên tử nếu xem ca hiện tại
-  if (_lastUpdateObj && typeof _lastUpdateObj.rot_hom_truoc === 'number') {
-    if (forecastRotHomTruoc === 0) forecastRotHomTruoc = _lastUpdateObj.rot_hom_truoc;
-    if (forecastRotHomNay === 0) forecastRotHomNay = _lastUpdateObj.rot_hom_nay;
+  // ATOMIC SINGLE SOURCE OF TRUTH FROM POSTGRESQL (last_update.json):
+  if (_lastUpdateObj && typeof _lastUpdateObj.rot_hom_truoc === 'number' && typeof _lastUpdateObj.rot_hom_nay === 'number') {
+    forecastRotHomTruoc = _lastUpdateObj.rot_hom_truoc;
+    forecastRotHomNay   = _lastUpdateObj.rot_hom_nay;
   }
 
   // 6. INBOUND TRUCK ETA: Strictly filtered by activeDate
