@@ -526,19 +526,16 @@ export default function InboundDashboard({
   totalInTransitOrders = stages['Transporting'].orders;
   const totalCreated = stages['Created'].orders;
 
-  // TỔNG SẢN LƯỢNG VẬN HÀNH TOÀN BỘ = Inbound + Transporting + Pickup Done + Created
-  const totalOperationalBase = totalInbound + totalInTransitOrders + totalPickupDone + totalCreated;
-
-  // Khóa cứng: Thẻ Forecast và Orders Status dùng chung 1 tổng sản lượng duy nhất (KHÔNG HỤT ĐƠN)
-  totalForecast = totalOperationalBase;
+  // FIX HOÀN HẢO THẺ FORECAST: Số to trên thẻ Forecast = Inbound + Rớt hôm trước + Rớt hôm nay (LUÔN BẰNG TỔNG 3 SỐ CỘNG LẠI)
+  totalForecast = totalInbound + forecastRotHomTruoc + forecastRotHomNay;
 
   const inboundTrendData  = labels.map(l => hourlyInbound[l]);
   const arrivedTrendData  = labels.map(l => hourlyArrived[l]);
   const forecastTrendData = labels.map(l => hourlyForecast[l]);
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
-  // Orders status: các trạng thái lấy Forecast làm hệ quy chiếu (100%)
-  const totalBase = totalForecast;
+  // Orders status: hệ quy chiếu chuẩn theo Forecast
+  const totalBase = totalForecast > 0 ? totalForecast : totalOperationalBase;
 
   const pendingOrders = totalCreated; // for fallback UI components
   totalOrders = totalInbound;
