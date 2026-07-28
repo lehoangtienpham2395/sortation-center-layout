@@ -526,16 +526,15 @@ def sync_postgre_to_dashboard():
     # Phân loại theo ngày vận hành pickup (op_date_pickup vs today/yesterday)
     rot_hom_truoc = 0   # Pickup hôm trước, chưa về HUB → tồn mặc định bất biến đầu ca
     rot_hom_nay   = 0   # Pickup hôm nay, chưa về HUB  → đang trên đường
-
-    # Normalize Hubcode → numeric zone for frontend ZONE_LIST
     ZONE_MAP = {'SR0001': '1', 'BNI001': '1', '1': '1', '2': '2', '3': '3'}
 
     for _, r in df.iterrows():
+        pk_st_raw = str(r.get('pickup_station', '')).strip()
         sc_raw    = str(r.get('dispatch_code', '')).strip().upper()
         sc        = sc_raw
         next_st   = str(r.get('next_station',  '')).strip()
         mapped_st = dict_station.get(sc, '')
-        station   = mapped_st or (next_st if next_st and next_st != 'KHÔ VÙNG KHÁC' else 'KHÔ VÙNG KHÁC')
+        station   = pk_st_raw or mapped_st or (next_st if next_st and next_st != 'KHÔ VÙNG KHÁC' else 'KHÔ VÙNG KHÁC')
         zone      = ZONE_MAP.get(dict_zone.get(sc, '3'), '3')
         area_id   = dict_area.get(sc)
         valid_area = area_id is not None
