@@ -460,19 +460,16 @@ export default function InboundDashboard({
     hourlyPickup[l] = 0;
   });
 
-  // 1. Transporting hourly: tính từ mốc thời gian phát hàng (Arrival Time / scantime) trong inboundData
+  // 1. Transporting (Arrival) Hourly: Tất cả đơn có mốc xe đến bãi trong ca activeDate
   inboundData.forEach(d => {
-    const status = getStatus(d);
-    if (status !== 'Transporting') return;
     const station = getStation(d).toUpperCase();
     if (isNorthStation(station)) return;
 
     const arrTime = getArrivalTime(d);
     const arrOpDate = getDateArrival(d) || (arrTime ? getOperatingDateFromTimestamp(arrTime) : '');
-    if (arrOpDate && arrOpDate !== activeDate) return;
+    if (!arrOpDate || !isDateMatch(arrOpDate, activeDate)) return;
 
-    let hrVal = getHourFromTimestamp(arrTime);
-    if (hrVal < 0) hrVal = 11; // Fallback to 11:00 slot if timestamp string is omitted in aggregate row
+    const hrVal = getHourFromTimestamp(arrTime);
     if (hrVal >= 0 && hrVal < 24) {
       const hour = `${String(hrVal).padStart(2, '0')}:00`;
       const vol = getVol(d);
@@ -482,45 +479,59 @@ export default function InboundDashboard({
     }
   });
 
-  // 2. Created Hourly: CHỈ dùng filteredForecast (đã lọc cứng theo activeDate)
-  // KHÔNG dùng inboundData thô → tránh đổ toàn bộ Created từ mọi ngày vào biểu đồ
-  filteredForecast.forEach((d: any) => {
+  // 2. Created (Forecast) Hourly: Tất cả đơn được khởi tạo trong ca activeDate
+  inboundData.forEach(d => {
+    const station = getStation(d).toUpperCase();
+    if (isNorthStation(station)) return;
+
     const fcTime = getCreatedTime(d);
-    let hrVal = getHourFromTimestamp(fcTime);
-    if (hrVal < 0) hrVal = 8; // fallback cho snapshot lịch sử thiếu giờ
+    const fcOpDate = getDateForecast(d) || (fcTime ? getOperatingDateFromTimestamp(fcTime) : '');
+    if (!fcOpDate || !isDateMatch(fcOpDate, activeDate)) return;
+
+    const hrVal = getHourFromTimestamp(fcTime);
     if (hrVal >= 0 && hrVal < 24) {
       const hour = `${String(hrVal).padStart(2, '0')}:00`;
+      const vol = getVol(d);
       if (hourlyForecast[hour] !== undefined) {
-        hourlyForecast[hour] += getVol(d);
+        hourlyForecast[hour] += vol;
       }
     }
   });
 
-  // 3. Pickup Done Hourly: CHỈ dùng filteredPickup (đã lọc cứng theo activeDate)
-  filteredPickup.forEach((d: any) => {
+  // 3. Pickup Done Hourly: Tất cả đơn được shipper lấy trong ca activeDate
+  inboundData.forEach(d => {
+    const station = getStation(d).toUpperCase();
+    if (isNorthStation(station)) return;
+
     const pkTime = getPickupTime(d);
-    let hrVal = getHourFromTimestamp(pkTime);
-    if (hrVal < 0) hrVal = 8;
+    const pkOpDate = getDatePickup(d) || (pkTime ? getOperatingDateFromTimestamp(pkTime) : '');
+    if (!pkOpDate || !isDateMatch(pkOpDate, activeDate)) return;
+
+    const hrVal = getHourFromTimestamp(pkTime);
     if (hrVal >= 0 && hrVal < 24) {
       const hour = `${String(hrVal).padStart(2, '0')}:00`;
+      const vol = getVol(d);
       if (hourlyPickup[hour] !== undefined) {
-        hourlyPickup[hour] += getVol(d);
+        hourlyPickup[hour] += vol;
       }
     }
   });
 
-  // 4. Inbound (Nhập kho HUB): Hiển thị các đơn nhập kho trong ngày activeDate
-  filteredInbound.forEach((d: any) => {
-    const status = getStatus(d);
-    if (status === 'Inbound') {
-      const ibTime = getInboundTime(d);
-      let hrVal = getHourFromTimestamp(ibTime);
-      if (hrVal < 0) hrVal = 10;
-      if (hrVal >= 0 && hrVal < 24) {
-        const hour = `${String(hrVal).padStart(2, '0')}:00`;
-        if (hourlyInbound[hour] !== undefined) {
-          hourlyInbound[hour] += getVol(d);
-        }
+  // 4. Inbound (Nhập kho HUB) Hourly: Tất cả đơn được quét nhập kho HUB trong ca activeDate
+  inboundData.forEach(d => {
+    const station = getStation(d).toUpperCase();
+    if (isNorthStation(station)) return;
+
+    const ibTime = getInboundTime(d);
+    const ibOpDate = getDateInbound(d) || (ibTime ? getOperatingDateFromTimestamp(ibTime) : '');
+    if (!ibOpDate || !isDateMatch(ibOpDate, activeDate)) return;
+
+    const hrVal = getHourFromTimestamp(ibTime);
+    if (hrVal >= 0 && hrVal < 24) {
+      const hour = `${String(hrVal).padStart(2, '0')}:00`;
+      const vol = getVol(d);
+      if (hourlyInbound[hour] !== undefined) {
+        hourlyInbound[hour] += vol;
       }
     }
   });
