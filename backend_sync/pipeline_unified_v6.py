@@ -1302,8 +1302,9 @@ def main():
 
     if total > 0:
         def pct(col):
-            if col not in df.columns: return '0 (0.0%)'
-            n = (df[col] != '').sum()
+            target_col = next((c for c in df.columns if c.lower() == col.lower()), None)
+            if not target_col: return '0 (0.0%)'
+            n = (df[target_col].astype(str).str.strip() != '').sum()
             return str(n) + ' (' + str(round(n/total*100, 1)) + '%)'
 
         print('   Khop Inbound scan    : ' + pct('inbound_scanDate'))

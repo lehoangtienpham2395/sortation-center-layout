@@ -528,6 +528,7 @@ export default function InboundDashboard({
 
   // FIX HOÀN HẢO THẺ FORECAST: Số to trên thẻ Forecast = Inbound + Rớt hôm trước + Rớt hôm nay (LUÔN BẰNG TỔNG 3 SỐ CỘNG LẠI)
   totalForecast = totalInbound + forecastRotHomTruoc + forecastRotHomNay;
+  const totalOperationalBase = totalInbound + totalInTransitOrders + totalPickupDone + totalCreated;
 
   const inboundTrendData  = labels.map(l => hourlyInbound[l]);
   const arrivedTrendData  = labels.map(l => hourlyArrived[l]);
