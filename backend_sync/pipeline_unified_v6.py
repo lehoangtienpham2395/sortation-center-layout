@@ -1114,29 +1114,69 @@ def main():
             ON CONFLICT (tracking) DO UPDATE SET
                 data_source              = EXCLUDED.data_source,
                 status_sys               = EXCLUDED.status_sys,
-                pickup_time              = COALESCE(EXCLUDED.pickup_time, enriched.dispatch_enriched.pickup_time),
+                -- ═══════════════════════════════════════════════════════════
+                -- NGUYÊN TẮC ĐÓNG BĂNG (Completed Order Freezing)
+                -- Nếu đơn đã frozen (is_completed=TRUE): 5 mốc thời gian gốc KHÔNG được ghi đè.
+                -- Trigger trg_protect_completed sẽ enforce ở tầng DB.
+                -- UPSERT bảo vệ thêm tầng Python: chỉ update nếu đơn chưa frozen.
+                -- ═══════════════════════════════════════════════════════════
+                created_time             = CASE
+                                            WHEN enriched.dispatch_enriched.is_completed = TRUE
+                                            THEN enriched.dispatch_enriched.created_time       -- bảo vệ mốc gốc
+                                            ELSE COALESCE(EXCLUDED.created_time, enriched.dispatch_enriched.created_time)
+                                          END,
+                pickup_time              = CASE
+                                            WHEN enriched.dispatch_enriched.is_completed = TRUE
+                                            THEN enriched.dispatch_enriched.pickup_time         -- bảo vệ mốc gốc
+                                            ELSE COALESCE(EXCLUDED.pickup_time, enriched.dispatch_enriched.pickup_time)
+                                          END,
+                inbound_scandate         = CASE
+                                            WHEN enriched.dispatch_enriched.is_completed = TRUE
+                                            THEN enriched.dispatch_enriched.inbound_scandate    -- bảo vệ mốc gốc
+                                            ELSE EXCLUDED.inbound_scandate
+                                          END,
+                outbound_scandate        = CASE
+                                            WHEN enriched.dispatch_enriched.is_completed = TRUE
+                                            THEN enriched.dispatch_enriched.outbound_scandate   -- bảo vệ mốc gốc
+                                            ELSE EXCLUDED.outbound_scandate
+                                          END,
+                arrival_scandate         = CASE
+                                            WHEN enriched.dispatch_enriched.is_completed = TRUE
+                                            THEN enriched.dispatch_enriched.arrival_scandate    -- bảo vệ mốc gốc
+                                            ELSE EXCLUDED.arrival_scandate
+                                          END,
+                -- is_completed: chỉ được chuyển TRUE→FALSE qua Rebound (handled by trigger)
+                is_completed             = CASE
+                                            WHEN enriched.dispatch_enriched.is_completed = TRUE
+                                            THEN TRUE                                           -- không cho phép downgrade
+                                            ELSE EXCLUDED.is_completed
+                                          END,
+                is_active                = CASE
+                                            WHEN enriched.dispatch_enriched.is_completed = TRUE
+                                            THEN 0                                              -- frozen = inactive
+                                            ELSE EXCLUDED.is_active
+                                          END,
+                -- ═══════════════════════════════════════════════════════════
+                -- Các trường không bảo vệ: cập nhật bình thường
+                -- ═══════════════════════════════════════════════════════════
                 pickup_station           = COALESCE(NULLIF(EXCLUDED.pickup_station, ''), enriched.dispatch_enriched.pickup_station),
                 pickup_station2          = COALESCE(NULLIF(EXCLUDED.pickup_station2, ''), enriched.dispatch_enriched.pickup_station2),
                 pickup_ontime            = COALESCE(NULLIF(EXCLUDED.pickup_ontime, ''), enriched.dispatch_enriched.pickup_ontime),
                 areacode                 = COALESCE(NULLIF(EXCLUDED.areacode, ''), enriched.dispatch_enriched.areacode),
                 flowtypedesc             = COALESCE(NULLIF(EXCLUDED.flowtypedesc, ''), enriched.dispatch_enriched.flowtypedesc),
-                inbound_scandate         = EXCLUDED.inbound_scandate,
-                outbound_scandate        = EXCLUDED.outbound_scandate,
-                arrival_scandate         = EXCLUDED.arrival_scandate,
                 next_station             = EXCLUDED.next_station,
                 trip_code                = EXCLUDED.trip_code,
                 transporing_time         = EXCLUDED.transporing_time,
                 transported_time         = EXCLUDED.transported_time,
                 is_backlog               = EXCLUDED.is_backlog,
-                is_active                = EXCLUDED.is_active,
                 is_transit               = EXCLUDED.is_transit,
-                is_completed             = EXCLUDED.is_completed,
                 cycle_no                 = EXCLUDED.cycle_no,
                 is_rebound               = EXCLUDED.is_rebound,
                 return_count             = EXCLUDED.return_count,
-                inbound_scandate_2       = EXCLUDED.inbound_scandate_2,
-                operation_date_inbound_2 = EXCLUDED.operation_date_inbound_2,
-                outbound_scandate_2      = EXCLUDED.outbound_scandate_2,
+                -- Rebound Lần 2: chỉ ghi nếu có giá trị mới (không xóa cũ)
+                inbound_scandate_2       = COALESCE(EXCLUDED.inbound_scandate_2, enriched.dispatch_enriched.inbound_scandate_2),
+                operation_date_inbound_2 = COALESCE(EXCLUDED.operation_date_inbound_2, enriched.dispatch_enriched.operation_date_inbound_2),
+                outbound_scandate_2      = COALESCE(EXCLUDED.outbound_scandate_2, enriched.dispatch_enriched.outbound_scandate_2),
                 last_updated             = CURRENT_TIMESTAMP;
         """
         execute_values(cur, insert_sql, records, page_size=2000)
