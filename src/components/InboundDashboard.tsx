@@ -627,11 +627,6 @@ export default function InboundDashboard({
   const getFC = (name: any) => {
     if (!name) return null;
     let clean = String(name).trim().toUpperCase();
-    if (!clean) return null;
-    if (clean === 'KHO VÙNG KHÁC' || clean === 'KHÔ VÙNG KHÁC' || clean === 'KHÁC') {
-      clean = 'BN HUB';
-      name = 'BN HUB';
-    }
     if (!fcMetrics[clean]) {
       fcMetrics[clean] = { fc: String(name).trim(), vehicles: new Set(), orders: 0, weight: 0 };
     }
@@ -641,8 +636,7 @@ export default function InboundDashboard({
   filteredInbound.forEach(d => {
     const status = d['Trng thi'] || d['Trạng thái'];
     if (status === 'Inbound') {
-      // Dùng 'BN HUB' cho đơn không có bưu cục gốc (hàng nội bộ HUB)
-      const fcName = d['Bưu cục'] || d['Bu cc'] || 'BN HUB';
+      const fcName = d['Bưu cục'] || d['Bu cc'] || 'KHO VÙNG KHÁC';
       const fc = getFC(fcName);
       if (fc) {
         fc.orders += parseInt(d['Volume'], 10) || 0;
