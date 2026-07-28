@@ -703,3 +703,30 @@ html, body {
   border: 1px solid rgba(255, 255, 255, 0.12) !important;
   color: #ffffff !important;
 }
+
+/* FORCE DARK CHARCOAL BACKGROUND FOR SIDEBAR & HEADER (#141518) */
+.sidebar-panel,
+.sidebar-header,
+.brand-box {
+  background: #141518 !important;
+  color: #ffffff !important;
+}
+
+.sidebar-header h1,
+.brand-box h1 {
+  color: #ffffff !important;
+  text-shadow: none !important;
+}
+
+.sidebar-header p,
+.brand-box p {
+  color: #94a3b8 !important;
+}
+
+.stat-item .lbl {
+  color: #94a3b8 !important;
+}
+
+#map {
+  background: #e2e8f0 !important;
+}
