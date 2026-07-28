@@ -461,16 +461,17 @@ export default function InboundDashboard({
 
   // 1. Transporting hourly: tính từ mốc thời gian phát hàng (Arrival Time / scantime) trong inboundData
   inboundData.forEach(d => {
+    const status = getStatus(d);
+    if (status !== 'Transporting') return;
     const station = getStation(d).toUpperCase();
     if (isNorthStation(station)) return;
 
     const arrTime = getArrivalTime(d);
-    if (!arrTime) return;
-
-    const arrOpDate = getDateArrival(d) || getOperatingDateFromTimestamp(arrTime);
+    const arrOpDate = getDateArrival(d) || (arrTime ? getOperatingDateFromTimestamp(arrTime) : '');
     if (arrOpDate && arrOpDate !== activeDate) return;
 
-    const hrVal = getHourFromTimestamp(arrTime);
+    let hrVal = getHourFromTimestamp(arrTime);
+    if (hrVal < 0) hrVal = 11; // Fallback to 11:00 slot if timestamp string is omitted in aggregate row
     if (hrVal >= 0 && hrVal < 24) {
       const hour = `${String(hrVal).padStart(2, '0')}:00`;
       const vol = getVol(d);
@@ -486,16 +487,15 @@ export default function InboundDashboard({
     if (isNorthStation(station)) return;
 
     const fcTime = getCreatedTime(d);
-    if (fcTime) {
-      const fcDate = getOperatingDateFromTimestamp(fcTime);
-      const loaiRot = getLoiRot(d);
-      if (!fcDate || fcDate === activeDate || loaiRot !== 'Rớt hôm trước') {
-        const hrVal = getHourFromTimestamp(fcTime);
-        if (hrVal >= 0 && hrVal < 24) {
-          const hour = `${String(hrVal).padStart(2, '0')}:00`;
-          if (hourlyForecast[hour] !== undefined) {
-            hourlyForecast[hour] += getVol(d);
-          }
+    const fcDate = fcTime ? getOperatingDateFromTimestamp(fcTime) : getDateForecast(d);
+    const loaiRot = getLoiRot(d);
+    if (!fcDate || fcDate === activeDate || loaiRot !== 'Rớt hôm trước') {
+      let hrVal = getHourFromTimestamp(fcTime);
+      if (hrVal < 0 && fcTime) hrVal = 8;
+      if (hrVal >= 0 && hrVal < 24) {
+        const hour = `${String(hrVal).padStart(2, '0')}:00`;
+        if (hourlyForecast[hour] !== undefined) {
+          hourlyForecast[hour] += getVol(d);
         }
       }
     }
@@ -503,12 +503,16 @@ export default function InboundDashboard({
 
   // 3. Pickup Time (Shipper đã lấy):
   inboundData.forEach(d => {
+    const status = getStatus(d);
+    if (status !== 'Pickup Done' && status !== 'Transporting' && status !== 'Inbound') return;
     const station = getStation(d).toUpperCase();
     if (isNorthStation(station)) return;
 
     const pkTime = getPickupTime(d);
-    if (pkTime) {
-      const hrVal = getHourFromTimestamp(pkTime);
+    const pkDate = pkTime ? getOperatingDateFromTimestamp(pkTime) : getDatePickup(d);
+    if (!pkDate || pkDate === activeDate) {
+      let hrVal = getHourFromTimestamp(pkTime);
+      if (hrVal < 0) hrVal = 8;
       if (hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
         if (hourlyPickup[hour] !== undefined) {
@@ -523,13 +527,12 @@ export default function InboundDashboard({
     const status = getStatus(d);
     if (status === 'Inbound') {
       const ibTime = getInboundTime(d);
-      if (ibTime) {
-        const hrVal = getHourFromTimestamp(ibTime);
-        if (hrVal >= 0 && hrVal < 24) {
-          const hour = `${String(hrVal).padStart(2, '0')}:00`;
-          if (hourlyInbound[hour] !== undefined) {
-            hourlyInbound[hour] += getVol(d);
-          }
+      let hrVal = getHourFromTimestamp(ibTime);
+      if (hrVal < 0) hrVal = 10;
+      if (hrVal >= 0 && hrVal < 24) {
+        const hour = `${String(hrVal).padStart(2, '0')}:00`;
+        if (hourlyInbound[hour] !== undefined) {
+          hourlyInbound[hour] += getVol(d);
         }
       }
     }
