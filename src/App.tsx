@@ -2280,6 +2280,7 @@ export default function App() {
                 loading={loading}
                 fetchAndUpdateData={fetchAndUpdateData}
                 lastUpdate={lastUpdate}
+                lastUpdateObj={lastUpdateObj}
               />
             )}
           </div>
