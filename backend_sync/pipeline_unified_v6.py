@@ -1114,6 +1114,12 @@ def main():
             ON CONFLICT (tracking) DO UPDATE SET
                 data_source              = EXCLUDED.data_source,
                 status_sys               = EXCLUDED.status_sys,
+                pickup_time              = COALESCE(EXCLUDED.pickup_time, enriched.dispatch_enriched.pickup_time),
+                pickup_station           = COALESCE(NULLIF(EXCLUDED.pickup_station, ''), enriched.dispatch_enriched.pickup_station),
+                pickup_station2          = COALESCE(NULLIF(EXCLUDED.pickup_station2, ''), enriched.dispatch_enriched.pickup_station2),
+                pickup_ontime            = COALESCE(NULLIF(EXCLUDED.pickup_ontime, ''), enriched.dispatch_enriched.pickup_ontime),
+                areacode                 = COALESCE(NULLIF(EXCLUDED.areacode, ''), enriched.dispatch_enriched.areacode),
+                flowtypedesc             = COALESCE(NULLIF(EXCLUDED.flowtypedesc, ''), enriched.dispatch_enriched.flowtypedesc),
                 inbound_scandate         = EXCLUDED.inbound_scandate,
                 outbound_scandate        = EXCLUDED.outbound_scandate,
                 arrival_scandate         = EXCLUDED.arrival_scandate,

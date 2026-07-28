@@ -144,6 +144,62 @@ def get_sa_engine():
         return None  # Fallback: caller will use raw psycopg2 conn
 
 
+def refresh_operational_flags() -> None:
+    """
+    Atomic UPDATE: Tinh lai toan bo 7 cot co + helper cho Pool 1 + Pool 2 (rows vua duoc upsert).
+    Goi ngay sau Phase 1, truoc Phase 2 de dam bao JSON luon doc flag chinh xac.
+
+    Nguyen tac an toan:
+    - flag_backlog KHONG luu — tinh inline trong query (WHERE flag_inbound=1 AND flag_outbound=0)
+    - flag_rot_nay / flag_rot_truoc KHONG luu — tinh dong trong SQL voi op_today tu Python
+    - Tat ca flag khac duoc reset nguyen tu (atomic) trong 1 UPDATE duy nhat
+    """
+    print("   🔄 Refreshing operational flags (atomic)...")
+    t_start = _time.time()
+    try:
+        conn = get_pg_conn()
+        cur  = conn.cursor()
+        cur.execute("""
+            UPDATE enriched.dispatch_enriched SET
+                flag_created   = 1,
+                flag_pickup    = CASE WHEN pickup_time IS NOT NULL     THEN 1 ELSE 0 END,
+                flag_arrival   = CASE WHEN arrival_scandate IS NOT NULL THEN 1 ELSE 0 END,
+                flag_inbound   = CASE
+                                    WHEN inbound_scandate IS NOT NULL THEN 1
+                                    WHEN is_rebound = 1 AND inbound_scandate_2 IS NOT NULL THEN 1
+                                    ELSE 0 END,
+                flag_outbound  = CASE
+                                    WHEN outbound_scandate IS NOT NULL THEN 1
+                                    WHEN is_rebound = 1 AND outbound_scandate_2 IS NOT NULL THEN 1
+                                    ELSE 0 END,
+                -- Helper: ngay pickup theo boundary 06:00 (dung tinh rot dong trong SQL)
+                op_date_pickup = CASE
+                                    WHEN pickup_time IS NULL THEN NULL
+                                    WHEN EXTRACT(HOUR FROM pickup_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < 6
+                                    THEN (pickup_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 1
+                                    ELSE (pickup_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::date
+                                 END,
+                -- Helper: ngay Inbound chinh xac cho Rebound (fix Rui ro 3)
+                op_date_inbound_effective = CASE
+                                    WHEN is_rebound = 1 AND operation_date_inbound_2 IS NOT NULL
+                                    THEN operation_date_inbound_2
+                                    ELSE operation_date_inbound
+                                 END
+            WHERE
+                -- Pool 1: moi don dang active (bao gom Rebound, Rot chua ve HUB)
+                is_active = 1 OR is_completed = FALSE
+                -- Pool 2: don da hoan thanh nhung co thao tac moi trong 2 ngay
+                OR last_updated >= NOW() - INTERVAL '2 days'
+        """)
+        updated = cur.rowcount
+        conn.commit()
+        cur.close()
+        conn.close()
+        print(f"   ✅ Flags refreshed: {updated:,} rows ({_time.time()-t_start:.1f}s)")
+    except Exception as e:
+        print(f"   ⚠️  Flag refresh error (non-fatal): {e}")
+
+
 # ════════════════════════════════════════════════════════════════════
 # JFS LINEHAUL + TRUCK ETA (dùng pipeline_unified_v6 functions)
 # ════════════════════════════════════════════════════════════════════
@@ -308,6 +364,10 @@ def sync_postgre_to_dashboard():
     except Exception as _e1:
         print(f"   ⚠️  Phase 1 error: {_e1} — tiếp tục Phase 2 từ DB hiện tại")
 
+    # ── Phase 1.5: Atomic flag refresh (sau upsert, trước export JSON) ────────────
+    # Bảo đảm flag_inbound/outbound/pickup/arrival luôn nhất quán với timestamp gốc
+    refresh_operational_flags()
+
     # ── 2. PostgreSQL fetch & export ──────────────────────────────────────────
     print("\n📦 Phase 2: Reading from PostgreSQL logistics_db & generating JSONs...")
 
@@ -324,7 +384,12 @@ def sync_postgre_to_dashboard():
             operation_date_created, operation_date_inbound,
             is_backlog, is_active,
             is_completed, cycle_no, is_rebound, return_count,
-            inbound_scandate_2, operation_date_inbound_2, outbound_scandate_2
+            inbound_scandate_2, operation_date_inbound_2, outbound_scandate_2,
+            -- Operational Flags (atomic-refreshed sau Phase 1)
+            flag_created, flag_pickup, flag_arrival, flag_inbound, flag_outbound,
+            -- Helper columns (fix Rui ro 2 & 3)
+            op_date_pickup,                -- Dung tinh rot dong (flag_rot_nay/truoc)
+            op_date_inbound_effective      -- Ngay inbound chinh xac cho Rebound
         FROM enriched.dispatch_enriched
         WHERE
             -- ═══════════════════════════════════════════════════════════
