@@ -1,5 +1,5 @@
 import RouteMapDashboard from './components/RouteMapDashboard';
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import InboundDashboard from './components/InboundDashboard';
 import HeatmapDashboard from './components/HeatmapDashboard';
 import KpiDashboard from './components/KpiDashboard';
@@ -534,9 +534,9 @@ export default function App() {
   const [truckEtaData, setTruckEtaData] = useState<any[]>([]);
   const [selectedInboundDate, setSelectedInboundDate] = useState<string>('');
   // Backup today's data khi switch sang history
-  const todayInboundRef = React.useRef<any[]>([]);
-  const todayLinehaulRef = React.useRef<any[]>([]);
-  const todayArrivalRef = React.useRef<any[]>([]);
+  const todayInboundRef = useRef<any[]>([]);
+  const todayLinehaulRef = useRef<any[]>([]);
+  const todayArrivalRef = useRef<any[]>([]);
   const [showMonitor, setShowMonitor] = useState(true);
   const [showTelemetry, setShowTelemetry] = useState(true);
   const [showControls, setShowControls] = useState(true);
