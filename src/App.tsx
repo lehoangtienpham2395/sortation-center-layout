@@ -558,7 +558,22 @@ export default function App() {
     if (ibRows && ibRows.length > 0) setInboundData(ibRows);
     if (lhRows && lhRows.length > 0) setLinehaulData(lhRows);
     if (arrivalRows && arrivalRows.length > 0) setArrivalData(arrivalRows);
-    if (truckEtaRows && truckEtaRows.length > 0) setTruckEtaData(truckEtaRows);
+
+    // Đảm bảo truck_eta.json được nạp 100% với GitHub Raw fallback trực tiếp
+    let finalTruckEta = truckEtaRows;
+    if (!finalTruckEta || finalTruckEta.length === 0) {
+      try {
+        const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+        const r = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/truck_eta.json?t=${t}`, { cache: 'no-store' });
+        if (r.ok) {
+          const json = await r.json();
+          finalTruckEta = Array.isArray(json) ? json : (json?.trucks || []);
+        }
+      } catch (e) {
+        console.warn('Direct GitHub Raw truck_eta fallback error:', e);
+      }
+    }
+    if (finalTruckEta && finalTruckEta.length > 0) setTruckEtaData(finalTruckEta);
     if (heatmapData) {
       setHeatmapRows(heatmapData);
     }
