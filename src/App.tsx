@@ -524,7 +524,7 @@ export default function App() {
     try {
       const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
       const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
-      let res = await fetch(getApiUrl('last_update.json'), fetchOpts);
+      let res = await fetch(`data/last_update.json?t=${t}`, fetchOpts);
       if (!res.ok) {
         res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, fetchOpts);
       }

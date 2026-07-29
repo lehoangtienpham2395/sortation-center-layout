@@ -188,16 +188,16 @@ export default function InboundDashboard({
     return aDate.length === 7 ? normR.startsWith(normA) : normR === normA;
   };
 
-  const getDatePickup = (d: any) => d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
-  const getDateArrival = (d: any) => d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
+  const getDatePickup = (d: any) => d['op_date_pickup'] || d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
+  const getDateArrival = (d: any) => d['op_date_arrival'] || d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
   const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && (getDateInbound(d) === activeDate || d['op_date_inbound'] === activeDate || !getDateInbound(d)) && !isNorthRow(d));
-  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && Boolean(getDateForecast(d)) && (getDateForecast(d) === activeDate || d['Ngy vn hnh_Forecast'] === activeDate) && !isNorthRow(d));
-  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && (getDatePickup(d) === activeDate || d['Ngy vn hnh_Pickup'] === activeDate) && !isNorthRow(d));
+  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && (d['op_date_forecast'] === activeDate || getDateForecast(d) === activeDate) && !isNorthRow(d));
+  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && (d['op_date_pickup'] === activeDate || getDatePickup(d) === activeDate) && !isNorthRow(d));
   const filteredTransportingInbound = inboundData.filter(d => {
     const rawSt = getStatus(d);
     const status = (rawSt ? String(rawSt).trim() : '');
-    const opArr = getDateArrival(d) || d['op_date_arrival'] || '';
+    const opArr = d['op_date_arrival'] || getDateArrival(d) || '';
     const hasInbound = Boolean(d['Ngy vn hnh_Inbound'] || d['op_date_inbound'] || status === 'Inbound');
     const hasOutbound = Boolean(d['Ngy vn hnh_Outbound'] || d['op_date_outbound'] || status === 'Outbound');
 
@@ -250,8 +250,8 @@ export default function InboundDashboard({
   [...filteredInbound, ...filteredChuaVeHub].forEach(d => {
     const rawSt = d['Trng thi'] || d['Trạng thái'] || d['status'];
     const status = (rawSt ? String(rawSt).trim() : '');
-    const vol = parseInt(d['Volume'], 10) || 0;
-    const wt = parseFloat(d['Weight']) || 0;
+    const vol = parseInt(d['Volume'] || d['volume'] || 1, 10) || 1;
+    const wt = parseFloat(d['Weight'] || d['weight_ton'] || 0) || 0;
 
     if (status === 'Inbound' || status === 'Đã nhập kho') {
       stages['Inbound'].orders += vol;
