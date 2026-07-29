@@ -660,6 +660,10 @@ export default function App() {
       return normR === normS;
     };
 
+    // Find effective matching date: if selectedDate has no matching rows for selectedType, fallback to matching any available date or active shift
+    const matchingRowsForSelectedDate = rawSheetRows.filter(r => isDateMatch(r.date, selectedDate));
+    const effectiveDate = (matchingRowsForSelectedDate.length > 0 || !selectedDate) ? selectedDate : (availableDates[0] || '');
+
     // Create lookup maps for selectedType, backlog, and inventory per areaId
     const selectedMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
     const backlogMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
@@ -669,7 +673,7 @@ export default function App() {
       const key = row.areaId;
       if (!key) return;
 
-      const dateMatched = isDateMatch(row.date, selectedDate);
+      const dateMatched = !effectiveDate || isDateMatch(row.date, effectiveDate);
       if (!dateMatched) return;
 
       const rowStatus = row.status ? String(row.status) : '';
@@ -1927,7 +1931,7 @@ export default function App() {
                     <div className="flex justify-between items-center">
                       <span style={{ fontSize: '13px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng trọng lượng</span>
                       <span className="mono font-bold" style={{ fontSize: '15px', color: '#B8F7E4', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
-                        {totalWeight.toFixed(1).replace('.', ',')} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
+                        {(totalWeight > 0 && totalWeight < 0.1) ? totalWeight.toFixed(3).replace('.', ',') : totalWeight.toFixed(1).replace('.', ',')} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
                       </span>
                     </div>
                   </div>
@@ -2092,7 +2096,9 @@ export default function App() {
                                 {chute.name}
                               </td>
                               <td className="mono font-bold text-center" style={{ color: '#B8F7E4', fontSize: '12px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
-                              <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>{chute.weight.toFixed(1)} Tấn</td>
+                              <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>
+                                {(chute.weight > 0 && chute.weight < 0.1) ? chute.weight.toFixed(3) : chute.weight.toFixed(1)} Tấn
+                              </td>
                               <td className="mono font-bold text-center" style={{ color: UTILCOL[chute.bucket], fontSize: '11.5px', textShadow: chute.bucket === 'darkred' || chute.bucket === 'red' ? '0 0 8px rgba(239,68,68,0.6)' : '0 0 8px rgba(16,185,129,0.5)' }}>{chute.utilization}%</td>
                             </tr>
                           );
