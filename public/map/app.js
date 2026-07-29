@@ -248293,11 +248293,12 @@ function initMap() {
 }
 
 function initTrafficLayer() {
-  // Pure Traffic Flow Vectors ONLY (No POI markers, no shops/businesses)
-  googleTrafficLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=traffic&x={x}&y={y}&z={z}', {
+  // Live Traffic Overlay (Real-time traffic flow lines: Green/Orange/Red)
+  googleTrafficLayer = L.tileLayer('https://mt{s}.google.com/vt/lyrs=h,traffic&x={x}&y={y}&z={z}', {
     maxZoom: 20,
-    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    opacity: 0.9
+    subdomains: ['0', '1', '2', '3'],
+    opacity: 0.95,
+    zIndex: 1000
   });
 }
 
