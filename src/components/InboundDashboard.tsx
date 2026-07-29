@@ -457,21 +457,21 @@ export default function InboundDashboard({
   });
 
   // 3. Pickup Time (Shipper đã lấy): CHỈ đếm các đơn có mốc lấy hàng thực tế và trạng thái đã lấy hàng (Pickup Done / Transporting / Inbound)
-  inboundData.filter(d => {
+  // 3. Pickup Time (Shipper đã lấy): CHỈ đếm các đơn có mốc lấy hàng thuộc ngày vận hành activeDate
+  inboundData.forEach(d => {
+    if (isNorthRow(d)) return;
     const status = d['Trng thi'] || d['Trạng thái'] || '';
-    const opPk = d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || '';
-    return opPk === activeDate && status !== 'Created' && status !== 'Đã điều phối bưu cục';
-  }).forEach(d => {
-    if (isNorthRow(d)) {
-      return;
-    }
-    const pkTime = d['Pickup Time'] || d['pickup_time'];
-    if (pkTime !== undefined && pkTime !== null && pkTime !== '') {
+    if (status === 'Created' || status === 'Đã điều phối bưu cục') return;
+
+    const pkTime = d['Pickup Time'] || d['pickup_time'] || '';
+    const pkOpDate = d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || (pkTime ? getOperatingDateFromTimestamp(pkTime) : '');
+    
+    if (pkTime && (pkOpDate === activeDate || isDateMatch(pkOpDate, activeDate))) {
       const hrVal = getHourFromTimestamp(pkTime);
       if (hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
         if (hourlyPickup[hour] !== undefined) {
-          hourlyPickup[hour] += parseInt(d['Volume'], 10) || 0;
+          hourlyPickup[hour] += parseInt(d['Volume'] || 1, 10);
         }
       }
     }
@@ -492,6 +492,12 @@ export default function InboundDashboard({
       }
     }
   });
+
+  // Đồng bộ tuyệt đối sản lượng Pickup Done của thẻ Orders Status với tổng sản lượng trên biểu đồ Hourly Processing Trend
+  const totalPickupVolume = Object.values(hourlyPickup).reduce((sum, v) => sum + v, 0);
+  if (totalPickupVolume > 0) {
+    stages['Pickup Done'].orders = totalPickupVolume;
+  }
 
   const totalInbound = stages['Inbound'].orders;
   const totalPickupDone = stages['Pickup Done'].orders;
