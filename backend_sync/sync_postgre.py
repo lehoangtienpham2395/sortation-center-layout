@@ -31,6 +31,16 @@ else:
 BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR   = os.path.join(BASE_DIR, "data")
 VALID_FILE = os.path.join(BASE_DIR, "backend_sync", "config", "valid.csv")
+CONTRACT_FILE = os.path.join(BASE_DIR, "backend_sync", "config", "data_contract.json")
+
+DATA_CONTRACT = {}
+if os.path.exists(CONTRACT_FILE):
+    try:
+        with open(CONTRACT_FILE, "r", encoding="utf-8") as _cf:
+            DATA_CONTRACT = json.load(_cf)
+        print("✅ Data Contract loaded successfully")
+    except Exception as _ce:
+        print(f"⚠️ Failed to load Data Contract: {_ce}")
 
 # pipeline_unified_v6.py nằm ở thư mục cha của repo (scratch)
 PIPELINE_DIR = os.path.dirname(BASE_DIR)
@@ -123,6 +133,103 @@ def get_op_date(dt_str: str) -> str:
         return dt.strftime('%Y-%m-%d')
     except Exception:
         return str(dt_str)[:10]
+
+
+def clean_status_sys(status_raw) -> str:
+    """
+    Chuẩn hoá 100% alias trạng thái thô từ JFS API thành 5 enum chuẩn dựa trên Data Contract:
+    'Inbound', 'Transporting', 'Pickup Done', 'Created', 'Outbound' (hoặc 'Đã hủy')
+    """
+    if status_raw is None or pd.isna(status_raw):
+        return 'Created'
+    st = str(status_raw).strip()
+    
+    aliases = DATA_CONTRACT.get("enums", {}).get("status", {}).get("aliases", {})
+    if st in aliases:
+        return aliases[st]
+    st_lower = st.lower()
+    if st_lower in aliases:
+        return aliases[st_lower]
+    
+    if any(kw in st_lower for kw in ['đã hủy', 'cancelled', 'canceled', 'hủy']):
+        return 'Đã hủy'
+    if any(kw in st_lower for kw in ['đã xuất kho', 'outbound', 'outbound_done', 'đã xuất khỏi hub']):
+        return 'Outbound'
+    if any(kw in st_lower for kw in ['đã nhập kho', 'inbound', 'inbound_done', 'đang trên bãi']):
+        return 'Inbound'
+    if any(kw in st_lower for kw in ['đang vận chuyển', 'transporting', 'in_transit', 'chưa đến hub']):
+        return 'Transporting'
+    if any(kw in st_lower for kw in ['đã lấy hàng', 'pickup done', 'pickup_done', 'picked_up']):
+        return 'Pickup Done'
+    
+    return st or 'Created'
+
+
+def validate_payload_contract(records: list, dataset_name: str) -> None:
+    """Xác minh 100% payload tuân thủ Hợp đồng Dữ liệu (Display-Ready & Canonical Enums)."""
+    canonical_statuses = set(DATA_CONTRACT.get("enums", {}).get("status", {}).get("canonical", []))
+    if not canonical_statuses or not records:
+        return
+    invalid_count = 0
+    for r in records:
+        st = r.get("status")
+        if st and st not in canonical_statuses:
+            invalid_count += 1
+    if invalid_count == 0:
+        print(f"   🛡️  [Data Contract] {dataset_name:<30}: 100% VALID (Display-Ready Canonical Enums)")
+    else:
+        print(f"   ⚠️  [Data Contract] {dataset_name:<30}: {invalid_count} records non-canonical status")
+
+
+def get_or_create_daily_baseline(conn, today_date_str: str) -> int:
+    """
+    Tạo và đọc baseline rot_hom_truoc tại 06:00 AM mỗi ngày trong PostgreSQL.
+    Bảng: enriched.daily_baseline_snapshot
+    """
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS enriched.daily_baseline_snapshot (
+                op_date DATE PRIMARY KEY,
+                rot_hom_truoc_count INT NOT NULL,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.commit()
+
+        cur.execute("SELECT rot_hom_truoc_count FROM enriched.daily_baseline_snapshot WHERE op_date = %s;", (today_date_str,))
+        row = cur.fetchone()
+        if row is not None:
+            baseline_val = row[0]
+            cur.close()
+            print(f"   📌 Baseline Rớt Hôm Trước (chốt 06:00 AM cho ngày {today_date_str}): {baseline_val:,} đơn")
+            return baseline_val
+
+        cur.execute("""
+            SELECT COUNT(*) FROM enriched.dispatch_enriched
+            WHERE (inbound_scandate IS NULL)
+              AND (next_station IS NULL OR next_station <> 'Đã hủy')
+              AND (status_sys IS NULL OR status_sys <> 'Đã hủy')
+              AND (is_rebound IS NULL OR is_rebound = 0)
+              AND (
+                (op_date_pickup IS NOT NULL AND op_date_pickup < %s::date)
+                OR (op_date_pickup IS NULL AND operation_date_created < %s::date)
+              );
+        """, (today_date_str, today_date_str))
+        calc_val = cur.fetchone()[0] or 0
+
+        cur.execute("""
+            INSERT INTO enriched.daily_baseline_snapshot (op_date, rot_hom_truoc_count)
+            VALUES (%s, %s)
+            ON CONFLICT (op_date) DO NOTHING;
+        """, (today_date_str, calc_val))
+        conn.commit()
+        cur.close()
+        print(f"   📌 [Mới] Đã chốt và lưu Baseline Rớt Hôm Trước (ngày {today_date_str}): {calc_val:,} đơn")
+        return calc_val
+    except Exception as e:
+        print(f"   ⚠️  Không thể lưu/đọc baseline snapshot: {e}")
+        return 0
 
 
 def write_json(filename: str, obj) -> None:
@@ -524,9 +631,16 @@ def sync_postgre_to_dashboard():
     hourly        = {f"{h:02d}:00": 0 for h in range(24)}
 
     # ── Cờ Rớt đơn (Nguyên tắc 6) ────────────────────────────────
-    # Rớt = đã Pickup Done nhưng CHƯA có Inbound scan tại HUB
-    # Phân loại theo ngày vận hành pickup (op_date_pickup vs today/yesterday)
-    rot_hom_truoc = 0   # Pickup hôm trước, chưa về HUB → tồn mặc định bất biến đầu ca
+    # Baseline chốt 06:00 AM cho Inbound Dashboard (bất biến)
+    rot_hom_truoc_baseline = 0
+    try:
+        conn_b = get_pg_conn()
+        rot_hom_truoc_baseline = get_or_create_daily_baseline(conn_b, today)
+        conn_b.close()
+    except Exception as _eb:
+        print(f"   ⚠️ Baseline query error: {_eb}")
+
+    rot_hom_truoc = 0   # Pickup hôm trước, chưa về HUB → live dynamic tracking cho Layout Volume
     rot_hom_nay   = 0   # Pickup hôm nay, chưa về HUB  → đang trên đường
     ZONE_MAP = {'SR0001': '1', 'BNI001': '1', '1': '1', '2': '2', '3': '3'}
 
@@ -785,7 +899,9 @@ def sync_postgre_to_dashboard():
          "pickup_time": pk_hr, "arrival_time": ar_hr,
          "drop_type": drop_t, "trip_code": tc,
          "transporing_time": tr_t, "transported_time": trd_t,
-         "is_rebound": is_reb, "return_count": stats['return_count']}
+         "is_rebound": is_reb, "return_count": stats['return_count'],
+         "is_north": (st.strip().upper() == 'BN HUB' or st.strip().upper().startswith('HN ') or st.strip().upper().startswith('HD ') or st.strip().upper().startswith('HY ')),
+         "region": 'north' if (st.strip().upper() == 'BN HUB' or st.strip().upper().startswith('HN ') or st.strip().upper().startswith('HD ') or st.strip().upper().startswith('HY ')) else 'south'}
         for (st, status, in_op, fc_op, pk_op, ar_op,
              in_hr, fc_hr, pk_hr, ar_hr,
              drop_t, tc, tr_t, trd_t, is_reb), stats in inbound_group.items()
@@ -830,16 +946,18 @@ def sync_postgre_to_dashboard():
         "total_inbound_today":   total_inbound_today,
         "total_backlog":         sum(v['volume'] for v in backlog_group.values()),
         "total_inventory":       sum(v['volume'] for v in inv_group.values()),
-        # ── Cờ Rớt (Nguyên tắc 6): Đã Pickup nhưng chưa Inbound ──
-        # Đây là số bất biến đầu ca, được dùng làm Forecast KPI
-        "rot_hom_truoc":         rot_hom_truoc,
+        # ── Cờ Rớt (Nguyên tắc 6): Inbound Baseline cố định 6AM vs Layout Volume live ──
+        "rot_hom_truoc":         rot_hom_truoc_baseline if rot_hom_truoc_baseline > 0 else rot_hom_truoc,
+        "rot_hom_truoc_live":    rot_hom_truoc,
         "rot_hom_nay":           rot_hom_nay,
         "sync_success":          True,
     }
-    print(f"   📊 Cờ Rớt: Rớt hôm trước={rot_hom_truoc:,}  |  Rớt hôm nay={rot_hom_nay:,}")
+    print(f"   📊 Cờ Rớt: Rớt hôm trước (Baseline 6AM)={last_update_obj['rot_hom_truoc']:,} | Live={rot_hom_truoc:,} | Rớt hôm nay={rot_hom_nay:,}")
 
-    # ── 5. Write dispatch JSONs ───────────────────────────────────
-    print(f"\n📤 Writing JSON files → {DATA_DIR}")
+    # ── 5. Validate & Write dispatch JSONs ────────────────────────
+    print(f"\n📤 Validating Data Contract & Writing JSON files → {DATA_DIR}")
+    validate_payload_contract(inbound_json, "inbound.json / latest.json.gz")
+    validate_payload_contract(inventory_json, "inventory.json")
     write_json("inventory.json",          inventory_json)
     write_json("outbound.json",           outbound_json)
     write_json("backlog.json",            backlog_json)

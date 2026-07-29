@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "JFS HUB Sortation Center Data Contract",
+  "version": "1.1.0",
+  "notes": "Phân định rõ station_name (bưu cục đích quy hoạch) vs pickup_station (bưu cục lấy hàng/nguồn)",
+  "units": {
+    "weight": {
+      "field": "weight_ton",
+      "unit": "Metric Ton (Tấn)",
+      "precision": 3,
+      "display_ready": true,
+      "frontend_calculation_allowed": false
+    },
+    "volume": {
+      "field": "volume",
+      "unit": "Orders Count (Đơn)",
+      "type": "integer"
+    }
+  },
+  "enums": {
+    "status": {
+      "canonical": ["Inbound", "Transporting", "Pickup Done", "Created", "Outbound", "Đã hủy"],
+      "aliases": {
+        "inbound": "Inbound",
+        "inbound_done": "Inbound",
+        "at_hub": "Inbound",
+        "Đang trên bãi": "Inbound",
+        "đã nhập kho": "Inbound",
+        "transporting": "Transporting",
+        "in_transit": "Transporting",
+        "chưa đến hub": "Transporting",
+        "Đang trên đường": "Transporting",
+        "đang vận chuyển": "Transporting",
+        "pickup_done": "Pickup Done",
+        "picked_up": "Pickup Done",
+        "Đã lấy hàng": "Pickup Done",
+        "created": "Created",
+        "Đã điều phối bưu cục": "Created",
+        "outbound": "Outbound",
+        "outbound_done": "Outbound",
+        "Đã xuất khỏi HUB": "Outbound",
+        "Đã rời HUB": "Outbound",
+        "đã xuất kho": "Outbound",
+        "canceled": "Đã hủy",
+        "cancelled": "Đã hủy",
+        "đã hủy": "Đã hủy"
+      }
+    },
+    "drop_type": {
+      "canonical": ["Rớt hôm nay", "Rớt hôm trước"],
+      "aliases": {
+        "rot_today": "Rớt hôm nay",
+        "rot_yesterday": "Rớt hôm trước"
+      }
+    },
+    "region": {
+      "canonical": ["north", "south"],
+      "prefix_rules": {
+        "north": ["BN HUB", "HN ", "HD ", "HY "]
+      }
+    }
+  },
+  "key_map": {
+    "station_name": "Bưu cục",
+    "next_station": "Bưu cục đích",
+    "pickup_station": "Bưu cục nộp",
+    "pickup_station2": "Bưu cục lấy thực tế",
+    "status": "Trạng thái",
+    "op_date_inbound": "Ngày vận hành_Inbound",
+    "op_date_forecast": "Ngày vận hành_Forecast",
+    "op_date_pickup": "Ngày vận hành_Pickup",
+    "op_date_arrival": "Ngày vận hành_Arrival",
+    "drop_type": "Loại rớt",
+    "op_date": "Ngày vận hành",
+    "total_orders": "Tổng số đơn",
+    "volume": "Volume",
+    "weight_ton": "Weight"
+  }
+}

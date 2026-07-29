@@ -188,89 +188,60 @@ interface SheetRow {
 //
 // ➜ Nguyên tắc bắt buộc: MỌI so sánh status/drop_type trong toàn bộ app phải đi
 //   qua normalizeStatus()/normalizeDropType(), KHÔNG so sánh chuỗi cứng rải rác
-//   ở nơi khác. Nếu backend đổi enum, chỉ cần thêm dòng vào map này.
-const BACKEND_STATUS_MAP: Record<string, string> = {
-  // phòng trường hợp backend đổi về snake_case
-  'inbound':        'Inbound',
-  'transporting':   'Transporting',
-  'pickup_done':    'Pickup Done',
-  'created':        'Created',
-  'outbound':       'Outbound',
-  'outbound_done':  'Outbound',
-  // giữ tương thích ngược với data cũ từ Google Sheet (trước khi có pipeline JSON)
-  'at_hub':                 'Inbound',
-  'Đang trên bãi':          'Inbound',
-  'Đang trên đường':        'Transporting',
-  'Đã lấy hàng':            'Created',
-  'Đã điều phối bưu cục':   'Created',
-  'Đã xuất khỏi HUB':       'Outbound',
-  'Đã rời HUB':             'Outbound',
-};
+import {
+  BACKEND_STATUS_MAP,
+  BACKEND_DROP_TYPE_MAP,
+  KEY_MAP,
+  normalizeStatus,
+  normalizeDropType
+} from './contracts/data_contract';
 
-const BACKEND_DROP_TYPE_MAP: Record<string, string> = {
-  // phòng trường hợp backend đổi về snake_case (giá trị cũ trước khi thống nhất)
-  'rot_today':      'Rớt hôm nay',
-  'rot_yesterday':  'Rớt hôm trước',
-};
-
-function normalizeStatus(raw: unknown): string | undefined {
-  if (raw === undefined || raw === null || raw === '') return undefined;
-  const key = String(raw);
-  return BACKEND_STATUS_MAP[key] ?? key; // fallback: giữ nguyên nếu đã là giá trị hiển thị (vd nhập tay)
+async function fetchCompressedGzipJson(url: string): Promise<any | null> {
+  try {
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) return null;
+    if (typeof DecompressionStream !== 'undefined' && response.body) {
+      const decompressedStream = response.body.pipeThrough(new DecompressionStream('gzip'));
+      const text = await new Response(decompressedStream).text();
+      return JSON.parse(text);
+    }
+    return null;
+  } catch (e) {
+    console.warn(`Gzip decompress fallback for ${url}:`, e);
+    return null;
+  }
 }
-
-function normalizeDropType(raw: unknown): string | undefined {
-  if (raw === undefined || raw === null || raw === '') return undefined;
-  const key = String(raw);
-  return BACKEND_DROP_TYPE_MAP[key] ?? key;
-}
-
-
 
 async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival' | 'Truck_ETA'): Promise<any[] | null> {
   try {
     const t = Date.now();
-    let response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
-    if (!response.ok) {
-      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+    let rawData: any = null;
+
+    if (sheetType === 'Inbound') {
+      // P0 Optimization: Ưu tiên tải file nén latest.json.gz (271KB) và giải nén bằng API native trình duyệt
+      rawData = await fetchCompressedGzipJson(`./data/latest.json.gz?t=${t}`);
+      if (!rawData) {
+        rawData = await fetchCompressedGzipJson(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/latest.json.gz?t=${t}`);
+      }
     }
-    if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
-    const rawData = await response.json();
+
+    if (!rawData) {
+      let response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+      if (!response.ok) {
+        response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+      }
+      if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
+      rawData = await response.json();
+    }
     const data = Array.isArray(rawData) ? rawData : (rawData?.trucks || rawData?.pivot_data || rawData?.data || []);
     
-    // Remap column keys (supports English snake_case and legacy unaccented keys)
-    const keyMap: Record<string, string> = {
-      'station_name': 'Bưu cục',
-      'status': 'Trạng thái',
-      'op_date_inbound': 'Ngày vận hành_Inbound',
-      'op_date_forecast': 'Ngày vận hành_Forecast',
-      'op_date_pickup': 'Ngày vận hành_Pickup',
-      'op_date_arrival': 'Ngày vận hành_Arrival',
-      'drop_type': 'Loại rớt',
-      'op_date': 'Ngày vận hành',
-      'total_orders': 'Tổng số đơn',
-      'volume': 'Volume',
-      'weight_ton': 'Weight',
-
-      'Bu cc': 'Bưu cục',
-      'Trng thi': 'Trạng thái',
-      'Ngy vn hnh_Inbound': 'Ngày vận hành_Inbound',
-      'Ngy vn hnh_Forecast': 'Ngày vận hành_Forecast',
-      'Ngy vn hnh_Pickup': 'Ngày vận hành_Pickup',
-      'Ngy vn hnh_Arrival': 'Ngày vận hành_Arrival',
-      'Loi rt': 'Loại rớt',
-      'Ngy vn hnh': 'Ngày vận hành',
-      'Tng s n': 'Tổng số đơn',
-    };
     return data.map((row: Record<string, any>) => {
       const out: Record<string, any> = { ...row };
       for (const [k, v] of Object.entries(row)) {
-        if (keyMap[k]) {
-          out[keyMap[k]] = v;
+        if (KEY_MAP[k]) {
+          out[KEY_MAP[k]] = v;
         }
       }
-      // Chuẩn hóa enum status/drop_type qua hợp đồng dữ liệu tập trung
-      // (backend snake_case → chuỗi hiển thị UI dùng để so sánh)
       if (out['Trạng thái'] !== undefined) {
         out['Trạng thái'] = normalizeStatus(out['Trạng thái']);
       }
@@ -900,13 +871,45 @@ export default function App() {
     e.currentTarget.style.setProperty('--mouse-y', `${y}px`);
   };
 
+  const lastUpdateTimestampRef = useRef<string | null>(null);
+
   useEffect(() => {
     fetchAndUpdateData();
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+
+    // Smart Polling 60s: Chỉ kiểm tra file nhỏ last_update.json (1KB), chỉ tải lại data lớn khi last_update thực sự thay đổi
+    const checkAndPoll = async () => {
+      try {
+        const t = Date.now();
+        let res = await fetch(`./data/last_update.json?t=${t}`, { cache: 'no-store' });
+        if (!res.ok) {
+          res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, { cache: 'no-store' });
+        }
+        if (res.ok) {
+          const d = await res.json();
+          const newTime = d?.last_update || null;
+          if (newTime && lastUpdateTimestampRef.current && newTime !== lastUpdateTimestampRef.current) {
+            console.log(`[Smart Polling] Dữ liệu đã cập nhật (${lastUpdateTimestampRef.current} -> ${newTime}). Tải lại file...`);
+            lastUpdateTimestampRef.current = newTime;
+            await fetchAndUpdateData();
+          } else if (newTime) {
+            lastUpdateTimestampRef.current = newTime;
+          }
+        }
+      } catch (e) {
+        console.error('[Smart Polling] Lỗi kiểm tra last_update:', e);
+      }
+    };
+
+    const intervalId = setInterval(checkAndPoll, 60000);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      clearInterval(intervalId);
+    };
   }, []);
 
   useEffect(() => {
