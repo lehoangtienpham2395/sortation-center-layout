@@ -675,7 +675,7 @@ def sync_postgre_to_dashboard():
         valid_area = bool(area_id)
         cap      = 1400 if area_id == 'A06' else 780
         raw_wt   = float(r.get('orders_weight') or 0)
-        wt_kg    = raw_wt / 1000.0
+        wt_kg    = (raw_wt / 1000.0) if raw_wt > 500.0 else raw_wt
         cr_t     = clean_ts_str(r.get('created_time'))
         pk_t     = clean_ts_str(r.get('pickup_time'))
         inb_t    = clean_ts_str(r.get('inbound_scandate'))
