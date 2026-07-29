@@ -197,35 +197,29 @@ def get_or_create_daily_baseline(conn, today_date_str: str) -> int:
         """)
         conn.commit()
 
-        cur.execute("SELECT rot_hom_truoc_count FROM enriched.daily_baseline_snapshot WHERE op_date = %s;", (today_date_str,))
-        row = cur.fetchone()
-        if row is not None:
-            baseline_val = row[0]
-            cur.close()
-            print(f"   📌 Baseline Rớt Hôm Trước (chốt 06:00 AM cho ngày {today_date_str}): {baseline_val:,} đơn")
-            return baseline_val
-
         cur.execute("""
             SELECT COUNT(*) FROM enriched.dispatch_enriched
             WHERE (inbound_scandate IS NULL)
+              AND (outbound_scandate IS NULL)
               AND (next_station IS NULL OR next_station <> 'Đã hủy')
               AND (status_sys IS NULL OR status_sys <> 'Đã hủy')
               AND (is_rebound IS NULL OR is_rebound = 0)
               AND (
                 (op_date_pickup IS NOT NULL AND op_date_pickup < %s::date)
                 OR (op_date_pickup IS NULL AND operation_date_created < %s::date)
+                OR (arrival_scandate IS NOT NULL AND operation_date_created < %s::date)
               );
-        """, (today_date_str, today_date_str))
+        """, (today_date_str, today_date_str, today_date_str))
         calc_val = cur.fetchone()[0] or 0
 
         cur.execute("""
             INSERT INTO enriched.daily_baseline_snapshot (op_date, rot_hom_truoc_count)
             VALUES (%s, %s)
-            ON CONFLICT (op_date) DO NOTHING;
+            ON CONFLICT (op_date) DO UPDATE SET rot_hom_truoc_count = EXCLUDED.rot_hom_truoc_count;
         """, (today_date_str, calc_val))
         conn.commit()
         cur.close()
-        print(f"   📌 [Mới] Đã chốt và lưu Baseline Rớt Hôm Trước (ngày {today_date_str}): {calc_val:,} đơn")
+        print(f"   📌 Baseline Rớt Hôm Trước (chốt 06:00 AM cho ngày {today_date_str}, CHƯA INBOUND & CHƯA OUTBOUND): {calc_val:,} đơn")
         return calc_val
     except Exception as e:
         print(f"   ⚠️  Không thể lưu/đọc baseline snapshot: {e}")
