@@ -682,10 +682,8 @@ export default function App() {
       if (selectedType === 'Outbound') {
         isForSelectedType = row.type === 'Outbound' || rowStatus === 'Outbound';
       } else if (selectedType === 'Backlog') {
-        isForSelectedType = (row.type === 'Backlog' || row.type === 'Inventory') && statusMatched;
-      } else if (selectedType === 'Inventory') {
-        isForSelectedType = row.type === 'Inventory' && statusMatched;
-      } else if (selectedType === 'Volume') {
+        isForSelectedType = (row.type === 'Backlog' || (row.type === 'Inventory' && rowStatus === 'Inbound')) && statusMatched;
+      } else if (selectedType === 'Inventory' || selectedType === 'Volume') {
         isForSelectedType = row.type === 'Inventory' && statusMatched;
       }
 
@@ -738,6 +736,9 @@ export default function App() {
     updateListName(ZONE1_LIST);
 
     const totalOrdersOfSelectedType = Object.values(selectedMap).reduce((sum, item) => sum + item.volume, 0);
+    const totalWeightOfSelectedType = Object.values(selectedMap).reduce((sum, item) => sum + item.weight, 0);
+    setTotalOrders(totalOrdersOfSelectedType);
+    setTotalWeight(totalWeightOfSelectedType);
 
     // Recompute visual data for ALL_RACKS
     const newData = ALL_RACKS.reduce((acc, curr: any) => {
@@ -1926,7 +1927,7 @@ export default function App() {
                     <div className="flex justify-between items-center">
                       <span style={{ fontSize: '13px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng trọng lượng</span>
                       <span className="mono font-bold" style={{ fontSize: '15px', color: '#B8F7E4', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
-                        {(totalWeight / 1000).toFixed(1).replace('.', ',')} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
+                        {totalWeight.toFixed(1).replace('.', ',')} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
                       </span>
                     </div>
                   </div>
@@ -2091,7 +2092,7 @@ export default function App() {
                                 {chute.name}
                               </td>
                               <td className="mono font-bold text-center" style={{ color: '#B8F7E4', fontSize: '12px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
-                              <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>{(chute.weight / 1000).toFixed(1)} Tấn</td>
+                              <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>{chute.weight.toFixed(1)} Tấn</td>
                               <td className="mono font-bold text-center" style={{ color: UTILCOL[chute.bucket], fontSize: '11.5px', textShadow: chute.bucket === 'darkred' || chute.bucket === 'red' ? '0 0 8px rgba(239,68,68,0.6)' : '0 0 8px rgba(16,185,129,0.5)' }}>{chute.utilization}%</td>
                             </tr>
                           );

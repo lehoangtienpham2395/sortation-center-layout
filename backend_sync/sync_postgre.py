@@ -858,21 +858,21 @@ def sync_postgre_to_dashboard():
 
     inventory_json = [
         {"zone": z, "area_id": a, "station_name": s, "status": stt,
-         "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000, 3),
+         "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000.0, 6),
          "capacity": v['capacity'], "op_date": today}
         for (z, a, s, stt), v in inv_group.items()
     ]
 
     outbound_json = [
         {"zone": z, "area_id": a, "station_name": s,
-         "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000, 3),
+         "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000.0, 6),
          "capacity": v['capacity'], "op_date": op_d}
         for (z, a, s, op_d), v in out_group.items()
     ]
 
     backlog_json = [
         {"zone": z, "area_id": a, "station_name": s,
-         "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000, 3),
+         "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000.0, 6),
          "capacity": v['capacity'], "op_date": today}
         for (z, a, s), v in backlog_group.items()
     ]
@@ -912,7 +912,7 @@ def sync_postgre_to_dashboard():
 
     hub_pivot_json = [
         {"zone": z, "area_id": a, "station_name": s,
-         "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000, 3),
+         "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000.0, 6),
          "capacity": v['capacity'],
          "utilization_pct": round((v['volume'] / v['capacity']) * 100, 1) if v['capacity'] else 0,
          "op_date": today}
