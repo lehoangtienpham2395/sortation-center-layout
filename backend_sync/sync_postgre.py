@@ -830,20 +830,12 @@ def sync_postgre_to_dashboard():
             # 1. Đơn đã 'Inbound': UI chỉ lọc theo op_date_inbound & final_inb_hour. Các mốc tạo/pickup cũ được nén lại.
             # 2. Đơn chưa 'Inbound' (Created, Pickup Done, Transporting): bucket mốc thời gian theo khung GIỜ (HH:00:00)
             #    thay vì PHÚT (:16) vì UI chỉ dùng getHourFromTimestamp() để vẽ biểu đồ xu hướng theo giờ.
-            if in_status == 'Inbound':
-                fc_op = ''
-                pk_op = ''
-                ar_op = ''
-                fc_hr = ''
-                pk_hr = ''
-                ar_hr = ''
-            else:
-                fc_op = op_date_fc
-                pk_op = op_date_pick
-                ar_op = op_date_arr
-                fc_hr = cr_t[:13] + ':00:00'  if len(cr_t)  >= 13 else ''
-                pk_hr = pk_t[:13] + ':00:00'  if len(pk_t)  >= 13 else ''
-                ar_hr = arr_t[:13] + ':00:00' if len(arr_t) >= 13 else ''
+            fc_op = op_date_fc
+            pk_op = op_date_pick
+            ar_op = op_date_arr
+            fc_hr = cr_t[:13] + ':00:00'  if len(cr_t)  >= 13 else ''
+            pk_hr = pk_t[:13] + ':00:00'  if len(pk_t)  >= 13 else ''
+            ar_hr = arr_t[:13] + ':00:00' if len(arr_t) >= 13 else ''
 
             key_ib = (
                 station, pk_st_raw or 'BN HUB', in_status,
