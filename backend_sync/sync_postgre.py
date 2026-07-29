@@ -566,24 +566,6 @@ def sync_postgre_to_dashboard():
             op_date_pickup,                -- Dung tinh rot dong (flag_rot_nay/truoc)
             op_date_inbound_effective      -- Ngay inbound chinh xac cho Rebound
         FROM enriched.dispatch_enriched
-        WHERE
-            -- ═══════════════════════════════════════════════════════════
-            -- POOL 1: Mọi đơn ĐANG hoạt động / tồn kho (bất kể tuổi đơn)
-            -- Đơn ngâm 15 ngày, đơn Rebound, đơn Rớt chưa về HUB → giữ lại
-            -- Dùng composite index idx_enriched_active_completed
-            -- ═══════════════════════════════════════════════════════════
-            is_active = 1
-            OR is_completed = FALSE
-
-            -- ═══════════════════════════════════════════════════════════
-            -- POOL 2: Đơn đã hoàn thành nhưng có thao tác mới trong 2 ngày
-            -- (Dùng cho KPI sản lượng Inbound/Outbound ca hôm nay + hôm qua)
-            -- ═══════════════════════════════════════════════════════════
-            OR operation_date_inbound   >= CURRENT_DATE - INTERVAL '2 days'
-            OR operation_date_inbound_2 >= CURRENT_DATE - INTERVAL '2 days'
-            OR outbound_scandate        >= CURRENT_TIMESTAMP - INTERVAL '2 days'
-            OR last_updated             >= CURRENT_TIMESTAMP - INTERVAL '2 days'
-
         ORDER BY operation_date_created DESC, created_time DESC
     """
     try:
@@ -904,8 +886,8 @@ def sync_postgre_to_dashboard():
          "drop_type": drop_t, "trip_code": tc,
          "transporing_time": tr_t, "transported_time": trd_t,
          "is_rebound": is_reb, "return_count": stats['return_count'],
-         "is_north": (st.strip().upper() == 'BN HUB' or st.strip().upper().startswith('HN ') or st.strip().upper().startswith('HD ') or st.strip().upper().startswith('HY ')),
-         "region": 'north' if (st.strip().upper() == 'BN HUB' or st.strip().upper().startswith('HN ') or st.strip().upper().startswith('HD ') or st.strip().upper().startswith('HY ')) else 'south'}
+         "is_north": (st.strip().upper().startswith('HN ') or st.strip().upper().startswith('HD ') or st.strip().upper().startswith('HY ')),
+         "region": 'north' if (st.strip().upper().startswith('HN ') or st.strip().upper().startswith('HD ') or st.strip().upper().startswith('HY ')) else 'south'}
         for (st, pk_st, status, in_op, fc_op, pk_op, ar_op,
              in_hr, fc_hr, pk_hr, ar_hr,
              drop_t, tc, tr_t, trd_t, is_reb), stats in inbound_group.items()
