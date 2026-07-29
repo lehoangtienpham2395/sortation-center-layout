@@ -848,14 +848,16 @@ def sync_postgre_to_dashboard():
             inbound_group[key_ib]['volume']    += 1
             inbound_group[key_ib]['weight_kg'] += wt_kg
 
-        # ── Cờ Rớt (Nguyên tắc 6): Đã Pickup nhưng chưa Inbound ──
-        # Không tính đơn Rebound (is_reb=1) vì chúng đã từng vào HUB
-        if has_pick and not has_in and not is_reb:
-            op_date_pick_flag = get_op_date(pk_t)
-            if op_date_pick_flag == yesterday:
-                rot_hom_truoc += 1
-            elif op_date_pick_flag == today:
-                rot_hom_nay += 1
+        # ── Cờ Rớt (Nguyên tắc người dùng): Đơn Created/Pickup/Arrival trước hôm nay nhưng CHƯA INBOUND & CHƯA OUTBOUND ──
+        # Không tính đơn đã Inbound (has_in=1), không tính đơn đã Outbound (has_out=1), không tính Rebound (is_reb=1)
+        if not has_in and not has_out and not is_reb:
+            dates = [d for d in [get_op_date(cr_t), get_op_date(pk_t), get_op_date(arr_t)] if d]
+            if dates:
+                min_op = min(dates)
+                if min_op < today:
+                    rot_hom_truoc += 1
+                elif min_op == today:
+                    rot_hom_nay += 1
 
         # arrival
         if arr_t:

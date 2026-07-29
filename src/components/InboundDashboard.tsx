@@ -267,25 +267,20 @@ export default function InboundDashboard({
     const loiRot = d['Loi rt'] || d['Loại rớt'] || '';
     const vol = parseInt(d['Volume'], 10) || 1;
 
-    // Subtraction rule: If order has reached HUB (ibDate, arDate, Outbound), it is NOT in un-arrived backlog
-    const hasHubEvent = Boolean(ibDate || arDate || status === 'Outbound' || status === 'Inbound' || status === 'Transporting');
+    // Quy tắc người dùng: Nếu đơn đã có mốc Inbound hoặc Outbound, nó KHÔNG CÒN LÀ ĐƠN RỚT nữa
+    const hasInboundOrOutbound = Boolean(ibDate || status === 'Outbound' || status === 'Inbound');
 
-    if ((loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) && !hasHubEvent) {
+    if ((loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) && !hasInboundOrOutbound) {
       forecastRotHomTruoc += vol;
-    } else if ((loiRot === 'Rớt hôm nay' && fcDate === activeDate) && !hasHubEvent) {
+    } else if ((loiRot === 'Rớt hôm nay' && fcDate === activeDate) && !hasInboundOrOutbound) {
       forecastRotHomNay += vol;
     }
   });
 
-  // Baseline Rớt hôm trước chốt 06:00 AM cố định trong PostgreSQL: 14.087 đơn.
-  // Đồng thời duy trì rot_hom_nay từ snapshot backend.
-  if (lastUpdateObj) {
-    if (lastUpdateObj.rot_hom_truoc && Number(lastUpdateObj.rot_hom_truoc) > forecastRotHomTruoc) {
-      forecastRotHomTruoc = Number(lastUpdateObj.rot_hom_truoc);
-    }
-    if (lastUpdateObj.rot_hom_nay && Number(lastUpdateObj.rot_hom_nay) > forecastRotHomNay) {
-      forecastRotHomNay = Number(lastUpdateObj.rot_hom_nay);
-    }
+  // Nếu là ngày vận hành hiện tại (today), đồng bộ chỉ số Rớt hôm trước & Rớt hôm nay từ snapshot backend
+  if (lastUpdateObj && activeDate === todayOpDate) {
+    if (lastUpdateObj.rot_hom_truoc !== undefined) forecastRotHomTruoc = Number(lastUpdateObj.rot_hom_truoc);
+    if (lastUpdateObj.rot_hom_nay !== undefined) forecastRotHomNay = Number(lastUpdateObj.rot_hom_nay);
   }
 
   const filteredTruckEta = (truckEtaData || [])
