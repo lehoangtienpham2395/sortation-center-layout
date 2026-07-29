@@ -285,8 +285,9 @@ export default function InboundDashboard({
 
   const filteredTruckEta = (truckEtaData || [])
     .filter(d => {
-      const opDate = d.op_date || d['Ngày vận hành'] || (d.eta ? d.eta.slice(0, 10) : '') || (d.predictArriveTime ? d.predictArriveTime.slice(0, 10) : '');
-      if (!opDate) return true;
+      const arrDate = (d.actual_arrival || d.planned_arrival || d.eta || d.predictArriveTime || '').slice(0, 10);
+      const opDate  = d.op_date || d['Ngày vận hành'] || arrDate;
+      if (!opDate) return false;
       return isDateMatch(opDate, activeDate);
     })
     .map(d => ({

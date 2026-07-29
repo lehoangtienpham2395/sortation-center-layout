@@ -246,6 +246,7 @@ def fetch_linehaul_json(session, token_mgr) -> dict:
         actual_dep = str(row.get('actualDepartureTime')  or '').strip()
         weight_kg  = float(row.get('loadpackageweight')  or 0)
         status     = 'arrived' if actual_arr else ('in_transit' if actual_dep else 'loading')
+        op_d       = get_op_date(actual_arr or actual_dep or now_sys)
         entry = {
             "plate_number":     str(row.get('plateNumber')          or '').strip(),
             "carrier_name":     str(row.get('carrierName')          or '').strip(),
@@ -262,11 +263,12 @@ def fetch_linehaul_json(session, token_mgr) -> dict:
             "eta":              str(row.get('predictArriveTime')     or '').strip(),
             "rank":             "Linehaul",
             "status":           status,
-            "op_date":          get_op_date(actual_arr or actual_dep or now_sys),
+            "op_date":          op_d,
         }
-        # Dedup: ưu tiên record đã arrived
-        if tc not in seen or (actual_arr and not seen[tc].get('actual_arrival')):
-            seen[tc] = entry
+        # Chỉ giữ lại các chuyến xe thuộc ca hôm nay hoặc hôm qua (bỏ các chuyến xe cũ từ nhiều ngày trước)
+        if op_d in (today, yesterday):
+            if tc not in seen or (actual_arr and not seen[tc].get('actual_arrival')):
+                seen[tc] = entry
 
     trucks = sorted(seen.values(), key=lambda x: x.get('actual_arrival') or x.get('planned_arrival') or '', reverse=True)
     print(f"   ✅ Linehaul: {len(trucks)} trips")
