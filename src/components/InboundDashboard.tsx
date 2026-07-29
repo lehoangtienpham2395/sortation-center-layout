@@ -307,20 +307,8 @@ export default function InboundDashboard({
   const filteredTruckEta = rawTrucksList
     .filter((d: any) => {
       const st = (d.send_network || d.sendNetworkName || d.Station || d.Pickup_station || d['Bưu cục đi'] || '').toUpperCase();
-      const arrDate = (d.actual_arrival || d.planned_arrival || d.eta || d.predictArriveTime || '').slice(0, 10);
-      const opDate  = d.op_date || d['Ngày vận hành'] || arrDate;
-      if (!opDate) return true; // Nếu có xe trong truck_eta.json thì hiển thị
-
-      // 🚚 Tuyến BN HUB (Linehaul Miền Bắc): Dự báo +36 tiếng
-      if (st.includes('BN') || st.includes('NORTH')) {
-        const activeDt = new Date(activeDate);
-        const maxDt = new Date(activeDt);
-        maxDt.setDate(maxDt.getDate() + 2);
-        const opDt = new Date(opDate);
-        return opDt >= activeDt && opDt <= maxDt;
-      }
-
-      return isDateMatch(opDate, activeDate);
+      if (st !== 'BN HUB' && isNorthRow(d)) return false;
+      return true; // Giữ nguyên 100% xe đang di chuyển thực tế
     })
     .map((d: any) => ({
       ...d,

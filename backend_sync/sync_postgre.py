@@ -879,7 +879,7 @@ def sync_postgre_to_dashboard():
 
     inbound_json = [
         {"station_name": st, "pickup_station": pk_st, "status": status,
-         "volume": stats['volume'], "weight_ton": round(stats['weight_kg'] / 1000, 3),
+         "volume": stats['volume'], "weight_ton": round(stats['weight_kg'] / 1000.0, 6),
          "op_date_inbound": in_op, "op_date_forecast": fc_op,
          "op_date_pickup": pk_op, "op_date_arrival": ar_op,
          "inbound_hour": in_hr, "forecast_time": fc_hr,
