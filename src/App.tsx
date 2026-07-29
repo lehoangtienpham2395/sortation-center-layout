@@ -1793,7 +1793,7 @@ export default function App() {
                           <div className="mono font-bold" style={{ fontSize: '13px', color: zone.color, lineHeight: 1.2 }}>{stats.fillRate}%</div>
                           <div className="mono font-bold" style={{ fontSize: '13px', color: '#B8F7E4', lineHeight: 1.2 }}>{stats.current.toLocaleString()}</div>
                           <div className="mono font-bold" style={{ fontSize: '13px', color: '#f1f5f9', lineHeight: 1.2 }}>{(stats as any).totalShare}%</div>
-                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#B8F7E4', lineHeight: 1.2 }}>{(stats.weight / 1000).toFixed(1)} tấn</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#B8F7E4', lineHeight: 1.2 }}>{(stats.weight / 1000).toFixed(1).replace('.', ',')} Tấn</div>
                         </div>
                       );
                     })}
@@ -1808,7 +1808,7 @@ export default function App() {
                           ['Mã ô', hoveredRack.areaId, 'var(--cyan)'],
                           ['Tên', hoveredRack.name, '#f1f5f9'],
                           ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#f1f5f9'],
-                          ['Trọng lượng', `${(hoveredRack.weight || 0).toLocaleString()} kg`, '#f1f5f9'],
+                          ['Trọng lượng', `${((hoveredRack.weight || 0) / 1000.0).toFixed(1).replace('.', ',')} Tấn`, '#f1f5f9'],
                           [displayUtilizationLabelLc, `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
                         ].map(([k, v, c]) => (
                           <div key={k} className="flex justify-between" style={{ marginBottom: '4px' }}>
@@ -1842,7 +1842,7 @@ export default function App() {
                     <div className="flex justify-between items-center">
                       <span style={{ fontSize: '13px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng trọng lượng</span>
                       <span className="mono font-bold" style={{ fontSize: '15px', color: '#B8F7E4', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
-                        {(totalWeight / 1000).toFixed(1)} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
+                        {(totalWeight / 1000).toFixed(1).replace('.', ',')} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
                       </span>
                     </div>
                   </div>

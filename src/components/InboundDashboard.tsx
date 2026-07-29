@@ -34,7 +34,6 @@ function NumberTicker({ value, decimals = 0 }: { value: number; decimals?: numbe
   return <span ref={ref}>0</span>;
 }
 
-
 interface InboundDashboardProps {
   inboundData: any[];
   linehaulData: any[];
@@ -49,24 +48,12 @@ interface InboundDashboardProps {
 }
 
 /**
- * Trích xuất giờ từ chuỗi timestamp (ví dụ: "2026-07-09 21:00" -> 21),
- * tự động quy đổi từ múi giờ UTC (+00:00 hoặc Z) sang giờ Việt Nam (+7).
+ * Trích xuất giờ từ chuỗi timestamp (ví dụ: "2026-07-09 21:00" -> 21)
+ * độc lập với việc check ngày/lùi ngày vì việc lọc theo ngày vận hành đã được thực hiện trước đó.
  */
 function getHourFromTimestamp(val: any): number {
   if (val === undefined || val === null || val === '') return -1;
   const strVal = String(val).trim();
-  if (!strVal) return -1;
-
-  if (strVal.includes('+00') || strVal.endsWith('Z')) {
-    const dt = new Date(strVal);
-    if (!isNaN(dt.getTime())) {
-      const options: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Ho_Chi_Minh', hour: 'numeric', hour12: false };
-      const formatter = new Intl.DateTimeFormat('en-US', options);
-      const hr = parseInt(formatter.format(dt), 10);
-      if (!isNaN(hr)) return hr % 24;
-    }
-  }
-
   if (strVal.includes(' ')) {
     const timePart = strVal.split(' ')[1] || '';
     const hour = parseInt(timePart.split(':')[0], 10);
@@ -82,47 +69,19 @@ function getHourFromTimestamp(val: any): number {
 }
 
 /**
- * Trích xuất ngày vận hành từ chuỗi timestamp (ví dụ: "2026-07-16 02:00" -> "2026-07-15"),
- * hỗ trợ quy đổi múi giờ UTC (+00:00 / Z) sang giờ Việt Nam trước khi kiểm tra khung < 06h.
+ * Trích xuất ngày vận hành từ chuỗi timestamp (ví dụ: "2026-07-16 02:00" -> "2026-07-15")
+ * dựa trên giờ vận hành J&T (< 06h sáng tính cho ngày hôm trước)
  */
 function getOperatingDateFromTimestamp(timestamp: string): string {
   if (!timestamp) return '';
-  const strVal = String(timestamp).trim();
-  if (!strVal) return '';
-
-  let datePart = '';
-  let hour = 12;
-
-  if (strVal.includes('+00') || strVal.endsWith('Z')) {
-    const dt = new Date(strVal);
-    if (!isNaN(dt.getTime())) {
-      const formatter = new Intl.DateTimeFormat('en-CA', { 
-        timeZone: 'Asia/Ho_Chi_Minh', 
-        year: 'numeric', month: '2-digit', day: '2-digit',
-        hour: '2-digit', hour12: false 
-      });
-      const parts = formatter.format(dt).split(', ');
-      datePart = parts[0];
-      hour = parseInt(parts[1] || '12', 10) % 24;
-    }
-  }
-
-  if (!datePart) {
-    const match = strVal.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
-    if (match) {
-      datePart = match[1];
-      hour = parseInt(match[2], 10);
-    }
-  }
-
-  if (datePart) {
+  const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
+  if (match) {
+    const datePart = match[1];
+    const hour = parseInt(match[2], 10);
     if (hour < 6) {
-      const d = new Date(datePart + 'T12:00:00');
+      const d = new Date(datePart);
       d.setDate(d.getDate() - 1);
-      const yr = d.getFullYear();
-      const mo = String(d.getMonth() + 1).padStart(2, '0');
-      const dy = String(d.getDate()).padStart(2, '0');
-      return `${yr}-${mo}-${dy}`;
+      return d.toISOString().split('T')[0];
     }
     return datePart;
   }
@@ -164,7 +123,6 @@ export default function InboundDashboard({
   loading,
   fetchAndUpdateData,
   lastUpdate,
-  lastUpdateObj: _lastUpdateObj
 }: InboundDashboardProps) {
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -189,34 +147,16 @@ export default function InboundDashboard({
 
   const activeDate = selectedInboundDate || inboundDates[0] || '';
 
-  // 2. Filter datasets by active date strictly according to Operational Date rules
-  const getStatus = (d: any) => {
-    const rawSt = String(d.status || d.status_sys || d['Trạng thái'] || d['Trng thi'] || '').trim();
-    if (rawSt === 'Inbound' || rawSt === 'Đã nhập kho') return 'Inbound';
-    if (rawSt === 'Transporting' || rawSt === 'Đang vận chuyển' || rawSt === 'Đến bưu cục phát') return 'Transporting';
-    
-    const pkTime = d.pickup_hour || d.op_date_pickup || d['Pickup Time'] || d.pickup_time || '';
-    if (rawSt === 'Pickup Done' || rawSt === 'Đã lấy hàng' || Boolean(pkTime)) return 'Pickup Done';
-    return 'Created';
-  };
-
-  const getDateInbound  = (d: any) => d.op_date_inbound  || d['Ngày vận hành_Inbound']  || d['Ngy vn hnh_Inbound']  || d.op_date || '';
-  const getDateForecast = (d: any) => d.op_date_forecast || d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast'] || d.op_date_created || d.operation_date_created || d.op_date || '';
-  const getDatePickup   = (d: any) => d.op_date_pickup   || d['Ngày vận hành_Pickup']   || d['Ngy vn hnh_Pickup']   || d.op_date_forecast || d.op_date_created || d.op_date || '';
-  const getDateArrival  = (d: any) => d.op_date_arrival  || d['Ngày vận hành_Arrival']  || d['Ngy vn hnh_Arrival']  || d.op_date || '';
-
-  const getVol       = (d: any) => parseInt(d.volume || d.Volume || d.orders_num || 1, 10) || 1;
-  const getWt        = (d: any) => parseFloat(d.weight_ton || d.Weight || d.orders_weight || 0) || 0;
-  const getStation   = (d: any) => (d.station_name || d['Bưu cục'] || d['Bu cc'] || d.pickup_station || '').trim();
-  const getLoiRot    = (d: any) => d.drop_type || d['Loại rớt'] || d['Loi rt'] || '';
-
-  const getCreatedTime = (d: any) => d.created_hour || d['Forecast Time'] || d.created_time || '';
-  const getPickupTime  = (d: any) => d.pickup_hour  || d['Pickup Time']    || d.pickup_time  || '';
-  const getArrivalTime = (d: any) => d.arrival_hour || d['Arrival Time']   || d.arrival_scandate || '';
-  const getInboundTime = (d: any) => d.inbound_hour || d['Inbound Hour']   || d.inbound_scandate || '';
+  // 2. Filter datasets by active date
+  const getStatus = (d: any) => d['Trng thi'] || d['Trạng thái'];
+  const getDateInbound = (d: any) => d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'];
+  const getDateForecast = (d: any) => d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
   // Northern / BN HUB Station Filter helper
-  const isNorthStation = (_stName: string) => false;
+  const isNorthStation = (stName: string) => {
+    const clean = (stName || '').trim().toUpperCase();
+    return clean === 'BN HUB' || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ') || NORTH_POST_OFFICES.has(clean);
+  };
 
   const normalizeDateStr = (dStr: string): string => {
     if (!dStr) return '';
@@ -243,108 +183,122 @@ export default function InboundDashboard({
     return aDate.length === 7 ? normR.startsWith(normA) : normR === normA;
   };
 
-  // STRICT OPERATIONAL STREAMS FILTERING:
-  // 1. INBOUND: Must match activeDate
-  const filteredInbound = inboundData.filter(d => getStatus(d) === 'Inbound' && isDateMatch(getDateInbound(d), activeDate));
+  const getDatePickup = (d: any) => d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
+  const getDateArrival = (d: any) => d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
-  // 2. ARRIVAL / TRANSPORTING: Must match activeDate
-  const filteredTransportingInbound = inboundData.filter(d => getStatus(d) === 'Transporting' && isDateMatch(getDateArrival(d), activeDate));
+  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && getDateInbound(d) === activeDate && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
+  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && Boolean(getDateForecast(d)) && (getDateForecast(d) === activeDate || d['Ngy vn hnh_Forecast'] === activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
+  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && (getDatePickup(d) === activeDate || d['Ngy vn hnh_Pickup'] === activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
+  const filteredTransportingInbound = inboundData.filter(d => getStatus(d) === 'Transporting' && (getDateArrival(d) === activeDate || d['Ngy vn hnh_Arrival'] === activeDate) && !isNorthStation(d['Bu cc'] || d['Bưu cục'] || ''));
   const filteredArrivalData = ((arrivalData as any[]) || []).map(d => ({
     'Bu cc': d['last_dept_name'] || d['scansitename'] || 'BƯU CỤC CẦN',
     'Trng thi': 'Transporting',
     'Volume': parseInt(d['package_number'] || 1, 10),
     'Weight': parseFloat(d['package_charge_weight'] || 1.0),
     'Ngày vận hành': activeDate,
-    'op_date_arrival': activeDate
-  }));
-  const filteredTransporting = filteredTransportingInbound.length > 0 ? filteredTransportingInbound : filteredArrivalData;
-
-  // 3. PICKUP: Must match activeDate
-  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && isDateMatch(getDatePickup(d), activeDate));
-
-  // 4. CREATED / TODAY FORECAST: Created in activeDate shift
-  const filteredForecast = inboundData.filter(d => getStatus(d) === 'Created' && isDateMatch(getDateForecast(d), activeDate));
-
+    'Ngy vn hnh_Arrival': activeDate
+  })).filter(d => !isNorthStation(d['Bu cc']));
+  const filteredTransporting = filteredTransportingInbound.length >= filteredArrivalData.length ? filteredTransportingInbound : filteredArrivalData;
   const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
 
-
+  const getLinehaulOperatingDate = (row: any) => {
+    if (row['Ngày vận hành']) return row['Ngày vận hành'];
+    const timeStr = row['unloadingStartTime'] || row['unloadingEndTime'] || row['sendTime'] || '';
+    if (!timeStr) return '';
+    const match = timeStr.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
+    if (match) {
+      const datePart = match[1];
+      const hour = parseInt(match[2], 10);
+      if (hour < 6) {
+        const d = new Date(datePart);
+        d.setDate(d.getDate() - 1);
+        return d.toISOString().split('T')[0];
+      }
+      return datePart;
+    }
+    return '';
+  };
+  const filteredLinehaul = linehaulData.filter(d => isDateMatch(getLinehaulOperatingDate(d), activeDate));
 
   // 3. Aggregate operational statistics
+
   let forecastRotHomTruoc = 0;
   let forecastRotHomNay = 0;
 
+  // ordersWithWeight: chỉ đếm đơn có weight > 0 để tính avg chính xác
   const stagesWithWeight: Record<string, number> = {
     'Inbound': 0, 'Transporting': 0, 'Pickup Done': 0, 'Created': 0
   };
 
   const stages: Record<string, { orders: number; weight: number }> = {
-    'Inbound': { orders: 0, weight: 0 },
-    'Transporting': { orders: 0, weight: 0 },
-    'Pickup Done': { orders: 0, weight: 0 },
-    'Created': { orders: 0, weight: 0 }
-  };
+      'Inbound': { orders: 0, weight: 0 },
+      'Transporting': { orders: 0, weight: 0 },
+      'Pickup Done': { orders: 0, weight: 0 },
+      'Created': { orders: 0, weight: 0 }
+    };
 
   [...filteredInbound, ...filteredChuaVeHub].forEach(d => {
-    const status = getStatus(d);
-    const vol = getVol(d);
-    const wt = getWt(d);
+    const status = d['Trng thi'] || d['Trạng thái'];
+    const vol = parseInt(d['Volume'], 10) || 0;
+    const wt = parseFloat(d['Weight']) || 0;
     const stageKey = stages[status] ? status : 'Created';
     stages[stageKey].orders += vol;
     stages[stageKey].weight += wt;
+    // Chỉ cộng vào ordersWithWeight khi row này có dữ liệu weight thực tế
     if (wt > 0) {
       stagesWithWeight[stageKey] += vol;
     }
   });
 
+
+
   inboundData.forEach(d => {
-    const loiRot = getLoiRot(d);
-    const vol = getVol(d);
-    const ibDate = getDateInbound(d);
-    const arDate = getDateArrival(d);
-    const status = getStatus(d);
-    // Chỉ đếm đơn chưa về HUB (chưa có Inbound / Arrival scan)
-    const hasHubEvent = Boolean(ibDate || arDate || status === 'Inbound' || status === 'Transporting');
-    if (hasHubEvent) return;
-    if (loiRot === 'rot_yesterday') forecastRotHomTruoc += vol;
-    else if (loiRot === 'rot_today')  forecastRotHomNay   += vol;
+    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
+    if (isNorthStation(station)) return;
+
+    const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
+    const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
+    const arDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || '';
+    const status = d['Trng thi'] || d['Trạng thái'] || '';
+
+    const loiRot = d['Loi rt'] || d['Loại rớt'] || '';
+    const vol = parseInt(d['Volume'], 10) || 1;
+
+    // Subtraction rule: If order has reached HUB (ibDate, arDate, Outbound), it is NOT in un-arrived backlog
+    const hasHubEvent = Boolean(ibDate || arDate || status === 'Outbound' || status === 'Inbound' || status === 'Transporting');
+
+    if ((loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) && !hasHubEvent) {
+      forecastRotHomTruoc += vol;
+    } else if ((loiRot === 'Rớt hôm nay' && fcDate === activeDate) && !hasHubEvent) {
+      forecastRotHomNay += vol;
+    }
   });
 
-  // ATOMIC SINGLE SOURCE OF TRUTH FROM POSTGRESQL (last_update.json):
-  if (_lastUpdateObj && typeof _lastUpdateObj.rot_hom_truoc === 'number' && typeof _lastUpdateObj.rot_hom_nay === 'number') {
-    forecastRotHomTruoc = _lastUpdateObj.rot_hom_truoc;
-    forecastRotHomNay   = _lastUpdateObj.rot_hom_nay;
-  }
+  // ⚠️ ĐÃ BỎ: trước đây có đoạn ghi đè forecastRotHomTruoc/forecastRotHomNay bằng
+  // lastUpdateObj.rot_hom_truoc/rot_hom_nay (tổng toàn cục, cố định, lấy từ lần
+  // sync backend gần nhất — không lọc theo activeDate). Việc ghi đè khiến KPI
+  // Forecast KHÔNG BAO GIỜ thay đổi dù người dùng chọn ngày khác trên DatePicker,
+  // trong khi mọi KPI khác trên cùng dashboard đều lọc theo activeDate — gây lệch
+  // dữ liệu giữa các KPI. Giờ Forecast luôn dùng đúng kết quả đã lọc theo activeDate
+  // ở vòng lặp phía trên, đảm bảo totalForecast = forecastRotHomTruoc + forecastRotHomNay
+  // và đồng nhất với toàn bộ dashboard.
 
-  // 6. INBOUND TRUCK ETA: Strictly filtered by activeDate
   const filteredTruckEta = (truckEtaData || [])
     .filter(d => {
-      const dest = (d.arrive_network || d.arriveNetworkName || d['arrive_network_name'] || '').trim().toUpperCase();
-      if (dest && dest !== 'HCM HUB') return false;
-      const arrivalDate = d.planned_arrival ? d.planned_arrival.slice(0, 10) : '';
-      const etaDate     = d.eta            ? d.eta.slice(0, 10) : '';
-      const opDate      = d.op_date        || d['Ngày vận hành'] || '';
-      const filterDate  = opDate || arrivalDate || etaDate;
-      if (!filterDate) return false;
-      return isDateMatch(filterDate, activeDate);
+      const opDate = d.op_date || d['Ngày vận hành'] || (d.eta ? d.eta.slice(0, 10) : '') || (d.predictArriveTime ? d.predictArriveTime.slice(0, 10) : '');
+      if (!opDate) return true;
+      return isDateMatch(opDate, activeDate);
     })
     .map(d => ({
       ...d,
-      'Mã chuyến': d.trip_code || d.shipmentName || d.plateNumber || d.plate_number,
-      'Biển số': d.plate_number || d.plateNumber || d.vehicle_number,
-      'Nhà xe': d.carrier_name || d.carrierName,
-      'Bưu cục đi': d.send_network || d.sendNetworkName || d.send_network_name || d.station_name || d.pickup_station || d.Pickup_station || d.Station || '',
-      'Bưu cục đến': d.arrive_network || d.arriveNetworkName || d.arrive_network_name || d.next_station || '',
+      'Mã chuyến': d.shipmentName || d.plateNumber || d.plate_number,
+      'Biển số': d.plateNumber || d.plate_number,
+      'Nhà xe': d.carrierName || d.carrier_name,
+      'Bưu cục đi': d.sendNetworkName || d.send_network || 'BN HUB',
+      'Bưu cục đến': d.arriveNetworkName || d.arrive_network || 'HCM HUB',
       'Tổng số đơn': d.orders_count ?? d.loadscanwaybillnum ?? d.volume ?? 0,
       'Tổng trọng lượng (kg)': d.weight_kg ?? d.loadpackageweight ?? 0,
-      // FIX: Dùng planned_arrival khi eta rỗng (shuttle_tracking chỉ có kế hoạch)
-      // ETA: chỉ hiển thị giờ:phút — KHÔNG hiển thị ngày để tránh nhầm lẫn ngày cũ
-      'Giờ đến bãi': (() => {
-        const raw = d.eta || d.actual_arrival || d.actualArrivalTime || d.predictArriveTime || d.planned_arrival || '';
-        if (!raw) return '';
-        // raw dạng "2026-07-22 16:22:00" → chỉ lấy "16:22"
-        const m = raw.match(/(\d{2}:\d{2})(:\d{2})?$/) || raw.match(/(\d{2}:\d{2})/);
-        return m ? m[1] : raw;
-      })()
+      'Giờ đến bãi': d.eta || d.actualArrivalTime || d.predictArriveTime || ''
     }));
 
   let totalOrders = stages['Inbound'].orders;
@@ -354,78 +308,62 @@ export default function InboundDashboard({
   // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
   let totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
-  // Tính chỉ số đơn Rebound (Quay đầu / Giao thất bại)
-  let reboundOrders = 0;
-  let reboundWeight = 0;
-  filteredInbound.forEach(d => {
-    const isReb = Number(d['is_rebound'] ?? d['isRebound'] ?? 0) === 1;
-    if (isReb) {
-      reboundOrders += parseInt(d['Volume'] || d['volume'] || 1, 10) || 0;
-      reboundWeight += parseFloat(d['Weight'] || d['weight_ton'] || 0) || 0;
-    }
-  });
 
-  // Group filteredTruckEta by unique send_network (origin station)
+
+  // Trucking in transit: map directly from filteredTruckEta and apply exclusions
+
+  // Group filteredTruckEta by unique station to avoid duplicate scan-hour rows
   const groupedStationVehicles: Record<string, any> = {};
 
   (filteredTruckEta || []).forEach(d => {
-    const st = (d['Bưu cục đi'] || d['send_network'] || d['sendNetworkName'] || '').trim();
+    const st = (d['Station'] || d['Pickup_station'] || d['sendNetworkName'] || d['Bưu cục đi'] || '').trim();
     if (!st) return;
     const cleanKey = st.toUpperCase();
-    // Bỏ qua bưu cục miền Bắc và BN HUB khỏi danh sách xe chở Inbound HCM HUB
-    if (cleanKey === 'BN HUB' || isNorthStation(cleanKey)) return;
+    if (cleanKey !== 'BN HUB' && isNorthStation(cleanKey)) return;
 
-    const orders = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? 0);
-    const wt = Number(d['Tổng trọng lượng (kg)'] ?? d['weight_kg'] ?? 0);
-    // FIX: Dùng planned_arrival khi Giờ đến bãi rỗng
-    const etaTime = (d['Giờ đến bãi'] || d['planned_arrival'] || '').trim();
-    const tripKey = d['Mã chuyến'] || d['trip_code'] || d['plate_number'] || '';
+    // Ưu tiên lấy đơn Chưa đến Hub (hàng đang trên đường)
+    const inTransitOrders = Number(d['Chưa đến Hub'] ?? d['Chua dn Hub'] ?? d['Orders'] ?? d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
+    const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
+    const lastTime = d['Last time'] || d['ETA'] || d['Giờ đến bãi'] || d['actualArrivalTime'] || d['predictArriveTime'] || '';
+    const wt = Number(d['weight'] ?? d['weight_kg'] ?? d['package_charge_weight'] ?? d['loadpackageweight'] ?? d['Tổng trọng lượng (kg)'] ?? 0);
 
-    if (!groupedStationVehicles[cleanKey]) {
-      groupedStationVehicles[cleanKey] = {
+    if (!groupedStationVehicles[st]) {
+      groupedStationVehicles[st] = {
         station: st,
-        trucking: 0,
+        trucking: 1,
         orders: 0,
         weight: 0,
-        eta: etaTime,
-        rank: d['rank'] || d['Rank'] || 'Shuttle',
-        vehicles: 0,
-        lastTime: etaTime,
-        trips: new Set()
+        eta: lastTime,
+        rank: (cleanKey.includes('BN')) ? 'Linehaul' : (d['Rank'] || 'Shuttle'),
+        chuaDenHub: 0,
+        tongDon: 0,
+        vehicles: 1,
+        lastTime: lastTime
       };
     }
 
-    const grp = groupedStationVehicles[cleanKey];
-    if (tripKey && !grp.trips.has(tripKey)) {
-      grp.trips.add(tripKey);
-      grp.trucking += 1;
-      grp.vehicles += 1;
-    }
-    grp.orders += orders;
-    grp.weight += wt;
-    // Giữ ETA muộn nhất (xe cuối cùng)
-    if (etaTime && etaTime > grp.lastTime) {
-      grp.lastTime = etaTime;
-      grp.eta = etaTime;
+    groupedStationVehicles[st].orders += inTransitOrders;
+    groupedStationVehicles[st].chuaDenHub += inTransitOrders;
+    groupedStationVehicles[st].tongDon += tongDon;
+    groupedStationVehicles[st].weight += wt;
+    if (lastTime > groupedStationVehicles[st].lastTime) {
+      groupedStationVehicles[st].lastTime = lastTime;
+      groupedStationVehicles[st].eta = lastTime;
     }
   });
 
   const incomingVehicles = Object.values(groupedStationVehicles)
-    // FIX: Hiển thị tất cả bưu cục có xe (không lọc theo orders vì orders_count = 0 trong shuttle_tracking)
-    .filter(v => v.vehicles > 0)
-    .map(v => ({ ...v, trucking: v.trucking, trips: undefined }))
-    .sort((a: any, b: any) => b.vehicles - a.vehicles || a.station.localeCompare(b.station));
+    .filter(v => v.orders > 0 || v.tongDon > 0)
+    .sort((a, b) => b.orders - a.orders);
 
   // Split by Shuttle and Linehaul ranks
   const shuttleVehicles = incomingVehicles.filter(v => v.rank === 'Shuttle');
   const linehaulVehicles = incomingVehicles.filter(v => v.rank === 'Linehaul');
 
-  // FIX: Tổng số chuyến xe = tổng cộng v.trucking (số chuyến cá nhân), không phải số nhóm bưu cục
-  let totalShuttleVehicles = shuttleVehicles.reduce((sum: number, v: any) => sum + (v.trucking || 1), 0);
-  let totalLinehaulVehicles = linehaulVehicles.reduce((sum: number, v: any) => sum + (v.trucking || 1), 0);
+  let totalShuttleVehicles = shuttleVehicles.length;
+  let totalLinehaulVehicles = linehaulVehicles.length;
   let totalTransitVehicles = totalShuttleVehicles + totalLinehaulVehicles;
-  // Khởi tạo = 0, sẽ được ghi đè bởi stages['Transporting'] ở bước sau
-  let totalInTransitOrders = stages['Transporting'].orders;
+  let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
 
   // 4. Hourly timelines
   const hours24 = [];
@@ -445,98 +383,126 @@ export default function InboundDashboard({
     hourlyPickup[l] = 0;
   });
 
-  // 1. Transporting (Arrival) Hourly: Tất cả đơn có mốc xe đến bãi trong ca activeDate
+  // 1. Transporting hourly: tính từ mốc thời gian phát hàng (Arrival Time / scantime) trong inboundData
+  //    - Lấy theo cycle 6-6 (mốc thời gian < 06:00 sáng thuộc ngày vận hành hôm trước)
+  //    - Gắn trực tiếp lên bộ lọc ngày activeDate
   inboundData.forEach(d => {
-    const station = getStation(d).toUpperCase();
+    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
     if (isNorthStation(station)) return;
 
-    const arrTime = getArrivalTime(d);
-    const arrOpDate = getDateArrival(d) || (arrTime ? getOperatingDateFromTimestamp(arrTime) : '');
-    if (!arrOpDate || !isDateMatch(arrOpDate, activeDate)) return;
+    const arrTime = d['Arrival Time'] || d['Arrival_time'] || '';
+    if (!arrTime) return;
 
+    // Tính ngày vận hành (cycle 6-6) từ Arrival Time
+    const arrOpDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || getOperatingDateFromTimestamp(arrTime);
+
+    // Gắn lên bộ lọc ngày activeDate
+    if (arrOpDate !== activeDate) return;
+
+    // Lấy giờ thực tế (00-23h) từ Arrival Time
     const hrVal = getHourFromTimestamp(arrTime);
     if (hrVal >= 0 && hrVal < 24) {
       const hour = `${String(hrVal).padStart(2, '0')}:00`;
-      const vol = getVol(d);
+      const vol = parseInt(d['Volume'] || 1, 10);
       if (hourlyArrived[hour] !== undefined) {
         hourlyArrived[hour] += vol;
       }
     }
   });
 
-  // 2. Created (Forecast) Hourly: Tất cả đơn được khởi tạo trong ca activeDate
-  inboundData.forEach(d => {
-    const station = getStation(d).toUpperCase();
-    if (isNorthStation(station)) return;
-
-    const fcTime = getCreatedTime(d);
-    const fcOpDate = getDateForecast(d) || (fcTime ? getOperatingDateFromTimestamp(fcTime) : '');
-    if (!fcOpDate || !isDateMatch(fcOpDate, activeDate)) return;
-
-    const hrVal = getHourFromTimestamp(fcTime);
-    if (hrVal >= 0 && hrVal < 24) {
-      const hour = `${String(hrVal).padStart(2, '0')}:00`;
-      const vol = getVol(d);
-      if (hourlyForecast[hour] !== undefined) {
-        hourlyForecast[hour] += vol;
+  // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast hoặc ngày vận hành của Forecast Time khớp với activeDate
+  inboundData.filter(d => {
+    const fcTime = d['Forecast Time'] || '';
+    const fcDate = getOperatingDateFromTimestamp(fcTime);
+    const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
+    return opDate === activeDate || fcDate === activeDate;
+  }).forEach(d => {
+    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
+    if (isNorthStation(station)) {
+      return;
+    }
+    const fcTime = d['Forecast Time'] || '';
+    if (fcTime) {
+      const fcDate = getOperatingDateFromTimestamp(fcTime);
+      const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
+      // Nếu là ngày forecast gốc (fcDate === activeDate), ta HIỂN THỊ bất kể loaiRot là gì để giữ đúng lịch sử ca đêm
+      // Nếu là ngày gối đầu (opDate === activeDate và fcDate !== activeDate), ta lọc bỏ 'Rớt hôm trước' để tránh lặp lại
+      if (fcDate === activeDate || loaiRot !== 'Rớt hôm trước') {
+        const hrVal = getHourFromTimestamp(fcTime);
+        if (hrVal >= 0 && hrVal < 24) {
+          const hour = `${String(hrVal).padStart(2, '0')}:00`;
+          if (hourlyForecast[hour] !== undefined) {
+            hourlyForecast[hour] += parseInt(d['Volume'], 10) || 0;
+          }
+        }
       }
     }
   });
 
-  // 3. Pickup Done Hourly: Tất cả đơn được shipper lấy trong ca activeDate
-  inboundData.forEach(d => {
-    const station = getStation(d).toUpperCase();
-    if (isNorthStation(station)) return;
-
-    const pkTime = getPickupTime(d);
-    const pkOpDate = getDatePickup(d) || (pkTime ? getOperatingDateFromTimestamp(pkTime) : '');
-    if (!pkOpDate || !isDateMatch(pkOpDate, activeDate)) return;
-
-    const hrVal = getHourFromTimestamp(pkTime);
-    if (hrVal >= 0 && hrVal < 24) {
-      const hour = `${String(hrVal).padStart(2, '0')}:00`;
-      const vol = getVol(d);
-      if (hourlyPickup[hour] !== undefined) {
-        hourlyPickup[hour] += vol;
+  // 3. Pickup Time (Shipper đã lấy): CHỈ đếm các đơn có mốc lấy hàng thực tế và trạng thái đã lấy hàng (Pickup Done / Transporting / Inbound)
+  inboundData.filter(d => {
+    const status = d['Trng thi'] || d['Trạng thái'] || '';
+    const opPk = d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || '';
+    return opPk === activeDate && status !== 'Created' && status !== 'Đã điều phối bưu cục';
+  }).forEach(d => {
+    const station = (d['Bu cc'] || d['Bưu cục'] || '').trim().toUpperCase();
+    if (isNorthStation(station)) {
+      return;
+    }
+    const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
+      ? d['Pickup Time']
+      : undefined;
+    if (pkTime !== undefined) {
+      const hrVal = getHourFromTimestamp(pkTime);
+      if (hrVal >= 0 && hrVal < 24) {
+        const hour = `${String(hrVal).padStart(2, '0')}:00`;
+        if (hourlyPickup[hour] !== undefined) {
+          hourlyPickup[hour] += parseInt(d['Volume'], 10) || 0;
+        }
       }
     }
   });
 
-  // 4. Inbound (Nhập kho HUB) Hourly: Tất cả đơn được quét nhập kho HUB trong ca activeDate
-  inboundData.forEach(d => {
-    const station = getStation(d).toUpperCase();
-    if (isNorthStation(station)) return;
-
-    const ibTime = getInboundTime(d);
-    const ibOpDate = getDateInbound(d) || (ibTime ? getOperatingDateFromTimestamp(ibTime) : '');
-    if (!ibOpDate || !isDateMatch(ibOpDate, activeDate)) return;
-
-    const hrVal = getHourFromTimestamp(ibTime);
-    if (hrVal >= 0 && hrVal < 24) {
-      const hour = `${String(hrVal).padStart(2, '0')}:00`;
-      const vol = getVol(d);
-      if (hourlyInbound[hour] !== undefined) {
-        hourlyInbound[hour] += vol;
+  // 4. Inbound (Nhập kho HUB): Hiển thị các đơn nhập kho trong ngày activeDate
+  filteredInbound.forEach(d => {
+    if ((d['Trng thi'] || d['Trạng thái']) === 'Inbound') {
+      const ibTime = d['Inbound Hour'] !== undefined && d['Inbound Hour'] !== null && d['Inbound Hour'] !== '' 
+        ? d['Inbound Hour'] 
+        : d['Inbound Time'];
+      if (ibTime !== undefined && ibTime !== null && ibTime !== '') {
+        const hrVal = getHourFromTimestamp(ibTime);
+        if (hrVal >= 0 && hrVal < 24) {
+          const hour = `${String(hrVal).padStart(2, '0')}:00`;
+          if (hourlyInbound[hour] !== undefined) {
+            hourlyInbound[hour] += parseInt(d['Volume'], 10) || 0;
+          }
+        }
       }
     }
   });
 
   const totalInbound = stages['Inbound'].orders;
   const totalPickupDone = stages['Pickup Done'].orders;
-  totalInTransitOrders = stages['Transporting'].orders;
-  const totalCreated = stages['Created'].orders;
-
-  // FIX HOÀN HẢO THẺ FORECAST: Số to trên thẻ Forecast = Inbound + Rớt hôm trước + Rớt hôm nay (LUÔN BẰNG TỔNG 3 SỐ CỘNG LẠI)
-  totalForecast = totalInbound + forecastRotHomTruoc + forecastRotHomNay;
-  const totalOperationalBase = totalInbound + totalInTransitOrders + totalPickupDone + totalCreated;
+  totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
   const inboundTrendData  = labels.map(l => hourlyInbound[l]);
   const arrivedTrendData  = labels.map(l => hourlyArrived[l]);
   const forecastTrendData = labels.map(l => hourlyForecast[l]);
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
-  // Orders status: hệ quy chiếu chuẩn theo Forecast
-  const totalBase = totalForecast > 0 ? totalForecast : totalOperationalBase;
+  // Shuttle in-transit orders (EXCLUDING BN HUB Linehaul)
+  const totalShuttleInTransitOrders = incomingVehicles
+    .filter((v: any) => v.rank === 'Shuttle')
+    .reduce((sum: number, s: any) => sum + s.orders, 0);
+  totalInTransitOrders = Math.max(stages['Transporting'].orders, totalShuttleInTransitOrders);
+  
+  // Orders status: các trạng thái lấy Forecast làm hệ quy chiếu (100%)
+  const totalBase = totalForecast > 0 ? totalForecast : (totalInbound + totalInTransitOrders + totalPickupDone + stages['Created'].orders);
+  
+  // Phần Created (chờ lấy hàng) = lượng còn lại của Forecast sau khi trừ Inbound, Transporting, Pickup Done
+  const totalCreated = totalForecast > 0 
+    ? Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalPickupDone) 
+    : stages['Created'].orders;
 
   const pendingOrders = totalCreated; // for fallback UI components
   totalOrders = totalInbound;
@@ -609,7 +575,8 @@ export default function InboundDashboard({
   const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
   const getFC = (name: any) => {
     if (!name) return null;
-    let clean = String(name).trim().toUpperCase();
+    const clean = String(name).trim().toUpperCase();
+    if (!clean) return null;
     if (!fcMetrics[clean]) {
       fcMetrics[clean] = { fc: String(name).trim(), vehicles: new Set(), orders: 0, weight: 0 };
     }
@@ -619,18 +586,33 @@ export default function InboundDashboard({
   filteredInbound.forEach(d => {
     const status = d['Trng thi'] || d['Trạng thái'];
     if (status === 'Inbound') {
-      const fcName = d['Bưu cục'] || d['Bu cc'] || 'KHO VÙNG KHÁC';
+      // Dùng 'BN HUB' cho đơn không có bưu cục gốc (hàng nội bộ HUB)
+      const fcName = d['Bưu cục'] || d['Bu cc'] || 'BN HUB';
       const fc = getFC(fcName);
       if (fc) {
         fc.orders += parseInt(d['Volume'], 10) || 0;
-        // Weight trong inbound.json là weight_ton (đã là Tấn)
-        const rawW = parseFloat(d['Weight'] ?? d['weight'] ?? 0);
-        fc.weight += rawW;
+        fc.weight += parseFloat(d['Weight']) || 0;
       }
     }
   });
 
-  // Note: Linehaul trips belong strictly to INBOUND TRUCK ETA, not to scanned Inbound packages table
+  filteredLinehaul.forEach(d => {
+    // nextNetworkName là bưu cục ĐÍCH của chuyến xe → chính là bưu cục "gửi hàng đến HUB"
+    const fcName = d['nextNetworkName'] || '';
+    if (fcName && d['Phiếu nhiệm vụ']) {
+      // Nếu bưu cục này chưa xuất hiện trong fcMetrics (không có inbound scan), tạo mới
+      const clean = fcName.trim().toUpperCase();
+      if (!fcMetrics[clean]) {
+        fcMetrics[clean] = { fc: fcName.trim(), vehicles: new Set(), orders: 0, weight: 0 };
+      }
+      fcMetrics[clean].vehicles.add(d['Phiếu nhiệm vụ']);
+      // Nếu orders chưa được tính từ inbound scan, dùng unloadingBillPiece làm proxy
+      if (fcMetrics[clean].orders === 0) {
+        fcMetrics[clean].orders += parseInt(d['unloadingBillPiece'] as any, 10) || 0;
+        fcMetrics[clean].weight += parseFloat(d['unloadingWeight'] as any) || 0;
+      }
+    }
+  });
 
   // Hiển thị đầy đủ bưu cục (bỏ slice(0,10))
   const allSendingFCs = Object.values(fcMetrics)
@@ -696,7 +678,7 @@ export default function InboundDashboard({
                 pointHoverBorderWidth: 3
               },
               {
-                label: 'Pickup Done',
+                label: 'Pickup Volume',
                 data: pickupTrendData,
                 borderColor: '#38BDF8',
                 backgroundColor: pickupGrad,
@@ -816,7 +798,7 @@ export default function InboundDashboard({
       {/* 1. Header Control Block */}
       <header className="dashboard-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px' }}>
 
-        {/* LEFT: Sync Button + Logo */}
+        {/* LEFT: Sync Button + Export Button + Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
           <button
             className="google-sync-btn"
@@ -828,6 +810,15 @@ export default function InboundDashboard({
             {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
           </button>
 
+          <button
+            className="google-sync-btn"
+            onClick={handleExportCSV}
+            style={{ width: 'auto', padding: '10px 18px', background: '#092518' }}
+          >
+            <i className="fa-solid fa-file-excel text-[#10b981]" style={{ marginRight: '6px' }}></i>
+            Xuất Báo Cáo
+          </button>
+
           <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '80px', borderRadius: '10px', display: 'block' }} />
         </div>
 
@@ -837,17 +828,9 @@ export default function InboundDashboard({
           <p className="subtitle text-xs text-slate-400" style={{ marginTop: '4px', textAlign: 'center', display: 'block' }}>Operational overview of today's inbound activities</p>
         </div>
 
-        {/* RIGHT: Export Button + Status + Date Picker */}
+        {/* RIGHT: Status + Date Picker */}
         <div className="header-right" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              className="google-sync-btn"
-              onClick={handleExportCSV}
-              style={{ width: 'auto', padding: '7px 14px', background: '#092518', fontSize: '12px' }}
-            >
-              <i className="fa-solid fa-file-excel" style={{ color: '#B8F7E4', marginRight: '6px' }}></i>
-              Xuất Báo Cáo
-            </button>
             <div style={{ 
               fontSize: '11px', 
               color: '#B8F7E4', 
@@ -900,7 +883,7 @@ export default function InboundDashboard({
         <div className="kpi-card accent-green glass-card report-glow-card glow-cyan">
           <div className="kpi-card-header">
             <span className="kpi-title" style={{ color: "#B8F7E4" }}>Inbound (orders)</span>
-            <i className="fa-solid fa-warehouse kpi-icon" style={{ color: "#B8F7E4" }}></i>
+            <i className="fa-solid fa-warehouse kpi-icon"></i>
           </div>
           <div className="kpi-card-body">
             <span className="kpi-value"><NumberTicker value={totalOrders} /></span>
@@ -916,6 +899,8 @@ export default function InboundDashboard({
             <i className="fa-solid fa-weight-hanging kpi-icon"></i>
           </div>
           <div className="kpi-card-body">
+            {/* weight_ton đã ở đơn vị TẤN từ backend (sync_postgre.py) — KHÔNG chia /1000
+                nữa ở đây (trước đây chia lần 2 khiến số hiển thị sai 1000 lần). */}
             <span className="kpi-value"><NumberTicker value={totalWeight} decimals={2} /> Tấn</span>
             <span className="kpi-sub">Avg: {(ordersWithWeight > 0 ? (totalWeight * 1000) / ordersWithWeight : 0).toFixed(2)} kg/pkg</span>
           </div>
@@ -972,12 +957,12 @@ export default function InboundDashboard({
         {/* Line Chart */}
         <div className="chart-container-card dual-line-wrapper report-glow-card glow-cyan">
           <div className="chart-header">
-            <h2 style={{ color: "#B8F7E4 !important", textShadow: "none !important" }}>Hourly Processing Trend</h2>
+            <h2 style={{ color: "#B8F7E4 !important" }}>Hourly Processing Trend</h2>
             <div className="chart-legend-custom">
               <span className="legend-item"><span className="dot orange"></span>Created</span>
-              <span className="legend-item"><span className="dot blue"></span>Pickup Done</span>
+              <span className="legend-item"><span className="dot blue"></span>Pickup Volume</span>
               <span className="legend-item"><span className="dot green"></span>Transporting</span>
-              <span className="legend-item"><span className="dot cyan" style={{ background: "#B8F7E4", boxShadow: "0 0 8px #B8F7E4" }}></span>Inbound</span>
+              <span className="legend-item"><span className="dot cyan"></span>Inbound</span>
             </div>
           </div>
           <div className="chart-canvas-wrapper">
@@ -988,7 +973,7 @@ export default function InboundDashboard({
         {/* Donut Chart */}
         <div className="chart-container-card donut-wrapper report-glow-card glow-emerald">
           <div className="chart-header">
-            <h2 style={{ color: "#B8F7E4 !important", textShadow: "none !important" }}>Orders status</h2>
+            <h2 style={{ color: "#B8F7E4 !important" }}>Orders status</h2>
           </div>
           <div className="donut-chart-box">
             {/* SVG concentric arcs + centre label */}
@@ -1187,60 +1172,42 @@ export default function InboundDashboard({
             <table className="premium-table">
               <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                 <tr>
-                  <th style={{ width: '40px' }}>#</th>
-                  <th>Bưu cục gửi</th>
-                  <th style={{ textAlign: 'center' }}>Chuyến xe</th>
-                  <th style={{ textAlign: 'right' }}>Số đơn</th>
-                  <th style={{ textAlign: 'right' }}>Trọng lượng (tấn)</th>
-                  <th style={{ textAlign: 'center' }}>ETA (Dự kiến)</th>
+                  <th style={{ width: '50px' }}>#</th>
+                  <th>Station</th>
+                  <th style={{ textAlign: 'left' }}>Trucking</th>
+                  <th style={{ textAlign: 'right' }}>Orders</th>
+                  <th style={{ textAlign: 'right' }}>Weight</th>
+                  <th style={{ textAlign: 'center' }}>ETA</th>
                 </tr>
               </thead>
               <tbody>
                 {incomingVehicles.length > 0 && (
                   <tr className="total-row" style={{ fontWeight: 'bold', position: 'sticky', top: '41px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', zIndex: 9, backdropFilter: 'blur(8px)' }}>
                     <td className="table-index">-</td>
-                    <td className="table-buucuc" style={{ color: '#f59e0b' }}>TỔNG CỘNG ({incomingVehicles.length} bưu cục)</td>
-                    <td className="num-tabular" style={{ textAlign: 'center', color: '#f59e0b' }}>{totalTransitVehicles} xe</td>
+                    <td className="table-buucuc" style={{ color: '#f59e0b' }}>TỔNG CỘNG</td>
+                    <td className="table-buucuc" style={{ textAlign: 'left', color: '#f59e0b' }}>{totalTransitVehicles} xe</td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
-                      {incomingVehicles.reduce((acc: number, v: any) => acc + (v.orders || 0), 0).toLocaleString()}
+                      {incomingVehicles.reduce((a, b) => a + b.orders, 0).toLocaleString()}
                     </td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
-                      {(incomingVehicles.reduce((acc: number, v: any) => acc + (v.weight || 0), 0) / 1000.0).toFixed(2)}
+                      {(incomingVehicles.reduce((a, b) => a + b.weight, 0) / 1000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tấn
                     </td>
                     <td style={{ textAlign: 'center', color: '#f59e0b' }}>-</td>
                   </tr>
                 )}
-                {incomingVehicles.map((v: any, idx: number) => {
-                  const etaDisplay = v.eta ? (v.eta.slice(11, 16) || v.eta.slice(0, 10)) : '--:--';
-                  const etaDate    = v.eta ? v.eta.slice(0, 10) : '';
-                  const isToday    = etaDate === activeDate;
-                  const weightTons = v.weight > 0 ? (v.weight / 1000.0).toFixed(2) : '0.00';
-                  return (
-                    <tr key={v.station + '-' + idx}>
-                      <td className="table-index">{idx + 1}</td>
-                      <td className="table-buucuc">{v.station}</td>
-                      <td className="num-tabular" style={{ textAlign: 'center' }}>
-                        <span className="badge-count" style={{ background: 'rgba(56,189,248,0.15)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.3)' }}>
-                          {v.trucking} xe
-                        </span>
-                      </td>
-                      <td className="num-tabular" style={{ textAlign: 'right', color: '#e2e8f0' }}>
-                        {(v.orders || 0).toLocaleString()}
-                      </td>
-                      <td className="num-tabular" style={{ textAlign: 'right', color: '#e2e8f0' }}>
-                        {weightTons}
-                      </td>
-                      <td className="num-tabular" style={{ textAlign: 'center', color: isToday ? '#f59e0b' : '#64748b', fontWeight: isToday ? 600 : 400 }}>
-                        {v.eta ? (
-                          <span title={v.eta}>{etaDisplay}{!isToday && etaDate ? ` (${etaDate.slice(5)})` : ''}</span>
-                        ) : '--:--'}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {incomingVehicles.map((v, idx) => (
+                  <tr key={v.station + '-' + idx}>
+                     <td className="table-index">{idx + 1}</td>
+                     <td className="table-buucuc">{v.station}</td>
+                     <td className="num-tabular" style={{ textAlign: 'left', color: '#38bdf8', fontWeight: 500 }}>{v.trucking} xe</td>
+                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.orders.toLocaleString()}</td>
+                     <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{(v.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tấn</td>
+                     <td className="num-tabular" style={{ textAlign: 'center', color: '#64748b' }}>{v.eta ? v.eta : '--:--'}</td>
+                  </tr>
+                ))}
                 {incomingVehicles.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', color: '#5a6578', padding: '24px' }}>Không có xe đang di chuyển đến HCM HUB</td>
+                    <td colSpan={6} style={{ textAlign: 'center', color: '#5a6578', padding: '24px' }}>Không có xe đang di chuyển</td>
                   </tr>
                 )}
               </tbody>
