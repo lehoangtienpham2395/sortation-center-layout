@@ -943,10 +943,11 @@ def main():
                 if next_st:
                     ob_next_station_map[wb] = next_st
 
-    arr_scan_map, arr_trip_map = {}, {}
+    arr_scan_map, arr_trip_map, arr_station_map = {}, {}, {}
     for r in raw.get('arrival', []):
         wb   = clean_wb(r.get('billcode') or r.get('waybillNo') or r.get('billNo'))
         st   = str(r.get('scantime') or r.get('scanDate') or '').strip()
+        send_st = str(r.get('last_dept_name') or r.get('scansitename') or r.get('sendSite') or r.get('sendNetworkName') or r.get('upOrNextStation') or '').strip()
         trip = clean_wb(r.get('transfercode') or r.get('transferCode') or
                         r.get('traceCode') or r.get('traceSubCode') or
                         r.get('billTaskCode') or r.get('taskCode'))
@@ -954,10 +955,11 @@ def main():
             if wb not in arr_scan_map or (st and st > arr_scan_map[wb]):
                 arr_scan_map[wb] = st
                 if trip: arr_trip_map[wb] = trip
+                if send_st: arr_station_map[wb] = send_st
 
     print('   Inbound  map: ' + str(len(ib_scan_map)) + ' don (bao gồm ' + str(len(ib_station_map)) + ' trạm nguồn upOrNextStation/sendSite)')
     print('   Outbound map: ' + str(len(ob_map)) + ' don (bao gồm ' + str(len(ob_next_station_map)) + ' trạm đích nextSite)')
-    print('   Arrival  map: ' + str(len(arr_scan_map)) + ' don')
+    print('   Arrival  map: ' + str(len(arr_scan_map)) + ' don (bao gồm ' + str(len(arr_station_map)) + ' trạm nguồn last_dept_name/scansitename)')
 
     # ── Phase 5: Merge (FULL OUTER JOIN across all scan sources) ───────────────
     print('\nPhase 5 -- Merge (FULL OUTER JOIN all scan sources & deduplicate)...')
@@ -976,7 +978,7 @@ def main():
         inb_t  = ib_scan_map.get(wb, '')
         outb_t = ob_map.get(wb, '')
         arr_t  = arr_scan_map.get(wb, '')
-        st_name = ib_station_map.get(wb, 'KHO VÙNG KHÁC')
+        st_name = arr_station_map.get(wb) or ib_station_map.get(wb) or 'BN HUB'
         
         st_sys = 'Inbound' if inb_t else ('Outbound' if outb_t else 'Arrival')
         cr_t = inb_t or outb_t or arr_t
@@ -1016,7 +1018,7 @@ def main():
     df['transporing_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transporing_time', '') if tc else '')
     df['transported_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transported_time', '') if tc else '')
 
-    df['Pickup_station'] = df.apply(lambda r: ib_station_map.get(r['tracking']) or r.get('Pickup_station') or 'BN HUB', axis=1)
+    df['Pickup_station'] = df.apply(lambda r: arr_station_map.get(r['tracking']) or ib_station_map.get(r['tracking']) or r.get('Pickup_station') or 'BN HUB', axis=1)
 
     # Waterfall Next_station Lookup (Chính sách ưu tiên của USER: Inbound -> Outbound -> Backlog/Dispatch)
     def resolve_waterfall_next_station(r):
