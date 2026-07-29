@@ -570,17 +570,19 @@ def sync_postgre_to_dashboard():
             -- POOL 1: TẤT CẢ các đơn ĐANG HOẠT ĐỘNG / TỒN KHO / ĐANG CHẠY (Bất kể tạo từ lâu)
             (is_active = 1 OR is_completed = FALSE)
 
-            -- POOL 2: Các đơn ĐÃ HOÀN THÀNH nhưng mới phát sinh thao tác gần đây (Cửa sổ 2 ngày)
-            OR operation_date_inbound >= CURRENT_DATE - INTERVAL '2 days'
-            OR operation_date_inbound_2 >= CURRENT_DATE - INTERVAL '2 days'
-            OR outbound_scandate >= CURRENT_DATE - INTERVAL '2 days'
-            OR last_updated >= CURRENT_DATE - INTERVAL '2 days'
+            -- POOL 2: Các đơn ĐÃ HOÀN THÀNH nhưng mới phát sinh thao tác gần đây (Cửa sổ 2 ngày ca vận hành op_yesterday)
+            OR op_date_inbound_effective >= %(op_yesterday)s::date
+            OR operation_date_inbound >= %(op_yesterday)s::date
+            OR operation_date_inbound_2 >= %(op_yesterday)s::date
+            OR outbound_scandate >= (%(op_yesterday)s::date - INTERVAL '1 day')
+            OR last_updated >= (CURRENT_TIMESTAMP - INTERVAL '48 hours')
         ORDER BY operation_date_created DESC, created_time DESC
     """
+    params = {'op_yesterday': yesterday}
     try:
         sa_engine = get_sa_engine()
         if sa_engine:
-            df = pd.read_sql(query, sa_engine)
+            df = pd.read_sql(query, sa_engine, params=params)
             sa_engine.dispose()
             print("   🟢 Connected to PostgreSQL (SQLAlchemy)")
         else:
@@ -589,7 +591,7 @@ def sync_postgre_to_dashboard():
             conn = get_pg_conn()
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
-                df = pd.read_sql(query, conn)
+                df = pd.read_sql(query, conn, params=params)
             conn.close()
             print("   🟢 Connected to PostgreSQL (psycopg2 fallback)")
     except Exception as e:

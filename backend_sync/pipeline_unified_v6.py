@@ -1121,6 +1121,14 @@ def main():
             if not op_cr_val and cr_t:
                 op_cr_val = cr_t[:10]
 
+            flag_created  = 1 if cr_t else 0
+            flag_pickup   = 1 if has_pick else 0
+            flag_arrival  = 1 if arr_t else 0
+            flag_inbound  = 1 if has_in else 0
+            flag_outbound = 1 if has_out else 0
+            op_pk_val     = get_op_date(r.get('Pickup_time')) if has_pick else (op_cr_val or None)
+            op_inb_eff    = op_inb_2 if (is_rebound and op_inb_2) else (op_inb or None)
+
             records.append((
                 str(r.get('tracking') or ''),           # tracking NOT NULL
                 'pipeline_v6',                           # data_source NOT NULL
@@ -1157,6 +1165,8 @@ def main():
                 inb_t_2,                                 # inbound_scandate_2
                 op_inb_2,                                # operation_date_inbound_2
                 outb_t_2,                                # outbound_scandate_2
+                flag_created, flag_pickup, flag_arrival, flag_inbound, flag_outbound,
+                op_pk_val, op_inb_eff
             ))
 
         insert_sql = """
@@ -1170,16 +1180,15 @@ def main():
                 operation_date_created, operation_date_inbound,
                 is_backlog, is_active, is_transit,
                 is_completed, cycle_no, is_rebound, return_count,
-                inbound_scandate_2, operation_date_inbound_2, outbound_scandate_2
+                inbound_scandate_2, operation_date_inbound_2, outbound_scandate_2,
+                flag_created, flag_pickup, flag_arrival, flag_inbound, flag_outbound,
+                op_date_pickup, op_date_inbound_effective
             ) VALUES %s
             ON CONFLICT (tracking) DO UPDATE SET
                 data_source              = EXCLUDED.data_source,
                 status_sys               = EXCLUDED.status_sys,
                 -- ═══════════════════════════════════════════════════════════
                 -- NGUYÊN TẮC ĐÓNG BĂNG (Completed Order Freezing)
-                -- Nếu đơn đã frozen (is_completed=TRUE): 5 mốc thời gian gốc KHÔNG được ghi đè.
-                -- Trigger trg_protect_completed sẽ enforce ở tầng DB.
-                -- UPSERT bảo vệ thêm tầng Python: chỉ update nếu đơn chưa frozen.
                 -- ═══════════════════════════════════════════════════════════
                 created_time             = CASE
                                             WHEN enriched.dispatch_enriched.is_completed = TRUE
@@ -1206,7 +1215,6 @@ def main():
                                             THEN enriched.dispatch_enriched.arrival_scandate    -- bảo vệ mốc gốc
                                             ELSE EXCLUDED.arrival_scandate
                                           END,
-                -- is_completed: chỉ được chuyển TRUE→FALSE qua Rebound (handled by trigger)
                 is_completed             = CASE
                                             WHEN enriched.dispatch_enriched.is_completed = TRUE
                                             THEN TRUE                                           -- không cho phép downgrade
@@ -1217,9 +1225,6 @@ def main():
                                             THEN 0                                              -- frozen = inactive
                                             ELSE EXCLUDED.is_active
                                           END,
-                -- ═══════════════════════════════════════════════════════════
-                -- Các trường không bảo vệ: cập nhật bình thường
-                -- ═══════════════════════════════════════════════════════════
                 pickup_station           = COALESCE(NULLIF(EXCLUDED.pickup_station, ''), enriched.dispatch_enriched.pickup_station),
                 pickup_station2          = COALESCE(NULLIF(EXCLUDED.pickup_station2, ''), enriched.dispatch_enriched.pickup_station2),
                 pickup_ontime            = COALESCE(NULLIF(EXCLUDED.pickup_ontime, ''), enriched.dispatch_enriched.pickup_ontime),
@@ -1234,10 +1239,16 @@ def main():
                 cycle_no                 = EXCLUDED.cycle_no,
                 is_rebound               = EXCLUDED.is_rebound,
                 return_count             = EXCLUDED.return_count,
-                -- Rebound Lần 2: chỉ ghi nếu có giá trị mới (không xóa cũ)
                 inbound_scandate_2       = COALESCE(EXCLUDED.inbound_scandate_2, enriched.dispatch_enriched.inbound_scandate_2),
                 operation_date_inbound_2 = COALESCE(EXCLUDED.operation_date_inbound_2, enriched.dispatch_enriched.operation_date_inbound_2),
                 outbound_scandate_2      = COALESCE(EXCLUDED.outbound_scandate_2, enriched.dispatch_enriched.outbound_scandate_2),
+                flag_created             = EXCLUDED.flag_created,
+                flag_pickup              = EXCLUDED.flag_pickup,
+                flag_arrival             = EXCLUDED.flag_arrival,
+                flag_inbound             = EXCLUDED.flag_inbound,
+                flag_outbound            = EXCLUDED.flag_outbound,
+                op_date_pickup           = EXCLUDED.op_date_pickup,
+                op_date_inbound_effective= EXCLUDED.op_date_inbound_effective,
                 last_updated             = CURRENT_TIMESTAMP;
         """
         execute_values(cur, insert_sql, records, page_size=2000)
