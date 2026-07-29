@@ -277,14 +277,14 @@ export default function InboundDashboard({
   inboundData.forEach(d => {
     if (isNorthRow(d)) return;
 
-    const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
-    const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
-    const pkDate = d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || '';
-    const arDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || '';
-    const status = d['Trng thi'] || d['Trạng thái'] || '';
+    const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || d['op_date_forecast'] || '';
+    const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || d['op_date_inbound'] || '';
+    const pkDate = d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['op_date_pickup'] || '';
+    const arDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || d['op_date_arrival'] || '';
+    const status = d['Trng thi'] || d['Trạng thái'] || d['status'] || '';
 
-    const loiRot = d['Loi rt'] || d['Loại rớt'] || '';
-    const vol = parseInt(d['Volume'], 10) || 1;
+    const loiRot = d['Loi rt'] || d['Loại rớt'] || d['drop_type'] || '';
+    const vol = parseInt(d['Volume'] || d['volume'] || 1, 10) || 1;
 
     // Logic chuẩn người dùng:
     // 1. Rớt Hôm Nay   : Đơn CREATED trong ca activeDate chưa Inbound & chưa Outbound
