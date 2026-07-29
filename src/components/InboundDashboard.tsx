@@ -262,17 +262,20 @@ export default function InboundDashboard({
 
     const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
+    const pkDate = d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || '';
+    const arDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || '';
     const status = d['Trng thi'] || d['Trạng thái'] || '';
 
     const loiRot = d['Loi rt'] || d['Loại rớt'] || '';
     const vol = parseInt(d['Volume'], 10) || 1;
 
-    // Quy tắc người dùng: Nếu đơn đã có mốc Inbound hoặc Outbound, nó KHÔNG CÒN LÀ ĐƠN RỚT nữa
+    // Đơn Rớt về HUB phải là đơn ĐÃ PICKUP (hoặc Arrival) nhưng CHƯA INBOUND & CHƯA OUTBOUND
+    const hasPickOrArr = Boolean(pkDate || arDate || status === 'Pickup Done' || status === 'Transporting');
     const hasInboundOrOutbound = Boolean(ibDate || status === 'Outbound' || status === 'Inbound');
 
-    if ((loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) && !hasInboundOrOutbound) {
+    if ((loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) && hasPickOrArr && !hasInboundOrOutbound) {
       forecastRotHomTruoc += vol;
-    } else if ((loiRot === 'Rớt hôm nay' && fcDate === activeDate) && !hasInboundOrOutbound) {
+    } else if ((loiRot === 'Rớt hôm nay' && fcDate === activeDate) && hasPickOrArr && !hasInboundOrOutbound) {
       forecastRotHomNay += vol;
     }
   });

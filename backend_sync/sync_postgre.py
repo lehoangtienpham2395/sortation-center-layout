@@ -201,15 +201,15 @@ def get_or_create_daily_baseline(conn, today_date_str: str) -> int:
             SELECT COUNT(*) FROM enriched.dispatch_enriched
             WHERE (inbound_scandate IS NULL)
               AND (outbound_scandate IS NULL)
+              AND (flag_pickup = 1 OR pickup_time IS NOT NULL OR arrival_scandate IS NOT NULL)
               AND (next_station IS NULL OR next_station <> 'Đã hủy')
               AND (status_sys IS NULL OR status_sys <> 'Đã hủy')
               AND (is_rebound IS NULL OR is_rebound = 0)
               AND (
                 (op_date_pickup IS NOT NULL AND op_date_pickup < %s::date)
                 OR (op_date_pickup IS NULL AND operation_date_created < %s::date)
-                OR (arrival_scandate IS NOT NULL AND operation_date_created < %s::date)
               );
-        """, (today_date_str, today_date_str, today_date_str))
+        """, (today_date_str, today_date_str))
         calc_val = cur.fetchone()[0] or 0
 
         cur.execute("""
@@ -219,7 +219,7 @@ def get_or_create_daily_baseline(conn, today_date_str: str) -> int:
         """, (today_date_str, calc_val))
         conn.commit()
         cur.close()
-        print(f"   📌 Baseline Rớt Hôm Trước (chốt 06:00 AM cho ngày {today_date_str}, CHƯA INBOUND & CHƯA OUTBOUND): {calc_val:,} đơn")
+        print(f"   📌 Baseline Rớt Hôm Trước (chốt 06:00 AM cho ngày {today_date_str}, ĐÃ PICKUP, CHƯA INBOUND): {calc_val:,} đơn")
         return calc_val
     except Exception as e:
         print(f"   ⚠️  Không thể lưu/đọc baseline snapshot: {e}")
@@ -824,10 +824,10 @@ def sync_postgre_to_dashboard():
             inbound_group[key_ib]['volume']    += 1
             inbound_group[key_ib]['weight_kg'] += wt_kg
 
-        # ── Cờ Rớt (Nguyên tắc người dùng): Đơn Created/Pickup/Arrival trước hôm nay nhưng CHƯA INBOUND & CHƯA OUTBOUND ──
-        # Không tính đơn đã Inbound (has_in=1), không tính đơn đã Outbound (has_out=1), không tính Rebound (is_reb=1)
-        if not has_in and not has_out and not is_reb:
-            dates = [d for d in [get_op_date(cr_t), get_op_date(pk_t), get_op_date(arr_t)] if d]
+        # ── Cờ Rớt: Đơn ĐÃ PICKUP (hoặc Arrival) trước hôm nay nhưng CHƯA INBOUND & CHƯA OUTBOUND ──
+        # Đơn chưa Pickup (chỉ mới Created ở Shop) KHÔNG PHẢI đơn rớt về HUB
+        if (has_pick or has_arr) and not has_in and not has_out and not is_reb and not is_canceled:
+            dates = [d for d in [get_op_date(pk_t), get_op_date(arr_t)] if d]
             if dates:
                 min_op = min(dates)
                 if min_op < today:
