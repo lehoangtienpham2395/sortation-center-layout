@@ -200,10 +200,10 @@ export default function InboundDashboard({
     return 'Created';
   };
 
-  const getDateInbound  = (d: any) => d.op_date_inbound  || d['Ngày vận hành_Inbound']  || d['Ngy vn hnh_Inbound']  || '';
-  const getDateForecast = (d: any) => d.op_date_forecast || d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast'] || d.op_date_created || d.operation_date_created || '';
-  const getDatePickup   = (d: any) => d.op_date_pickup   || d['Ngày vận hành_Pickup']   || d['Ngy vn hnh_Pickup']   || '';
-  const getDateArrival  = (d: any) => d.op_date_arrival  || d['Ngày vận hành_Arrival']  || d['Ngy vn hnh_Arrival']  || '';
+  const getDateInbound  = (d: any) => d.op_date_inbound  || d['Ngày vận hành_Inbound']  || d['Ngy vn hnh_Inbound']  || d.op_date || '';
+  const getDateForecast = (d: any) => d.op_date_forecast || d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast'] || d.op_date_created || d.operation_date_created || d.op_date || '';
+  const getDatePickup   = (d: any) => d.op_date_pickup   || d['Ngày vận hành_Pickup']   || d['Ngy vn hnh_Pickup']   || d.op_date_forecast || d.op_date_created || d.op_date || '';
+  const getDateArrival  = (d: any) => d.op_date_arrival  || d['Ngày vận hành_Arrival']  || d['Ngy vn hnh_Arrival']  || d.op_date || '';
 
   const getVol       = (d: any) => parseInt(d.volume || d.Volume || d.orders_num || 1, 10) || 1;
   const getWt        = (d: any) => parseFloat(d.weight_ton || d.Weight || d.orders_weight || 0) || 0;

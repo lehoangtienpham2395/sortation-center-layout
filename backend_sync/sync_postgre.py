@@ -831,7 +831,6 @@ def sync_postgre_to_dashboard():
         # Đây là số bất biến đầu ca, được dùng làm Forecast KPI
         "rot_hom_truoc":         rot_hom_truoc,
         "rot_hom_nay":           rot_hom_nay,
-        "total_dropped":         rot_hom_truoc + rot_hom_nay,
         "sync_success":          True,
     }
     print(f"   📊 Cờ Rớt: Rớt hôm trước={rot_hom_truoc:,}  |  Rớt hôm nay={rot_hom_nay:,}")
