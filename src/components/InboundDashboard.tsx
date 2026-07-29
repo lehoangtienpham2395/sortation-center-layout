@@ -302,34 +302,36 @@ export default function InboundDashboard({
     if (lastUpdateObj.rot_hom_nay !== undefined) forecastRotHomNay = Number(lastUpdateObj.rot_hom_nay);
   }
 
-  const filteredTruckEta = (truckEtaData || [])
-    .filter(d => {
+  const rawTrucksList: any[] = Array.isArray(truckEtaData) ? truckEtaData : ((truckEtaData as any)?.trucks || []);
+
+  const filteredTruckEta = rawTrucksList
+    .filter((d: any) => {
       const st = (d.send_network || d.sendNetworkName || d.Station || d.Pickup_station || d['Bưu cục đi'] || '').toUpperCase();
       const arrDate = (d.actual_arrival || d.planned_arrival || d.eta || d.predictArriveTime || '').slice(0, 10);
       const opDate  = d.op_date || d['Ngày vận hành'] || arrDate;
-      if (!opDate) return false;
+      if (!opDate) return true; // Nếu có xe trong truck_eta.json thì hiển thị
 
-      // 🚚 Tuyến BN HUB (Linehaul Miền Bắc): Dự báo +36 tiếng (bao gồm các xe chạy từ BN HUB về HCM HUB trong cửa sổ +36h)
+      // 🚚 Tuyến BN HUB (Linehaul Miền Bắc): Dự báo +36 tiếng
       if (st.includes('BN') || st.includes('NORTH')) {
         const activeDt = new Date(activeDate);
         const maxDt = new Date(activeDt);
-        maxDt.setDate(maxDt.getDate() + 2); // Cửa sổ +36h đến +48h
+        maxDt.setDate(maxDt.getDate() + 2);
         const opDt = new Date(opDate);
         return opDt >= activeDt && opDt <= maxDt;
       }
 
       return isDateMatch(opDate, activeDate);
     })
-    .map(d => ({
+    .map((d: any) => ({
       ...d,
-      'Mã chuyến': d.shipmentName || d.plateNumber || d.plate_number,
-      'Biển số': d.plateNumber || d.plate_number,
-      'Nhà xe': d.carrierName || d.carrier_name,
-      'Bưu cục đi': d.sendNetworkName || d.send_network || 'BN HUB',
-      'Bưu cục đến': d.arriveNetworkName || d.arrive_network || 'HCM HUB',
+      'Mã chuyến': d.shipmentName || d.plateNumber || d.plate_number || d.trip_code || 'DIRECT',
+      'Biển số': d.plateNumber || d.plate_number || d.trip_code || 'DIRECT',
+      'Nhà xe': d.carrierName || d.carrier_name || 'J&T Express',
+      'Bưu cục đi': d.send_network || d.sendNetworkName || d['Bưu cục đi'] || 'BN HUB',
+      'Bưu cục đến': d.arrive_network || d.arriveNetworkName || d['Bưu cục đến'] || 'HCM HUB',
       'Tổng số đơn': d.orders_count ?? d.loadscanwaybillnum ?? d.volume ?? 0,
       'Tổng trọng lượng (kg)': d.weight_kg ?? d.loadpackageweight ?? 0,
-      'Giờ đến bãi': d.eta || d.actualArrivalTime || d.predictArriveTime || ''
+      'Giờ đến bãi': d.eta || d.actualArrivalTime || d.predictArriveTime || d.planned_arrival || ''
     }));
 
   let totalOrders = stages['Inbound'].orders;
@@ -337,10 +339,10 @@ export default function InboundDashboard({
   let totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
   // Group truck ETA by unique station
-  const effectiveTruckEta = (filteredTruckEta && filteredTruckEta.length > 0) ? filteredTruckEta : (truckEtaData || []);
+  const effectiveTruckEta = (filteredTruckEta && filteredTruckEta.length > 0) ? filteredTruckEta : rawTrucksList;
   const groupedStationVehicles: Record<string, any> = {};
 
-  (effectiveTruckEta || []).forEach(d => {
+  (effectiveTruckEta || []).forEach((d: any) => {
     const st = (d['send_network'] || d['sendNetworkName'] || d['Station'] || d['Pickup_station'] || d['Bưu cục đi'] || d['send_site_name'] || '').trim();
     if (!st) return;
     const cleanKey = st.toUpperCase();
