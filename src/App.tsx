@@ -887,19 +887,27 @@ export default function App() {
     };
     window.addEventListener('resize', handleResize);
 
-    // Smart Polling 60s: Chỉ kiểm tra file nhỏ last_update.json (1KB), chỉ tải lại data lớn khi last_update thực sự thay đổi
+    // Smart Polling 10s & Tab Focus: Chỉ kiểm tra file siêu nhẹ last_update.json (300B) mỗi 10s
+    // và kiểm tra ngay lập tức khi người dùng chuyển lại tab (focus / visibilitychange)
     const checkAndPoll = async () => {
       try {
         const t = Date.now();
-        let res = await fetch(`./data/last_update.json?t=${t}`, { cache: 'no-store' });
+        const fetchOpts: RequestInit = {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        };
+        let res = await fetch(`./data/last_update.json?t=${t}`, fetchOpts);
         if (!res.ok) {
-          res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, { cache: 'no-store' });
+          res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, fetchOpts);
         }
         if (res.ok) {
           const d = await res.json();
           const newTime = d?.last_update || null;
           if (newTime && lastUpdateTimestampRef.current && newTime !== lastUpdateTimestampRef.current) {
-            console.log(`[Smart Polling] Dữ liệu đã cập nhật (${lastUpdateTimestampRef.current} -> ${newTime}). Tải lại file...`);
+            console.log(`[Smart Polling] Dữ liệu đã cập nhật (${lastUpdateTimestampRef.current} -> ${newTime}). Tải lại dữ liệu mới...`);
             lastUpdateTimestampRef.current = newTime;
             await fetchAndUpdateData();
           } else if (newTime) {
@@ -911,10 +919,15 @@ export default function App() {
       }
     };
 
-    const intervalId = setInterval(checkAndPoll, 60000);
+    const intervalId = setInterval(checkAndPoll, 10000);
+    const handleFocus = () => { checkAndPoll(); };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
       clearInterval(intervalId);
     };
   }, []);
