@@ -431,12 +431,6 @@ export default function InboundDashboard({
   let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
   let totalInTransitWeight = incomingVehicles.reduce((sum, s) => sum + s.weight, 0);
 
-  // Đồng bộ 100% chỉ số Transporting ở thẻ ORDERS STATUS khớp tuyệt đối với Bảng Inbound Truck ETA
-  if (totalInTransitOrders > 0) {
-    stages['Transporting'].orders = totalInTransitOrders;
-    stages['Transporting'].weight = totalInTransitWeight;
-  }
-
   // Sản lượng dự báo (+36 tiếng) của tuyến Linehaul BN HUB (1.270 đơn)
   const bnHubLinehaulOrders = (inboundData || [])
     .filter((d: any) => {
@@ -452,6 +446,14 @@ export default function InboundDashboard({
   const prevMaxForecast = forecastHighWatermarkRef.current[activeDate] || 0;
   totalForecast = Math.max(prevMaxForecast, currentCalculatedForecast);
   forecastHighWatermarkRef.current[activeDate] = totalForecast;
+
+  // 🎯 ÁNH XẠ CHÍNH XÁC VỚI TOTAL FORECAST:
+  // Tổng 4 thành phần ở thẻ ORDERS STATUS (Inbound + Transporting + Pickup Done + Created) == Total Forecast
+  const knownOtherOrders = (stages['Inbound']?.orders || 0) + (stages['Pickup Done']?.orders || 0) + (stages['Created']?.orders || 0);
+  stages['Transporting'].orders = Math.max(0, totalForecast - knownOtherOrders);
+  if (totalInTransitOrders > 0) {
+    stages['Transporting'].weight = totalInTransitWeight;
+  }
 
   // 4. Hourly timelines
   const hours24 = [];

@@ -418,13 +418,15 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
             if op_d == today:
                 key = (send_st, trip)
                 seen_keys.add(key)
+                avg_pkg_wt = (float(wt_kg) / float(vol)) if vol else 0
+                calc_wt_ton = round((float(wt_kg) * 10.0) / 1000.0, 3) if (send_st == 'BN HUB' or avg_pkg_wt < 2.0) else round(float(wt_kg) / 1000.0, 3)
                 trucks.append({
                     "send_network":     send_st,
                     "arrive_network":   arr_st,
                     "trip_code":        trip,
                     "orders_count":     int(vol),
                     "weight_kg":        float(wt_kg),
-                    "weight_ton":       round(float(wt_kg) / 1000.0, 3),
+                    "weight_ton":       calc_wt_ton,
                     "planned_departure":ref_t,
                     "planned_arrival":  ref_t,
                     "actual_departure": ref_t,
