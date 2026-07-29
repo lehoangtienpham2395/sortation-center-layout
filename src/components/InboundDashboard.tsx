@@ -393,7 +393,7 @@ export default function InboundDashboard({
   inboundData.forEach(d => {
     if (isNorthRow(d)) return;
 
-    const arrTime = d['Arrival Time'] || d['Arrival_time'] || '';
+    const arrTime = d['Arrival Time'] || d['Arrival_time'] || d['arrival_time'] || '';
     if (!arrTime) return;
 
     // Tính ngày vận hành (cycle 6-6) từ Arrival Time
@@ -415,7 +415,7 @@ export default function InboundDashboard({
 
   // 2. Forecast Time (Dự báo - Kế hoạch lấy): Hiển thị tất cả đơn có Ngày vận hành_Forecast hoặc ngày vận hành của Forecast Time khớp với activeDate
   inboundData.filter(d => {
-    const fcTime = d['Forecast Time'] || '';
+    const fcTime = d['Forecast Time'] || d['forecast_time'] || '';
     const fcDate = getOperatingDateFromTimestamp(fcTime);
     const opDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     return opDate === activeDate || fcDate === activeDate;
@@ -423,7 +423,7 @@ export default function InboundDashboard({
     if (isNorthRow(d)) {
       return;
     }
-    const fcTime = d['Forecast Time'] || '';
+    const fcTime = d['Forecast Time'] || d['forecast_time'] || '';
     if (fcTime) {
       const fcDate = getOperatingDateFromTimestamp(fcTime);
       const loaiRot = d['Loi rt'] || d['Loại rớt'] || '';
@@ -450,10 +450,8 @@ export default function InboundDashboard({
     if (isNorthRow(d)) {
       return;
     }
-    const pkTime = d['Pickup Time'] !== undefined && d['Pickup Time'] !== null && d['Pickup Time'] !== ''
-      ? d['Pickup Time']
-      : undefined;
-    if (pkTime !== undefined) {
+    const pkTime = d['Pickup Time'] || d['pickup_time'];
+    if (pkTime !== undefined && pkTime !== null && pkTime !== '') {
       const hrVal = getHourFromTimestamp(pkTime);
       if (hrVal >= 0 && hrVal < 24) {
         const hour = `${String(hrVal).padStart(2, '0')}:00`;
@@ -467,9 +465,7 @@ export default function InboundDashboard({
   // 4. Inbound (Nhập kho HUB): Hiển thị các đơn nhập kho trong ngày activeDate
   filteredInbound.forEach(d => {
     if ((d['Trng thi'] || d['Trạng thái']) === 'Inbound') {
-      const ibTime = d['Inbound Hour'] !== undefined && d['Inbound Hour'] !== null && d['Inbound Hour'] !== '' 
-        ? d['Inbound Hour'] 
-        : d['Inbound Time'];
+      const ibTime = d['Inbound Hour'] || d['inbound_hour'] || d['Inbound Time'];
       if (ibTime !== undefined && ibTime !== null && ibTime !== '') {
         const hrVal = getHourFromTimestamp(ibTime);
         if (hrVal >= 0 && hrVal < 24) {
@@ -587,8 +583,8 @@ export default function InboundDashboard({
   filteredInbound.forEach(d => {
     const status = d['Trng thi'] || d['Trạng thái'];
     if (status === 'Inbound') {
-      // Dùng 'BN HUB' cho đơn không có bưu cục gốc (hàng nội bộ HUB)
-      const fcName = d['Bưu cục'] || d['Bu cc'] || 'BN HUB';
+      // Ưu tiên đọc Bưu cục nộp (pickup_station) chuẩn theo Hợp đồng Kỹ thuật v2
+      const fcName = d['Bưu cục nộp'] || d['pickup_station'] || d['Bưu cục'] || d['Bu cc'] || 'BN HUB';
       const fc = getFC(fcName);
       if (fc) {
         fc.orders += parseInt(d['Volume'], 10) || 0;
@@ -598,19 +594,20 @@ export default function InboundDashboard({
   });
 
   filteredLinehaul.forEach(d => {
-    // nextNetworkName là bưu cục ĐÍCH của chuyến xe → chính là bưu cục "gửi hàng đến HUB"
-    const fcName = d['nextNetworkName'] || '';
-    if (fcName && d['Phiếu nhiệm vụ']) {
+    // send_network / sendNetworkName là bưu cục nộp / gửi hàng từ tuyến xe
+    const fcName = d['send_network'] || d['sendNetworkName'] || d['nextNetworkName'] || '';
+    const tripId = d['trip_code'] || d['Phiếu nhiệm vụ'] || d['plate_number'] || d['plateNumber'];
+    if (fcName && tripId) {
       // Nếu bưu cục này chưa xuất hiện trong fcMetrics (không có inbound scan), tạo mới
       const clean = fcName.trim().toUpperCase();
       if (!fcMetrics[clean]) {
         fcMetrics[clean] = { fc: fcName.trim(), vehicles: new Set(), orders: 0, weight: 0 };
       }
-      fcMetrics[clean].vehicles.add(d['Phiếu nhiệm vụ']);
+      fcMetrics[clean].vehicles.add(tripId);
       // Nếu orders chưa được tính từ inbound scan, dùng unloadingBillPiece làm proxy
       if (fcMetrics[clean].orders === 0) {
-        fcMetrics[clean].orders += parseInt(d['unloadingBillPiece'] as any, 10) || 0;
-        fcMetrics[clean].weight += parseFloat(d['unloadingWeight'] as any) || 0;
+        fcMetrics[clean].orders += parseInt(d['orders_count'] || d['unloadingBillPiece'] || 0, 10);
+        fcMetrics[clean].weight += parseFloat(d['weight_ton'] || d['unloadingWeight'] || 0);
       }
     }
   });
