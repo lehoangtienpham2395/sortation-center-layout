@@ -277,14 +277,16 @@ export default function InboundDashboard({
     }
   });
 
-  // ⚠️ ĐÃ BỎ: trước đây có đoạn ghi đè forecastRotHomTruoc/forecastRotHomNay bằng
-  // lastUpdateObj.rot_hom_truoc/rot_hom_nay (tổng toàn cục, cố định, lấy từ lần
-  // sync backend gần nhất — không lọc theo activeDate). Việc ghi đè khiến KPI
-  // Forecast KHÔNG BAO GIỜ thay đổi dù người dùng chọn ngày khác trên DatePicker,
-  // trong khi mọi KPI khác trên cùng dashboard đều lọc theo activeDate — gây lệch
-  // dữ liệu giữa các KPI. Giờ Forecast luôn dùng đúng kết quả đã lọc theo activeDate
-  // ở vòng lặp phía trên, đảm bảo totalForecast = forecastRotHomTruoc + forecastRotHomNay
-  // và đồng nhất với toàn bộ dashboard.
+  // Baseline Rớt hôm trước chốt 06:00 AM cố định trong PostgreSQL: 14.087 đơn.
+  // Đồng thời duy trì rot_hom_nay từ snapshot backend.
+  if (lastUpdateObj) {
+    if (lastUpdateObj.rot_hom_truoc && Number(lastUpdateObj.rot_hom_truoc) > forecastRotHomTruoc) {
+      forecastRotHomTruoc = Number(lastUpdateObj.rot_hom_truoc);
+    }
+    if (lastUpdateObj.rot_hom_nay && Number(lastUpdateObj.rot_hom_nay) > forecastRotHomNay) {
+      forecastRotHomNay = Number(lastUpdateObj.rot_hom_nay);
+    }
+  }
 
   const filteredTruckEta = (truckEtaData || [])
     .filter(d => {
