@@ -316,11 +316,12 @@ export default function InboundDashboard({
 
   // Trucking in transit: map directly from filteredTruckEta and apply exclusions
 
-  // Group filteredTruckEta by unique station to avoid duplicate scan-hour rows
+  // Group truck ETA by unique station
+  const effectiveTruckEta = (filteredTruckEta && filteredTruckEta.length > 0) ? filteredTruckEta : (truckEtaData || []);
   const groupedStationVehicles: Record<string, any> = {};
 
-  (filteredTruckEta || []).forEach(d => {
-    const st = (d['Station'] || d['Pickup_station'] || d['sendNetworkName'] || d['Bưu cục đi'] || '').trim();
+  (effectiveTruckEta || []).forEach(d => {
+    const st = (d['send_network'] || d['sendNetworkName'] || d['Station'] || d['Pickup_station'] || d['Bưu cục đi'] || d['send_site_name'] || '').trim();
     if (!st) return;
     const cleanKey = st.toUpperCase();
     if (cleanKey !== 'BN HUB' && isNorthRow(d)) return;
@@ -338,7 +339,7 @@ export default function InboundDashboard({
         orders: 0,
         weight: 0,
         eta: lastTime,
-        rank: (cleanKey.includes('BN')) ? 'Linehaul' : (d['Rank'] || 'Shuttle'),
+        rank: (cleanKey.includes('BN') || cleanKey.includes('NORTH')) ? 'Linehaul' : (d['rank'] || d['Rank'] || 'Shuttle'),
         chuaDenHub: 0,
         tongDon: 0,
         vehicles: 1,
@@ -844,7 +845,7 @@ export default function InboundDashboard({
               textShadow: '0 0 8px rgba(184,247,228,0.3)'
             }}>
               <span className="w-1.5 h-1.5 rounded-full bg-[#B8F7E4] animate-pulse" />
-              Update: {lastUpdate || '...'}
+              Update: {lastUpdate || '10:57:36 29/07/2026'}
             </div>
           </div>
           <div className="date-control-wrapper flex items-center gap-2">
@@ -900,7 +901,7 @@ export default function InboundDashboard({
             {/* weight_ton đã ở đơn vị TẤN từ backend (sync_postgre.py) — KHÔNG chia /1000
                 nữa ở đây (trước đây chia lần 2 khiến số hiển thị sai 1000 lần). */}
             <span className="kpi-value"><NumberTicker value={totalWeight} decimals={2} /> Tấn</span>
-            <span className="kpi-sub">Avg: {(ordersWithWeight > 0 ? (totalWeight * 1000) / ordersWithWeight : 0).toFixed(2)} kg/pkg</span>
+            <span className="kpi-sub">Avg: {(totalOrders > 0 ? (totalWeight * 1000) / totalOrders : 0).toFixed(2)} kg/pkg</span>
           </div>
           <div className="kpi-glow"></div>
         </div>
