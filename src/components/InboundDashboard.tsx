@@ -191,17 +191,17 @@ export default function InboundDashboard({
   const getDatePickup = (d: any) => d['op_date_pickup'] || d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
   const getDateArrival = (d: any) => d['op_date_arrival'] || d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
-  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && (getDateInbound(d) === activeDate || d['op_date_inbound'] === activeDate || !getDateInbound(d)) && !isNorthRow(d));
-  const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && (d['op_date_forecast'] === activeDate || getDateForecast(d) === activeDate) && !isNorthRow(d));
-  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && (d['op_date_pickup'] === activeDate || getDatePickup(d) === activeDate) && !isNorthRow(d));
+  const filteredInbound = inboundData.filter(d => getStatus(d) === 'Inbound' && isDateMatch(d['op_date_inbound'] || getDateInbound(d), activeDate) && !isNorthRow(d));
+  const filteredForecast = inboundData.filter(d => getStatus(d) === 'Created' && isDateMatch(d['op_date_forecast'] || getDateForecast(d), activeDate) && !isNorthRow(d));
+  const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && isDateMatch(d['op_date_pickup'] || d['op_date_forecast'] || getDatePickup(d), activeDate) && !isNorthRow(d));
   const filteredTransportingInbound = inboundData.filter(d => {
     const rawSt = getStatus(d);
     const status = (rawSt ? String(rawSt).trim() : '');
-    const opArr = d['op_date_arrival'] || getDateArrival(d) || '';
-    const hasInbound = Boolean(d['Ngy vn hnh_Inbound'] || d['op_date_inbound'] || status === 'Inbound');
-    const hasOutbound = Boolean(d['Ngy vn hnh_Outbound'] || d['op_date_outbound'] || status === 'Outbound');
+    const opArr = d['op_date_arrival'] || d['op_date_forecast'] || getDateArrival(d) || '';
+    const hasInbound = Boolean(d['op_date_inbound'] || d['Ngy vn hnh_Inbound'] || status === 'Inbound');
+    const hasOutbound = Boolean(d['op_date_outbound'] || d['Ngy vn hnh_Outbound'] || status === 'Outbound');
 
-    return (status === 'Transporting' || status === 'Đang vận chuyển')
+    return (status === 'Transporting' || status === 'Đang vận chuyển' || Boolean(d['transporing_time']))
       && !hasInbound
       && !hasOutbound
       && isDateMatch(opArr, activeDate)
