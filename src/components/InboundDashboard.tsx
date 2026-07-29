@@ -938,7 +938,7 @@ export default function InboundDashboard({
               textShadow: '0 0 8px rgba(184,247,228,0.3)'
             }}>
               <span className="w-1.5 h-1.5 rounded-full bg-[#B8F7E4] animate-pulse" />
-              Update: {lastUpdateObj?.last_update || lastUpdate || '21:03:28 29/07/2026'}
+              Update: {lastUpdateObj?.last_update || lastUpdate || 'Đang cập nhật...'}
             </div>
           </div>
           <div className="date-control-wrapper flex items-center gap-2">
