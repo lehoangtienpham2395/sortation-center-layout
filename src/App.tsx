@@ -278,15 +278,14 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
       const areaId     = String(item['area_id'] ?? item['AreaID'] ?? item['rank'] ?? item['Rank'] ?? '');
       const buuCuc     = String(item['station_name'] ?? item['Bu cc'] ?? item['Bưu cục'] ?? item['name'] ?? item['Next_station'] ?? item['Pickup_station'] ?? '');
       const volumeRaw  = item['volume'] ?? item['Volume'] ?? item['Orders_num'];
+      const volume     = Number(volumeRaw) || 0;
       const weightRaw  = item['weight_ton'] ?? item['weight'] ?? item['Weight'] ?? item['Orders_weight'];
       const capRaw     = item['capacity'] ?? item['Sc cha'] ?? item['Sức chứa'] ?? 780;
       const dateRaw    = item['op_date'] ?? item['Ngy'] ?? item['Ngày'] ?? item['date'] ?? item['operation_date_created'] ?? item['operation_date'] ?? item['operation_date_inbound'] ?? todayStr;
       const rawSt      = item['status'] ?? item['Trng thi'] ?? item['Trạng thái'] ?? item['status_sys'] ?? undefined;
       const statusRaw  = normalizeStatus(rawSt);
 
-      const volume   = Number(volumeRaw);
-      let weight     = Number(weightRaw) || 0;
-      if (weight > 100) weight = Number((weight / 1000.0).toFixed(3));
+      const weight   = Number(weightRaw) || 0;
       const capacity = Number(capRaw) || 780;
 
       if (areaId || buuCuc) {
@@ -668,6 +667,8 @@ export default function App() {
     updateListName(ZONE2_LIST);
     updateListName(ZONE1_LIST);
 
+    const totalOrdersOfSelectedType = Object.values(selectedMap).reduce((sum, item: any) => sum + (item.volume > 0 ? item.volume : 0), 0);
+
     // Recompute visual data for ALL_RACKS
     const newData = ALL_RACKS.reduce((acc, curr: any) => {
       let capacity = 780;
@@ -709,7 +710,12 @@ export default function App() {
 
         // Calculate utilization based on capacity for all modes
         if (!isMocked) {
-          util = Math.floor((current / capacity) * 100);
+          if (selectedType === 'Outbound' && totalOrdersOfSelectedType > 0) {
+            const sharePct = (current / totalOrdersOfSelectedType) * 100;
+            util = Math.min(100, Math.max(current > 0 ? 20 : 0, Math.round(sharePct * 8)));
+          } else {
+            util = Math.floor((current / capacity) * 100);
+          }
         }
       }
 

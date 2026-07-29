@@ -97,6 +97,15 @@ html, body {
   border-radius: 8px;
   padding: 8px;
   text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.stat-item:hover, .stat-item.active {
+  background: rgba(184, 247, 228, 0.12);
+  border-color: var(--jt-green);
+  box-shadow: 0 0 12px var(--jt-green-glow);
+  transform: translateY(-1px);
 }
 
 .stat-item .lbl {
@@ -163,23 +172,30 @@ html, body {
 
 .tool-btn {
   flex: 1;
-  padding: 7px 10px;
+  padding: 7px 6px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border-subtle);
   border-radius: 6px;
   color: var(--text-main);
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 4px;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .tool-btn:hover {
   background: rgba(255, 255, 255, 0.1);
+}
+
+.tool-btn.active {
+  background: rgba(59, 130, 246, 0.2);
+  border-color: #3b82f6;
+  color: #60a5fa;
 }
 
 .tool-btn.jt-btn {
@@ -194,7 +210,7 @@ html, body {
 }
 
 .tool-btn.icon-only {
-  flex: 0 0 34px;
+  flex: 0 0 32px;
 }
 
 /* Filter Tabs */

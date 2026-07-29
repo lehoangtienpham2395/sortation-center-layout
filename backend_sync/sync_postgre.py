@@ -907,7 +907,7 @@ def sync_postgre_to_dashboard():
     ]
 
     inbound_json = [
-        {"station_name": st, "status": status,
+        {"station_name": st, "pickup_station": pk_st, "status": status,
          "volume": stats['volume'], "weight_ton": round(stats['weight_kg'] / 1000, 3),
          "op_date_inbound": in_op, "op_date_forecast": fc_op,
          "op_date_pickup": pk_op, "op_date_arrival": ar_op,
@@ -918,7 +918,7 @@ def sync_postgre_to_dashboard():
          "is_rebound": is_reb, "return_count": stats['return_count'],
          "is_north": (st.strip().upper() == 'BN HUB' or st.strip().upper().startswith('HN ') or st.strip().upper().startswith('HD ') or st.strip().upper().startswith('HY ')),
          "region": 'north' if (st.strip().upper() == 'BN HUB' or st.strip().upper().startswith('HN ') or st.strip().upper().startswith('HD ') or st.strip().upper().startswith('HY ')) else 'south'}
-        for (st, status, in_op, fc_op, pk_op, ar_op,
+        for (st, pk_st, status, in_op, fc_op, pk_op, ar_op,
              in_hr, fc_hr, pk_hr, ar_hr,
              drop_t, tc, tr_t, trd_t, is_reb), stats in inbound_group.items()
     ]

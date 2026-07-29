@@ -38,15 +38,15 @@
         </div>
 
         <div class="stats-row">
-          <div class="stat-item green">
+          <div class="stat-item green" data-stat-tab="ghep" title="Click để lọc Tuyến Ghép">
             <span class="lbl">Tuyến Ghép</span>
             <span class="val" id="stat-total-ghep">12</span>
           </div>
-          <div class="stat-item green-sub">
+          <div class="stat-item green-sub" data-stat-tab="don" title="Click để lọc Tuyến Đơn">
             <span class="lbl">Tuyến Đơn</span>
             <span class="val" id="stat-total-don">35</span>
           </div>
-          <div class="stat-item orange">
+          <div class="stat-item orange" data-stat-tab="all" title="Click để hiện Tất Cả Bưu Cục">
             <span class="lbl">Bưu Cục</span>
             <span class="val" id="stat-total-po">62</span>
           </div>
@@ -62,7 +62,10 @@
 
         <div class="toolbar-btns">
           <button id="btn-toggle-traffic" class="tool-btn">
-            <i class="fa-solid fa-traffic-light" style="color: #ff5722;"></i> Live Traffic
+            <i class="fa-solid fa-traffic-light" style="color: #ef4444;"></i> Kẹt Xe
+          </button>
+          <button id="btn-toggle-admin" class="tool-btn active">
+            <i class="fa-solid fa-map-location-dot" style="color: #3b82f6;"></i> Địa Giới
           </button>
           <button id="btn-export" class="tool-btn jt-btn">
             <i class="fa-solid fa-file-excel"></i> CSV

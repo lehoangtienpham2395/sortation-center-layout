@@ -248244,12 +248244,15 @@ let selectedRouteCode = null;
 let mapLayersGroup;
 let googleTrafficLayer;
 let isTrafficActive = false;
+let adminLabelsLayer;
+let isAdminActive = true;
 
 document.addEventListener("DOMContentLoaded", () => {
   initMap();
   initUIEvents();
   renderSidebar();
   updateHeaderStats();
+  updateTabActiveState();
 });
 
 function initMap() {
@@ -248272,14 +248275,14 @@ function initMap() {
 
   L.control.zoom({ position: 'topright' }).addTo(map);
 
-  // Esri World Light Gray Canvas Layer (Clean Logistics GIS Map - ZERO POI / Business Address Clutter)
+  // Esri World Light Gray Canvas Layer (Clean Logistics Base Map - ZERO POI / Business Address Clutter)
   const mainTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
     maxZoom: 16
   }).addTo(map);
 
-  // Esri Clean City/District Labels Overlay (Clean Admin Names ONLY, No POIs)
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+  // Esri Clean City/District Labels Overlay (Toggleable Admin Names & Boundaries ONLY)
+  adminLabelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
     attribution: '',
     maxZoom: 16
   }).addTo(map);
@@ -248290,10 +248293,11 @@ function initMap() {
 }
 
 function initTrafficLayer() {
-  googleTrafficLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=h,traffic&x={x}&y={y}&z={z}', {
+  // Pure Traffic Flow Vectors ONLY (No POI markers, no shops/businesses)
+  googleTrafficLayer = L.tileLayer('https://{s}.google.com/vt/lyrs=traffic&x={x}&y={y}&z={z}', {
     maxZoom: 20,
     subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-    opacity: 0.95
+    opacity: 0.9
   });
 }
 
@@ -248303,13 +248307,36 @@ function toggleTrafficLayer() {
     if (!googleTrafficLayer) initTrafficLayer();
     googleTrafficLayer.addTo(map);
     isTrafficActive = true;
-    btn.classList.add("active");
-    btn.innerHTML = `<i class="fa-solid fa-traffic-light" style="color: #ef4444;"></i> Tắt Kẹt Xe (Live Traffic)`;
+    if (btn) {
+      btn.classList.add("active");
+      btn.innerHTML = `<i class="fa-solid fa-traffic-light" style="color: #ef4444;"></i> Kẹt Xe`;
+    }
   } else {
     if (googleTrafficLayer) map.removeLayer(googleTrafficLayer);
     isTrafficActive = false;
-    btn.classList.remove("active");
-    btn.innerHTML = `<i class="fa-solid fa-traffic-light" style="color: #ef4444;"></i> Bật Kẹt Xe (Live Traffic)`;
+    if (btn) {
+      btn.classList.remove("active");
+      btn.innerHTML = `<i class="fa-solid fa-traffic-light" style="color: #ef4444;"></i> Kẹt Xe`;
+    }
+  }
+}
+
+function toggleAdminLayer() {
+  const btn = document.getElementById("btn-toggle-admin");
+  if (isAdminActive) {
+    if (adminLabelsLayer) map.removeLayer(adminLabelsLayer);
+    isAdminActive = false;
+    if (btn) {
+      btn.classList.remove("active");
+      btn.innerHTML = `<i class="fa-solid fa-map-location-dot" style="color: #64748b;"></i> Địa Giới`;
+    }
+  } else {
+    if (adminLabelsLayer) adminLabelsLayer.addTo(map);
+    isAdminActive = true;
+    if (btn) {
+      btn.classList.add("active");
+      btn.innerHTML = `<i class="fa-solid fa-map-location-dot" style="color: #3b82f6;"></i> Địa Giới`;
+    }
   }
 }
 
@@ -248531,10 +248558,33 @@ function renderMapMarkersAndRoutes() {
   });
 }
 
+function updateTabActiveState() {
+  document.querySelectorAll(".tab-btn").forEach(b => {
+    const tabVal = b.getAttribute("data-tab");
+    if (tabVal === activeTab) {
+      b.classList.add("active");
+    } else {
+      b.classList.remove("active");
+    }
+  });
+
+  document.querySelectorAll(".stat-item").forEach(s => {
+    const statTab = s.getAttribute("data-stat-tab");
+    if (statTab === activeTab) {
+      s.classList.add("active");
+    } else {
+      s.classList.remove("active");
+    }
+  });
+}
+
 function getFilteredRoutes() {
   return ALL_ROUTES.filter(route => {
-    if (activeTab === 'multiple' && !route.isMultipleStops) return false;
-    if (activeTab === 'single' && route.isMultipleStops) return false;
+    if (activeTab === 'ghep' || activeTab === 'multiple') {
+      if (route.type !== 'ghep') return false;
+    } else if (activeTab === 'don' || activeTab === 'single') {
+      if (route.type !== 'don') return false;
+    }
 
     if (typeof selectedPoType !== 'undefined' && selectedPoType !== 'ALL') {
       const hasType = route.stops.some(id => {
@@ -248656,13 +248706,27 @@ function initUIEvents() {
   document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", (e) => {
       const targetBtn = e.currentTarget;
-      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-      targetBtn.classList.add("active");
       activeTab = targetBtn.getAttribute("data-tab") || "all";
+      updateTabActiveState();
       selectedRouteCode = null;
       renderSidebar();
       renderMapMarkersAndRoutes();
       updateHeaderStats();
+    });
+  });
+
+  document.querySelectorAll(".stat-item").forEach(item => {
+    item.addEventListener("click", (e) => {
+      const targetItem = e.currentTarget;
+      const statTab = targetItem.getAttribute("data-stat-tab");
+      if (statTab) {
+        activeTab = statTab;
+        updateTabActiveState();
+        selectedRouteCode = null;
+        renderSidebar();
+        renderMapMarkersAndRoutes();
+        updateHeaderStats();
+      }
     });
   });
 
@@ -248693,14 +248757,16 @@ function initUIEvents() {
   const btnTraffic = document.getElementById("btn-toggle-traffic");
   if (btnTraffic) btnTraffic.addEventListener("click", toggleTrafficLayer);
 
+  const btnAdmin = document.getElementById("btn-toggle-admin");
+  if (btnAdmin) btnAdmin.addEventListener("click", toggleAdminLayer);
+
   const btnReset = document.getElementById("btn-reset-view");
   if (btnReset) {
     btnReset.addEventListener("click", () => {
       selectedRouteCode = null;
       selectedPoType = "ALL";
       activeTab = "all";
-      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-      document.querySelectorAll(".tab-btn[data-tab='all']").forEach(b => b.classList.add("active"));
+      updateTabActiveState();
       document.querySelectorAll(".prov-pill, .province-pill").forEach(p => p.classList.remove("active"));
       document.querySelectorAll(".prov-pill[data-po-type='ALL']").forEach(p => p.classList.add("active"));
       const hub = POST_OFFICES['HCM_HUB'];
