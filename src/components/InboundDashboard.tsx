@@ -304,9 +304,20 @@ export default function InboundDashboard({
 
   const filteredTruckEta = (truckEtaData || [])
     .filter(d => {
+      const st = (d.send_network || d.sendNetworkName || d.Station || d.Pickup_station || d['Bưu cục đi'] || '').toUpperCase();
       const arrDate = (d.actual_arrival || d.planned_arrival || d.eta || d.predictArriveTime || '').slice(0, 10);
       const opDate  = d.op_date || d['Ngày vận hành'] || arrDate;
       if (!opDate) return false;
+
+      // 🚚 Tuyến BN HUB (Linehaul Miền Bắc): Dự báo +36 tiếng (bao gồm các xe chạy từ BN HUB về HCM HUB trong cửa sổ +36h)
+      if (st.includes('BN') || st.includes('NORTH')) {
+        const activeDt = new Date(activeDate);
+        const maxDt = new Date(activeDt);
+        maxDt.setDate(maxDt.getDate() + 2); // Cửa sổ +36h đến +48h
+        const opDt = new Date(opDate);
+        return opDt >= activeDt && opDt <= maxDt;
+      }
+
       return isDateMatch(opDate, activeDate);
     })
     .map(d => ({
@@ -323,12 +334,7 @@ export default function InboundDashboard({
 
   let totalOrders = stages['Inbound'].orders;
   let totalWeight = stages['Inbound'].weight;
-  // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
   let totalForecast = forecastRotHomTruoc + forecastRotHomNay;
-
-
-
-  // Trucking in transit: map directly from filteredTruckEta and apply exclusions
 
   // Group truck ETA by unique station
   const effectiveTruckEta = (filteredTruckEta && filteredTruckEta.length > 0) ? filteredTruckEta : (truckEtaData || []);
@@ -340,7 +346,6 @@ export default function InboundDashboard({
     const cleanKey = st.toUpperCase();
     if (cleanKey !== 'BN HUB' && isNorthRow(d)) return;
 
-    // Ưu tiên lấy đơn Chưa đến Hub (hàng đang trên đường)
     const inTransitOrders = Number(d['Chưa đến Hub'] ?? d['Chua dn Hub'] ?? d['Orders'] ?? d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
     const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
     const lastTime = d['Last time'] || d['ETA'] || d['Giờ đến bãi'] || d['actualArrivalTime'] || d['predictArriveTime'] || '';
@@ -349,18 +354,23 @@ export default function InboundDashboard({
     if (!groupedStationVehicles[st]) {
       groupedStationVehicles[st] = {
         station: st,
-        trucking: 1,
+        trucking: 0,
         orders: 0,
         weight: 0,
         eta: lastTime,
         rank: (cleanKey.includes('BN') || cleanKey.includes('NORTH')) ? 'Linehaul' : (d['rank'] || d['Rank'] || 'Shuttle'),
         chuaDenHub: 0,
         tongDon: 0,
-        vehicles: 1,
+        vehicles: 0,
+        vehicleSet: new Set(),
         lastTime: lastTime
       };
     }
 
+    const tripId = d.trip_code || d.shipmentName || d.plateNumber || d.plate_number || `${st}_${Math.random()}`;
+    groupedStationVehicles[st].vehicleSet.add(String(tripId));
+    groupedStationVehicles[st].vehicles = groupedStationVehicles[st].vehicleSet.size;
+    groupedStationVehicles[st].trucking = groupedStationVehicles[st].vehicles;
     groupedStationVehicles[st].orders += inTransitOrders;
     groupedStationVehicles[st].chuaDenHub += inTransitOrders;
     groupedStationVehicles[st].tongDon += tongDon;
@@ -372,15 +382,15 @@ export default function InboundDashboard({
   });
 
   const incomingVehicles = Object.values(groupedStationVehicles)
-    .filter(v => v.orders > 0 || v.tongDon > 0)
+    .filter(v => v.orders > 0 || v.tongDon > 0 || v.vehicles > 0)
     .sort((a, b) => b.orders - a.orders);
 
   // Split by Shuttle and Linehaul ranks
   const shuttleVehicles = incomingVehicles.filter(v => v.rank === 'Shuttle');
   const linehaulVehicles = incomingVehicles.filter(v => v.rank === 'Linehaul');
 
-  let totalShuttleVehicles = shuttleVehicles.length;
-  let totalLinehaulVehicles = linehaulVehicles.length;
+  let totalShuttleVehicles = shuttleVehicles.reduce((sum, v) => sum + (v.vehicles || 1), 0);
+  let totalLinehaulVehicles = linehaulVehicles.reduce((sum, v) => sum + (v.vehicles || 1), 0);
   let totalTransitVehicles = totalShuttleVehicles + totalLinehaulVehicles;
   let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
 
