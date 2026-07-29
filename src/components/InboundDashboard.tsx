@@ -262,7 +262,6 @@ export default function InboundDashboard({
 
     const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || '';
     const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || '';
-    const arDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || '';
     const status = d['Trng thi'] || d['Trạng thái'] || '';
 
     const loiRot = d['Loi rt'] || d['Loại rớt'] || '';
@@ -305,8 +304,6 @@ export default function InboundDashboard({
 
   let totalOrders = stages['Inbound'].orders;
   let totalWeight = stages['Inbound'].weight;
-  // Số đơn có weight thực tế > 0 → dùng để tính avg chính xác
-  const ordersWithWeight = stagesWithWeight['Inbound'];
   // Tổng Forecast gồm những đơn chưa pickup (Rớt hôm trước + Rớt hôm nay)
   let totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 

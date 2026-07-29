@@ -222,6 +222,22 @@ function getApiUrl(filename: string): string {
   return `./data/${filename}?t=${t}`;
 }
 
+function getOperatingDateFromTimestamp(timestamp: string): string {
+  if (!timestamp) return '';
+  const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
+  if (match) {
+    const datePart = match[1];
+    const hour = parseInt(match[2], 10);
+    if (hour < 6) {
+      const d = new Date(datePart);
+      d.setDate(d.getDate() - 1);
+      return d.toISOString().split('T')[0];
+    }
+    return datePart;
+  }
+  return timestamp.split(' ')[0] || '';
+}
+
 async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival' | 'Truck_ETA'): Promise<any[] | null> {
   try {
     let rawData: any = null;
