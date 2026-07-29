@@ -4,8 +4,8 @@ on:
   push:
     branches: ["main"]
     paths:
-      # Chỉ build lại khi thay đổi source code — KHÔNG build khi Python push data JSON
       - 'src/**'
+      - 'data/**'
       - 'public/**'
       - 'index.html'
       - 'package.json'
