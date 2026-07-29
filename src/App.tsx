@@ -144,17 +144,10 @@ ALL_RACKS.forEach(item => {
   }
 });
 
-function generateMockData() {
+function generateEmptyData() {
   return ALL_RACKS.reduce((acc, curr) => {
-    const util = Math.floor(Math.random() * 110);
-    let bucket = 'green';
-    if (util > 100) bucket = 'darkred';
-    else if (util >= 95) bucket = 'red';
-    else if (util >= 80) bucket = 'orange';
-    else if (util >= 50) bucket = 'yellow';
-    const capacity = 780;
-    const current = Math.floor(capacity * (util / 100));
-    acc[curr.areaId] = { current, capacity, remaining: Math.max(0, capacity - current), utilization: util, bucket, name: curr.name };
+    const capacity = curr.areaId === 'A06' ? 1400 : 780;
+    acc[curr.areaId] = { current: 0, capacity, remaining: capacity, utilization: 0, bucket: 'green', name: curr.name, weight: 0 };
     return acc;
   }, {} as any);
 }
@@ -437,7 +430,7 @@ export default function App() {
   const [showTop10, setShowTop10] = useState(true);
   const [activeTab, setActiveTab] = useState<'layout' | 'inbound' | 'top10' | 'stats' | 'heatmap' | 'kpi'>('inbound');
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
-  const [data,       setData]       = useState<any>(generateMockData());
+  const [data,       setData]       = useState<any>(generateEmptyData());
   const [utilTotal,  setUtilTotal]  = useState('0.0');
   const [free,       setFree]       = useState(0);
   const [usedCells,  setUsedCells]  = useState(0);
@@ -751,10 +744,8 @@ export default function App() {
       let current = 0;
       let weight = 0;
       let util = 0;
-      let isMocked = rawSheetRows.length === 0;
       let backlogCurrent = 0;
 
-      const isTruck = curr.areaId ? curr.areaId.startsWith('T') : false;
       const key = curr.areaId || null;
 
       if (key) {
@@ -765,7 +756,6 @@ export default function App() {
           capacity = item.capacity || 780;
           current = item.volume;
           weight = item.weight || 0;
-          isMocked = false;
         }
 
         if (blItem && blItem.volume !== -1) {
@@ -774,35 +764,21 @@ export default function App() {
             capacity = blItem.capacity || 780;
             current = blItem.volume;
             weight = blItem.weight || 0;
-            isMocked = false;
           }
         }
 
         // Calculate utilization based on capacity for all modes
-        if (!isMocked) {
-          if (selectedType === 'Outbound' && totalOrdersOfSelectedType > 0) {
-            const sharePct = (current / totalOrdersOfSelectedType) * 100;
-            util = Math.min(100, Math.max(current > 0 ? 20 : 0, Math.round(sharePct * 8)));
-          } else {
-            util = Math.floor((current / capacity) * 100);
-          }
-        }
-      }
-
-      if (isMocked) {
-        if (!isTruck) {
-          util = Math.floor(Math.random() * 110);
-          current = Math.floor(capacity * (util / 100));
-          weight = Math.floor(current * 4.5);
-          backlogCurrent = Math.floor(current * 0.3);
+        if (selectedType === 'Outbound' && totalOrdersOfSelectedType > 0) {
+          const sharePct = (current / totalOrdersOfSelectedType) * 100;
+          util = Math.min(100, Math.max(current > 0 ? 20 : 0, Math.round(sharePct * 8)));
+        } else {
+          util = capacity > 0 ? Math.floor((current / capacity) * 100) : 0;
         }
       }
 
       if (curr.areaId === 'A06') {
         capacity = 1400;
-        if (!isMocked) {
-          util = Math.floor((current / capacity) * 100);
-        }
+        util = capacity > 0 ? Math.floor((current / capacity) * 100) : 0;
       }
 
       let bucket = 'green';

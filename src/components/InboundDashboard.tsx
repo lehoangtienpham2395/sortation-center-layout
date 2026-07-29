@@ -334,7 +334,7 @@ export default function InboundDashboard({
   const effectiveTruckEta = (filteredTruckEta && filteredTruckEta.length > 0) ? filteredTruckEta : rawTrucksList;
   const groupedStationVehicles: Record<string, any> = {};
 
-  (effectiveTruckEta || []).forEach((d: any) => {
+  (effectiveTruckEta || []).forEach((d: any, idx: number) => {
     const st = (d['send_network'] || d['sendNetworkName'] || d['Station'] || d['Pickup_station'] || d['Bưu cục đi'] || d['send_site_name'] || '').trim();
     if (!st) return;
     const cleanKey = st.toUpperCase();
@@ -361,7 +361,7 @@ export default function InboundDashboard({
       };
     }
 
-    const tripId = d.trip_code || d.shipmentName || d.plateNumber || d.plate_number || `${st}_${Math.random()}`;
+    const tripId = d.trip_code || d.shipmentName || d.plateNumber || d.plate_number || `${st}_${idx}`;
     groupedStationVehicles[st].vehicleSet.add(String(tripId));
     groupedStationVehicles[st].vehicles = groupedStationVehicles[st].vehicleSet.size;
     groupedStationVehicles[st].trucking = groupedStationVehicles[st].vehicles;
