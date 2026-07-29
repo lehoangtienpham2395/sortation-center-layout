@@ -441,8 +441,9 @@ export default function InboundDashboard({
     .reduce((sum: number, d: any) => sum + (parseInt(d['Volume'] || d['volume'] || 1, 10) || 0), 0);
 
   // NGUYÊN TẮC BẤT BIẾN CỦA GIAO DIỆN (High-Watermark Guard):
-  // Forecast KHÔNG BAO GIỜ bị tuột/sụt giảm, CHỈ CÓ THỂ TĂNG BẰNG HOẶC CAO HƠN theo thời gian!
-  const currentCalculatedForecast = forecastRotHomTruoc + forecastRotHomNay + bnHubLinehaulOrders;
+  // Forecast bao gồm cả đơn đã Inbound + Rớt hôm trước + Rớt hôm nay + Linehaul BN HUB.
+  // KHÔNG BAO GIỜ bị tuột/sụt giảm khi đơn chuyển sang trạng thái Inbound!
+  const currentCalculatedForecast = (stages['Inbound']?.orders || 0) + forecastRotHomTruoc + forecastRotHomNay + bnHubLinehaulOrders;
   const prevMaxForecast = forecastHighWatermarkRef.current[activeDate] || 0;
   totalForecast = Math.max(prevMaxForecast, currentCalculatedForecast);
   forecastHighWatermarkRef.current[activeDate] = totalForecast;
