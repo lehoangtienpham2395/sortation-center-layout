@@ -564,7 +564,10 @@ export default function App() {
       if (res.ok) {
         const d = await res.json();
         if (d) {
-          if (d.last_update) setLastUpdate(d.last_update);
+          if (d.last_update) {
+            setLastUpdate(d.last_update);
+            lastUpdateTimestampRef.current = d.last_update;
+          }
           setLastUpdateObj(d);
         }
       }
