@@ -210,23 +210,35 @@ async function fetchCompressedGzipJson(url: string): Promise<any | null> {
   }
 }
 
+function getApiUrl(filename: string): string {
+  const t = Date.now();
+  const isGitHubPages = typeof window !== 'undefined' && (
+    window.location.hostname.includes('github.io') ||
+    window.location.hostname.includes('githubusercontent.com')
+  );
+  if (isGitHubPages) {
+    return `https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${filename}?t=${t}`;
+  }
+  return `./data/${filename}?t=${t}`;
+}
+
 async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival' | 'Truck_ETA'): Promise<any[] | null> {
   try {
-    const t = Date.now();
     let rawData: any = null;
 
     if (sheetType === 'Inbound') {
       // P0 Optimization: Ưu tiên tải file nén latest.json.gz (271KB) và giải nén bằng API native trình duyệt
-      rawData = await fetchCompressedGzipJson(`./data/latest.json.gz?t=${t}`);
-      if (!rawData) {
-        rawData = await fetchCompressedGzipJson(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/latest.json.gz?t=${t}`);
+      rawData = await fetchCompressedGzipJson(getApiUrl('latest.json.gz'));
+      if (!rawData && getApiUrl('latest.json.gz').startsWith('./')) {
+        rawData = await fetchCompressedGzipJson(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/latest.json.gz?t=${Date.now()}`);
       }
     }
 
     if (!rawData) {
-      let response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
-      if (!response.ok) {
-        response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+      const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
+      let response = await fetch(getApiUrl(`${sheetType.toLowerCase()}.json`), fetchOpts);
+      if (!response.ok && getApiUrl('').startsWith('./')) {
+        response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${Date.now()}`, fetchOpts);
       }
       if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
       rawData = await response.json();
@@ -257,10 +269,10 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
 async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[] | null> {
   try {
     const todayStr = new Date().toISOString().split('T')[0];
-    const t = Date.now();
-    let response = await fetch(`./data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
-    if (!response.ok) {
-      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, { cache: 'no-store' });
+    const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
+    let response = await fetch(getApiUrl(`${sheetType.toLowerCase()}.json`), fetchOpts);
+    if (!response.ok && getApiUrl('').startsWith('./')) {
+      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${Date.now()}`, fetchOpts);
     }
     if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
     const rawData = await response.json();
@@ -513,18 +525,23 @@ export default function App() {
     }
 
     if (ibRows && ibRows.length > 0) {
+      const inbOnlyDates = Array.from(
+        new Set(ibRows.filter(r => (r['Trạng thái'] || r['status']) === 'Inbound').map(r => r['Ngày vận hành_Inbound'] || r['op_date_inbound']).filter(Boolean))
+      ) as string[];
+      inbOnlyDates.sort((a, b) => b.localeCompare(a));
+
       const ibDates = Array.from(
         new Set([
-          ...ibRows.map(r => r['Ngày vận hành_Inbound']),
-          ...ibRows.map(r => r['Ngày vận hành_Forecast']),
-          ...ibRows.map(r => r['Ngày vận hành_Pickup'])
+          ...ibRows.map(r => r['Ngày vận hành_Inbound'] || r['op_date_inbound']),
+          ...ibRows.map(r => r['Ngày vận hành_Forecast'] || r['op_date_forecast']),
+          ...ibRows.map(r => r['Ngày vận hành_Pickup'] || r['op_date_pickup'])
         ].filter(Boolean))
       ) as string[];
       ibDates.sort((a, b) => b.localeCompare(a));
       if (ibDates.length > 0) {
         setSelectedInboundDate(prev => {
           if (prev && ibDates.includes(prev)) return prev;
-          return ibDates[0];
+          return inbOnlyDates[0] || ibDates[0];
         });
       }
     }
@@ -556,10 +573,10 @@ export default function App() {
 
     // Fetch last_update.json for the last sync timestamp
     try {
-      const t = Date.now();
-      let res = await fetch(`./data/last_update.json?t=${t}`, { cache: 'no-store' });
-      if (!res.ok) {
-        res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, { cache: 'no-store' });
+      const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
+      let res = await fetch(getApiUrl('last_update.json'), fetchOpts);
+      if (!res.ok && getApiUrl('').startsWith('./')) {
+        res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${Date.now()}`, fetchOpts);
       }
       if (res.ok) {
         const d = await res.json();
@@ -899,8 +916,8 @@ export default function App() {
             'Pragma': 'no-cache'
           }
         };
-        let res = await fetch(`./data/last_update.json?t=${t}`, fetchOpts);
-        if (!res.ok) {
+        let res = await fetch(getApiUrl('last_update.json'), fetchOpts);
+        if (!res.ok && getApiUrl('').startsWith('./')) {
           res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, fetchOpts);
         }
         if (res.ok) {
