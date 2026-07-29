@@ -420,6 +420,14 @@ export default function InboundDashboard({
   let totalTransitVehicles = totalShuttleVehicles + totalLinehaulVehicles;
   let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
 
+  // Sản lượng dự báo 36 tiếng của tuyến Linehaul BN HUB
+  const bnHubLinehaulOrders = linehaulVehicles
+    .filter(v => v.station.toUpperCase().includes('BN') || v.station.toUpperCase().includes('NORTH'))
+    .reduce((sum, v) => sum + (v.orders || v.tongDon || 0), 0);
+
+  // Cộng sản lượng Linehaul BN HUB vào tổng Forecast
+  totalForecast = forecastRotHomTruoc + forecastRotHomNay + bnHubLinehaulOrders;
+
   // 4. Hourly timelines
   const hours24 = [];
   for (let i = 6; i < 24; i++) hours24.push(i);
@@ -994,14 +1002,18 @@ export default function InboundDashboard({
           </div>
           <div className="kpi-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span className="kpi-value"><NumberTicker value={totalForecast} /></span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.95rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '6px', marginTop: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.88rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '5px', marginTop: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Rớt hôm trước:</span>
-                <strong style={{ color: '#FC6C26', fontSize: '1.1rem' }}><NumberTicker value={forecastRotHomTruoc} /></strong>
+                <strong style={{ color: '#FC6C26', fontSize: '1.05rem' }}><NumberTicker value={forecastRotHomTruoc} /></strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Rớt hôm nay:</span>
-                <strong style={{ color: '#ffa066', fontSize: '1.1rem' }}><NumberTicker value={forecastRotHomNay} /></strong>
+                <strong style={{ color: '#ffa066', fontSize: '1.05rem' }}><NumberTicker value={forecastRotHomNay} /></strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Linehaul BN HUB (+36h):</span>
+                <strong style={{ color: '#38bdf8', fontSize: '1.05rem' }}><NumberTicker value={bnHubLinehaulOrders} /></strong>
               </div>
             </div>
           </div>
