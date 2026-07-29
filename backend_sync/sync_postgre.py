@@ -566,6 +566,15 @@ def sync_postgre_to_dashboard():
             op_date_pickup,                -- Dung tinh rot dong (flag_rot_nay/truoc)
             op_date_inbound_effective      -- Ngay inbound chinh xac cho Rebound
         FROM enriched.dispatch_enriched
+        WHERE 
+            -- POOL 1: TẤT CẢ các đơn ĐANG HOẠT ĐỘNG / TỒN KHO / ĐANG CHẠY (Bất kể tạo từ lâu)
+            (is_active = 1 OR is_completed = FALSE)
+
+            -- POOL 2: Các đơn ĐÃ HOÀN THÀNH nhưng mới phát sinh thao tác gần đây (Cửa sổ 2 ngày)
+            OR operation_date_inbound >= CURRENT_DATE - INTERVAL '2 days'
+            OR operation_date_inbound_2 >= CURRENT_DATE - INTERVAL '2 days'
+            OR outbound_scandate >= CURRENT_DATE - INTERVAL '2 days'
+            OR last_updated >= CURRENT_DATE - INTERVAL '2 days'
         ORDER BY operation_date_created DESC, created_time DESC
     """
     try:
