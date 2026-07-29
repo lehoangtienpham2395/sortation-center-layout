@@ -966,6 +966,12 @@ def sync_postgre_to_dashboard():
     write_json("heatmap.json",            hourly)
     write_json("hub_inventory_pivot.json",hub_pivot_json)
     write_json("last_update.json",        last_update_obj)
+    # Sync sang public/data & src/data để tránh lệch file static
+    for sub in ['public/data', 'src/data']:
+        p = os.path.normpath(os.path.join(DATA_DIR, '..', sub, 'last_update.json'))
+        if os.path.exists(os.path.dirname(p)):
+            with open(p, 'w', encoding='utf-8') as f:
+                json.dump(last_update_obj, f, ensure_ascii=False, indent=2)
 
     # Gzip inbound
     raw_bytes = json.dumps(inbound_json, ensure_ascii=False).encode('utf-8')
