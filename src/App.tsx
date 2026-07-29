@@ -211,7 +211,7 @@ async function fetchCompressedGzipJson(url: string): Promise<any | null> {
 }
 
 function getApiUrl(filename: string): string {
-  const t = Date.now();
+  const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
   const isGitHubPages = typeof window !== 'undefined' && (
     window.location.hostname.includes('github.io') ||
     window.location.hostname.includes('githubusercontent.com')
