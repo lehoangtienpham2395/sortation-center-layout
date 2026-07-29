@@ -278,9 +278,6 @@ export default function InboundDashboard({
     if (isNorthRow(d)) return;
 
     const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || d['op_date_forecast'] || '';
-    const ibDate = d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'] || d['op_date_inbound'] || '';
-    const pkDate = d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['op_date_pickup'] || '';
-    const arDate = d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || d['op_date_arrival'] || '';
     const status = d['Trng thi'] || d['Trạng thái'] || d['status'] || '';
 
     const loiRot = d['Loi rt'] || d['Loại rớt'] || d['drop_type'] || '';
@@ -289,25 +286,22 @@ export default function InboundDashboard({
     // Logic chuẩn người dùng:
     // 1. Rớt Hôm Nay   : Đơn CREATED trong ca activeDate chưa Inbound & chưa Outbound
     // 2. Rớt Hôm Trước : Đơn CREATED các ngày trước (< activeDate), ĐÃ PICKUP/ARRIVED nhưng chưa Inbound & chưa Outbound
-    const hasPickOrArr = Boolean(pkDate || arDate || status === 'Pickup Done' || status === 'Transporting');
-    const hasInboundOrOutbound = Boolean(ibDate || status === 'Outbound' || status === 'Inbound');
-
-    if (status !== 'Đã hủy' && !hasInboundOrOutbound) {
+    // 🎯 CHÍNH SÁCH BẤT BIẾN THEO YÊU CẦU NGƯỜI DÙNG:
+    // Forecast & Rớt Hôm Nay / Rớt Hôm Trước là con số CỘNG DỒN ĐẾN CUỐI NGÀY.
+    // TUYỆT ĐỐI KHÔNG TRỪ HOẶC LỌC BỎ ĐƠN ĐÃ INBOUND KHỎI FORECAST!
+    if (status !== 'Đã hủy') {
       if (loiRot === 'Rớt hôm nay' || (fcDate && fcDate === activeDate)) {
         forecastRotHomNay += vol;
-      } else if ((loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) && hasPickOrArr) {
+      } else if (loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) {
         forecastRotHomTruoc += vol;
       }
     }
   });
 
-  // Đồng bộ chỉ số Rớt hôm trước từ snapshot 6AM cố định (bất biến) để không bị sụt giảm khi nhập kho
+  // Đồng bộ chỉ số Rớt hôm trước từ snapshot 6AM cố định (bất biến)
   if (lastUpdateObj && (activeDate === lastUpdateObj.active_date || activeDate === todayOpDate)) {
     if (lastUpdateObj.rot_hom_truoc !== undefined && Number(lastUpdateObj.rot_hom_truoc) > 0) {
       forecastRotHomTruoc = Number(lastUpdateObj.rot_hom_truoc);
-    }
-    if (lastUpdateObj.rot_hom_nay !== undefined && Number(lastUpdateObj.rot_hom_nay) > 0) {
-      forecastRotHomNay = Number(lastUpdateObj.rot_hom_nay);
     }
   }
 
