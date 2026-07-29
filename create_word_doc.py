@@ -209,7 +209,7 @@ def generate_docx():
         "JFS API (7 Nguồn Song Song)\n"
         "   ↓ (pipeline_unified_v6.py — Python ETL Engine)\n"
         "PostgreSQL (Database logistics_db — Schema enriched.dispatch_enriched - 28 Cột)\n"
-        "   ↓ (sync_postgre.py — JSON Exporter & Data Aggregator)\n"
+        "   ↓ (sync_postgre.py — JSON Exporter & Data Aggregator | Windows Task Scheduler 'Sync_Postgre_30m' 30m/lần)\n"
         "Thư mục data/*.json & latest.json.gz (Repository Data Files)\n"
         "   ↓ (git push main + GitHub Actions Trigger theo paths)\n"
         "GitHub Pages CDN → React UI App (App.tsx / InboundDashboard / HeatmapDashboard)",
@@ -218,23 +218,24 @@ def generate_docx():
 
     # Section 2
     add_heading_1(doc, "2. CÁC NGUYÊN TẮC KỸ THUẬT CỐT LÕI (ĐÃ CHUẨN HÓA)")
-    add_body_p(doc, "Dưới đây là các nguyên tắc vận hành được lập trình trực tiếp trong mã nguồn Backend và Frontend để bảo đảm tính chính xác 100% của số liệu báo cáo:")
-
     principles = [
         ("1. Chu kỳ Vận hành (06:00 - 06:00):", "Hàm `get_op_date()` trong Python quy đổi mọi mốc thời gian (created_time, inbound_scandate, arrival_scandate, pickup_time) về đúng ca làm việc. Mọi mốc giờ từ 00:00:00 - 05:59:59 sẽ tự động tính lùi 1 ngày để thuộc ca đêm hôm trước."),
         ("2. Khóa chính & Khử trùng lặp (Primary Key & Dedup):", "Python dùng `seen_wb` set khử trùng ngay khi đọc Dispatch. PostgreSQL thiết lập cột `tracking` làm PRIMARY KEY. Đảm bảo mỗi đơn hàng chỉ tồn tại 1 dòng duy nhất trong DB, tránh nhân đôi sản lượng."),
         ("3. Cập nhật ghi đè (Upsert Logic):", "Dùng câu lệnh `INSERT INTO ... ON CONFLICT (tracking) DO UPDATE SET` cho phép tự động cập nhật trạng thái mới nhất của vận đơn khi kiện hàng trôi qua các nấc vận hành mà không tạo dòng rác."),
         ("4. Mốc thời gian quét mới nhất (Latest Timestamp Mapping):", "Sử dụng `max(scanDate)` khi ghép nối các bảng Inbound, Outbound và Arrival Scan để bảo đảm luôn lấy mốc quét mới nhất nếu kiện hàng bị bắn mã nhiều lần."),
         ("5. Thứ tự Ưu tiên Trạng thái Tồn kho (inv_status):", "Quy định thứ tự ưu tiên: `Outbound` (Đã xuất) > `Inbound` (Đang tại bãi) > `Transporting` (Đang trên đường) > `Created` (Mới tạo). Đơn đã Outbound không bao giờ bị tính trùng ở khâu nhập kho."),
-        ("6. Phân loại cờ Vận hành & Cờ Rớt Hôm Trước Cố Định (Operational & Baseline Flags):", "Tự động tính các cờ dưới DB: `is_backlog = 1` (đã Inbound nhưng chưa Outbound), `is_active = 0` (đã Outbound), `is_transit = 1` (đã Inbound + Arrival nhưng chưa Outbound). Đặc biệt: Cờ `is_rot_hom_truoc = 1` tính cho đơn đã tạo/lấy trước hôm nay nhưng chưa có mốc Inbound/Outbound tại mốc chốt 06:00. Con số này là mốc cố định bất biến (Baseline) đầu ngày, giữ nguyên số liệu báo cáo ca dù sau đó đơn có được quét xử lý."),
+        ("6. Phân loại cờ Vận hành & Baseline Rớt Hôm Trước 06:00 AM:", "Chốt cố định Baseline `rot_hom_truoc` lúc 06:00 AM trong bảng `enriched.daily_baseline_snapshot` cho Inbound Dashboard (giữ nguyên không giảm để làm báo cáo ca). Đồng thời duy trì `rot_hom_truoc_live` giảm động theo thời gian thực trên Thẻ Volume Layout Dashboard cho team Outbound xử lý."),
         ("7. Chuẩn hóa Mã Bưu cục (Master Data Driven):", "Đọc `valid.csv` để tra cứu `dict_zone`, `dict_area`, `dict_station`. Ưu tiên lookup bằng `dispatch_code` (sortcode 10 ký tự), nếu rỗng fallback sang `next_station`. Toàn bộ cấu trúc khu vực, sức chứa (capacity) được đọc tự động 100% từ Master Config, loại bỏ hoàn toàn việc ghi đè cứng trong code."),
-        ("8. Trích xuất Trạm nguồn / Trạm trước (upOrNextStation & sendSite):", "Trích xuất trực tiếp 2 trường `upOrNextStation` (Trạm trước/Trạm tiếp theo) và `sendSite` (Bưu cục gửi) từ JFS Inbound API. Mọi đơn Inbound liên miền / Miền Bắc không có trong Dispatch local đều được tự động đưa vào cSDL PostgreSQL với tên trạm nguồn gốc chính xác. Đã loại bỏ hoàn toàn hàm lọc cứng `isNorthStation` ở Frontend."),
-        ("9. Cấu trúc Gom cụm Aggregate (inbound_group):", "Gom nhóm dữ liệu theo 14-tuple key (bưu cục, trạng thái, 4 ngày vận hành, 4 mốc giờ, drop_type, trip_code, thời gian xe). Cộng dồn `volume += 1` và `weight_kg += orders_weight` để nén file JSON siêu nhẹ mà vẫn giữ đủ độ phân giải phân tích."),
+        ("8. Trích xuất Trạm nguồn & Region Tagging (is_north/region):", "Trích xuất trực tiếp `upOrNextStation` và `sendSite`. Backend tự động gắn thuộc tính `is_north` và `region` ('north'/'south') cho từng record trong `inbound.json` từ Master Config (`valid.csv` -> `dict_zone`). Đã loại bỏ hoàn toàn danh sách cứng `NORTH_POST_OFFICES` và 11 lần gọi `isNorthStation` ở Frontend."),
+        ("9. Cấu trúc Gom cụm Aggregate (15-Tuple Key):", "Gom nhóm dữ liệu theo 15-tuple key (bưu cục, trạng thái, 4 ngày vận hành, 4 mốc giờ, drop_type, trip_code, thời gian xe, is_rebound). Cộng dồn `volume += 1` và `weight_kg += orders_weight` để nén file JSON siêu nhẹ mà vẫn giữ đủ độ phân giải phân tích."),
         ("10. Quy chuẩn Đơn vị Trọng lượng Đồng nhất (Tấn - Single Source of Truth):", "Chỉ số trọng lượng được quy chuẩn lưu trữ duy nhất dưới dạng Tấn từ Backend ETL (`weight_ton = weight_kg / 1000`). Frontend đọc thẳng số từ JSON và append chuỗi 'Tấn' lên UI, loại bỏ hoàn toàn các hàm quy đổi 2 lần hay đoán đơn vị rủi ro."),
         ("11. Phân slot Giờ Heatmap (Hourly Bucket):", "Tạo 24 slot giờ (`00:00` - `23:00`), lọc các đơn đã Inbound có `op_date_inbound == today` để đếm tần suất nhập kho theo khung giờ cao điểm."),
-        ("12. Chuẩn hóa Trạng thái từ Nguồn Backend (Source Status Normalization):", "Hàm `clean_status_sys()` quy đổi tất cả alias thô từ API (`at_hub`, `Đang trên bãi`, `pickup_done`, `Đã điều phối`...) về bộ enum chuẩn (`Inbound`, `Transporting`, `Pickup Done`, `Created`, `Outbound`) ngay tại tầng Backend ETL trước khi đẩy vào PostgreSQL."),
-        ("13. Chế độ Môi trường Linh hoạt (Dual Hostname Fetching):", "Tự động phát hiện môi trường: Nếu chạy trên `github.io` sẽ fetch CDN Raw GitHub Pages kèm timestamp chống cache (`?t=Date.now()`); nếu chạy local sẽ fetch `./data/`."),
-        ("14. Tách CI/CD Build khỏi Data Storage & Nén File:", "Cấu hình `.github/workflows/deploy.yml` chỉ trigger build React khi sửa code (`paths: ['src/**']`). Python push JSON không làm kích hoạt CI/CD. Đã nén `inbound.json` (37MB) thành `latest.json.gz` (271KB).")
+        ("12. Chuẩn hóa Trạng thái từ Nguồn Backend (clean_status_sys):", "Triển khai hàm `clean_status_sys()` trong `sync_postgre.py` quy đổi tất cả alias thô từ API về bộ 5 enum chuẩn (`Inbound`, `Transporting`, `Pickup Done`, `Created`, `Outbound`) ngay tại tầng Backend ETL trước khi đẩy vào PostgreSQL."),
+        ("13. Chế độ Môi trường Linh hoạt (Dual Hostname Fetching):", "Tự động phát hiện môi trường: Nếu chạy trên `github.io` sẽ fetch CDN Raw GitHub Pages kèm parameter timestamp (`?t=Date.now()`); nếu chạy local sẽ fetch `./data/`."),
+        ("14. Tải nén File latest.json.gz qua Native DecompressionStream & Smart Polling:", "Backend nén `inbound.json` (37MB) thành `latest.json.gz` (271KB). Frontend React sử dụng API native `DecompressionStream('gzip')` giải nén trực tiếp trên trình duyệt, giảm 98% dung lượng tải lần đầu. Đồng thời triển khai Smart Polling 60s kiểm tra `last_update.json` trước khi refetch để bảo vệ CDN cache."),
+        ("15. Tự động hóa Tiến trình ETL bằng Windows Task Scheduler (30 phút/lần):", "Cấu hình Task Scheduler tự động kích hoạt `sync_postgre.py` định kỳ 30 phút/lần qua task `Sync_Postgre_30m`. Sử dụng wrapper script `run_sync_postgre.bat` thiết lập môi trường UTF-8, chuyển working directory chuẩn và tự động ghi log hoạt động chi tiết vào `sync_postgre.log`. Đồng thời tích hợp kịch bản khởi tạo PowerShell `setup_sync_postgre_task.ps1` để tự động hóa toàn bộ quy trình triển khai dịch vụ 24/7."),
+        ("16. Hợp đồng Dữ liệu Trung tâm (Data Contract Single Source of Truth):", "Triển khai đặc tả hợp đồng dữ liệu tập trung `data_contract.json` (Backend) và `data_contract.ts` (Frontend) đóng vai trò là Nguồn Chân Lý Duy Nhất. Định nghĩa cứng tập enum trạng thái Display-Ready (`Inbound`, `Transporting`, `Pickup Done`, `Created`, `Outbound`), quy chuẩn đơn vị `weight_ton` (Tấn, hiển thị trực tiếp không tính toán lại ở Frontend) và bảng ánh xạ key. Đặc biệt: Phân định rõ ràng `station_name` ↔ `Bưu cục đích` (định hướng ô chứa/tuyến) với `pickup_station` ↔ `Bưu cục nộp/lấy hàng` (trạm nguồn) tránh nhầm lẫn giữa 2 đầu bưu cục. Backend chạy kiểm tra `validate_payload_contract()` trước khi xuất file JSON, ngăn ngừa triệt để mọi rủi ro tái phát lỗi sai format hay lệch enum."),
+        ("17. Tối ưu hóa Gom cụm Pre-Aggregation & Giảm 83% Dung lượng Payload:", "Tối ưu hóa thuật toán gom nhóm 15-tuple key trong `sync_postgre.py`: Với các đơn đã `Inbound` thành công, thu gọn các mốc giờ lịch sử cũ; với các đơn chưa `Inbound`, bucket thời gian theo khung GIỜ `HH:00:00` thay vì định dạng PHÚT (`:16`). Kết quả làm giảm số dòng trong `inbound.json` từ 13,264 dòng xuống chỉ còn 2,493 dòng (giảm 81% số dòng), giảm dung lượng file thô từ 8.3MB xuống 1.4MB (giảm 83%), và dung lượng file nén `latest.json.gz` giảm từ 271KB xuống chỉ còn 34KB siêu nhẹ, giúp trang web load cực nhanh trên mọi thiết bị.")
     ]
 
     for title, text in principles:
@@ -275,7 +276,7 @@ def generate_docx():
     pg_data = [
         ["1", "tracking", "TEXT (PK)", "clean_wb(waybillId)", "Khóa chính (Primary Key), bảo đảm duy nhất"],
         ["2", "data_source", "TEXT", "Hằng số 'pipeline_v6'", "Ghi nhận nguồn ETL"],
-        ["3", "status_sys", "TEXT", "rec.get('orderStatusName')", "Trạng thái gốc OMS JFS"],
+        ["3", "status_sys", "TEXT", "clean_status_sys(orderStatusName)", "Trạng thái chuẩn hoá (Inbound, Pickup Done...)"],
         ["4", "created_time", "TIMESTAMP", "rec.get('inputTime')", "Mốc tạo/phân phối đơn"],
         ["5", "pickup_station", "TEXT", "rec.get('pickNetworkName')", "Tên bưu cục gốc lấy hàng"],
         ["6", "dispatch_code", "TEXT", "extract_ma10(terminalDispatchCode)", "Mã sortcode 10 ký tự tra cứu vùng"],
@@ -308,14 +309,14 @@ def generate_docx():
 
     # Section 5
     add_heading_1(doc, "5. NỘI DUNG CÁC FILE JSON & ÁNH XẠ LÊN REACT DASHBOARD")
-    add_body_p(doc, "Chi tiết 8 file JSON được tạo ra từ PostgreSQL và cách Frontend React tiêu thụ dữ liệu:")
+    add_body_p(doc, "Chi tiết 11 file JSON chính thức được tạo ra từ PostgreSQL và cách Frontend React tiêu thụ dữ liệu:")
 
     json_headers = ["Tên File JSON", "Nội Dung Dữ Liệu Payload", "Component Frontend Tiêu Thụ", "Cách Hiển Thị / Ánh Xạ UI"]
     json_widths = [1.5, 2.2, 1.8, 1.7]
     json_data = [
-        ["inbound.json / latest.json.gz", "Gom nhóm theo 14 trường mốc giờ + bưu cục + trạng thái. Chứa volume, weight_ton, trip_code, drop_type...", "InboundDashboard.tsx", "Vẽ biểu đồ xu hướng theo giờ (Hourly Trend), thẻ KPI Forecast/Inbound/Weight, và Bảng Bưu cục gửi."],
+        ["inbound.json / latest.json.gz", "Gom nhóm theo 15-tuple key + field is_north/region. Chứa volume, weight_ton, trip_code, drop_type, is_rebound...", "InboundDashboard.tsx (App.tsx giải nén gzip)", "Vẽ biểu đồ xu hướng theo giờ (Hourly Trend), thẻ KPI Forecast/Inbound/Weight, và Bảng Bưu cục gửi."],
         ["inventory.json", "Tồn kho theo từng ô Chute/Rack. Chứa zone, area_id, station_name, volume, weight_ton, capacity...", "App.tsx (Sơ đồ kho Master)", "Tô màu trực tiếp lên các ô Chute/Rack theo % sử dụng, hiển thị thông số ở Bảng Control Center."],
-        ["outbound.json", "Sản lượng xuất kho HUB trong 2 ngày. Chứa zone, area_id, station_name, volume, weight_ton...", "App.tsx (Filter Outbound)", "Hiển thị sản lượng hàng đã xuất khỏi kho HUB gửi đi trạm."],
+        ["outbound.json", "Sản lượng xuất kho HUB trong 2 ngày. Chứa zone, area_id, station_name, volume, weight_ton...", "App.tsx (Data Availability)", "Dữ liệu sẵn sàng trên GitHub Pages cho Outbound tracking."],
         ["backlog.json", "Đơn hàng đã Inbound nhưng chưa Outbound (tồn đọng). Chứa zone, area_id, station_name, volume...", "App.tsx (KPI Backlog)", "Cảnh báo màu đỏ ở các ô Chute có lượng đơn vượt sức chứa định mức."],
         ["arrival.json", "Tiến độ xe hàng đến kho theo khung giờ. Chứa scan_hour, total_orders, at_hub, not_hub...", "Arrival Monitor UI", "Đếm số đơn đã lên sàn HUB (at_hub) và số đơn còn nằm trên xe ngoài bãi (not_hub)."],
         ["heatmap.json", "Dict 24 slot giờ (00:00 - 23:00) đếm số lượt nhập kho trong ngày.", "HeatmapDashboard.tsx", "Vẽ biểu đồ nhiệt khung giờ cao điểm nhập kho trong ca làm việc."],
@@ -335,6 +336,23 @@ def generate_docx():
     add_bullet_p(doc, "3. Chuẩn hóa Enum Trạng thái & Drop Type:", "Hàm normalizeStatus() đổi tất cả alias ('at_hub', 'Đang trên bãi'...) về 'Inbound'. Hàm normalizeDropType('') giữ nguyên chuỗi rỗng nếu rỗng, tránh gán nhầm đơn rớt.")
     add_bullet_p(doc, "4. Render Giao diện & Biểu đồ:", "Dữ liệu được truyền vào InboundDashboard.tsx để tính toán tổng đơn, tổng tấn, vẽ 4 đường xu hướng theo giờ (Chart.js / SVG) và dựng bảng Bưu cục nộp hàng.")
 
+    # Section 7
+    add_heading_1(doc, "7. CƠ CHẾ TỰ ĐỘNG HÓA TIẾN TRÌNH & GIÁM SÁT NHẬT KÝ (AUTO-SYNC & LOGGING)")
+    add_body_p(doc, "Hệ thống triển khai cơ chế đồng bộ tự động 24/7 và giám sát nhật ký vận hành đa tầng như sau:")
+
+    sync_headers = ["Thành Phần Vận Hành", "Loại / Công Cụ", "Đường Dẫn / Tên Cấu Hình", "Mô Tả & Logic Kỹ Thuật"]
+    sync_widths = [1.8, 1.3, 2.2, 1.7]
+    sync_data = [
+        ["Scheduled Task", "Windows Task Scheduler", "Task Name: Sync_Postgre_30m", "Tự động kích hoạt định kỳ mỗi 30 phút (RepetitionInterval 30m, vô thời hạn). Chạy dưới quyền tài khoản người dùng đăng nhập."],
+        ["Batch Launcher", "Windows Batch Script", "backend_sync/run_sync_postgre.bat", "Thiết lập PYTHONIOENCODING=utf-8, chuyển Cwd về thư mục backend_sync, gọi py sync_postgre.py và append output vào log."],
+        ["PowerShell Setup", "PowerShell Script", "backend_sync/setup_sync_postgre_task.ps1", "Kịch bản tự động hóa việc đăng ký Task vào Windows Task Scheduler bằng cmdlet Register-ScheduledTask."],
+        ["Execution Log File", "Flat File Log", "backend_sync/sync_postgre.log", "Ghi vết chi tiết từng phiên đồng bộ: mốc thời gian bắt đầu/kết thúc, các lỗi ngoại lệ (exception) và kết quả nén JSON/Git Push."],
+        ["System Event Log", "Windows Event Viewer", "taskschd.msc (History Tab)", "Theo dõi lịch sử kích hoạt của Windows, trạng thái Task (Ready/Running), mã thoát (Task Result code 0x0/Last Run Time)."]
+    ]
+    tbl_sync = doc.add_table(rows=1, cols=4)
+    format_table_headers_and_cells(tbl_sync, sync_widths, sync_headers, sync_data)
+    doc.add_paragraph().paragraph_format.space_after = Pt(6)
+
     # Footer / Sign off
     doc.add_paragraph().paragraph_format.space_after = Pt(12)
     p_footer = doc.add_paragraph()
@@ -345,16 +363,22 @@ def generate_docx():
     r_foot.font.bold = True
     r_foot.font.color.rgb = RGBColor(120, 120, 120)
 
-    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Tai_Lieu_Ky_Thuat_System_Architecture_JFS_HUB.docx")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    v2_path = os.path.join(base_dir, "Tai_Lieu_Ky_Thuat_System_Architecture_JFS_HUB_v2.docx")
+    v1_path = os.path.join(base_dir, "Tai_Lieu_Ky_Thuat_System_Architecture_JFS_HUB.docx")
+    
+    # Save v2 directly
+    doc.save(v2_path)
+    print(f"SUCCESS: Da tao thanh cong file Word v2 tai: {v2_path}")
+    
+    # Try saving v1 as well if accessible
     try:
-        doc.save(output_path)
-        print(f"SUCCESS: Da tao thanh cong file Word tai: {output_path}")
-    except PermissionError:
-        alt_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Tai_Lieu_Ky_Thuat_System_Architecture_JFS_HUB_v2.docx")
-        doc.save(alt_path)
-        print(f"SUCCESS: File goc dang mo, da luu file v2 tai: {alt_path}")
-        output_path = alt_path
-    return output_path
+        doc.save(v1_path)
+        print(f"SUCCESS: Da tao thanh cong file Word v1 tai: {v1_path}")
+    except Exception as e:
+        print(f"INFO: File v1 khong ghi duoc (dang mo hoac dang lock): {e}")
+
+    return v2_path
 
 if __name__ == '__main__':
     generate_docx()
