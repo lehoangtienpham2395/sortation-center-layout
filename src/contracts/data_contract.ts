@@ -72,7 +72,7 @@ export const KEY_MAP: Record<string, string> = {
 
 export function normalizeStatus(raw: unknown): string | undefined {
   if (raw === undefined || raw === null || raw === '') return undefined;
-  const key = String(raw).strip ? String(raw).strip() : String(raw).trim();
+  const key = String(raw).trim();
   return BACKEND_STATUS_MAP[key] ?? key;
 }
 

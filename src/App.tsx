@@ -189,8 +189,6 @@ interface SheetRow {
 // ➜ Nguyên tắc bắt buộc: MỌI so sánh status/drop_type trong toàn bộ app phải đi
 //   qua normalizeStatus()/normalizeDropType(), KHÔNG so sánh chuỗi cứng rải rác
 import {
-  BACKEND_STATUS_MAP,
-  BACKEND_DROP_TYPE_MAP,
   KEY_MAP,
   normalizeStatus,
   normalizeDropType
