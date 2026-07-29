@@ -128,6 +128,7 @@ export default function InboundDashboard({
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<any | null>(null);
+  const forecastHighWatermarkRef = useRef<Record<string, number>>({});
 
   // 1. Extract and sort available dates (excluding future dates > today)
   const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
@@ -445,8 +446,12 @@ export default function InboundDashboard({
     })
     .reduce((sum: number, d: any) => sum + (parseInt(d['Volume'] || d['volume'] || 1, 10) || 0), 0);
 
-  // Cộng sản lượng Linehaul BN HUB vào tổng Forecast
-  totalForecast = forecastRotHomTruoc + forecastRotHomNay + bnHubLinehaulOrders;
+  // NGUYÊN TẮC BẤT BIẾN CỦA GIAO DIỆN (High-Watermark Guard):
+  // Forecast KHÔNG BAO GIỜ bị tuột/sụt giảm, CHỈ CÓ THỂ TĂNG BẰNG HOẶC CAO HƠN theo thời gian!
+  const currentCalculatedForecast = forecastRotHomTruoc + forecastRotHomNay + bnHubLinehaulOrders;
+  const prevMaxForecast = forecastHighWatermarkRef.current[activeDate] || 0;
+  totalForecast = Math.max(prevMaxForecast, currentCalculatedForecast);
+  forecastHighWatermarkRef.current[activeDate] = totalForecast;
 
   // 4. Hourly timelines
   const hours24 = [];
