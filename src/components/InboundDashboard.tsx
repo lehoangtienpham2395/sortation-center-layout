@@ -610,6 +610,10 @@ export default function InboundDashboard({
       if (fc) {
         fc.orders += parseInt(d['Volume'], 10) || 0;
         fc.weight += parseFloat(d['Weight']) || 0;
+        const tripId = d['trip_code'] || d['trip_id'] || d['plate_number'] || d['vehicle_number'] || d['Phiếu nhiệm vụ'] || d['Mã chuyến xe'];
+        if (tripId) {
+          fc.vehicles.add(String(tripId));
+        }
       }
     }
   });
@@ -619,13 +623,11 @@ export default function InboundDashboard({
     const fcName = d['send_network'] || d['sendNetworkName'] || d['nextNetworkName'] || '';
     const tripId = d['trip_code'] || d['Phiếu nhiệm vụ'] || d['plate_number'] || d['plateNumber'];
     if (fcName && tripId) {
-      // Nếu bưu cục này chưa xuất hiện trong fcMetrics (không có inbound scan), tạo mới
       const clean = fcName.trim().toUpperCase();
       if (!fcMetrics[clean]) {
         fcMetrics[clean] = { fc: fcName.trim(), vehicles: new Set(), orders: 0, weight: 0 };
       }
-      fcMetrics[clean].vehicles.add(tripId);
-      // Nếu orders chưa được tính từ inbound scan, dùng unloadingBillPiece làm proxy
+      fcMetrics[clean].vehicles.add(String(tripId));
       if (fcMetrics[clean].orders === 0) {
         fcMetrics[clean].orders += parseInt(d['orders_count'] || d['unloadingBillPiece'] || 0, 10);
         fcMetrics[clean].weight += parseFloat(d['weight_ton'] || d['unloadingWeight'] || 0);
