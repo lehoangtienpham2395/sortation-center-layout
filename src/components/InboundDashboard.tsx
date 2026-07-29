@@ -191,7 +191,7 @@ export default function InboundDashboard({
   const getDatePickup = (d: any) => d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
   const getDateArrival = (d: any) => d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
-  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && getDateInbound(d) === activeDate && !isNorthRow(d));
+  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && (getDateInbound(d) === activeDate || d['op_date_inbound'] === activeDate || !getDateInbound(d)) && !isNorthRow(d));
   const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && Boolean(getDateForecast(d)) && (getDateForecast(d) === activeDate || d['Ngy vn hnh_Forecast'] === activeDate) && !isNorthRow(d));
   const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && (getDatePickup(d) === activeDate || d['Ngy vn hnh_Pickup'] === activeDate) && !isNorthRow(d));
   const filteredTransportingInbound = inboundData.filter(d => {

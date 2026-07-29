@@ -791,8 +791,8 @@ def sync_postgre_to_dashboard():
         op_date_pick = get_op_date(pk_t)   if pk_t   else ''
         op_date_arr  = get_op_date(arr_t)  if arr_t  else ''
 
-        final_op_date_inb = op_inb_2 if (is_reb and op_inb_2) else (op_date_inb if inb_t else '')
-        final_inb_hour    = inb_t_2[11:16] if (is_reb and len(inb_t_2) >= 16) else (inb_t[11:16] if len(inb_t) >= 16 else '')
+        final_op_date_inb = op_inb_2 if (is_reb and op_inb_2) else (op_date_inb if inb_t else (op_date_arr or op_date_pick or op_date_fc or today))
+        final_inb_hour    = inb_t_2[11:16] if (is_reb and len(inb_t_2) >= 16) else (inb_t[11:16] if len(inb_t) >= 16 else (arr_t[11:16] if len(arr_t) >= 16 else '00:00'))
 
         # Mốc chuẩn để đưa đơn vào cửa sổ rolling 2 ngày của inbound.json:
         #   - Đơn đã Inbound/Rebound → dùng final_op_date_inb
@@ -800,7 +800,7 @@ def sync_postgre_to_dashboard():
         #   - Đơn Rớt (DROP_TYPE_TODAY)     → dùng today
         #   - Đơn Rớt (DROP_TYPE_YESTERDAY) → dùng yesterday (đảm bảo không bị mất đơn rớt các ngày trước)
         if has_in or is_reb:
-            ref_date = final_op_date_inb
+            ref_date = final_op_date_inb or today
         elif has_arr:
             ref_date = op_date_arr
         elif is_rot:
