@@ -193,17 +193,21 @@ export default function InboundDashboard({
   const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound') && getDateInbound(d) === activeDate && !isNorthRow(d));
   const filteredForecast = inboundData.filter(d => (getStatus(d) === 'Created') && Boolean(getDateForecast(d)) && (getDateForecast(d) === activeDate || d['Ngy vn hnh_Forecast'] === activeDate) && !isNorthRow(d));
   const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && (getDatePickup(d) === activeDate || d['Ngy vn hnh_Pickup'] === activeDate) && !isNorthRow(d));
-  const filteredTransportingInbound = inboundData.filter(d => getStatus(d) === 'Transporting' && (getDateArrival(d) === activeDate || d['Ngy vn hnh_Arrival'] === activeDate) && !isNorthRow(d));
-  const filteredArrivalData = ((arrivalData as any[]) || []).map(d => ({
-    'Bu cc': d['last_dept_name'] || d['scansitename'] || 'BƯU CỤC CẦN',
-    'Trng thi': 'Transporting',
-    'Volume': parseInt(d['package_number'] || 1, 10),
-    'Weight': parseFloat(d['package_charge_weight'] || 1.0),
-    'Ngày vận hành': activeDate,
-    'Ngy vn hnh_Arrival': activeDate,
-    'is_north': d['is_north']
-  })).filter(d => !isNorthRow(d));
-  const filteredTransporting = filteredTransportingInbound.length >= filteredArrivalData.length ? filteredTransportingInbound : filteredArrivalData;
+  const filteredTransportingInbound = inboundData.filter(d => {
+    const rawSt = getStatus(d);
+    const status = (rawSt ? String(rawSt).trim() : '');
+    const opArr = getDateArrival(d) || d['op_date_arrival'] || '';
+    const hasInbound = Boolean(d['Ngy vn hnh_Inbound'] || d['op_date_inbound'] || status === 'Inbound');
+    const hasOutbound = Boolean(d['Ngy vn hnh_Outbound'] || d['op_date_outbound'] || status === 'Outbound');
+
+    return (status === 'Transporting' || status === 'Đang vận chuyển')
+      && !hasInbound
+      && !hasOutbound
+      && isDateMatch(opArr, activeDate)
+      && !isNorthRow(d);
+  });
+
+  const filteredTransporting = filteredTransportingInbound;
   const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
 
   const getLinehaulOperatingDate = (row: any) => {
@@ -308,7 +312,8 @@ export default function InboundDashboard({
     .filter((d: any) => {
       const st = (d.send_network || d.sendNetworkName || d.Station || d.Pickup_station || d['Bưu cục đi'] || '').toUpperCase();
       if (st !== 'BN HUB' && isNorthRow(d)) return false;
-      return true; // Giữ nguyên 100% xe đang di chuyển thực tế
+      const opD = d.op_date || getOperatingDateFromTimestamp(d.eta || d.planned_arrival || '');
+      return !opD || isDateMatch(opD, activeDate);
     })
     .map((d: any) => ({
       ...d,
