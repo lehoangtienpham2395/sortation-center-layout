@@ -420,10 +420,14 @@ export default function InboundDashboard({
   let totalTransitVehicles = totalShuttleVehicles + totalLinehaulVehicles;
   let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
 
-  // Sản lượng dự báo 36 tiếng của tuyến Linehaul BN HUB
-  const bnHubLinehaulOrders = linehaulVehicles
-    .filter(v => v.station.toUpperCase().includes('BN') || v.station.toUpperCase().includes('NORTH'))
-    .reduce((sum, v) => sum + (v.orders || v.tongDon || 0), 0);
+  // Sản lượng dự báo (+36 tiếng) của tuyến Linehaul BN HUB (1.270 đơn)
+  const bnHubLinehaulOrders = (inboundData || [])
+    .filter((d: any) => {
+      const st = (d['Bưu cục nộp'] || d['pickup_station'] || d['Bưu cục'] || d['station_name'] || d['send_network'] || '').toUpperCase();
+      const inOp = d['Ngày vận hành_Inbound'] || d['op_date_inbound'] || d['Ngày vận hành_Forecast'] || d['op_date_forecast'] || activeDate;
+      return (st.includes('BN') || st.includes('NORTH')) && isDateMatch(inOp, activeDate);
+    })
+    .reduce((sum: number, d: any) => sum + (parseInt(d['Volume'] || d['volume'] || 1, 10) || 0), 0);
 
   // Cộng sản lượng Linehaul BN HUB vào tổng Forecast
   totalForecast = forecastRotHomTruoc + forecastRotHomNay + bnHubLinehaulOrders;
