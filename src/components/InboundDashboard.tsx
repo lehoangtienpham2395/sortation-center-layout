@@ -243,15 +243,27 @@ export default function InboundDashboard({
     };
 
   [...filteredInbound, ...filteredChuaVeHub].forEach(d => {
-    const status = d['Trng thi'] || d['Trạng thái'];
+    const rawSt = d['Trng thi'] || d['Trạng thái'] || d['status'];
+    const status = (rawSt ? String(rawSt).trim() : '');
     const vol = parseInt(d['Volume'], 10) || 0;
     const wt = parseFloat(d['Weight']) || 0;
-    const stageKey = stages[status] ? status : 'Created';
-    stages[stageKey].orders += vol;
-    stages[stageKey].weight += wt;
-    // Chỉ cộng vào ordersWithWeight khi row này có dữ liệu weight thực tế
-    if (wt > 0) {
-      stagesWithWeight[stageKey] += vol;
+
+    if (status === 'Inbound' || status === 'Đã nhập kho') {
+      stages['Inbound'].orders += vol;
+      stages['Inbound'].weight += wt;
+      if (wt > 0) stagesWithWeight['Inbound'] += vol;
+    } else if (status === 'Transporting' || status === 'Đang vận chuyển') {
+      stages['Transporting'].orders += vol;
+      stages['Transporting'].weight += wt;
+      if (wt > 0) stagesWithWeight['Transporting'] += vol;
+    } else if (status === 'Pickup Done' || status === 'Đã lấy hàng') {
+      stages['Pickup Done'].orders += vol;
+      stages['Pickup Done'].weight += wt;
+      if (wt > 0) stagesWithWeight['Pickup Done'] += vol;
+    } else if (status === 'Created' || status === 'Đã điều phối bưu cục') {
+      stages['Created'].orders += vol;
+      stages['Created'].weight += wt;
+      if (wt > 0) stagesWithWeight['Created'] += vol;
     }
   });
 
@@ -275,15 +287,15 @@ export default function InboundDashboard({
 
     if ((loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) && hasPickOrArr && !hasInboundOrOutbound) {
       forecastRotHomTruoc += vol;
-    } else if ((loiRot === 'Rớt hôm nay' && fcDate === activeDate) && hasPickOrArr && !hasInboundOrOutbound) {
+    } else if ((loiRot === 'Rớt hôm nay' || (fcDate && fcDate === activeDate) || (!fcDate && (pkDate === activeDate || arDate === activeDate))) && hasPickOrArr && !hasInboundOrOutbound) {
       forecastRotHomNay += vol;
     }
   });
 
-  // Nếu là ngày vận hành hiện tại (today), đồng bộ chỉ số Rớt hôm trước & Rớt hôm nay từ snapshot backend
+  // Nếu là ngày vận hành hiện tại (today), đồng bộ chỉ số Rớt hôm trước từ snapshot 6AM, giữ Rớt hôm nay live đồng bộ 100% với Orders Status
   if (lastUpdateObj && activeDate === todayOpDate) {
     if (lastUpdateObj.rot_hom_truoc !== undefined) forecastRotHomTruoc = Number(lastUpdateObj.rot_hom_truoc);
-    if (lastUpdateObj.rot_hom_nay !== undefined) forecastRotHomNay = Number(lastUpdateObj.rot_hom_nay);
+    if (forecastRotHomNay === 0 && lastUpdateObj.rot_hom_nay !== undefined) forecastRotHomNay = Number(lastUpdateObj.rot_hom_nay);
   }
 
   const filteredTruckEta = (truckEtaData || [])

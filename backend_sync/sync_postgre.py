@@ -824,10 +824,9 @@ def sync_postgre_to_dashboard():
             inbound_group[key_ib]['volume']    += 1
             inbound_group[key_ib]['weight_kg'] += wt_kg
 
-        # ── Cờ Rớt: Đơn ĐÃ PICKUP (hoặc Arrival) trước hôm nay nhưng CHƯA INBOUND & CHƯA OUTBOUND ──
-        # Đơn chưa Pickup (chỉ mới Created ở Shop) KHÔNG PHẢI đơn rớt về HUB
-        if (has_pick or has_arr) and not has_in and not has_out and not is_reb and not is_canceled:
-            dates = [d for d in [get_op_date(pk_t), get_op_date(arr_t)] if d]
+        # ── Cờ Rớt: Đơn ĐÃ PICKUP / TRANSPORTING / ARRIVAL trước/trong hôm nay nhưng CHƯA INBOUND & CHƯA OUTBOUND ──
+        if (has_pk or has_arr or transp_t) and not has_in and not has_out and not is_reb and not is_canceled:
+            dates = [d for d in [get_op_date(pk_t), get_op_date(arr_t), get_op_date(transp_t), get_op_date(cr_t)] if d]
             if dates:
                 min_op = min(dates)
                 if min_op < today:

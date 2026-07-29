@@ -456,7 +456,7 @@ export default function App() {
   const [heatmapRows, setHeatmapRows] = useState<any[]>([]);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Outbound');
+  const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory' | 'Volume'>('Outbound');
   const [outboundRate, setOutboundRate] = useState<string>('0.0');
   const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Created'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([...INVENTORY_STATUSES]);
@@ -616,7 +616,7 @@ export default function App() {
     setLoading(false);
   };
 
-  // Derived state/Filtering effect
+  // Derived state/Filtering effect for Layout Racks & Control Center
   useEffect(() => {
     if (rawSheetRows.length === 0) return;
 
@@ -645,10 +645,9 @@ export default function App() {
       return normR === normS;
     };
 
-    // Create lookup maps for both Backlog and the selectedType for the selectedDate
-    const selectedMap: Record<string, SheetRow> = {};
-    const backlogMap: Record<string, SheetRow> = {};
-    // For Inventory: accumulate volumes per areaId across selected statuses
+    // Create lookup maps for selectedType, backlog, and inventory per areaId
+    const selectedMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
+    const backlogMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
     const inventoryMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
 
     rawSheetRows.forEach(row => {
@@ -658,19 +657,33 @@ export default function App() {
       const dateMatched = isDateMatch(row.date, selectedDate);
       if (!dateMatched) return;
 
-      // Volume tab matches Volume or exact row type
-      const typeMatched = (selectedType as string) === 'Volume' || (row.type as string) === (selectedType as string);
+      const rowStatus = row.status ? String(row.status) : '';
 
-      if (typeMatched) {
+      // 🎯 LỌC THEO TRẠNG THÁI (selectedStatuses): Chỉ nhận các dòng thuộc trạng thái được chọn (Inbound, Transporting, Created...)
+      const statusMatched = !rowStatus || selectedStatuses.includes(rowStatus);
+
+      // 1. Phân loại lọc theo selectedType
+      let isForSelectedType = false;
+      if (selectedType === 'Outbound') {
+        isForSelectedType = row.type === 'Outbound' || rowStatus === 'Outbound';
+      } else if (selectedType === 'Backlog') {
+        isForSelectedType = (row.type === 'Backlog' || row.type === 'Inventory') && statusMatched;
+      } else if (selectedType === 'Inventory') {
+        isForSelectedType = row.type === 'Inventory' && statusMatched;
+      } else if (selectedType === 'Volume') {
+        isForSelectedType = row.type === 'Inventory' && statusMatched;
+      }
+
+      if (isForSelectedType) {
         if (!selectedMap[key]) {
-          selectedMap[key] = { ...row, volume: 0, weight: 0 };
+          selectedMap[key] = { volume: 0, weight: 0, capacity: row.capacity || 780, buuCuc: row.buuCuc };
         }
         selectedMap[key].volume += row.volume;
         selectedMap[key].weight += row.weight;
       }
 
-      // Populate inventoryMap for all racks ONLY from Inventory rows
-      if (row.type === 'Inventory' && (!row.status || selectedStatuses.includes(row.status))) {
+      // Populate inventoryMap (đơn tồn kho thỏa trạng thái lọc)
+      if (row.type === 'Inventory' && statusMatched) {
         if (!inventoryMap[key]) {
           inventoryMap[key] = { volume: 0, weight: 0, capacity: row.capacity || 780, buuCuc: row.buuCuc };
         }
@@ -678,16 +691,17 @@ export default function App() {
         inventoryMap[key].weight += row.weight;
       }
 
-      if (row.type === 'Backlog') {
+      // Populate backlogMap (đơn tồn đọng)
+      if ((row.type === 'Backlog' || (row.type === 'Inventory' && statusMatched)) && rowStatus !== 'Outbound') {
         if (!backlogMap[key]) {
-          backlogMap[key] = { ...row, volume: 0, weight: 0 };
+          backlogMap[key] = { volume: 0, weight: 0, capacity: row.capacity || 780, buuCuc: row.buuCuc };
         }
         backlogMap[key].volume += row.volume;
         backlogMap[key].weight += row.weight;
       }
     });
 
-    // Update static lists (prefer inventoryMap > selectedMap > backlogMap > MASTER_CONFIG_MAP for names)
+    // Update static lists
     const updateListName = (list: any[]) => {
       list.forEach(item => {
         const key = item.areaId;
@@ -708,7 +722,7 @@ export default function App() {
     updateListName(ZONE2_LIST);
     updateListName(ZONE1_LIST);
 
-    const totalOrdersOfSelectedType = Object.values(selectedMap).reduce((sum, item: any) => sum + (item.volume > 0 ? item.volume : 0), 0);
+    const totalOrdersOfSelectedType = Object.values(selectedMap).reduce((sum, item) => sum + item.volume, 0);
 
     // Recompute visual data for ALL_RACKS
     const newData = ALL_RACKS.reduce((acc, curr: any) => {
@@ -719,33 +733,27 @@ export default function App() {
       let isMocked = rawSheetRows.length === 0;
       let backlogCurrent = 0;
 
-      const isTruck = curr.areaId.startsWith('T');
-      const key = curr.areaId || null; // Fix: dùng areaId làm key (unique)
+      const isTruck = curr.areaId ? curr.areaId.startsWith('T') : false;
+      const key = curr.areaId || null;
 
       if (key) {
-        const item = selectedType === 'Inventory' ? null : selectedMap[key];
+        const item = selectedMap[key];
         const blItem = backlogMap[key];
-        const invEntry = inventoryMap[key];
 
-        if (selectedType === 'Inventory' && invEntry) {
-          capacity = invEntry.capacity || 780;
-          current = invEntry.volume;
-          weight = invEntry.weight || 0;
+        if (item) {
+          capacity = item.capacity || 780;
+          current = item.volume;
+          weight = item.weight || 0;
           isMocked = false;
-          util = Math.floor((current / capacity) * 100);
-        } else if (item) {
-          capacity = item.capacity;
-          if (item.volume !== -1) {
-            current = item.volume;
-            weight = item.weight || 0;
-            isMocked = false;
-          }
         }
 
         if (blItem && blItem.volume !== -1) {
           backlogCurrent = blItem.volume;
           if (selectedType === 'Backlog') {
+            capacity = blItem.capacity || 780;
+            current = blItem.volume;
             weight = blItem.weight || 0;
+            isMocked = false;
           }
         }
 
