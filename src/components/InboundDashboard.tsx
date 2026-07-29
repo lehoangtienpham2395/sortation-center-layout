@@ -922,7 +922,7 @@ export default function InboundDashboard({
           <div className="kpi-card-body">
             {/* weight_ton đã ở đơn vị TẤN từ backend (sync_postgre.py) — KHÔNG chia /1000
                 nữa ở đây (trước đây chia lần 2 khiến số hiển thị sai 1000 lần). */}
-            <span className="kpi-value"><NumberTicker value={totalWeight} decimals={2} /> Tấn</span>
+            <span className="kpi-value"><NumberTicker value={totalWeight} decimals={1} /> Tấn</span>
             <span className="kpi-sub">Avg: {(totalOrders > 0 ? (totalWeight * 1000) / totalOrders : 0).toFixed(2)} kg/pkg</span>
           </div>
           <div className="kpi-glow"></div>
@@ -1155,7 +1155,7 @@ export default function InboundDashboard({
                     <td className="table-buucuc" style={{ color: '#38bdf8' }}>TỔNG CỘNG</td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{totalSendingVehicles} xe</td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{totalSendingOrders.toLocaleString()}</td>
-                    <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{totalSendingWeight.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
+                    <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>{totalSendingWeight.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>100%</td>
                   </tr>
                 )}
@@ -1167,7 +1167,7 @@ export default function InboundDashboard({
                       <span className="badge-count violet">{fc.vehicles} xe</span>
                     </td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#10b981', fontWeight: 600 }}>{fc.orders.toLocaleString()}</td>
-                    <td className="num-tabular" style={{ textAlign: 'right' }}>{fc.weight.toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
+                    <td className="num-tabular" style={{ textAlign: 'right' }}>{fc.weight.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</td>
                     <td className="num-tabular" style={{ textAlign: 'right', fontWeight: '600', color: '#38bdf8' }}>
                       {totalSendingOrders > 0 ? ((fc.orders / totalSendingOrders) * 100).toFixed(1) : '0.0'}%
                     </td>
@@ -1211,7 +1211,7 @@ export default function InboundDashboard({
                       {incomingVehicles.reduce((a, b) => a + b.orders, 0).toLocaleString()}
                     </td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
-                      {(incomingVehicles.reduce((a, b) => a + b.weight, 0) / 1000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tấn
+                      {(incomingVehicles.reduce((a, b) => a + b.weight, 0) / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} tấn
                     </td>
                     <td style={{ textAlign: 'center', color: '#f59e0b' }}>-</td>
                   </tr>
@@ -1222,7 +1222,7 @@ export default function InboundDashboard({
                      <td className="table-buucuc">{v.station}</td>
                      <td className="num-tabular" style={{ textAlign: 'left', color: '#38bdf8', fontWeight: 500 }}>{v.trucking} xe</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.orders.toLocaleString()}</td>
-                     <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{(v.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} tấn</td>
+                     <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{(v.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} tấn</td>
                      <td className="num-tabular" style={{ textAlign: 'center', color: '#64748b' }}>{v.eta ? v.eta : '--:--'}</td>
                   </tr>
                 ))}
