@@ -248272,11 +248272,16 @@ function initMap() {
 
   L.control.zoom({ position: 'topright' }).addTo(map);
 
-  // Clean CartoDB Light Tile Layer (Admin & Roads ONLY, Zero POI clutter)
-  const mainTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    subdomains: 'abcd',
-    maxZoom: 19
+  // Esri World Light Gray Canvas Layer (Clean Logistics GIS Map - ZERO POI / Business Address Clutter)
+  const mainTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+    maxZoom: 16
+  }).addTo(map);
+
+  // Esri Clean City/District Labels Overlay (Clean Admin Names ONLY, No POIs)
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '',
+    maxZoom: 16
   }).addTo(map);
 
   mapLayersGroup = L.layerGroup().addTo(map);
