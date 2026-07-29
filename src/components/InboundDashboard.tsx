@@ -371,6 +371,42 @@ export default function InboundDashboard({
     }
   });
 
+  // Dự phòng an toàn: Nếu truckEtaData chưa tải xong, tự động tạo danh sách xe di chuyển từ arrivalData
+  if (Object.keys(groupedStationVehicles).length === 0 && arrivalData && arrivalData.length > 0) {
+    (arrivalData || []).forEach((d: any) => {
+      const st = (d['station_name'] || d['Pickup_station'] || d['Bưu cục'] || d['send_network'] || '').trim();
+      if (!st) return;
+      const cleanKey = st.toUpperCase();
+      if (cleanKey !== 'BN HUB' && isNorthRow(d)) return;
+
+      const inTransitOrders = Number(d['not_hub'] ?? d['Chưa đến Hub'] ?? d['Chua dn Hub'] ?? d['Orders'] ?? d['total_orders'] ?? 0);
+      const tongDon = Number(d['total_orders'] ?? d['Tổng số đơn'] ?? d['Orders'] ?? 0);
+      const lastTime = d['last_scan_time'] || d['scan_hour'] || d['ETA'] || '';
+
+      if (inTransitOrders > 0 || tongDon > 0) {
+        if (!groupedStationVehicles[st]) {
+          groupedStationVehicles[st] = {
+            station: st,
+            trucking: 1,
+            orders: inTransitOrders,
+            weight: 0,
+            eta: lastTime,
+            rank: (cleanKey.includes('BN') || cleanKey.includes('NORTH')) ? 'Linehaul' : 'Shuttle',
+            chuaDenHub: inTransitOrders,
+            tongDon: tongDon,
+            vehicles: 1,
+            vehicleSet: new Set([st]),
+            lastTime: lastTime
+          };
+        } else {
+          groupedStationVehicles[st].orders += inTransitOrders;
+          groupedStationVehicles[st].tongDon += tongDon;
+          groupedStationVehicles[st].chuaDenHub += inTransitOrders;
+        }
+      }
+    });
+  }
+
   const incomingVehicles = Object.values(groupedStationVehicles)
     .filter(v => v.orders > 0 || v.tongDon > 0 || v.vehicles > 0)
     .sort((a, b) => b.orders - a.orders);
