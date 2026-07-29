@@ -2093,7 +2093,7 @@ export default function App() {
                                 }}>
                               <td className="font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.2)' }}>{index + 1}</td>
                               <td className="mono font-bold text-center" style={{ color: '#22d3ee', fontSize: '11.5px', textShadow: '0 0 8px rgba(34, 211, 238, 0.5)' }}>{chute.areaId}</td>
-                              <td className="font-bold text-white uppercase" style={{ fontSize: '11px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2' }} title={chute.name}>
+                              <td className="font-bold uppercase" style={{ color: '#22d3ee', fontSize: '11px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2', textShadow: '0 0 8px rgba(34, 211, 238, 0.3)' }} title={chute.name}>
                                 {chute.name}
                               </td>
                               <td className="mono font-bold text-center" style={{ color: '#B8F7E4', fontSize: '12px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
