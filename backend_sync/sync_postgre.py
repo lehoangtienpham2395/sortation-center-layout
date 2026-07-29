@@ -562,8 +562,9 @@ def sync_postgre_to_dashboard():
         next_st   = str(r.get('next_station',  '')).strip()
         mapped_st = dict_station.get(sc, '')
         
+        # 🎯 INVENTORY LOGIC: Categorized strictly by Next_station (Bưu cục đích)
         # Uu tien 1: Next station (Buu cuc dich) -> Uu tien 2: Mapped station tu sortcode -> Uu tien 3: Pickup station (Buu cuc nguon)
-        target_st = next_st if (next_st and next_st not in ('', 'KHÔ VÙNG KHÁC', 'BN HUB')) else (mapped_st or pk_st_raw)
+        target_st = next_st if (next_st and next_st not in ('', 'KHÔ VÙNG KHÁC')) else (mapped_st or pk_st_raw)
         target_st_upper = target_st.strip().upper()
 
         if target_st_upper in OFFICIAL_STATION_TO_AREA:
