@@ -415,7 +415,7 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
             ref_t = str(max_arr or max_transp or '')[:16]
             op_d = get_op_date(ref_t) if ref_t else today
 
-            if op_d in (today, yesterday):
+            if op_d == today:
                 key = (send_st, trip)
                 seen_keys.add(key)
                 trucks.append({
@@ -460,7 +460,7 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
                 seen_keys.add(key)
                 ref_t = actual_dep or p_dep
                 op_d = get_op_date(ref_t) if ref_t else today
-                if op_d in (today, yesterday):
+                if op_d == today:
                     wt_kg = float(row.get('loadpackageweight') or 0)
                     trucks.append({
                         "send_network":     send_net,

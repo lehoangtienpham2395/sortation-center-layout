@@ -424,6 +424,13 @@ export default function InboundDashboard({
   let totalLinehaulVehicles = linehaulVehicles.reduce((sum, v) => sum + (v.vehicles || 1), 0);
   let totalTransitVehicles = totalShuttleVehicles + totalLinehaulVehicles;
   let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
+  let totalInTransitWeight = incomingVehicles.reduce((sum, s) => sum + s.weight, 0);
+
+  // Đồng bộ 100% chỉ số Transporting ở thẻ ORDERS STATUS khớp tuyệt đối với Bảng Inbound Truck ETA
+  if (totalInTransitOrders > 0) {
+    stages['Transporting'].orders = totalInTransitOrders;
+    stages['Transporting'].weight = totalInTransitWeight;
+  }
 
   // Sản lượng dự báo (+36 tiếng) của tuyến Linehaul BN HUB (1.270 đơn)
   const bnHubLinehaulOrders = (inboundData || [])
