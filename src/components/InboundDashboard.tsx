@@ -281,21 +281,25 @@ export default function InboundDashboard({
     const loiRot = d['Loi rt'] || d['Loại rớt'] || '';
     const vol = parseInt(d['Volume'], 10) || 1;
 
-    // Đơn Rớt về HUB phải là đơn ĐÃ PICKUP (hoặc Arrival) nhưng CHƯA INBOUND & CHƯA OUTBOUND
+    // Logic chuẩn người dùng:
+    // 1. Rớt Hôm Nay   : Đơn CREATED trong ca activeDate chưa Inbound & chưa Outbound
+    // 2. Rớt Hôm Trước : Đơn CREATED các ngày trước (< activeDate), ĐÃ PICKUP/ARRIVED nhưng chưa Inbound & chưa Outbound
     const hasPickOrArr = Boolean(pkDate || arDate || status === 'Pickup Done' || status === 'Transporting');
     const hasInboundOrOutbound = Boolean(ibDate || status === 'Outbound' || status === 'Inbound');
 
-    if ((loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) && hasPickOrArr && !hasInboundOrOutbound) {
-      forecastRotHomTruoc += vol;
-    } else if ((loiRot === 'Rớt hôm nay' || (fcDate && fcDate === activeDate) || (!fcDate && (pkDate === activeDate || arDate === activeDate))) && hasPickOrArr && !hasInboundOrOutbound) {
-      forecastRotHomNay += vol;
+    if (status !== 'Đã hủy' && !hasInboundOrOutbound) {
+      if (loiRot === 'Rớt hôm nay' || (fcDate && fcDate === activeDate)) {
+        forecastRotHomNay += vol;
+      } else if ((loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) && hasPickOrArr) {
+        forecastRotHomTruoc += vol;
+      }
     }
   });
 
-  // Nếu là ngày vận hành hiện tại (today), đồng bộ chỉ số Rớt hôm trước từ snapshot 6AM, giữ Rớt hôm nay live đồng bộ 100% với Orders Status
+  // Đồng bộ chỉ số Rớt hôm trước từ snapshot 6AM và Rớt hôm nay từ snapshot backend
   if (lastUpdateObj && activeDate === todayOpDate) {
     if (lastUpdateObj.rot_hom_truoc !== undefined) forecastRotHomTruoc = Number(lastUpdateObj.rot_hom_truoc);
-    if (forecastRotHomNay === 0 && lastUpdateObj.rot_hom_nay !== undefined) forecastRotHomNay = Number(lastUpdateObj.rot_hom_nay);
+    if (lastUpdateObj.rot_hom_nay !== undefined) forecastRotHomNay = Number(lastUpdateObj.rot_hom_nay);
   }
 
   const filteredTruckEta = (truckEtaData || [])
