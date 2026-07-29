@@ -681,14 +681,15 @@ export default function App() {
       // 🎯 LỌC THEO TRẠNG THÁI (selectedStatuses): Chỉ nhận các dòng thuộc trạng thái được chọn (Inbound, Transporting, Created...)
       const statusMatched = !rowStatus || selectedStatuses.includes(rowStatus);
 
-      // 1. Phân loại lọc theo selectedType
+      // 1. Phân loại lọc theo selectedType chuẩn nghiệp vụ
       let isForSelectedType = false;
       if (selectedType === 'Outbound') {
         isForSelectedType = row.type === 'Outbound' || rowStatus === 'Outbound';
       } else if (selectedType === 'Backlog') {
-        isForSelectedType = (row.type === 'Backlog' || (row.type === 'Inventory' && rowStatus === 'Inbound')) && statusMatched;
+        isForSelectedType = (row.type === 'Backlog' || (row.type === 'Inventory' && rowStatus !== 'Outbound')) && statusMatched;
       } else if (selectedType === 'Inventory' || selectedType === 'Volume') {
-        isForSelectedType = row.type === 'Inventory' && statusMatched;
+        // Volume = Dự kiến Forecast (Inventory: Inbound/Transporting/Created) + Backlog
+        isForSelectedType = (row.type === 'Inventory' || row.type === 'Backlog') && statusMatched;
       }
 
       if (isForSelectedType) {

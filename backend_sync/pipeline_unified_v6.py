@@ -921,7 +921,7 @@ def main():
                 'tracking': wb, 'status_sys': 'Inbound', 'Created_time': st,
                 'Pickup_station': send_st or 'BN HUB', 'Dispatch_code': '',
                 'Orders_num': int(r.get('piece') or 1),
-                'Orders_weight': wt * 1000.0 if (0 < wt < 500) else wt,
+                'Orders_weight': (wt / 1000.0) if wt > 5000.0 else (wt if wt > 0 else 1.5),
                 'Pickup_station2': send_st,
                 'Pickup_time': '', 'AreaCode': '',
                 'flowTypeDesc': 'Inbound Linehaul',
@@ -1020,23 +1020,19 @@ def main():
 
     df['Pickup_station'] = df.apply(lambda r: arr_station_map.get(r['tracking']) or ib_station_map.get(r['tracking']) or r.get('Pickup_station') or 'BN HUB', axis=1)
 
-    # Waterfall Next_station Lookup (Chính sách ưu tiên của USER: Inbound -> Outbound -> Backlog/Dispatch)
+    # Waterfall Next_station Lookup (SỬA DỨT ĐIỂM: Ưu tiên chuẩn Bưu cục ĐÍCH từ Sortcode valid.csv & Outbound nextSite)
     def resolve_waterfall_next_station(r):
         wb = str(r['tracking']).strip()
-        ib_st = ib_station_map.get(wb, '')
         ob_st = ob_next_station_map.get(wb, '')
         disp_st = str(r.get('Next_station') or '').strip()
 
-        # 1. Ưu tiên 1: Inbound
-        if ib_st and ib_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'BN HUB'):
-            return ib_st
-        # 2. Ưu tiên 2: Outbound (nếu Inbound thiếu)
+        # 1. Ưu tiên 1: Outbound nextSite (Trạm đích thực tế quét xuất kho)
         if ob_st and ob_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'BN HUB'):
             return ob_st
-        # 3. Ưu tiên 3: Backlog / Dispatch (nếu cả 2 cùng thiếu)
+        # 2. Ưu tiên 2: Next_station chuẩn quy hoạch từ Sortcode valid.csv
         if disp_st and disp_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'BN HUB'):
             return disp_st
-        return ib_st or ob_st or disp_st or 'KHÔ VÙNG KHÁC'
+        return ob_st or disp_st or 'KHO VÙNG KHÁC'
 
     df['Next_station'] = df.apply(resolve_waterfall_next_station, axis=1)
 
