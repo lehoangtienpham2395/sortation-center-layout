@@ -521,18 +521,17 @@ export default function App() {
 
     // 1. Fetch last_update.json ngay lập tức để cập nhật mốc thời gian Update tức thì
     try {
+      const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
       const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
       let res = await fetch(getApiUrl('last_update.json'), fetchOpts);
-      if (!res.ok && getApiUrl('').startsWith('./')) {
-        res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${Date.now()}`, fetchOpts);
+      if (!res.ok) {
+        res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, fetchOpts);
       }
       if (res.ok) {
         const d = await res.json();
-        if (d) {
-          if (d.last_update) {
-            setLastUpdate(d.last_update);
-            lastUpdateTimestampRef.current = d.last_update;
-          }
+        if (d && d.last_update) {
+          setLastUpdate(d.last_update);
+          lastUpdateTimestampRef.current = d.last_update;
           setLastUpdateObj(d);
         }
       }
