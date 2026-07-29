@@ -248272,12 +248272,11 @@ function initMap() {
 
   L.control.zoom({ position: 'topright' }).addTo(map);
 
-  // Light Map Tile Layer (CartoDB Voyager)
-  const mainTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  // Clean CartoDB Light Tile Layer (Admin & Roads ONLY, Zero POI clutter)
+  const mainTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OpenStreetMap &copy; CARTO',
     subdomains: 'abcd',
-    maxZoom: 19,
-    bounds: vnBounds
+    maxZoom: 19
   }).addTo(map);
 
   mapLayersGroup = L.layerGroup().addTo(map);
