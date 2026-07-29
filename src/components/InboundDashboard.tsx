@@ -442,11 +442,7 @@ export default function InboundDashboard({
   totalForecast = Math.max(prevMaxForecast, currentCalculatedForecast);
   forecastHighWatermarkRef.current[activeDate] = totalForecast;
 
-  // 🎯 ÁNH XẠ CHÍNH XÁC VỚI TOTAL FORECAST:
-  // Tổng 4 thành phần ở thẻ ORDERS STATUS (Inbound + Transporting + Pickup Done + Created) == Total Forecast
-  const knownOtherOrders = (stages['Inbound']?.orders || 0) + (stages['Pickup Done']?.orders || 0) + (stages['Created']?.orders || 0);
-  stages['Transporting'].orders = Math.max(0, totalForecast - knownOtherOrders);
-  if (totalInTransitOrders > 0) {
+  if (totalInTransitOrders > 0 && stages['Transporting'].weight === 0) {
     stages['Transporting'].weight = totalInTransitWeight;
   }
 
