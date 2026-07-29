@@ -1263,7 +1263,10 @@ export default function InboundDashboard({
                       {incomingVehicles.reduce((a, b) => a + b.orders, 0).toLocaleString()}
                     </td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
-                      {(incomingVehicles.reduce((a, b) => a + b.weight, 0) / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} tấn
+                      {(incomingVehicles.reduce((a, b) => a + b.weight, 0) / 1000 >= 0.1
+                        ? (incomingVehicles.reduce((a, b) => a + b.weight, 0) / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                        : (incomingVehicles.reduce((a, b) => a + b.weight, 0) / 1000).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+                      )} tấn
                     </td>
                     <td style={{ textAlign: 'center', color: '#f59e0b' }}>-</td>
                   </tr>
@@ -1274,7 +1277,12 @@ export default function InboundDashboard({
                      <td className="table-buucuc">{v.station}</td>
                      <td className="num-tabular" style={{ textAlign: 'left', color: '#38bdf8', fontWeight: 500 }}>{v.trucking} xe</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.orders.toLocaleString()}</td>
-                     <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>{(v.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} tấn</td>
+                     <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>
+                       {(v.weight / 1000 >= 0.1
+                         ? (v.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                         : (v.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+                       )} tấn
+                     </td>
                      <td className="num-tabular" style={{ textAlign: 'center', color: '#64748b' }}>{v.eta ? v.eta : '--:--'}</td>
                   </tr>
                 ))}
