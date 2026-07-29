@@ -300,10 +300,14 @@ export default function InboundDashboard({
     }
   });
 
-  // Đồng bộ chỉ số Rớt hôm trước từ snapshot 6AM và Rớt hôm nay từ snapshot backend
-  if (lastUpdateObj && activeDate === todayOpDate) {
-    if (lastUpdateObj.rot_hom_truoc !== undefined) forecastRotHomTruoc = Number(lastUpdateObj.rot_hom_truoc);
-    if (lastUpdateObj.rot_hom_nay !== undefined) forecastRotHomNay = Number(lastUpdateObj.rot_hom_nay);
+  // Đồng bộ chỉ số Rớt hôm trước từ snapshot 6AM cố định (bất biến) để không bị sụt giảm khi nhập kho
+  if (lastUpdateObj && (activeDate === lastUpdateObj.active_date || activeDate === todayOpDate)) {
+    if (lastUpdateObj.rot_hom_truoc !== undefined && Number(lastUpdateObj.rot_hom_truoc) > 0) {
+      forecastRotHomTruoc = Number(lastUpdateObj.rot_hom_truoc);
+    }
+    if (lastUpdateObj.rot_hom_nay !== undefined && Number(lastUpdateObj.rot_hom_nay) > 0) {
+      forecastRotHomNay = Number(lastUpdateObj.rot_hom_nay);
+    }
   }
 
   const rawTrucksList: any[] = Array.isArray(truckEtaData) ? truckEtaData : ((truckEtaData as any)?.trucks || []);
