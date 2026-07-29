@@ -123,6 +123,7 @@ export default function InboundDashboard({
   loading,
   fetchAndUpdateData,
   lastUpdate,
+  lastUpdateObj,
 }: InboundDashboardProps) {
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -158,7 +159,7 @@ export default function InboundDashboard({
     if (d?.region) return d.region === 'north' || d.region === 'NORTH';
     const stName = typeof d === 'string' ? d : (d?.['Bu cc'] || d?.['Bưu cục'] || d?.['Pickup_station'] || d?.station || '');
     const clean = (stName || '').trim().toUpperCase();
-    return clean === 'BN HUB' || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ');
+    return clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ');
   };
 
   const normalizeDateStr = (dStr: string): string => {
@@ -842,7 +843,7 @@ export default function InboundDashboard({
               textShadow: '0 0 8px rgba(184,247,228,0.3)'
             }}>
               <span className="w-1.5 h-1.5 rounded-full bg-[#B8F7E4] animate-pulse" />
-              Update: {lastUpdate || '10:57:36 29/07/2026'}
+              Update: {lastUpdate || lastUpdateObj?.last_update || '11:34:06 29/07/2026'}
             </div>
           </div>
           <div className="date-control-wrapper flex items-center gap-2">

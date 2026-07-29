@@ -502,6 +502,29 @@ export default function App() {
   // Fetch sheet records directly from Google Sheets (all 3 tabs in parallel)
   const fetchAndUpdateData = async () => {
     setLoading(true);
+
+    // 1. Fetch last_update.json ngay lập tức để cập nhật mốc thời gian Update tức thì
+    try {
+      const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
+      let res = await fetch(getApiUrl('last_update.json'), fetchOpts);
+      if (!res.ok && getApiUrl('').startsWith('./')) {
+        res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${Date.now()}`, fetchOpts);
+      }
+      if (res.ok) {
+        const d = await res.json();
+        if (d) {
+          if (d.last_update) {
+            setLastUpdate(d.last_update);
+            lastUpdateTimestampRef.current = d.last_update;
+          }
+          setLastUpdateObj(d);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching last_update:', err);
+    }
+
+    // 2. Fetch toàn bộ các tab dữ liệu song song
     const [
       outboundRows, backlogRows, inventoryRows,
       ibRows, lhRows, arrivalRows, truckEtaRows, heatmapData
@@ -525,11 +548,6 @@ export default function App() {
     }
 
     if (ibRows && ibRows.length > 0) {
-      const inbOnlyDates = Array.from(
-        new Set(ibRows.filter(r => (r['Trạng thái'] || r['status']) === 'Inbound').map(r => r['Ngày vận hành_Inbound'] || r['op_date_inbound']).filter(Boolean))
-      ) as string[];
-      inbOnlyDates.sort((a, b) => b.localeCompare(a));
-
       const ibDates = Array.from(
         new Set([
           ...ibRows.map(r => r['Ngày vận hành_Inbound'] || r['op_date_inbound']),
@@ -538,10 +556,18 @@ export default function App() {
         ].filter(Boolean))
       ) as string[];
       ibDates.sort((a, b) => b.localeCompare(a));
+      
+      const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+      const padStr = (n: number) => String(n).padStart(2, '0');
+      const todayOpDate = getOperatingDateFromTimestamp(
+        `${nowVN.getFullYear()}-${padStr(nowVN.getMonth() + 1)}-${padStr(nowVN.getDate())} ${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}`
+      );
+
       if (ibDates.length > 0) {
         setSelectedInboundDate(prev => {
           if (prev && ibDates.includes(prev)) return prev;
-          return inbOnlyDates[0] || ibDates[0];
+          // Mặc định chọn ngày hiện tại (todayOpDate) khi reset cache / mở trang
+          return ibDates.includes(todayOpDate) ? todayOpDate : ibDates[0];
         });
       }
     }
@@ -569,27 +595,6 @@ export default function App() {
       }
     } else {
       console.warn('Fetched sheet data is empty or null.');
-    }
-
-    // Fetch last_update.json for the last sync timestamp
-    try {
-      const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
-      let res = await fetch(getApiUrl('last_update.json'), fetchOpts);
-      if (!res.ok && getApiUrl('').startsWith('./')) {
-        res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${Date.now()}`, fetchOpts);
-      }
-      if (res.ok) {
-        const d = await res.json();
-        if (d) {
-          if (d.last_update) {
-            setLastUpdate(d.last_update);
-            lastUpdateTimestampRef.current = d.last_update;
-          }
-          setLastUpdateObj(d);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching last_update:', err);
     }
 
     setLoading(false);
@@ -2152,6 +2157,7 @@ export default function App() {
                 loading={loading}
                 fetchAndUpdateData={fetchAndUpdateData}
                 lastUpdate={lastUpdate}
+                lastUpdateObj={lastUpdateObj}
               />
             )}
           </div>
