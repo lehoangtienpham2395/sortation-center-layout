@@ -168,11 +168,9 @@ export default function InboundDashboard({
 
   // Northern / BN HUB Station Filter helper (reads is_north/region from Backend payload)
   const isNorthRow = (d: any) => {
-    if (d?.is_north !== undefined) return Boolean(d.is_north);
-    if (d?.region) return d.region === 'north' || d.region === 'NORTH';
-    const stName = typeof d === 'string' ? d : (d?.['Bu cc'] || d?.['Bưu cục'] || d?.['Pickup_station'] || d?.station || '');
+    const stName = typeof d === 'string' ? d : (d?.station_name || d?.['Bu cc'] || d?.['Bưu cục'] || d?.['Pickup_station'] || d?.station || '');
     const clean = (stName || '').trim().toUpperCase();
-    return clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ');
+    return clean.includes('BN HUB');
   };
 
   const normalizeDateStr = (dStr: string): string => {
