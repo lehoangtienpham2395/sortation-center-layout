@@ -513,24 +513,35 @@ def sync_postgre_to_dashboard():
         zone_col = next((c for c in ['Zone', 'Hubcode'] if c in df_v.columns), None)
 
 
-        if sc_col and area_col:
-            sc = df_v[sc_col].dropna().str.strip().str.upper()
-            if zone_col: dict_zone = dict(zip(sc, df_v[zone_col].fillna('3').str.strip()))
-            dict_area = dict(zip(sc, df_v[area_col].fillna('C01').str.strip()))
-            if st_col:   dict_station = dict(zip(sc, df_v[st_col].fillna('').str.strip()))
-            print(f"   valid.csv : {len(dict_area):,} sortcodes (Master Google Sheet Config)")
-        elif area_col and st_col:
-            for _, r_v in df_v.iterrows():
-                a_id = str(r_v.get(area_col) or '').strip()
-                b_c  = str(r_v.get(st_col) or '').strip()
-                z_n  = str(r_v.get(zone_col) or '3').strip()
-                if a_id:
-                    dict_area[a_id] = a_id
-                    dict_station[a_id] = b_c
-                    dict_zone[a_id] = z_n
-            print(f"   valid.csv : {len(dict_area):,} AreaIDs (Master Google Sheet Config)")
+        for _, r_v in df_v.iterrows():
+            st2 = str(r_v.get('Station_2') or r_v.get('Station_1') or '').strip()
+            ar  = str(r_v.get('area') or '').strip()
+            zn  = str(r_v.get('Zone') or '3').strip()
+
+            sc = str(r_v.get('sortcode') or '').strip().upper()
+            if sc:
+                dict_station[sc] = st2
+                dict_area[sc]    = ar
+                dict_zone[sc]    = zn
+                if len(sc) >= 6:
+                    dict_station[sc[:6]] = st2
+                    dict_area[sc[:6]]    = ar
+                    dict_zone[sc[:6]]    = zn
+
+            hub = str(r_v.get('Hubcode') or '').strip().upper()
+            if hub and hub not in ('SR0001', 'SR0002'):
+                dict_station[hub] = st2
+                dict_area[hub]    = ar
+                dict_zone[hub]    = zn
+                if len(hub) >= 6:
+                    dict_station[hub[:6]] = st2
+                    dict_area[hub[:6]]    = ar
+                    dict_zone[hub[:6]]    = zn
+
+        print(f"   valid.csv : {len(dict_area):,} sortcode+Hubcode mappings (Master Google Sheet Config)")
     else:
         print(f"   ⚠️  valid.csv not found — zone/area mapping empty")
+
 
     # ── Phase 1: JFS API → PostgreSQL (import trực tiếp pipeline_unified_v6.py) ──
     _etl_dir = os.path.dirname(os.path.abspath(__file__))  # backend_sync/

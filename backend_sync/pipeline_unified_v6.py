@@ -882,15 +882,52 @@ def main():
         try:
             dfv = pd.read_csv(vp, dtype=str)
             dfv.columns = dfv.columns.str.strip()
-            if 'sortcode' in dfv.columns:
-                dfv['_sc'] = dfv['sortcode'].dropna().astype(str).str.strip().str.upper()
-                dfvc       = dfv.drop_duplicates(subset=['_sc'], keep='first')
-                valid_codes  = set(dfvc['_sc'].dropna())
-                st_col = next((c for c in ['Station_2', 'Station_1', 'Bưu cục', 'Bưu cục final'] if c in dfvc.columns), '')
-                if st_col: dict_station = dict(zip(dfvc['_sc'], dfvc[st_col].fillna('')))
-                r_col = 'Round' if 'Round' in dfvc.columns else ('Tuyến' if 'Tuyến' in dfvc.columns else '')
-                if r_col:  dict_round   = dict(zip(dfvc['_sc'], dfvc[r_col].fillna('')))
-                if 'Rank' in dfvc.columns: dict_rank = dict(zip(dfvc['_sc'], dfvc['Rank'].fillna('')))
+            st2_col  = next((c for c in ['Station_2', 'Station_1', 'Bưu cục'] if c in dfv.columns), '')
+            sc_col   = next((c for c in ['sortcode', 'Dispatch_code'] if c in dfv.columns), '')
+            hub_col  = next((c for c in ['Hubcode', 'Hub_code'] if c in dfv.columns), '')
+            area_col = next((c for c in ['area', 'AreaID'] if c in dfv.columns), '')
+
+            dict_station = {}
+            dict_area    = {}
+            dict_round   = {}
+            dict_rank    = {}
+
+            for _, r_v in dfv.iterrows():
+                st2 = str(r_v.get(st2_col) or '').strip()
+                ar  = str(r_v.get(area_col) or '').strip()
+                rn  = str(r_v.get('Round') or '').strip()
+                rk  = str(r_v.get('Rank') or '').strip()
+
+                if sc_col and r_v.get(sc_col):
+                    sc = str(r_v.get(sc_col)).strip().upper()
+                    if sc:
+                        dict_station[sc] = st2
+                        dict_area[sc]    = ar
+                        dict_round[sc]   = rn
+                        dict_rank[sc]    = rk
+                        valid_codes.add(sc)
+                        if len(sc) >= 6:
+                            dict_station[sc[:6]] = st2
+                            dict_area[sc[:6]]    = ar
+                            dict_round[sc[:6]]   = rn
+                            dict_rank[sc[:6]]    = rk
+                            valid_codes.add(sc[:6])
+
+                if hub_col and r_v.get(hub_col):
+                    hub = str(r_v.get(hub_col)).strip().upper()
+                    if hub and hub not in ('SR0001', 'SR0002'):
+                        dict_station[hub] = st2
+                        dict_area[hub]    = ar
+                        dict_round[hub]   = rn
+                        dict_rank[hub]    = rk
+                        valid_codes.add(hub)
+                        if len(hub) >= 6:
+                            dict_station[hub[:6]] = st2
+                            dict_area[hub[:6]]    = ar
+                            dict_round[hub[:6]]   = rn
+                            dict_rank[hub[:6]]    = rk
+                            valid_codes.add(hub[:6])
+
         except Exception as e:
             print('   Loi doc valid.csv: ' + str(e))
 
@@ -1089,6 +1126,8 @@ def main():
         return pk_st or 'BN HUB'
 
     df['Next_station'] = df.apply(resolve_waterfall_next_station, axis=1)
+    df['status_sys']   = df['status_sys'].apply(clean_status_sys)
+
 
 
 
@@ -1347,8 +1386,10 @@ def main():
                  'Next_station','Round','Rank',
                  'inbound_scanDate','outbound_scanDate','arrival_scanDate',
                  'trip_code','transporing_time','transported_time']
+    df['status_sys'] = df['status_sys'].apply(clean_status_sys)
     df = df[[c for c in col_order if c in df.columns]]
     try:
+
         df.to_csv(OUTPUT_FILE, index=False, encoding='utf-8-sig')
         print('   DA LUU -> ' + OUTPUT_FILE)
     except PermissionError:
