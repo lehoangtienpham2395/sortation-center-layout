@@ -724,19 +724,29 @@ def sync_postgre_to_dashboard():
         # đồng thời BACKEND_DROP_TYPE_MAP trong src/App.tsx để 2 bên không bị lệch nữa.
         DROP_TYPE_TODAY     = 'Rớt hôm nay'
         DROP_TYPE_YESTERDAY = 'Rớt hôm trước'
+        DROP_TYPE_AGED      = 'Tồn đọng lâu ngày'
 
         stn = str(r.get('next_station', '')).strip()
         is_canceled = (stn == 'Đã hủy' or r.get('status_sys') == 'Đã hủy')
         is_rot = (not has_in) and (not is_canceled) and (not is_reb)
+
+        try:
+            today_dt = datetime.strptime(today, '%Y-%m-%d')
+            yesterday_str = (today_dt - timedelta(days=1)).strftime('%Y-%m-%d')
+        except Exception:
+            yesterday_str = ''
 
         ref_rot_date = str(r.get('op_date_pickup') or get_op_date(cr_t) or op_date or '')[:10]
         if is_rot:
             if ref_rot_date == today:
                 rot_hom_nay   += 1
                 drop_type = DROP_TYPE_TODAY
-            else:
+            elif ref_rot_date == yesterday_str:
                 rot_hom_truoc += 1
                 drop_type = DROP_TYPE_YESTERDAY
+            else:
+                rot_ton_dong  += 1
+                drop_type = DROP_TYPE_AGED
         else:
             drop_type = ''
 

@@ -201,6 +201,17 @@ export default function InboundDashboard({
     return str.slice(0, 10);
   };
 
+  const getPreviousDateStr = (dateStr: string): string => {
+    if (!dateStr) return '';
+    const norm = normalizeDateStr(dateStr);
+    const dt = new Date(norm + 'T00:00:00');
+    dt.setDate(dt.getDate() - 1);
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   const isDateMatch = (dStr: string, aDate: string) => {
     if (!dStr || !aDate) return false;
     const normR = normalizeDateStr(dStr);
@@ -289,8 +300,11 @@ export default function InboundDashboard({
   // 🎯 1. XÁC ĐỊNH CA LIVE HIỆN TẠI & BẢO VỆ NGÀY QUÁ KHỨ
   const currentLiveDate = lastUpdateObj?.active_date || todayOpDate;
   const isHistoricalDate = activeDate < currentLiveDate;
+  const prevDate = getPreviousDateStr(activeDate);
 
   // 🎯 3. CHỐT CỨNG SẢN LƯỢNG FORECAST THUỘC CA (Không bị trồi sụt khi đổi status)
+  let forecastTonDongLau = 0;
+
   inboundData.forEach(d => {
     if (isNorthRow(d)) return;
 
@@ -305,11 +319,15 @@ export default function InboundDashboard({
       if (fcDate === activeDate) {
         forecastRotHomNay += vol;
       } 
-      // B. Rớt ca trước dồn sang ca activeDate
-      else if (fcDate && fcDate < activeDate) {
-        if (loiRot === 'Rớt hôm trước' || loiRot === 'rot_yesterday') {
+      // B. Rớt hôm trước: ĐÚNG 1 NGÀY LIỀN TRƯỚC (fcDate === prevDate)
+      else if (fcDate === prevDate || (fcDate && fcDate < activeDate && (loiRot === 'Rớt hôm trước' || loiRot === 'rot_yesterday'))) {
+        if (fcDate === prevDate || loiRot === 'Rớt hôm trước' || loiRot === 'rot_yesterday') {
           forecastRotHomTruoc += vol;
         }
+      }
+      // C. Tồn đọng lâu ngày (kẹt từ 2+ ngày trước)
+      else if (fcDate && fcDate < prevDate) {
+        forecastTonDongLau += vol;
       }
     }
   });
