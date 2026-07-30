@@ -41,14 +41,23 @@ function NumberTicker({ value }: { value: number }) {
 
 const MASTER_CONFIG_MAP: { [key: string]: string } = {};
 try {
-  const items = Array.isArray(configData) ? configData : (Array.isArray((configData as any)?.default) ? (configData as any).default : []);
-  items.forEach((c: any) => {
-    const key = c?.AreaID || c?.areaId;
-    const name = c?.['Bưu cục'] || c?.buuCuc;
-    if (key && name) {
-      MASTER_CONFIG_MAP[String(key).trim()] = String(name).trim();
-    }
-  });
+  const items = Array.isArray(configData) 
+    ? configData 
+    : (Array.isArray((configData as any)?.default) 
+      ? (configData as any).default 
+      : (Array.isArray((configData as any)?.valid) 
+        ? (configData as any).valid 
+        : (typeof configData === 'object' && configData !== null ? Object.values(configData).find(v => Array.isArray(v)) as any[] || [] : [])));
+  if (Array.isArray(items)) {
+    items.forEach((c: any) => {
+      const key = c?.AreaID || c?.areaId || c?.Station_1;
+      const name = c?.['Bưu cục'] || c?.buuCuc || c?.Station_2;
+      if (key && name) {
+        MASTER_CONFIG_MAP[String(key).trim()] = String(name).trim();
+      }
+    });
+  }
+
 } catch (e) {
   console.error("Error loading master config map:", e);
 }

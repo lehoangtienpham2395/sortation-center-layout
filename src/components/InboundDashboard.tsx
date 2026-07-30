@@ -302,8 +302,9 @@ export default function InboundDashboard({
   const getFcOpDate = (row: any) => {
     const rawTime = row['forecast_time'] || row['Created_time'] || row['created_time'] || '';
     if (rawTime) return getOperatingDateFromTimestamp(rawTime);
-    return normalizeDateStr(row['Ngy vn hnh_Forecast'] || row['Ngày vận hành_Forecast'] || row['op_date_forecast'] || '');
+    return normalizeDateStr(row['op_date_forecast'] || row['Ngy vn hnh_Forecast'] || row['Ngày vận hành_Forecast'] || '');
   };
+
 
   const stationTransportingMap: Record<string, number> = {};
 
@@ -349,8 +350,9 @@ export default function InboundDashboard({
     }
   });
 
-
   const rawTrucksList: any[] = Array.isArray(truckEtaData) ? truckEtaData : ((truckEtaData as any)?.trucks || []);
+
+
 
   const filteredTruckEta = rawTrucksList
     .filter((d: any) => {
