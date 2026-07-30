@@ -21,6 +21,7 @@ interface KpiDashboardProps {
   loading: boolean;
   fetchAndUpdateData: () => void;
   lastUpdate?: string;
+  lastUpdateObj?: any;
 }
 
 // Helper: Animated number ticker

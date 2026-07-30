@@ -128,7 +128,6 @@ export default function InboundDashboard({
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<any | null>(null);
-  const forecastHighWatermarkRef = useRef<Record<string, number>>({});
 
   // 1. Extract and sort available dates (excluding future dates > today)
   const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
@@ -303,21 +302,27 @@ export default function InboundDashboard({
     // Forecast & Rớt Hôm Nay / Rớt Hôm Trước là con số CỘNG DỒN ĐẾN CUỐI NGÀY.
     // TUYỆT ĐỐI KHÔNG TRỪ HOẶC LỌC BỎ ĐƠN ĐÃ INBOUND KHỎI FORECAST!
     if (status !== 'Đã hủy') {
-      if (loiRot === 'Rớt hôm nay' || (fcDate && fcDate === activeDate)) {
-        forecastRotHomNay += vol;
-      } else if (loiRot === 'Rớt hôm trước' || (fcDate && fcDate < activeDate)) {
-        forecastRotHomTruoc += vol;
+      // CHỈ tính nếu ngày forecast trùng hoặc nhỏ hơn activeDate
+      if (fcDate === activeDate) {
+        if (loiRot === 'Rớt hôm nay' || loiRot === 'rot_today' || status === 'Created') {
+          forecastRotHomNay += vol;
+        }
+      } else if (fcDate && fcDate < activeDate) {
+        if (loiRot === 'Rớt hôm trước' || loiRot === 'rot_yesterday') {
+          forecastRotHomTruoc += vol;
+        }
       }
     }
   });
 
-  // Đồng bộ chỉ số Rớt hôm trước & Rớt hôm nay từ snapshot 6AM cố định (bất biến) theo activeDate
+  // Kiểm tra Snapshot lịch sử
   const activeSnap = lastUpdateObj?.daily_snapshots?.[activeDate];
   const isHistoricalDate = activeDate < todayOpDate || (activeSnap && activeSnap.is_frozen);
 
   if (isHistoricalDate) {
-    forecastRotHomTruoc = activeSnap?.rot_hom_truoc !== undefined ? Number(activeSnap.rot_hom_truoc) : 1412;
-    forecastRotHomNay = activeSnap?.rot_hom_nay !== undefined ? Number(activeSnap.rot_hom_nay) : 10908;
+    // Không dùng số hardcode 10908/1412, nếu thiếu snapshot thì dùng số đã tính từ DB
+    forecastRotHomTruoc = activeSnap?.rot_hom_truoc !== undefined ? Number(activeSnap.rot_hom_truoc) : forecastRotHomTruoc;
+    forecastRotHomNay = activeSnap?.rot_hom_nay !== undefined ? Number(activeSnap.rot_hom_nay) : forecastRotHomNay;
   } else if (lastUpdateObj && (activeDate === lastUpdateObj.active_date || activeDate === todayOpDate)) {
     if (lastUpdateObj.rot_hom_truoc !== undefined && Number(lastUpdateObj.rot_hom_truoc) > 0) {
       forecastRotHomTruoc = Number(lastUpdateObj.rot_hom_truoc);
@@ -345,9 +350,7 @@ export default function InboundDashboard({
       'Giờ đến bãi': d.eta || d.actualArrivalTime || d.predictArriveTime || d.planned_arrival || ''
     }));
 
-  let totalOrders = stages['Inbound'].orders;
-  let totalWeight = stages['Inbound'].weight;
-  let totalForecast = forecastRotHomTruoc + forecastRotHomNay;
+
 
   // Group truck ETA by unique station
   const effectiveTruckEta = (filteredTruckEta && filteredTruckEta.length > 0) ? filteredTruckEta : rawTrucksList;
@@ -443,15 +446,20 @@ export default function InboundDashboard({
   let totalTransitVehicles = totalShuttleVehicles + totalLinehaulVehicles;
   let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
   let totalInTransitWeight = incomingVehicles.reduce((sum, s) => sum + s.weight, 0);
-
-  // Sản lượng dự báo (+36 tiếng) của tuyến Linehaul BN HUB (khớp 100% với bảng Origin Station: 2.171 đơn)
+  // Chỉ cộng bnHubLinehaulOrders nếu là NGÀY HIỆN TẠI (todayOpDate)
   const bnHubObj = incomingVehicles.find(v => (v.name || '').toUpperCase().includes('BN HUB') || (v.station || '').toUpperCase().includes('BN HUB'));
-  const bnHubLinehaulOrders = bnHubObj ? (bnHubObj.orders || bnHubObj.tongDon || 0) : 2171;
+  const bnHubLinehaulOrders = (!isHistoricalDate && bnHubObj) ? (bnHubObj.orders || bnHubObj.tongDon || 0) : 0;
 
-  // Forecast = Rớt hôm trước + Rớt hôm nay + Linehaul BN HUB (KHÔNG cộng dồn Inbound)
-  const currentCalculatedForecast = forecastRotHomTruoc + forecastRotHomNay + bnHubLinehaulOrders;
-  totalForecast = currentCalculatedForecast;
-  forecastHighWatermarkRef.current[activeDate] = totalForecast;
+  // Tổng Forecast nhất quán
+  let totalOrders = (isHistoricalDate && activeSnap?.inbound_orders) ? Number(activeSnap.inbound_orders) : stages['Inbound'].orders;
+  let totalWeight = stages['Inbound'].weight;
+  let totalForecast = forecastRotHomTruoc + forecastRotHomNay + bnHubLinehaulOrders;
+
+  if (isHistoricalDate && activeSnap?.inbound_orders) {
+    stages['Inbound'].orders = Number(activeSnap.inbound_orders);
+  }
+
+
 
   if (totalInTransitOrders > 0 && stages['Transporting'].weight === 0) {
     stages['Transporting'].weight = totalInTransitWeight;
