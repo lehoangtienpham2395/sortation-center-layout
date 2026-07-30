@@ -812,9 +812,9 @@ def sync_postgre_to_dashboard():
             ref_date = op_date_fc
 
         if ref_date in (today, yesterday):
-            in_status = ('Inbound'      if (has_in or is_reb) else
-                         'Transporting' if has_arr             else
-                         'Pickup Done'  if has_pick            else 'Created')
+            in_status = ('Inbound'      if (has_in or is_reb or inb_t) else
+                         'Transporting' if (has_arr or arr_t or transp_t) else
+                         'Pickup Done'  if (has_pick or pk_t) else 'Created')
 
             # 🎯 TỐI ƯU HOÁ GOM NHÓM AGGREGATE (PRE-AGGREGATION OLAP PIVOT):
             # 1. Đơn đã 'Inbound': UI chỉ lọc theo op_date_inbound & final_inb_hour. Các mốc tạo/pickup cũ được nén lại.
