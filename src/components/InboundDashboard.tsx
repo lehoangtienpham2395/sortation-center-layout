@@ -609,60 +609,35 @@ export default function InboundDashboard({
     }
   });
 
-  // Đồng bộ tuyệt đối sản lượng Pickup Done của thẻ Orders Status với tổng sản lượng trên biểu đồ Hourly Processing Trend
-  const totalPickupVolume = Object.values(hourlyPickup).reduce((sum, v) => sum + v, 0);
-  if (totalPickupVolume > 0) {
-    stages['Pickup Done'].orders = totalPickupVolume;
-  }
-
+  // Synchronize orders status card strictly with actual forecast stages from inboundData
   const totalInbound = stages['Inbound'].orders;
+  const totalInTransit = stages['Transporting'].orders;
   const totalPickupDone = stages['Pickup Done'].orders;
+  const totalCreated = stages['Created'].orders;
+
+  const totalBase = totalInbound + totalInTransit + totalPickupDone + totalCreated;
+
+  let inboundPct = totalBase > 0 ? Math.round((totalInbound / totalBase) * 100) : 0;
+  let inTransitPct = totalBase > 0 ? Math.round((totalInTransit / totalBase) * 100) : 0;
+  let pickupDonePct = totalBase > 0 ? Math.round((totalPickupDone / totalBase) * 100) : 0;
+  let createdPct = totalBase > 0 ? Math.max(0, 100 - (inboundPct + inTransitPct + pickupDonePct)) : 0;
 
   const inboundTrendData  = labels.map(l => hourlyInbound[l]);
   const arrivedTrendData  = labels.map(l => hourlyArrived[l]);
   const forecastTrendData = labels.map(l => hourlyForecast[l]);
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
-  // Shuttle in-transit orders (EXCLUDING BN HUB Linehaul)
-  const totalShuttleInTransitOrders = incomingVehicles
-    .filter((v: any) => v.rank === 'Shuttle')
-    .reduce((sum: number, s: any) => sum + s.orders, 0);
-  totalInTransitOrders = Math.max(stages['Transporting'].orders, totalShuttleInTransitOrders);
-  
-  // Orders status: các trạng thái lấy Forecast làm hệ quy chiếu (100%)
-  const totalBase = totalForecast > 0 ? totalForecast : (totalInbound + totalInTransitOrders + totalPickupDone + stages['Created'].orders);
-  
-  // Phần Created (chờ lấy hàng) = lượng còn lại của Forecast sau khi trừ Inbound, Transporting, Pickup Done
-  const totalCreated = totalForecast > 0 
-    ? Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalPickupDone) 
-    : stages['Created'].orders;
-
   const totalOrders = totalInbound;
   const totalWeight = stages['Inbound'].weight;
 
-  let inboundPct   = totalBase > 0 ? Math.round((totalInbound           / totalBase) * 100) : 0;
-  let inTransitPct = totalBase > 0 ? Math.round((totalInTransitOrders   / totalBase) * 100) : 0;
-  let pickupDonePct= totalBase > 0 ? Math.round((totalPickupDone        / totalBase) * 100) : 0;
-  
-  // Bảo đảm cấu trúc dữ liệu: Nếu tổng % các bước đang xử lý vượt 100% (do dồn hàng linehaul), tự động scale tỷ lệ để không vỡ biểu đồ tròn
-  const totalCompletedPct = inboundPct + inTransitPct + pickupDonePct;
-  if (totalForecast > 0 && totalCompletedPct > 100) {
-    const scale = 100 / totalCompletedPct;
-    inboundPct = Math.round(inboundPct * scale);
-    inTransitPct = Math.round(inTransitPct * scale);
-    pickupDonePct = Math.round(pickupDonePct * scale);
-  }
-  
-  const createdPct   = totalBase > 0 ? Math.max(0, 100 - (inboundPct + inTransitPct + pickupDonePct)) : 0;
-  // const pendingPct   = createdPct;
-
-  // Concentric radial chart configurations
   const segments = [
-      { name: 'Inbound', value: totalInbound, pct: inboundPct, color: '#B8F7E4', label: 'Inbound' },
-      { name: 'Transporting', value: totalInTransitOrders, pct: inTransitPct, color: '#C8FF3D', label: 'Transporting' },
-      { name: 'Pickup Done', value: totalPickupDone, pct: pickupDonePct, color: '#38BDF8', label: 'Pickup Done' },
-      { name: 'Created', value: totalCreated, pct: createdPct, color: '#FC6C26', label: 'Created' }
-    ];
+    { name: 'Inbound', value: totalInbound, pct: inboundPct, color: '#B8F7E4', label: 'Inbound' },
+    { name: 'Transporting', value: totalInTransit, pct: inTransitPct, color: '#C8FF3D', label: 'Transporting' },
+    { name: 'Pickup Done', value: totalPickupDone, pct: pickupDonePct, color: '#38BDF8', label: 'Pickup Done' },
+    { name: 'Created', value: totalCreated, pct: createdPct, color: '#FC6C26', label: 'Created' }
+  ];
+
+
 
   const activeSegments = segments.filter(s => s.pct > 0);
   const sortedSegments = [...activeSegments].sort((a, b) => b.pct - a.pct);
