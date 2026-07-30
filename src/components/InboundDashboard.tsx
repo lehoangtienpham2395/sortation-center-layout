@@ -237,12 +237,7 @@ export default function InboundDashboard({
   };
 
   const filteredInbound = inboundData.filter(d => getWaterfallStatus(d) === 'Inbound' && isDateMatch(getRowOpDate(d), activeDate));
-  const filteredTransportingInbound = inboundData.filter(d => getWaterfallStatus(d) === 'Transporting' && isDateMatch(getRowOpDate(d), activeDate) && !isNorthRow(d));
-  const filteredPickup = inboundData.filter(d => getWaterfallStatus(d) === 'Pickup Done' && isDateMatch(getRowOpDate(d), activeDate) && !isNorthRow(d));
-  const filteredForecast = inboundData.filter(d => getWaterfallStatus(d) === 'Created' && isDateMatch(getRowOpDate(d), activeDate) && !isNorthRow(d));
 
-
-  const filteredTransporting = filteredTransportingInbound;
 
 
   const getLinehaulOperatingDate = (row: any) => {
