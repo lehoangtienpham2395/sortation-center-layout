@@ -298,10 +298,11 @@ export default function InboundDashboard({
 
 
   // 🎯 1. XÁC ĐỊNH CA LIVE HIỆN TẠI & BẢO VỆ NGÀY QUÁ KHỨ
-  const currentLiveDate = lastUpdateObj?.active_date || todayOpDate;
-  const activeSnap = lastUpdateObj?.daily_snapshots?.[activeDate];
-  const isHistoricalDate = (activeDate !== currentLiveDate) || Boolean(activeSnap && activeSnap.is_frozen);
-  const prevDate = getPreviousDateStr(activeDate);
+  const normActiveDate = normalizeDateStr(activeDate);
+  const normLiveDate = normalizeDateStr(lastUpdateObj?.active_date || todayOpDate);
+  const activeSnap = lastUpdateObj?.daily_snapshots?.[normActiveDate] || lastUpdateObj?.daily_snapshots?.[activeDate];
+  const isHistoricalDate = (normActiveDate !== normLiveDate) || Boolean(activeSnap && activeSnap.is_frozen);
+  const prevDate = getPreviousDateStr(normActiveDate);
 
   // 🎯 3. CHỐT CỨNG SẢN LƯỢNG FORECAST THUỘC CA (Không bị trồi sụt khi đổi status)
   let forecastTonDongLau = 0;
@@ -309,22 +310,23 @@ export default function InboundDashboard({
   inboundData.forEach(d => {
     if (isNorthRow(d)) return;
 
-    const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || d['op_date_forecast'] || '';
+    const fcDateRaw = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || d['op_date_forecast'] || '';
+    const normFcDate = normalizeDateStr(fcDateRaw);
     const status = d['Trng thi'] || d['Trạng thái'] || d['status'] || '';
     const vol = parseInt(d['Volume'] || d['volume'] || 1, 10) || 1;
 
     if (status !== 'Đã hủy') {
       // A. Forecast chuẩn ca activeDate: Tổng TẤT CẢ đơn phát sinh cho ca activeDate 
       // (Cố định 100%, không bị biến động khi đơn chuyển sang Inbound)
-      if (fcDate === activeDate) {
+      if (normFcDate === normActiveDate) {
         forecastRotHomNay += vol;
       } 
-      // B. Rớt hôm trước: ĐÚNG 1 NGÀY LIỀN TRƯỚC (fcDate === prevDate)
-      else if (fcDate === prevDate) {
+      // B. Rớt hôm trước: ĐÚNG 1 NGÀY LIỀN TRƯỚC (normFcDate === prevDate)
+      else if (normFcDate === prevDate) {
         forecastRotHomTruoc += vol;
       }
       // C. Tồn đọng lâu ngày (kẹt từ 2+ ngày trước)
-      else if (fcDate && fcDate < prevDate) {
+      else if (normFcDate && normFcDate < prevDate) {
         forecastTonDongLau += vol;
       }
     }
