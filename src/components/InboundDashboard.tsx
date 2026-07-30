@@ -338,15 +338,7 @@ export default function InboundDashboard({
     }
   });
 
-  // 🎯 4. ĐÓNG BĂNG NGÀY LỊCH SỬ BẰNG SNAPSHOT (Nếu có dữ liệu snapshot từ Backend)
-  if (isHistoricalDate && activeSnap) {
-    if (activeSnap.rot_hom_nay !== undefined && Number(activeSnap.rot_hom_nay) > 0) {
-      forecastRotHomNay = Number(activeSnap.rot_hom_nay);
-    }
-    if (activeSnap.rot_hom_truoc !== undefined && Number(activeSnap.rot_hom_truoc) > 0) {
-      forecastRotHomTruoc = Number(activeSnap.rot_hom_truoc);
-    }
-  }
+  // 🎯 DỮ LIỆU TÍNH TOÁN 100% ĐỘNG TỪ BỘ DỮ LIỆU (KHÔNG DÙNG SNAPSHOT CHỐT CỨNG)
 
   const rawTrucksList: any[] = Array.isArray(truckEtaData) ? truckEtaData : ((truckEtaData as any)?.trucks || []);
 
@@ -467,18 +459,12 @@ export default function InboundDashboard({
   let totalTransitVehicles = totalShuttleVehicles + totalLinehaulVehicles;
   let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
   let totalInTransitWeight = incomingVehicles.reduce((sum, s) => sum + s.weight, 0);
-  // Chỉ cộng bnHubLinehaulOrders nếu là NGÀY HIỆN TẠI (todayOpDate)
-  const bnHubObj = incomingVehicles.find(v => (v.name || '').toUpperCase().includes('BN HUB') || (v.station || '').toUpperCase().includes('BN HUB'));
-  const bnHubLinehaulOrders = (!isHistoricalDate && bnHubObj) ? (bnHubObj.orders || bnHubObj.tongDon || 0) : 0;
+  const bnHubLinehaulOrders = bnHubObj ? (bnHubObj.orders || bnHubObj.tongDon || 0) : 0;
 
   // Tổng Forecast nhất quán
-  let totalOrders = (isHistoricalDate && activeSnap?.inbound_orders) ? Number(activeSnap.inbound_orders) : stages['Inbound'].orders;
+  let totalOrders = stages['Inbound'].orders;
   let totalWeight = stages['Inbound'].weight;
   let totalForecast = forecastRotHomTruoc + forecastRotHomNay + bnHubLinehaulOrders;
-
-  if (isHistoricalDate && activeSnap?.inbound_orders) {
-    stages['Inbound'].orders = Number(activeSnap.inbound_orders);
-  }
 
 
 
@@ -623,7 +609,7 @@ export default function InboundDashboard({
     ? Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalPickupDone) 
     : stages['Created'].orders;
 
-  totalOrders = (isHistoricalDate && activeSnap?.inbound_orders) ? Number(activeSnap.inbound_orders) : totalInbound;
+  totalOrders = totalInbound;
   totalWeight = stages['Inbound'].weight;
 
   let inboundPct   = totalBase > 0 ? Math.round((totalInbound           / totalBase) * 100) : 0;
