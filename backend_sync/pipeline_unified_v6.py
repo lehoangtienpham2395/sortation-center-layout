@@ -839,7 +839,7 @@ def main():
                 dfv['_sc'] = dfv['sortcode'].dropna().astype(str).str.strip().str.upper()
                 dfvc       = dfv.drop_duplicates(subset=['_sc'], keep='first')
                 valid_codes  = set(dfvc['_sc'].dropna())
-                st_col = 'Station_2' if 'Station_2' in dfvc.columns else ('Bưu cục final' if 'Bưu cục final' in dfvc.columns else '')
+                st_col = next((c for c in ['Station_1', 'Station_2', 'Bưu cục', 'Bưu cục final'] if c in dfvc.columns), '')
                 if st_col: dict_station = dict(zip(dfvc['_sc'], dfvc[st_col].fillna('')))
                 r_col = 'Round' if 'Round' in dfvc.columns else ('Tuyến' if 'Tuyến' in dfvc.columns else '')
                 if r_col:  dict_round   = dict(zip(dfvc['_sc'], dfvc[r_col].fillna('')))
