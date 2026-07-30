@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { DatePicker } from './DatePicker';
-import { normalizeDropType } from '../contracts/data_contract';
 
 // Animated Number Ticker Component
 function NumberTicker({ value, decimals = 0 }: { value: number; decimals?: number }) {
