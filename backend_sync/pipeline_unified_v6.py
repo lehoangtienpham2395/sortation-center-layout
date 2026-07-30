@@ -894,9 +894,16 @@ def main():
 
             for _, r_v in dfv.iterrows():
                 st2 = str(r_v.get(st2_col) or '').strip()
+                st1 = str(r_v.get('Station_1') or '').strip().upper()
                 ar  = str(r_v.get(area_col) or '').strip()
                 rn  = str(r_v.get('Round') or '').strip()
                 rk  = str(r_v.get('Rank') or '').strip()
+
+                if st1:
+                    dict_station[st1] = st2
+                    dict_area[st1]    = ar
+                    dict_round[st1]   = rn
+                    dict_rank[st1]    = rk
 
                 if sc_col and r_v.get(sc_col):
                     sc = str(r_v.get(sc_col)).strip().upper()
@@ -927,6 +934,7 @@ def main():
                             dict_round[hub[:6]]   = rn
                             dict_rank[hub[:6]]    = rk
                             valid_codes.add(hub[:6])
+
 
         except Exception as e:
             print('   Loi doc valid.csv: ' + str(e))
@@ -1009,7 +1017,8 @@ def main():
                 'Pickup_station2': send_st,
                 'Pickup_time': '', 'AreaCode': '',
                 'flowTypeDesc': 'Inbound Linehaul',
-                'Next_station': send_st or 'BN HUB', 'Round': '', 'Rank': '',
+                'Next_station': '', 'Round': '', 'Rank': '',
+
                 'inbound_scanDate': st, 'outbound_scanDate': '',
                 'arrival_scanDate': '', 'trip_code': tc,
                 'transporing_time': '', 'transported_time': '',

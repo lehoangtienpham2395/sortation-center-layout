@@ -512,13 +512,19 @@ def sync_postgre_to_dashboard():
         st_col   = next((c for c in ['Station_2', 'Station_1', 'Bưu cục'] if c in df_v.columns), None)
         zone_col = next((c for c in ['Zone', 'Hubcode'] if c in df_v.columns), None)
 
-
         for _, r_v in df_v.iterrows():
             st2 = str(r_v.get('Station_2') or r_v.get('Station_1') or '').strip()
             ar  = str(r_v.get('area') or '').strip()
             zn  = str(r_v.get('Zone') or '3').strip()
+            st1 = str(r_v.get('Station_1') or '').strip().upper()
+            if st1:
+                dict_station[st1] = st2
+                dict_area[st1]    = ar
+                dict_zone[st1]    = zn
+
 
             sc = str(r_v.get('sortcode') or '').strip().upper()
+
             if sc:
                 dict_station[sc] = st2
                 dict_area[sc]    = ar
@@ -696,12 +702,12 @@ def sync_postgre_to_dashboard():
         pk_st_upper = pk_st_raw.strip().upper()
         is_north_record = (
             target_st_upper == 'BN HUB' or
-            pk_st_upper == 'BN HUB' or
             target_st_upper.startswith('HN ') or
             target_st_upper.startswith('HD ') or
             target_st_upper.startswith('HY ') or
             dict_area.get(sc) == 'A06'
         )
+
 
         if is_north_record:
             area_id = 'A06'
