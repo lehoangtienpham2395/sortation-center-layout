@@ -1138,11 +1138,12 @@ def main():
         if pk_st and dict_station.get(pk_st.upper()):
             return dict_station[pk_st.upper()]
 
-        # 5. Nếu thuộc luồng Bắc -> BN HUB, còn lại -> Chưa phân vùng (TUYỆT ĐỐI KHÔNG GÁN BẰNG PICKUP_STATION)
+        # 5. Fallback luồng Bắc -> BN HUB, còn lại -> Trả về pk_st hợp lệ nếu có
         pk_upper = pk_st.upper()
         if 'HN ' in pk_upper or 'BN ' in pk_upper or 'HD ' in pk_upper or 'HY ' in pk_upper:
             return 'BN HUB'
-        return 'Chưa phân vùng'
+        return pk_st if pk_st and pk_st.lower() not in ('nan', 'none', '') else 'Chưa phân vùng'
+
 
     df['Next_station'] = df.apply(resolve_waterfall_next_station, axis=1)
 
