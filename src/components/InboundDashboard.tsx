@@ -288,22 +288,25 @@ export default function InboundDashboard({
   // 🎯 1. XÁC ĐỊNH CA LIVE HIỆN TẠI & BẢO VỆ NGÀY QUÁ KHỨ
   const normActiveDate = normalizeDateStr(activeDate);
 
-  inboundData.forEach(d => {
-    if (isNorthRow(d)) return;
+  const getFcOpDate = (row: any) => {
+    const rawTime = row['forecast_time'] || row['Created_time'] || row['created_time'] || '';
+    if (rawTime) return getOperatingDateFromTimestamp(rawTime);
+    return normalizeDateStr(row['Ngy vn hnh_Forecast'] || row['Ngày vận hành_Forecast'] || row['op_date_forecast'] || '');
+  };
 
-    const fcDateRaw = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || d['op_date_forecast'] || '';
-    const normFcDate = normalizeDateStr(fcDateRaw);
+  inboundData.forEach(d => {
+    const normFcDate = getFcOpDate(d);
     const status = d['Trng thi'] || d['Trạng thái'] || d['status'] || '';
     const vol = parseInt(d['Volume'] || d['volume'] || 1, 10) || 1;
 
     if (status !== 'Đã hủy') {
       const isInbound = status === 'Inbound' || status === 'Đã nhập kho';
 
-      // A. Forecast chuẩn ca activeDate (Rớt hôm nay): Tổng TẤT CẢ đơn phát sinh cho ca activeDate
+      // A. Rớt hôm nay (Ca vận hành 06:00 ngày activeDate -> 05:59:59 ngày tiếp theo): Tổng đơn phát sinh cho ca
       if (normFcDate === normActiveDate) {
         forecastRotHomNay += vol;
       } 
-      // B. Rớt hôm qua (Backlog từ ca trước): Tất cả đơn thuộc các ca trước (normFcDate < normActiveDate) CHƯA INBOUND
+      // B. Rớt hôm qua (Backlog từ các ca trước): Tất cả đơn trước ca activeDate CHƯA INBOUND
       else if (normFcDate && normFcDate < normActiveDate && !isInbound) {
         forecastRotHomTruoc += vol;
       }
