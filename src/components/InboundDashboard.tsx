@@ -314,17 +314,13 @@ export default function InboundDashboard({
     if (status !== 'Đã hủy') {
       const isInbound = status === 'Inbound' || status === 'Đã nhập kho';
 
-      // A. Forecast chuẩn ca activeDate: Tổng TẤT CẢ đơn phát sinh cho ca activeDate
+      // A. Forecast chuẩn ca activeDate (Rớt hôm nay): Tổng TẤT CẢ đơn phát sinh cho ca activeDate
       if (normFcDate === normActiveDate) {
         forecastRotHomNay += vol;
       } 
-      // B. Rớt hôm trước: Đúng ngày liền trước (prevDate) CHƯA INBOUND (hàng rớt/tồn từ hôm qua sang)
-      else if (normFcDate === prevDate && !isInbound) {
+      // B. Rớt hôm qua (Backlog từ ca trước): Tất cả đơn thuộc các ca trước (normFcDate < normActiveDate) CHƯA INBOUND
+      else if (normFcDate && normFcDate < normActiveDate && !isInbound) {
         forecastRotHomTruoc += vol;
-      }
-      // C. Tồn đọng lâu ngày: kẹt từ 2+ ngày trước CHƯA INBOUND
-      else if (normFcDate && normFcDate < prevDate && !isInbound) {
-        forecastTonDongLau += vol;
       }
     }
   });
@@ -456,7 +452,7 @@ export default function InboundDashboard({
   // Tổng Forecast nhất quán
   let totalOrders = stages['Inbound'].orders;
   let totalWeight = stages['Inbound'].weight;
-  let totalForecast = forecastRotHomTruoc + forecastRotHomNay + bnHubLinehaulOrders;
+  let totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
 
 
@@ -1044,10 +1040,6 @@ export default function InboundDashboard({
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Rớt hôm nay:</span>
                 <strong style={{ color: '#ffa066', fontSize: '1.05rem' }}><NumberTicker value={forecastRotHomNay} /></strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Linehaul BN HUB (+36h):</span>
-                <strong style={{ color: '#38bdf8', fontSize: '1.05rem' }}><NumberTicker value={bnHubLinehaulOrders} /></strong>
               </div>
             </div>
           </div>
