@@ -808,19 +808,15 @@ def sync_postgre_to_dashboard():
         final_op_date_inb = op_inb_2 if (is_reb and op_inb_2) else (op_date_inb if inb_t else (op_date_arr or op_date_pick or op_date_fc or today))
         final_inb_hour    = inb_t_2[11:16] if (is_reb and len(inb_t_2) >= 16) else (inb_t[11:16] if len(inb_t) >= 16 else (arr_t[11:16] if len(arr_t) >= 16 else '00:00'))
 
-        # Mốc chuẩn để đưa đơn vào cửa sổ rolling 2 ngày của inbound.json:
-        #   - Đơn đã Inbound/Rebound → dùng final_op_date_inb
-        #   - Đơn đã Arrival → dùng op_date_arr
-        #   - Đơn Rớt (DROP_TYPE_TODAY)     → dùng today
-        #   - Đơn Rớt (DROP_TYPE_YESTERDAY) → dùng yesterday (đảm bảo không bị mất đơn rớt các ngày trước)
+        # Mốc chuẩn để đưa đơn vào đúng ngày vận hành của nó trong inbound.json (KHÔNG dồn các ngày cũ vào yesterday):
         if has_in or is_reb:
             ref_date = final_op_date_inb or today
         elif has_arr:
-            ref_date = op_date_arr
-        elif is_rot:
-            ref_date = today if drop_type == DROP_TYPE_TODAY else yesterday
+            ref_date = op_date_arr or today
+        elif has_pick:
+            ref_date = op_date_pick or today
         else:
-            ref_date = op_date_fc
+            ref_date = op_date_fc or today
 
         if ref_date in (today, yesterday):
             in_status = ('Inbound'      if (has_in or is_reb or inb_t) else
@@ -858,7 +854,7 @@ def sync_postgre_to_dashboard():
             
             if op_cr == today:
                 rot_hom_nay += 1
-            elif (has_pk or has_arr) and ((op_pk and op_pk < today) or (op_cr and op_cr < today)):
+            elif (has_pk or has_arr) and (op_pk == yesterday_str or op_cr == yesterday_str):
                 rot_hom_truoc += 1
 
         # arrival
