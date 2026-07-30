@@ -203,7 +203,7 @@ export default function InboundDashboard({
 
 
 
-  const filteredInbound = inboundData.filter(d => getWaterfallStatus(d) === 'Inbound' && isDateMatch(d['op_date_inbound'] || d['Ngy vn hnh_Inbound'] || getDateInbound(d), activeDate) && !isNorthRow(d));
+  const filteredInbound = inboundData.filter(d => getWaterfallStatus(d) === 'Inbound' && isDateMatch(d['op_date_inbound'] || d['Ngy vn hnh_Inbound'] || getDateInbound(d), activeDate));
   const filteredTransportingInbound = inboundData.filter(d => getWaterfallStatus(d) === 'Transporting' && isDateMatch(d['op_date_arrival'] || d['op_date_forecast'] || getDateArrival(d), activeDate) && !isNorthRow(d));
   const filteredPickup = inboundData.filter(d => getWaterfallStatus(d) === 'Pickup Done' && isDateMatch(d['op_date_pickup'] || d['op_date_forecast'] || getDatePickup(d), activeDate) && !isNorthRow(d));
   const filteredForecast = inboundData.filter(d => getWaterfallStatus(d) === 'Created' && isDateMatch(d['op_date_forecast'] || getDateForecast(d), activeDate) && !isNorthRow(d));
@@ -301,10 +301,10 @@ export default function InboundDashboard({
   // Đồng bộ chỉ số Rớt hôm trước & Rớt hôm nay từ snapshot 6AM cố định (bất biến) theo activeDate
   const activeSnap = lastUpdateObj?.daily_snapshots?.[activeDate];
   if (activeSnap) {
-    if (activeSnap.rot_hom_truoc !== undefined && Number(activeSnap.rot_hom_truoc) > 0) {
+    if (activeSnap.rot_hom_truoc !== undefined) {
       forecastRotHomTruoc = Number(activeSnap.rot_hom_truoc);
     }
-    if (activeSnap.rot_hom_nay !== undefined && Number(activeSnap.rot_hom_nay) > 0 && activeSnap.is_frozen) {
+    if (activeSnap.rot_hom_nay !== undefined) {
       forecastRotHomNay = Number(activeSnap.rot_hom_nay);
     }
   } else if (lastUpdateObj && (activeDate === lastUpdateObj.active_date || activeDate === todayOpDate)) {
