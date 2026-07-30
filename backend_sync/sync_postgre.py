@@ -678,18 +678,43 @@ def sync_postgre_to_dashboard():
         target_st = next_st if (next_st and next_st not in ('', 'KHÔ VÙNG KHÁC')) else (mapped_st or pk_st_raw)
         target_st_upper = target_st.strip().upper()
 
-        if target_st_upper in OFFICIAL_STATION_TO_AREA:
+        is_north_record = (
+            target_st_upper == 'BN HUB' or
+            target_st_upper.startswith('HN ') or
+            target_st_upper.startswith('HD ') or
+            target_st_upper.startswith('HY ') or
+            dict_area.get(sc) == 'A06'
+        )
+
+        if is_north_record:
+            area_id = 'A06'
+            station = 'BN HUB'
+            zone    = '1'
+        elif target_st_upper in OFFICIAL_STATION_TO_AREA:
             area_id = OFFICIAL_STATION_TO_AREA[target_st_upper]
             station = OFFICIAL_LAYOUT_MAP[area_id][0]
             zone    = OFFICIAL_LAYOUT_MAP[area_id][1]
         elif sc and dict_area.get(sc):
             area_id = dict_area.get(sc)
-            station = dict_station.get(sc, target_st)
-            zone    = ZONE_MAP.get(dict_zone.get(sc, '3'), '3')
+            if area_id in OFFICIAL_LAYOUT_MAP:
+                station = OFFICIAL_LAYOUT_MAP[area_id][0]
+                zone    = OFFICIAL_LAYOUT_MAP[area_id][1]
+            else:
+                station = dict_station.get(sc, target_st)
+                zone    = ZONE_MAP.get(dict_zone.get(sc, '3'), '3')
         else:
             station = target_st or 'KHÔ VÙNG KHÁC'
             area_id = OFFICIAL_STATION_TO_AREA.get(station.upper(), 'C01')
-            zone    = OFFICIAL_LAYOUT_MAP.get(area_id, ('', '3'))[1]
+            if area_id in OFFICIAL_LAYOUT_MAP:
+                station = OFFICIAL_LAYOUT_MAP[area_id][0]
+                zone    = OFFICIAL_LAYOUT_MAP[area_id][1]
+            else:
+                zone = '3'
+
+        if area_id == 'A06':
+            station = 'BN HUB'
+            zone = '1'
+
 
         valid_area = bool(area_id)
         cap      = 1400 if area_id == 'A06' else 780
