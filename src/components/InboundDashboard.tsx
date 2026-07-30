@@ -248,24 +248,23 @@ export default function InboundDashboard({
     };
 
   [...filteredInbound, ...filteredChuaVeHub].forEach(d => {
-    const rawSt = d['Trng thi'] || d['Trạng thái'] || d['status'];
-    const status = (rawSt ? String(rawSt).trim() : '');
+    const status = getWaterfallStatus(d);
     const vol = parseInt(d['Volume'] || d['volume'] || 1, 10) || 1;
     const wt = parseFloat(d['Weight'] || d['weight_ton'] || 0) || 0;
 
-    if (status === 'Inbound' || status === 'Đã nhập kho') {
+    if (status === 'Inbound') {
       stages['Inbound'].orders += vol;
       stages['Inbound'].weight += wt;
       if (wt > 0) stagesWithWeight['Inbound'] += vol;
-    } else if (status === 'Transporting' || status === 'Đang vận chuyển') {
+    } else if (status === 'Transporting') {
       stages['Transporting'].orders += vol;
       stages['Transporting'].weight += wt;
       if (wt > 0) stagesWithWeight['Transporting'] += vol;
-    } else if (status === 'Pickup Done' || status === 'Đã lấy hàng') {
+    } else if (status === 'Pickup Done') {
       stages['Pickup Done'].orders += vol;
       stages['Pickup Done'].weight += wt;
       if (wt > 0) stagesWithWeight['Pickup Done'] += vol;
-    } else if (status === 'Created' || status === 'Đã điều phối bưu cục') {
+    } else if (status === 'Created') {
       stages['Created'].orders += vol;
       stages['Created'].weight += wt;
       if (wt > 0) stagesWithWeight['Created'] += vol;
