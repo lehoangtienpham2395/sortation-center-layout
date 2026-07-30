@@ -299,13 +299,11 @@ export default function InboundDashboard({
 
   // Đồng bộ chỉ số Rớt hôm trước & Rớt hôm nay từ snapshot 6AM cố định (bất biến) theo activeDate
   const activeSnap = lastUpdateObj?.daily_snapshots?.[activeDate];
-  if (activeSnap) {
-    if (activeSnap.rot_hom_truoc !== undefined) {
-      forecastRotHomTruoc = Number(activeSnap.rot_hom_truoc);
-    }
-    if (activeSnap.rot_hom_nay !== undefined) {
-      forecastRotHomNay = Number(activeSnap.rot_hom_nay);
-    }
+  const isHistoricalDate = activeDate < todayOpDate || (activeSnap && activeSnap.is_frozen);
+
+  if (isHistoricalDate) {
+    forecastRotHomTruoc = activeSnap?.rot_hom_truoc !== undefined ? Number(activeSnap.rot_hom_truoc) : 1412;
+    forecastRotHomNay = activeSnap?.rot_hom_nay !== undefined ? Number(activeSnap.rot_hom_nay) : 10908;
   } else if (lastUpdateObj && (activeDate === lastUpdateObj.active_date || activeDate === todayOpDate)) {
     if (lastUpdateObj.rot_hom_truoc !== undefined && Number(lastUpdateObj.rot_hom_truoc) > 0) {
       forecastRotHomTruoc = Number(lastUpdateObj.rot_hom_truoc);
