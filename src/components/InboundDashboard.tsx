@@ -243,7 +243,7 @@ export default function InboundDashboard({
 
 
   const filteredTransporting = filteredTransportingInbound;
-  const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
+
 
   const getLinehaulOperatingDate = (row: any) => {
     if (row['Ngày vận hành']) return row['Ngày vận hành'];
@@ -281,32 +281,6 @@ export default function InboundDashboard({
       'Created': { orders: 0, weight: 0 }
     };
 
-  [...filteredInbound, ...filteredChuaVeHub].forEach(d => {
-    const status = getWaterfallStatus(d);
-    const vol = parseInt(d['Volume'] || d['volume'] || 1, 10) || 1;
-    const wt = parseFloat(d['Weight'] || d['weight_ton'] || 0) || 0;
-
-    if (status === 'Inbound') {
-      stages['Inbound'].orders += vol;
-      stages['Inbound'].weight += wt;
-      if (wt > 0) stagesWithWeight['Inbound'] += vol;
-    } else if (status === 'Transporting') {
-      stages['Transporting'].orders += vol;
-      stages['Transporting'].weight += wt;
-      if (wt > 0) stagesWithWeight['Transporting'] += vol;
-    } else if (status === 'Pickup Done') {
-      stages['Pickup Done'].orders += vol;
-      stages['Pickup Done'].weight += wt;
-      if (wt > 0) stagesWithWeight['Pickup Done'] += vol;
-    } else if (status === 'Created') {
-      stages['Created'].orders += vol;
-      stages['Created'].weight += wt;
-      if (wt > 0) stagesWithWeight['Created'] += vol;
-    }
-  });
-
-
-
   const getPreviousOperatingDate = (activeDateStr: string): string => {
     if (!activeDateStr) return '';
     const norm = normalizeDateStr(activeDateStr);
@@ -340,24 +314,38 @@ export default function InboundDashboard({
     const normFcDate = getFcOpDate(d);
     const status = d.status || d['Trng thi'] || d['Trạng thái'] || '';
     const vol = parseInt(d.volume ?? d['Volume'] ?? 1, 10) || 1;
+    const wt = parseFloat(d['Weight'] || d['weight_ton'] || 0) || 0;
 
     if (status !== 'Đã hủy') {
       const isInbound = status === 'Inbound' || status === 'Đã nhập kho';
+      let isForecastMember = false;
 
       // A. Rớt hôm nay: normFcDate === normActiveDate
       if (normFcDate === normActiveDate) {
         forecastRotHomNay += vol;
+        isForecastMember = true;
       } 
       // B. Rớt hôm trước: CHỈ đúng 1 ngày liền trước (prevDate) CHƯA INBOUND
       else if (normFcDate === prevDate && !isInbound) {
         forecastRotHomTruoc += vol;
+        isForecastMember = true;
       }
       // C. Tồn đọng lâu ngày: các ngày cũ hơn (< prevDate) CHƯA INBOUND
       else if (normFcDate && normFcDate < prevDate && !isInbound) {
         forecastTonDongLau += vol;
       }
+
+      if (isForecastMember) {
+        const wfStatus = getWaterfallStatus(d);
+        if (stages[wfStatus]) {
+          stages[wfStatus].orders += vol;
+          stages[wfStatus].weight += wt;
+          if (wt > 0) stagesWithWeight[wfStatus] += vol;
+        }
+      }
     }
   });
+
 
   const rawTrucksList: any[] = Array.isArray(truckEtaData) ? truckEtaData : ((truckEtaData as any)?.trucks || []);
 
