@@ -1157,7 +1157,8 @@ export default function InboundDashboard({
                   <span className="label-text">Transporting</span>
                   <span className="donut-legend-pct" style={{ marginLeft: '4px' }}>({inTransitPct}%)</span>
                 </div>
-                <span className="donut-legend-value">{totalInTransitOrders.toLocaleString()}</span>
+                <span className="donut-legend-value">{totalInTransit.toLocaleString()}</span>
+
               </div>
 
               <div 
