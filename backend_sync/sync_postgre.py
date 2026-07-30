@@ -617,7 +617,11 @@ def sync_postgre_to_dashboard():
     backlog_group = {}   # (zone, area_id, station_name)         → {volume, weight_kg, capacity}
     inbound_group = {}   # 14-tuple key                          → {volume, weight_kg}
     arr_group     = {}   # (op_date, station_name, scan_hour)    → {total, at_hub, not_hub, last_scan_time}
-    hourly        = {f"{h:02d}:00": 0 for h in range(24)}
+    try:
+        today_dt = datetime.datetime.strptime(today, '%Y-%m-%d')
+        yesterday_str = (today_dt - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+    except Exception:
+        yesterday_str = ''
 
     # ── Cờ Rớt đơn (Nguyên tắc 6) ────────────────────────────────
     # Baseline chốt 06:00 AM cho Inbound Dashboard (bất biến)
@@ -731,11 +735,7 @@ def sync_postgre_to_dashboard():
         is_canceled = (stn == 'Đã hủy' or r.get('status_sys') == 'Đã hủy')
         is_rot = (not has_in) and (not is_canceled) and (not is_reb)
 
-        try:
-            today_dt = datetime.strptime(today, '%Y-%m-%d')
-            yesterday_str = (today_dt - timedelta(days=1)).strftime('%Y-%m-%d')
-        except Exception:
-            yesterday_str = ''
+        # Trống try-except vì yesterday_str đã tính ở ngoài vòng lặp
 
         ref_rot_date = str(r.get('op_date_pickup') or get_op_date(cr_t) or op_date or '')[:10]
         if is_rot:
@@ -844,18 +844,6 @@ def sync_postgre_to_dashboard():
                 inbound_group[key_ib] = {'volume': 0, 'weight_kg': 0.0, 'return_count': ret_cnt}
             inbound_group[key_ib]['volume']    += 1
             inbound_group[key_ib]['weight_kg'] += wt_kg
-
-        # ── Cờ Rớt (Chuẩn Logic Người Dùng):
-        # 1. Rớt Hôm Nay   : Đơn CREATED hôm nay (op_cr == today) chưa Inbound & chưa Outbound
-        # 2. Rớt Hôm Trước : Đơn CREATED/PICKUP trước hôm nay (< today), ĐÃ PICKUP/ARRIVED nhưng CHƯA INBOUND & CHƯA OUTBOUND
-        if not has_in and not has_out and not is_reb and not is_canceled:
-            op_cr = get_op_date(cr_t)
-            op_pk = get_op_date(pk_t)
-            
-            if op_cr == today:
-                rot_hom_nay += 1
-            elif (has_pk or has_arr) and (op_pk == yesterday_str or op_cr == yesterday_str):
-                rot_hom_truoc += 1
 
         # arrival
         if arr_t:

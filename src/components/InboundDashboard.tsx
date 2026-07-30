@@ -179,11 +179,29 @@ export default function InboundDashboard({
   const getDatePickup = (d: any) => d['op_date_pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Pickup'] || getDateForecast(d);
   const getDateArrival = (d: any) => d['op_date_arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Arrival'] || getDateForecast(d);
 
-  // Northern / BN HUB Station Filter helper (reads is_north/region from Backend payload)
-  const isNorthRow = (d: any) => {
-    const stName = typeof d === 'string' ? d : (d?.station_name || d?.['Bu cc'] || d?.['Bưu cục'] || d?.['Pickup_station'] || d?.station || '');
-    const clean = (stName || '').trim().toUpperCase();
-    return clean.includes('BN HUB');
+  const isNorthRow = (row: any) => {
+    if (!row) return false;
+    if (typeof row === 'string') {
+      const clean = row.trim().toUpperCase();
+      return clean === 'BN HUB' || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ');
+    }
+    if (row?.is_north === true) return true;
+    if (String(row?.region || '').toLowerCase() === 'north') return true;
+
+    const station = String(
+      row?.station_name ??
+      row?.pickup_station ??
+      row?.send_network ??
+      row?.['Bu cc'] ??
+      row?.['Bưu cục'] ??
+      row?.station ??
+      ''
+    ).trim().toUpperCase();
+
+    return station === 'BN HUB' ||
+      station.startsWith('HN ') ||
+      station.startsWith('HD ') ||
+      station.startsWith('HY ');
   };
 
   const normalizeDateStr = (dStr: string): string => {
@@ -285,8 +303,24 @@ export default function InboundDashboard({
 
 
 
-  // 🎯 1. XÁC ĐỊNH CA LIVE HIỆN TẠI & BẢO VỆ NGÀY QUÁ KHỨ
+  const getPreviousOperatingDate = (activeDateStr: string): string => {
+    if (!activeDateStr) return '';
+    const norm = normalizeDateStr(activeDateStr);
+    const dt = new Date(norm + 'T00:00:00');
+    dt.setDate(dt.getDate() - 1);
+    const yr = dt.getFullYear();
+    const mo = String(dt.getMonth() + 1).padStart(2, '0');
+    const dy = String(dt.getDate()).padStart(2, '0');
+    return `${yr}-${mo}-${dy}`;
+  };
+
   const normActiveDate = normalizeDateStr(activeDate);
+  const prevDate = getPreviousOperatingDate(normActiveDate);
+  const normToday = normalizeDateStr(lastUpdateObj?.active_date || new Date().toISOString().slice(0, 10));
+  const isHistoricalDate = normActiveDate !== normToday;
+  const activeSnap = lastUpdateObj?.daily_snapshots?.[normActiveDate];
+
+  let forecastTonDongLau = 0;
 
   const getFcOpDate = (row: any) => {
     const rawTime = row['forecast_time'] || row['Created_time'] || row['created_time'] || '';
@@ -296,24 +330,26 @@ export default function InboundDashboard({
 
   inboundData.forEach(d => {
     const normFcDate = getFcOpDate(d);
-    const status = d['Trng thi'] || d['Trạng thái'] || d['status'] || '';
-    const vol = parseInt(d['Volume'] || d['volume'] || 1, 10) || 1;
+    const status = d.status || d['Trng thi'] || d['Trạng thái'] || '';
+    const vol = parseInt(d.volume ?? d['Volume'] ?? 1, 10) || 1;
 
     if (status !== 'Đã hủy') {
       const isInbound = status === 'Inbound' || status === 'Đã nhập kho';
 
-      // A. Rớt hôm nay (Ca vận hành 06:00 ngày activeDate -> 05:59:59 ngày tiếp theo): Tổng đơn phát sinh cho ca
+      // A. Rớt hôm nay: normFcDate === normActiveDate
       if (normFcDate === normActiveDate) {
         forecastRotHomNay += vol;
       } 
-      // B. Rớt hôm qua (Backlog từ các ca trước): Tất cả đơn trước ca activeDate CHƯA INBOUND
-      else if (normFcDate && normFcDate < normActiveDate && !isInbound) {
+      // B. Rớt hôm trước: CHỈ đúng 1 ngày liền trước (prevDate) CHƯA INBOUND
+      else if (normFcDate === prevDate && !isInbound) {
         forecastRotHomTruoc += vol;
+      }
+      // C. Tồn đọng lâu ngày: các ngày cũ hơn (< prevDate) CHƯA INBOUND
+      else if (normFcDate && normFcDate < prevDate && !isInbound) {
+        forecastTonDongLau += vol;
       }
     }
   });
-
-  // 🎯 DỮ LIỆU TÍNH TOÁN 100% ĐỘNG TỪ BỘ DỮ LIỆU (KHÔNG DÙNG SNAPSHOT CHỐT CỨNG)
 
   const rawTrucksList: any[] = Array.isArray(truckEtaData) ? truckEtaData : ((truckEtaData as any)?.trucks || []);
 
@@ -336,10 +372,8 @@ export default function InboundDashboard({
       'Giờ đến bãi': d.eta || d.actualArrivalTime || d.predictArriveTime || d.planned_arrival || ''
     }));
 
-
-
-  // Group truck ETA by unique station
-  const effectiveTruckEta = (filteredTruckEta && filteredTruckEta.length > 0) ? filteredTruckEta : rawTrucksList;
+  // Group truck ETA by unique station (Bảo vệ ngày lịch sử: không rò xe live ngày 30/07 sang ngày lịch sử)
+  const effectiveTruckEta = (filteredTruckEta && filteredTruckEta.length > 0) ? filteredTruckEta : (isHistoricalDate ? [] : rawTrucksList);
   const groupedStationVehicles: Record<string, any> = {};
 
   (effectiveTruckEta || []).forEach((d: any, idx: number) => {
@@ -435,10 +469,22 @@ export default function InboundDashboard({
   let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
   let totalInTransitWeight = incomingVehicles.reduce((sum, s) => sum + s.weight, 0);
 
-  // Tổng Forecast nhất quán
-  let totalOrders = stages['Inbound'].orders;
-  let totalWeight = stages['Inbound'].weight;
-  let totalForecast = forecastRotHomNay;
+  let bnHubLinehaulOrders = 0;
+  const bnHubObj = incomingVehicles.find(v => (v.name || v.station || '').toUpperCase().includes('BN HUB'));
+  if (bnHubObj) {
+    bnHubLinehaulOrders = bnHubObj.orders || bnHubObj.tongDon || 0;
+  }
+
+  // 🎯 Khóa cứng Snapshot Lock cho ngày lịch sử (activeDate !== today)
+  if (isHistoricalDate && activeSnap) {
+    forecastRotHomNay = activeSnap.rot_hom_nay ?? forecastRotHomNay;
+    forecastRotHomTruoc = activeSnap.rot_hom_truoc ?? forecastRotHomTruoc;
+    forecastTonDongLau = activeSnap.rot_ton_dong ?? forecastTonDongLau;
+    bnHubLinehaulOrders = activeSnap.bn_hub_orders ?? 0;
+  }
+
+  // 🎯 Tổng Forecast nhất quán theo công thức chuẩn: Total = Rớt hôm nay + Rớt hôm trước + Linehaul BN HUB
+  let totalForecast = forecastRotHomNay + forecastRotHomTruoc + bnHubLinehaulOrders;
 
 
 
@@ -662,15 +708,16 @@ export default function InboundDashboard({
   };
 
   filteredInbound.forEach(d => {
-    const status = d['Trng thi'] || d['Trạng thái'];
-    if (status === 'Inbound') {
-      // Ưu tiên đọc Bưu cục nộp (pickup_station) chuẩn theo Hợp đồng Kỹ thuật v2
-      const fcName = d['Bưu cục nộp'] || d['pickup_station'] || d['Bưu cục'] || d['Bu cc'] || 'BN HUB';
+    const status = d.status || d['Trng thi'] || d['Trạng thái'] || '';
+    if (status === 'Inbound' || status === 'Đã nhập kho') {
+      const fcName = d.station_name || d.pickup_station || d.send_network || d['Bưu cục nộp'] || d['Bưu cục'] || d['Bu cc'] || 'Chưa rõ';
       const fc = getFC(fcName);
       if (fc) {
-        fc.orders += parseInt(d['Volume'], 10) || 0;
-        fc.weight += parseFloat(d['Weight']) || 0;
-        const tripId = d['trip_code'] || d['trip_id'] || d['plate_number'] || d['vehicle_number'] || d['Phiếu nhiệm vụ'] || d['Mã chuyến xe'];
+        const vol = parseInt(d.volume ?? d['Volume'] ?? 1, 10) || 1;
+        const wt = parseFloat(d.weight_ton ?? d['Weight'] ?? 0) || 0;
+        fc.orders += vol;
+        fc.weight += wt;
+        const tripId = d.trip_code || d.trip_id || d.plate_number || d.vehicle_number || d['Phiếu nhiệm vụ'] || d['Mã chuyến xe'];
         if (tripId) {
           fc.vehicles.add(String(tripId));
         }
@@ -876,11 +923,6 @@ export default function InboundDashboard({
 
   return (
     <div className="inbound-dashboard dashboard-container w-full max-w-7xl mx-auto pb-12 text-slate-100 font-sans">
-      {/* VERIFICATION BANNER FOR USER */}
-      <div style={{ background: '#00e5ff', color: '#000', padding: '6px 16px', borderRadius: '8px', marginBottom: '12px', fontWeight: 800, textAlign: 'center', fontSize: '14px', letterSpacing: '0.5px' }}>
-        ⚡ PHIÊN BẢN MỚI ĐÃ ĐƯỢC ĐỒNG BỘ - FORECAST CA 29/07: 14.359 ĐƠN (RỚT HÔM NAY: 14.348 | RỚT HÔM TRƯỚC: 23) ⚡
-      </div>
-
       {/* Row 1: Header Control Block */}
       <header className="dashboard-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px' }}>
 
