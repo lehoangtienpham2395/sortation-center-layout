@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { DatePicker } from './DatePicker';
+import { normalizeDropType } from '../contracts/data_contract';
 
 // Animated Number Ticker Component
 function NumberTicker({ value, decimals = 0 }: { value: number; decimals?: number }) {
@@ -313,6 +314,8 @@ export default function InboundDashboard({
     const fcDateRaw = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || d['op_date_forecast'] || '';
     const normFcDate = normalizeDateStr(fcDateRaw);
     const status = d['Trng thi'] || d['Trạng thái'] || d['status'] || '';
+    const dropTypeRaw = d['Loi rt'] || d['Loại rớt'] || d['drop_type'] || '';
+    const normDropType = normalizeDropType(dropTypeRaw);
     const vol = parseInt(d['Volume'] || d['volume'] || 1, 10) || 1;
 
     if (status !== 'Đã hủy') {
@@ -321,13 +324,17 @@ export default function InboundDashboard({
       if (normFcDate === normActiveDate) {
         forecastRotHomNay += vol;
       } 
-      // B. Rớt hôm trước: ĐÚNG 1 NGÀY LIỀN TRƯỚC (normFcDate === prevDate)
-      else if (normFcDate === prevDate) {
-        forecastRotHomTruoc += vol;
+      // B. Rớt hôm trước: CHỈ ĐẾM CÁC ĐƠN THỰC SỰ BỊ CỜ RỚT HÔM TRƯỚC (rot_yesterday / Rớt hôm trước)
+      else if (normFcDate === prevDate || normDropType === 'Rớt hôm trước') {
+        if (normDropType === 'Rớt hôm trước' || dropTypeRaw === 'rot_yesterday' || dropTypeRaw === 'Rớt hôm trước') {
+          forecastRotHomTruoc += vol;
+        }
       }
       // C. Tồn đọng lâu ngày (kẹt từ 2+ ngày trước)
       else if (normFcDate && normFcDate < prevDate) {
-        forecastTonDongLau += vol;
+        if (normDropType === 'Tồn đọng lâu ngày' || dropTypeRaw === 'rot_aged' || dropTypeRaw === 'Tồn đọng lâu ngày') {
+          forecastTonDongLau += vol;
+        }
       }
     }
   });
