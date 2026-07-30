@@ -243,8 +243,14 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
       if (out['Trạng thái'] !== undefined) {
         out['Trạng thái'] = normalizeStatus(out['Trạng thái']);
       }
+      if (out['status'] !== undefined) {
+        out['status'] = normalizeStatus(out['status']);
+      }
       if (out['Loại rớt'] !== undefined) {
         out['Loại rớt'] = normalizeDropType(out['Loại rớt']);
+      }
+      if (out['drop_type'] !== undefined) {
+        out['drop_type'] = normalizeDropType(out['drop_type']);
       }
       return out;
     });
@@ -288,8 +294,6 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
       let weight     = Number(weightRaw) || 0;
       if (item['weight_kg'] !== undefined && item['weight_ton'] === undefined) {
         weight       = Number(item['weight_kg']) / 1000.0;
-      } else if (weight > 100) {
-        weight       = weight / 1000.0;
       }
       const capacity = Number(capRaw) || 780;
 
@@ -492,9 +496,13 @@ export default function App() {
     return stats;
   }, [data, selectedType]);
 
-  // Fetch sheet records directly from Google Sheets (all 3 tabs in parallel)
   const fetchAndUpdateData = async () => {
     setLoading(true);
+    const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const padStr = (n: number) => String(n).padStart(2, '0');
+    const todayOpDate = getOperatingDateFromTimestamp(
+      `${nowVN.getFullYear()}-${padStr(nowVN.getMonth() + 1)}-${padStr(nowVN.getDate())} ${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}`
+    );
 
     // 1. Fetch last_update.json ngay lập tức để cập nhật mốc thời gian Update tức thì
     try {
@@ -572,9 +580,10 @@ export default function App() {
 
       if (ibDates.length > 0) {
         setSelectedInboundDate(prev => {
+          // Ưu tiên tự động nhảy sang ca mới (todayOpDate) khi backend có dữ liệu ca mới
+          if (ibDates.includes(todayOpDate)) return todayOpDate;
           if (prev && ibDates.includes(prev)) return prev;
-          // Mặc định chọn ngày hiện tại (todayOpDate) khi reset cache / mở trang
-          return ibDates.includes(todayOpDate) ? todayOpDate : ibDates[0];
+          return ibDates[0];
         });
       }
     }
@@ -588,14 +597,18 @@ export default function App() {
     if (combined.length > 0) {
       setRawSheetRows(combined);
 
-      // Extract unique dates from all rows (Outbound, Backlog, Inventory), sorted descending
-      const dates = Array.from(new Set(combined.map(r => r.date).filter(Boolean))) as string[];
+      // Extract unique dates from all sources (Outbound, Backlog, Inventory, Inbound), sorted descending
+      const dates = Array.from(new Set([
+        ...combined.map(r => r.date).filter(Boolean),
+        ...(ibRows ?? []).map(r => r['Ngày vận hành_Inbound'] || r['op_date_inbound'] || r['Ngày vận hành_Forecast'] || r['op_date_forecast']).filter(Boolean)
+      ])) as string[];
       dates.sort((a, b) => b.localeCompare(a));
-      const recentDates = dates.slice(0, 7);
+      const recentDates = dates.slice(0, 10);
       setAvailableDates(recentDates);
 
       if (recentDates.length > 0) {
         setSelectedDate(prev => {
+          if (recentDates.includes(todayOpDate)) return todayOpDate;
           if (prev && recentDates.includes(prev)) return prev;
           return recentDates[0];
         });
@@ -965,7 +978,9 @@ export default function App() {
       inboundDates.sort((a, b) => b.localeCompare(a));
       const activeDate = selectedInboundDate || inboundDates[0] || '';
       
-      const filteredArrival = arrivalData.filter(d => d['Ngày vận hành'] === activeDate);
+      const filteredArrival = arrivalData.filter(d => 
+        (d['Ngày vận hành_Arrival'] || d['op_date_arrival'] || d['Ngày vận hành']) === activeDate
+      );
       const stationMap: Record<string, number> = {};
       filteredArrival.forEach(d => {
         const station = (d['Pickup_station'] || '').trim().toUpperCase();
