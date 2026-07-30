@@ -678,9 +678,10 @@ def pull_backlog(session, token_mgr, bh_headers, bp_payload, start_str, end_str)
         page_payload['paginationSearchType'] = 'list'
         try:
             r = auth_post(session, url, token_mgr, hdrs, params=params, json_body=page_payload, label='Backlog p' + str(p))
-            return p, r.json().get('data', {}).get('records', []) or []
+            return r.json().get('data', {}).get('records', []) or []
         except Exception:
-            return p, []
+            return []
+
 
     records = pull_pages_parallel(fetch_backlog_page, total, SCAN_PAGE_SIZE, 'Backlog Report JFS')
     print('   OK Backlog: ' + str(len(records)) + ' dong')
