@@ -1068,21 +1068,28 @@ def main():
 
     df['Pickup_station'] = df.apply(lambda r: arr_station_map.get(r['tracking']) or ib_station_map.get(r['tracking']) or r.get('Pickup_station') or 'BN HUB', axis=1)
 
-    # Waterfall Next_station Lookup (SỬA DỨT ĐIỂM: Ưu tiên chuẩn Bưu cục ĐÍCH từ Sortcode valid.csv & Outbound nextSite)
+    # Waterfall Next_station Lookup (SỬA DỨT ĐIỂM: Loại bỏ hoàn toàn KHÔ VÙNG KHÁC, ưu tiên Outbound nextSite → valid.csv → Pickup_station → BN HUB)
     def resolve_waterfall_next_station(r):
         wb = str(r['tracking']).strip()
         ob_st = ob_next_station_map.get(wb, '')
         disp_st = str(r.get('Next_station') or '').strip()
+        sc = str(r.get('Dispatch_code') or '').strip().upper()
+        pk_st = str(r.get('Pickup_station') or '').strip()
 
         # 1. Ưu tiên 1: Outbound nextSite (Trạm đích thực tế quét xuất kho)
-        if ob_st and ob_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'BN HUB'):
+        if ob_st and ob_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC'):
             return ob_st
         # 2. Ưu tiên 2: Next_station chuẩn quy hoạch từ Sortcode valid.csv
-        if disp_st and disp_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'BN HUB'):
+        if disp_st and disp_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC'):
             return disp_st
-        return ob_st or disp_st or 'KHO VÙNG KHÁC'
+        # 3. Ưu tiên 3: Lookup từ sortcode trong dict_station
+        if sc and dict_station.get(sc):
+            return dict_station[sc]
+        # 4. Ưu tiên 4: Fallback về bưu cục nguồn pickup_station hoặc BN HUB
+        return pk_st or 'BN HUB'
 
     df['Next_station'] = df.apply(resolve_waterfall_next_station, axis=1)
+
 
 
 
