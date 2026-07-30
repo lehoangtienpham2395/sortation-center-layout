@@ -301,13 +301,18 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
       const buuCuc     = String(item['station_name'] ?? item['Bu cc'] ?? item['Bưu cục'] ?? item['name'] ?? item['Next_station'] ?? item['Pickup_station'] ?? '');
       const volumeRaw  = item['volume'] ?? item['Volume'] ?? item['Orders_num'];
       const volume     = Number(volumeRaw) || 0;
-      const weightRaw  = item['weight_ton'] ?? item['weight'] ?? item['Weight'] ?? item['Orders_weight'];
+      const weightRaw  = item['weight_ton'] ?? item['weight'] ?? item['Weight'] ?? item['Orders_weight'] ?? item['weight_kg'];
       const capRaw     = item['capacity'] ?? item['Sc cha'] ?? item['Sức chứa'] ?? 780;
       const dateRaw    = item['op_date'] ?? item['Ngy'] ?? item['Ngày'] ?? item['date'] ?? item['operation_date_created'] ?? item['operation_date'] ?? item['operation_date_inbound'] ?? todayStr;
       const rawSt      = item['status'] ?? item['Trng thi'] ?? item['Trạng thái'] ?? item['status_sys'] ?? undefined;
       const statusRaw  = normalizeStatus(rawSt);
 
-      const weight   = Number(weightRaw) || 0;
+      let weight     = Number(weightRaw) || 0;
+      if (item['weight_kg'] !== undefined && item['weight_ton'] === undefined) {
+        weight       = Number(item['weight_kg']) / 1000.0;
+      } else if (weight > 100) {
+        weight       = weight / 1000.0;
+      }
       const capacity = Number(capRaw) || 780;
 
       if (areaId || buuCuc) {
@@ -767,13 +772,8 @@ export default function App() {
           }
         }
 
-        // Calculate utilization based on capacity for all modes
-        if (selectedType === 'Outbound' && totalOrdersOfSelectedType > 0) {
-          const sharePct = (current / totalOrdersOfSelectedType) * 100;
-          util = Math.min(100, Math.max(current > 0 ? 20 : 0, Math.round(sharePct * 8)));
-        } else {
-          util = capacity > 0 ? Math.floor((current / capacity) * 100) : 0;
-        }
+        // Calculate utilization based on capacity for all modes (Standard current / capacity * 100)
+        util = capacity > 0 ? Math.floor((current / capacity) * 100) : 0;
       }
 
       if (curr.areaId === 'A06') {
