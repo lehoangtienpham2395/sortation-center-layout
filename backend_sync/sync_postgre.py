@@ -617,6 +617,7 @@ def sync_postgre_to_dashboard():
     backlog_group = {}   # (zone, area_id, station_name)         → {volume, weight_kg, capacity}
     inbound_group = {}   # 14-tuple key                          → {volume, weight_kg}
     arr_group     = {}   # (op_date, station_name, scan_hour)    → {total, at_hub, not_hub, last_scan_time}
+    hourly        = {f"{h:02d}:00": 0 for h in range(24)}
     try:
         today_dt = datetime.datetime.strptime(today, '%Y-%m-%d')
         yesterday_str = (today_dt - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
