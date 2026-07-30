@@ -22,7 +22,7 @@ interface HeatmapDashboardProps {
 
 export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpdate, heatmapData: dynamicHeatmapData }: HeatmapDashboardProps) {
   const heatmapData = useMemo(() => {
-    return dynamicHeatmapData && dynamicHeatmapData.length > 0 ? dynamicHeatmapData : staticHeatmapData;
+    return Array.isArray(dynamicHeatmapData) && dynamicHeatmapData.length > 0 ? dynamicHeatmapData : (Array.isArray(staticHeatmapData) ? staticHeatmapData : []);
   }, [dynamicHeatmapData]);
   // Checkbox state: active selected statuses
   const allOptions = ['created', 'pickup', 'transporting', 'inbound', 'outbound'];
