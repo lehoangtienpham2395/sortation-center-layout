@@ -151,18 +151,21 @@ def clean_status_sys(status_raw) -> str:
     if st_lower in aliases:
         return aliases[st_lower]
     
-    if any(kw in st_lower for kw in ['đã hủy', 'cancelled', 'canceled', 'hủy']):
+    if any(kw in st_lower for kw in ['đã hủy', 'cancelled', 'canceled', 'hủy', 'da huy']):
         return 'Đã hủy'
-    if any(kw in st_lower for kw in ['đã xuất kho', 'outbound', 'outbound_done', 'đã xuất khỏi hub']):
+    if any(kw in st_lower for kw in ['đã xuất kho', 'outbound', 'outbound_done', 'đã xuất khỏi hub', 'đã rời hub']):
         return 'Outbound'
-    if any(kw in st_lower for kw in ['đã nhập kho', 'inbound', 'inbound_done', 'đang trên bãi']):
+    if any(kw in st_lower for kw in ['đã nhập kho', 'inbound', 'inbound_done', 'đang trên bãi', 'at_hub']):
         return 'Inbound'
-    if any(kw in st_lower for kw in ['đang vận chuyển', 'transporting', 'in_transit', 'chưa đến hub']):
+    if any(kw in st_lower for kw in ['đang vận chuyển', 'transporting', 'in_transit', 'chưa đến hub', 'arrival']):
         return 'Transporting'
     if any(kw in st_lower for kw in ['đã lấy hàng', 'pickup done', 'pickup_done', 'picked_up']):
         return 'Pickup Done'
+    if any(kw in st_lower for kw in ['điều phối', 'tạo mới', 'chưa lấy', 'thất bại', 'created']):
+        return 'Created'
     
-    return st or 'Created'
+    return 'Created'
+
 
 
 def validate_payload_contract(records: list, dataset_name: str) -> None:
@@ -506,8 +509,9 @@ def sync_postgre_to_dashboard():
         df_v.columns = df_v.columns.str.strip()
         sc_col   = next((c for c in ['sortcode', 'Mã trạm', 'Dispatch_code'] if c in df_v.columns), None)
         area_col = next((c for c in ['area', 'AreaID'] if c in df_v.columns), None)
-        st_col   = next((c for c in ['Bưu cục', 'Station_1', 'Station_2'] if c in df_v.columns), None)
+        st_col   = next((c for c in ['Station_2', 'Station_1', 'Bưu cục'] if c in df_v.columns), None)
         zone_col = next((c for c in ['Zone', 'Hubcode'] if c in df_v.columns), None)
+
 
         if sc_col and area_col:
             sc = df_v[sc_col].dropna().str.strip().str.upper()
@@ -678,8 +682,10 @@ def sync_postgre_to_dashboard():
         target_st = next_st if (next_st and next_st not in ('', 'KHÔ VÙNG KHÁC')) else (mapped_st or pk_st_raw)
         target_st_upper = target_st.strip().upper()
 
+        pk_st_upper = pk_st_raw.strip().upper()
         is_north_record = (
             target_st_upper == 'BN HUB' or
+            pk_st_upper == 'BN HUB' or
             target_st_upper.startswith('HN ') or
             target_st_upper.startswith('HD ') or
             target_st_upper.startswith('HY ') or
@@ -703,7 +709,7 @@ def sync_postgre_to_dashboard():
                 station = dict_station.get(sc, target_st)
                 zone    = ZONE_MAP.get(dict_zone.get(sc, '3'), '3')
         else:
-            station = target_st or 'KHÔ VÙNG KHÁC'
+            station = target_st or 'Chưa phân vùng'
             area_id = OFFICIAL_STATION_TO_AREA.get(station.upper(), 'C01')
             if area_id in OFFICIAL_LAYOUT_MAP:
                 station = OFFICIAL_LAYOUT_MAP[area_id][0]
@@ -714,6 +720,7 @@ def sync_postgre_to_dashboard():
         if area_id == 'A06':
             station = 'BN HUB'
             zone = '1'
+
 
 
         valid_area = bool(area_id)

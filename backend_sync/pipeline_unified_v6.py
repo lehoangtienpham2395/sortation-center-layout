@@ -121,35 +121,82 @@ def get_op_date(dt_str: str) -> str:
         return str(dt_str)[:10]
 
 BACKEND_STATUS_MAP = {
+    # Inbound
     'Inbound':              'Inbound',
     'inbound':              'Inbound',
     'at_hub':               'Inbound',
     'Đang trên bãi':        'Inbound',
+    'Đã nhập kho':          'Inbound',
+    'đã nhập kho':          'Inbound',
+
+    # Transporting
     'Transporting':         'Transporting',
     'transporting':         'Transporting',
     'in_transit':           'Transporting',
     'Đang trên đường':      'Transporting',
+    'Đang vận chuyển':      'Transporting',
+    'Arrival':              'Transporting',
+    'arrival':              'Transporting',
+    'Chưa đến HUB':         'Transporting',
+
+    # Pickup Done
     'Pickup Done':          'Pickup Done',
     'pickup_done':          'Pickup Done',
+    'picked_up':            'Pickup Done',
     'Đã lấy hàng':          'Pickup Done',
+    'đã lấy hàng':          'Pickup Done',
+
+    # Created
     'Created':              'Created',
     'created':              'Created',
     'Dispatched':           'Created',
     'Đã điều phối bưu cục': 'Created',
+    'Đã điều phối nhân viên': 'Created',
     'Đã điều phối':         'Created',
+    'Lấy hàng thất bại':    'Created',
+    'Chưa lấy hàng':        'Created',
+    'Lấy lại hàng':         'Created',
+
+    # Outbound
     'Outbound':             'Outbound',
     'outbound':             'Outbound',
     'outbound_done':        'Outbound',
+    'Đã xuất kho':          'Outbound',
     'Đã xuất khỏi HUB':     'Outbound',
     'Đã rời HUB':           'Outbound',
+
+    # Canceled
+    'Đã hủy':               'Đã hủy',
+    'Da huy':               'Đã hủy',
+    'da huy':               'Đã hủy',
+    'Cancelled':            'Đã hủy',
+    'canceled':             'Đã hủy'
 }
 
 def clean_status_sys(raw_status: str) -> str:
-    """Chuẩn hóa trạng thái ngay tại nguồn Backend ETL trước khi đẩy vào PostgreSQL."""
+    """Chuẩn hóa 100% trạng thái thô từ JFS API thành 5 Enum chuẩn dựa trên Data Contract."""
     if not raw_status:
         return 'Created'
     s = str(raw_status).strip()
-    return BACKEND_STATUS_MAP.get(s, BACKEND_STATUS_MAP.get(s.lower(), s))
+    if s in BACKEND_STATUS_MAP:
+        return BACKEND_STATUS_MAP[s]
+    s_lower = s.lower()
+    if s_lower in BACKEND_STATUS_MAP:
+        return BACKEND_STATUS_MAP[s_lower]
+    
+    if any(kw in s_lower for kw in ['hủy', 'cancel']):
+        return 'Đã hủy'
+    if any(kw in s_lower for kw in ['xuất', 'outbound']):
+        return 'Outbound'
+    if any(kw in s_lower for kw in ['nhập', 'inbound']):
+        return 'Inbound'
+    if any(kw in s_lower for kw in ['vận chuyển', 'transporting', 'arrival', 'chân', 'chuyến']):
+        return 'Transporting'
+    if any(kw in s_lower for kw in ['lấy hàng', 'pickup']):
+        return 'Pickup Done'
+        
+    return 'Created'
+
 
 # ============================================================
 # SESSION + TOKEN MANAGER
