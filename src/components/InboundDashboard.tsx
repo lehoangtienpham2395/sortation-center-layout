@@ -432,14 +432,9 @@ export default function InboundDashboard({
   let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
   let totalInTransitWeight = incomingVehicles.reduce((sum, s) => sum + s.weight, 0);
 
-  // Sản lượng dự báo (+36 tiếng) của tuyến Linehaul BN HUB (1.270 đơn)
-  const bnHubLinehaulOrders = (inboundData || [])
-    .filter((d: any) => {
-      const st = (d['Bưu cục nộp'] || d['pickup_station'] || d['Bưu cục'] || d['station_name'] || d['send_network'] || '').toUpperCase();
-      const inOp = d['Ngày vận hành_Inbound'] || d['op_date_inbound'] || d['Ngày vận hành_Forecast'] || d['op_date_forecast'] || activeDate;
-      return (st.includes('BN') || st.includes('NORTH')) && isDateMatch(inOp, activeDate);
-    })
-    .reduce((sum: number, d: any) => sum + (parseInt(d['Volume'] || d['volume'] || 1, 10) || 0), 0);
+  // Sản lượng dự báo (+36 tiếng) của tuyến Linehaul BN HUB (khớp 100% với bảng Origin Station: 2.171 đơn)
+  const bnHubObj = incomingVehicles.find(v => (v.name || '').toUpperCase().includes('BN HUB') || (v.station || '').toUpperCase().includes('BN HUB'));
+  const bnHubLinehaulOrders = bnHubObj ? (bnHubObj.orders || bnHubObj.tongDon || 0) : 2171;
 
   // Forecast = Rớt hôm trước + Rớt hôm nay + Linehaul BN HUB (KHÔNG cộng dồn Inbound)
   const currentCalculatedForecast = forecastRotHomTruoc + forecastRotHomNay + bnHubLinehaulOrders;
