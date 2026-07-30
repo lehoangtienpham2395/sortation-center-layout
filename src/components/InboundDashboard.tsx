@@ -298,8 +298,16 @@ export default function InboundDashboard({
     }
   });
 
-  // Đồng bộ chỉ số Rớt hôm trước từ snapshot 6AM cố định (bất biến)
-  if (lastUpdateObj && (activeDate === lastUpdateObj.active_date || activeDate === todayOpDate)) {
+  // Đồng bộ chỉ số Rớt hôm trước & Rớt hôm nay từ snapshot 6AM cố định (bất biến) theo activeDate
+  const activeSnap = lastUpdateObj?.daily_snapshots?.[activeDate];
+  if (activeSnap) {
+    if (activeSnap.rot_hom_truoc !== undefined && Number(activeSnap.rot_hom_truoc) > 0) {
+      forecastRotHomTruoc = Number(activeSnap.rot_hom_truoc);
+    }
+    if (activeSnap.rot_hom_nay !== undefined && Number(activeSnap.rot_hom_nay) > 0 && activeSnap.is_frozen) {
+      forecastRotHomNay = Number(activeSnap.rot_hom_nay);
+    }
+  } else if (lastUpdateObj && (activeDate === lastUpdateObj.active_date || activeDate === todayOpDate)) {
     if (lastUpdateObj.rot_hom_truoc !== undefined && Number(lastUpdateObj.rot_hom_truoc) > 0) {
       forecastRotHomTruoc = Number(lastUpdateObj.rot_hom_truoc);
     }

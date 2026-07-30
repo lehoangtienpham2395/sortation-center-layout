@@ -938,6 +938,18 @@ def sync_postgre_to_dashboard():
         v for h, v in hourly.items()
         if h >= '06:00'  # từ 06:00 sáng (đầu ca vận hành)
     )
+    daily_snapshots = {
+        "2026-07-29": {
+            "rot_hom_truoc": 1412,
+            "rot_hom_nay": 10908,
+            "is_frozen": True
+        },
+        today: {
+            "rot_hom_truoc": rot_hom_truoc_baseline if rot_hom_truoc_baseline > 0 else rot_hom_truoc,
+            "rot_hom_nay": rot_hom_nay,
+            "is_frozen": False
+        }
+    }
     last_update_obj = {
         "last_update":           now_display,
         "active_date":           today,
@@ -946,10 +958,10 @@ def sync_postgre_to_dashboard():
         "total_inbound_today":   total_inbound_today,
         "total_backlog":         sum(v['volume'] for v in backlog_group.values()),
         "total_inventory":       sum(v['volume'] for v in inv_group.values()),
-        # ── Cờ Rớt (Nguyên tắc 6): Inbound Baseline cố định 6AM vs Layout Volume live ──
         "rot_hom_truoc":         rot_hom_truoc_baseline if rot_hom_truoc_baseline > 0 else rot_hom_truoc,
         "rot_hom_truoc_live":    rot_hom_truoc,
         "rot_hom_nay":           rot_hom_nay,
+        "daily_snapshots":       daily_snapshots,
         "sync_success":          True,
     }
     print(f"   📊 Cờ Rớt: Rớt hôm trước (Baseline 6AM)={last_update_obj['rot_hom_truoc']:,} | Live={rot_hom_truoc:,} | Rớt hôm nay={rot_hom_nay:,}")
