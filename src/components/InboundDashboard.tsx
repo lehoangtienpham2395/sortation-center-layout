@@ -315,22 +315,19 @@ export default function InboundDashboard({
     const vol = parseInt(d['Volume'] || d['volume'] || 1, 10) || 1;
 
     if (status !== 'Đã hủy') {
-      // A. Forecast chuẩn ca activeDate: Tổng TẤT CẢ đơn phát sinh cho ca activeDate 
-      // (Cố định 100%, không bị biến động khi đơn chuyển sang Inbound)
+      const isInbound = status === 'Inbound' || status === 'Đã nhập kho';
+
+      // A. Forecast chuẩn ca activeDate: Tổng TẤT CẢ đơn phát sinh cho ca activeDate
       if (normFcDate === normActiveDate) {
         forecastRotHomNay += vol;
       } 
-      // B. Rớt hôm trước: CHỈ ĐẾM CÁC ĐƠN THỰC SỰ BỊ CỜ RỚT HÔM TRƯỚC (rot_yesterday / Rớt hôm trước)
-      else if (normFcDate === prevDate || normDropType === 'Rớt hôm trước') {
-        if (normDropType === 'Rớt hôm trước' || dropTypeRaw === 'rot_yesterday' || dropTypeRaw === 'Rớt hôm trước') {
-          forecastRotHomTruoc += vol;
-        }
+      // B. Rớt hôm trước: Đúng ngày liền trước (prevDate) CHƯA INBOUND (hàng rớt/tồn từ hôm qua sang)
+      else if (normFcDate === prevDate && !isInbound) {
+        forecastRotHomTruoc += vol;
       }
-      // C. Tồn đọng lâu ngày (kẹt từ 2+ ngày trước)
-      else if (normFcDate && normFcDate < prevDate) {
-        if (normDropType === 'Tồn đọng lâu ngày' || dropTypeRaw === 'rot_aged' || dropTypeRaw === 'Tồn đọng lâu ngày') {
-          forecastTonDongLau += vol;
-        }
+      // C. Tồn đọng lâu ngày: kẹt từ 2+ ngày trước CHƯA INBOUND
+      else if (normFcDate && normFcDate < prevDate && !isInbound) {
+        forecastTonDongLau += vol;
       }
     }
   });
