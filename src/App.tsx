@@ -187,21 +187,7 @@ import {
   normalizeDropType
 } from './contracts/data_contract';
 
-async function fetchCompressedGzipJson(url: string): Promise<any | null> {
-  try {
-    const response = await fetch(url, { cache: 'no-store' });
-    if (!response.ok) return null;
-    if (typeof DecompressionStream !== 'undefined' && response.body) {
-      const decompressedStream = response.body.pipeThrough(new DecompressionStream('gzip'));
-      const text = await new Response(decompressedStream).text();
-      return JSON.parse(text);
-    }
-    return null;
-  } catch (e) {
-    console.warn(`Gzip decompress fallback for ${url}:`, e);
-    return null;
-  }
-}
+
 
 function getApiUrl(filename: string): string {
   const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
@@ -234,14 +220,6 @@ function getOperatingDateFromTimestamp(timestamp: string): string {
 async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival' | 'Truck_ETA'): Promise<any[] | null> {
   try {
     let rawData: any = null;
-
-    if (sheetType === 'Inbound') {
-      // P0 Optimization: Ưu tiên tải file nén latest.json.gz (271KB) và giải nén bằng API native trình duyệt
-      rawData = await fetchCompressedGzipJson(getApiUrl('latest.json.gz'));
-      if (!rawData && getApiUrl('latest.json.gz').startsWith('./')) {
-        rawData = await fetchCompressedGzipJson(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/latest.json.gz?t=${Date.now()}`);
-      }
-    }
 
     if (!rawData) {
       const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
