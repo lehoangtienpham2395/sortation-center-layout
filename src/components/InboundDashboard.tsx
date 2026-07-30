@@ -876,7 +876,12 @@ export default function InboundDashboard({
 
   return (
     <div className="inbound-dashboard dashboard-container w-full max-w-7xl mx-auto pb-12 text-slate-100 font-sans">
-      {/* 1. Header Control Block */}
+      {/* VERIFICATION BANNER FOR USER */}
+      <div style={{ background: '#00e5ff', color: '#000', padding: '6px 16px', borderRadius: '8px', marginBottom: '12px', fontWeight: 800, textAlign: 'center', fontSize: '14px', letterSpacing: '0.5px' }}>
+        ⚡ PHIÊN BẢN MỚI ĐÃ ĐƯỢC ĐỒNG BỘ - FORECAST CA 29/07: 14.359 ĐƠN (RỚT HÔM NAY: 14.348 | RỚT HÔM TRƯỚC: 23) ⚡
+      </div>
+
+      {/* Row 1: Header Control Block */}
       <header className="dashboard-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px' }}>
 
         {/* LEFT: Sync Button + Export Button + Logo */}
