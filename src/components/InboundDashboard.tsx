@@ -299,9 +299,6 @@ export default function InboundDashboard({
 
   // 🎯 1. XÁC ĐỊNH CA LIVE HIỆN TẠI & BẢO VỆ NGÀY QUÁ KHỨ
   const normActiveDate = normalizeDateStr(activeDate);
-  const normLiveDate = normalizeDateStr(lastUpdateObj?.active_date || todayOpDate);
-  const activeSnap = lastUpdateObj?.daily_snapshots?.[normActiveDate] || lastUpdateObj?.daily_snapshots?.[activeDate];
-  const isHistoricalDate = (normActiveDate !== normLiveDate) || Boolean(activeSnap && activeSnap.is_frozen);
   const prevDate = getPreviousDateStr(normActiveDate);
 
   // 🎯 3. CHỐT CỨNG SẢN LƯỢNG FORECAST THUỘC CA (Không bị trồi sụt khi đổi status)
@@ -459,6 +456,7 @@ export default function InboundDashboard({
   let totalTransitVehicles = totalShuttleVehicles + totalLinehaulVehicles;
   let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
   let totalInTransitWeight = incomingVehicles.reduce((sum, s) => sum + s.weight, 0);
+  const bnHubObj = incomingVehicles.find(v => (v.name || '').toUpperCase().includes('BN HUB') || (v.station || '').toUpperCase().includes('BN HUB'));
   const bnHubLinehaulOrders = bnHubObj ? (bnHubObj.orders || bnHubObj.tongDon || 0) : 0;
 
   // Tổng Forecast nhất quán
