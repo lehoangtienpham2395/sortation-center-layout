@@ -41,7 +41,8 @@ function NumberTicker({ value }: { value: number }) {
 
 const MASTER_CONFIG_MAP: { [key: string]: string } = {};
 try {
-  (configData as any[]).forEach(c => {
+  const items = Array.isArray(configData) ? configData : (Array.isArray((configData as any)?.default) ? (configData as any).default : []);
+  items.forEach((c: any) => {
     const key = c?.AreaID || c?.areaId;
     const name = c?.['Bưu cục'] || c?.buuCuc;
     if (key && name) {
