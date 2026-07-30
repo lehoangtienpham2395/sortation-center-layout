@@ -200,17 +200,6 @@ export default function InboundDashboard({
     return str.slice(0, 10);
   };
 
-  const getPreviousDateStr = (dateStr: string): string => {
-    if (!dateStr) return '';
-    const norm = normalizeDateStr(dateStr);
-    const dt = new Date(norm + 'T00:00:00');
-    dt.setDate(dt.getDate() - 1);
-    const yyyy = dt.getFullYear();
-    const mm = String(dt.getMonth() + 1).padStart(2, '0');
-    const dd = String(dt.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
   const isDateMatch = (dStr: string, aDate: string) => {
     if (!dStr || !aDate) return false;
     const normR = normalizeDateStr(dStr);
