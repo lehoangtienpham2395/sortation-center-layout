@@ -642,7 +642,7 @@ def pull_shuttle(session, arr_tmgr, start_str, end_str):
 # ============================================================
 # PULL BACKLOG REPORT (realtime_inv_man_dtl)
 # ============================================================
-def pull_backlog(session, token_mgr, bh_headers, bp_payload):
+def pull_backlog(session, token_mgr, bh_headers, bp_payload, start_str, end_str):
     url = 'https://gw.jtcargo.com.vn/jfs-report-leader/report/dynamicReport/findByPagination'
     params = {
         'sqlCode': bp_payload.get('sqlCode', 'realtime_inv_man_dtl'),
@@ -652,8 +652,9 @@ def pull_backlog(session, token_mgr, bh_headers, bp_payload):
     hdrs = bh_headers.copy()
 
     pl = bp_payload.copy()
-    pl['endDate'] = datetime.now().strftime('%Y-%m-%d') + ' 23:59:59'
-    pl['size'] = SCAN_PAGE_SIZE
+    pl['beginDate'] = start_str
+    pl['endDate']   = end_str
+    pl['size']      = SCAN_PAGE_SIZE
 
     print('   Backlog (Hàng Tồn Realtime)...', flush=True)
     count_payload = pl.copy()
@@ -684,6 +685,7 @@ def pull_backlog(session, token_mgr, bh_headers, bp_payload):
     records = pull_pages_parallel(fetch_backlog_page, total, SCAN_PAGE_SIZE, 'Backlog Report JFS')
     print('   OK Backlog: ' + str(len(records)) + ' dong')
     return records
+
 
 
 # ============================================================
@@ -878,7 +880,8 @@ def main():
             ex.submit(pull_linehaul_consol,session_main, tkn_main, start_str, end_str_plus1):        'lh_consol',
             ex.submit(pull_arrival,        session_arr,  tkn_arr,  ih_headers, start_str, end_str):  'arrival',
             ex.submit(pull_shuttle,        session_arr,  tkn_arr,  start_str, end_str):              'shuttle',
-            ex.submit(pull_backlog,        session_main, tkn_main, bh_headers, bp_payload):        'backlog',
+            ex.submit(pull_backlog,        session_main, tkn_main, bh_headers, bp_payload, start_str, end_str): 'backlog',
+
         }
 
         for f in as_completed(futures):
