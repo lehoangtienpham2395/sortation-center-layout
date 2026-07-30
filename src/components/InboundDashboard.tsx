@@ -151,20 +151,35 @@ export default function InboundDashboard({
 
   // 2. Filter datasets by active date
   const getWaterfallStatus = (d: any) => {
-    const hasInbound = Boolean(d['inbound_scandate'] || d['inbound_time'] || d['op_date_inbound'] || d['Ngy vn hnh_Inbound'] || d['status'] === 'Inbound');
+    const st = (d['status'] || d['Trạng thái'] || d['Trng thi'] || '').trim();
+    const hasInbound = Boolean(
+      d['inbound_scandate'] || d['inbound_time'] || d['op_date_inbound'] || 
+      d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound'] || 
+      st === 'Inbound' || st === 'Đã nhập kho'
+    );
     if (hasInbound) return 'Inbound';
 
-    const hasArrival = Boolean(d['arrival_scandate'] || d['arrival_time'] || d['transporing_time'] || d['op_date_arrival'] || d['Ngy vn hnh_Arrival'] || d['status'] === 'Transporting' || d['status'] === 'Đang vận chuyển');
+    const hasArrival = Boolean(
+      d['arrival_scandate'] || d['arrival_time'] || d['transporing_time'] || 
+      d['op_date_arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Arrival'] || 
+      st === 'Transporting' || st === 'Đang vận chuyển'
+    );
     if (hasArrival) return 'Transporting';
 
-    const hasPickup = Boolean(d['pickup_time'] || d['op_date_pickup'] || d['Ngy vn hnh_Pickup'] || d['status'] === 'Pickup Done' || d['status'] === 'Đã lấy hàng');
+    const hasPickup = Boolean(
+      d['pickup_time'] || d['op_date_pickup'] || 
+      d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Pickup'] || 
+      st === 'Pickup Done' || st === 'Đã lấy hàng'
+    );
     if (hasPickup) return 'Pickup Done';
 
     return 'Created';
   };
 
-  const getDateInbound = (d: any) => d['Ngy vn hnh_Inbound'] || d['Ngày vận hành_Inbound'];
-  const getDateForecast = (d: any) => d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
+  const getDateInbound = (d: any) => d['op_date_inbound'] || d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound'];
+  const getDateForecast = (d: any) => d['op_date_forecast'] || d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast'];
+  const getDatePickup = (d: any) => d['op_date_pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Pickup'] || getDateForecast(d);
+  const getDateArrival = (d: any) => d['op_date_arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Arrival'] || getDateForecast(d);
 
   // Northern / BN HUB Station Filter helper (reads is_north/region from Backend payload)
   const isNorthRow = (d: any) => {
@@ -198,15 +213,14 @@ export default function InboundDashboard({
     return aDate.length === 7 ? normR.startsWith(normA) : normR === normA;
   };
 
-  const getDatePickup = (d: any) => d['op_date_pickup'] || d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
-  const getDateArrival = (d: any) => d['op_date_arrival'] || d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
 
 
-  const filteredInbound = inboundData.filter(d => getWaterfallStatus(d) === 'Inbound' && isDateMatch(d['op_date_inbound'] || d['Ngy vn hnh_Inbound'] || getDateInbound(d), activeDate));
-  const filteredTransportingInbound = inboundData.filter(d => getWaterfallStatus(d) === 'Transporting' && isDateMatch(d['op_date_arrival'] || d['op_date_forecast'] || getDateArrival(d), activeDate) && !isNorthRow(d));
-  const filteredPickup = inboundData.filter(d => getWaterfallStatus(d) === 'Pickup Done' && isDateMatch(d['op_date_pickup'] || d['op_date_forecast'] || getDatePickup(d), activeDate) && !isNorthRow(d));
-  const filteredForecast = inboundData.filter(d => getWaterfallStatus(d) === 'Created' && isDateMatch(d['op_date_forecast'] || getDateForecast(d), activeDate) && !isNorthRow(d));
+
+  const filteredInbound = inboundData.filter(d => getWaterfallStatus(d) === 'Inbound' && isDateMatch(getDateInbound(d), activeDate));
+  const filteredTransportingInbound = inboundData.filter(d => getWaterfallStatus(d) === 'Transporting' && isDateMatch(getDateArrival(d), activeDate) && !isNorthRow(d));
+  const filteredPickup = inboundData.filter(d => getWaterfallStatus(d) === 'Pickup Done' && isDateMatch(getDatePickup(d), activeDate) && !isNorthRow(d));
+  const filteredForecast = inboundData.filter(d => getWaterfallStatus(d) === 'Created' && isDateMatch(getDateForecast(d), activeDate) && !isNorthRow(d));
 
   const filteredTransporting = filteredTransportingInbound;
   const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
