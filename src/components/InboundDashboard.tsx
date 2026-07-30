@@ -615,6 +615,8 @@ export default function InboundDashboard({
 
   const totalBase = totalInbound + totalInTransit + totalPickupDone + totalCreated;
 
+
+
   let inboundPct = totalBase > 0 ? Math.round((totalInbound / totalBase) * 100) : 0;
   let inTransitPct = totalBase > 0 ? Math.round((totalInTransit / totalBase) * 100) : 0;
   let pickupDonePct = totalBase > 0 ? Math.round((totalPickupDone / totalBase) * 100) : 0;
