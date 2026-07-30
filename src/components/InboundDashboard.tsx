@@ -305,6 +305,8 @@ export default function InboundDashboard({
     return normalizeDateStr(row['Ngy vn hnh_Forecast'] || row['Ngày vận hành_Forecast'] || row['op_date_forecast'] || '');
   };
 
+  const stationTransportingMap: Record<string, number> = {};
+
   inboundData.forEach(d => {
     const normFcDate = getFcOpDate(d);
     const status = d.status || d['Trng thi'] || d['Trạng thái'] || '';
@@ -336,6 +338,12 @@ export default function InboundDashboard({
           stages[wfStatus].orders += vol;
           stages[wfStatus].weight += wt;
           if (wt > 0) stagesWithWeight[wfStatus] += vol;
+        }
+        if (wfStatus === 'Transporting') {
+          const pkSt = (d['pickup_station'] || d['station_name'] || '').trim().toUpperCase();
+          if (pkSt) {
+            stationTransportingMap[pkSt] = (stationTransportingMap[pkSt] || 0) + vol;
+          }
         }
       }
     }
@@ -373,8 +381,10 @@ export default function InboundDashboard({
     const cleanKey = st.toUpperCase();
     if (cleanKey !== 'BN HUB' && isNorthRow(d)) return;
 
-    const inTransitOrders = Number(d['Chưa đến Hub'] ?? d['Chua dn Hub'] ?? d['Orders'] ?? d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
     const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
+    const inTransitOrders = stationTransportingMap[cleanKey] !== undefined 
+      ? stationTransportingMap[cleanKey] 
+      : Number(d['Chưa đến Hub'] ?? d['Chua dn Hub'] ?? d['Orders'] ?? tongDon);
     const lastTime = d['Last time'] || d['ETA'] || d['Giờ đến bãi'] || d['actualArrivalTime'] || d['predictArriveTime'] || '';
     const wtKg = Number(d['weight_kg'] ?? d['loadpackageweight'] ?? d['Tổng trọng lượng (kg)'] ?? 0);
     const wtTon = Number(d['weight'] ?? d['weight_ton'] ?? d['package_charge_weight'] ?? 0);
@@ -384,24 +394,27 @@ export default function InboundDashboard({
       groupedStationVehicles[st] = {
         station: st,
         trucking: 0,
-        orders: 0,
+        orders: inTransitOrders,
         weight: 0,
         eta: lastTime,
         rank: (cleanKey.includes('BN') || cleanKey.includes('NORTH')) ? 'Linehaul' : (d['rank'] || d['Rank'] || 'Shuttle'),
-        chuaDenHub: 0,
-        tongDon: 0,
+        chuaDenHub: inTransitOrders,
+        tongDon: tongDon,
         vehicles: 0,
         vehicleSet: new Set(),
         lastTime: lastTime
       };
+    } else {
+      if (stationTransportingMap[cleanKey] !== undefined) {
+        groupedStationVehicles[st].orders = stationTransportingMap[cleanKey];
+        groupedStationVehicles[st].chuaDenHub = stationTransportingMap[cleanKey];
+      }
     }
 
     const tripId = d.trip_code || d.shipmentName || d.plateNumber || d.plate_number || `${st}_${idx}`;
     groupedStationVehicles[st].vehicleSet.add(String(tripId));
     groupedStationVehicles[st].vehicles = groupedStationVehicles[st].vehicleSet.size;
     groupedStationVehicles[st].trucking = groupedStationVehicles[st].vehicles;
-    groupedStationVehicles[st].orders += inTransitOrders;
-    groupedStationVehicles[st].chuaDenHub += inTransitOrders;
     groupedStationVehicles[st].tongDon += tongDon;
     groupedStationVehicles[st].weight += wt;
     if (lastTime > groupedStationVehicles[st].lastTime) {
@@ -409,6 +422,7 @@ export default function InboundDashboard({
       groupedStationVehicles[st].eta = lastTime;
     }
   });
+
 
   // Dự phòng an toàn: Nếu truckEtaData chưa tải xong, tự động tạo danh sách xe di chuyển từ arrivalData
   if (Object.keys(groupedStationVehicles).length === 0 && arrivalData && arrivalData.length > 0) {
