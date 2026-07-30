@@ -191,7 +191,7 @@ export default function InboundDashboard({
   const getDatePickup = (d: any) => d['op_date_pickup'] || d['Ngy vn hnh_Pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
   const getDateArrival = (d: any) => d['op_date_arrival'] || d['Ngy vn hnh_Arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'];
 
-  const filteredInbound = inboundData.filter(d => getStatus(d) === 'Inbound' && isDateMatch(d['op_date_inbound'] || getDateInbound(d), activeDate) && !isNorthRow(d));
+  const filteredInbound = inboundData.filter(d => (getStatus(d) === 'Inbound' || Boolean(d['op_date_inbound'] || d['inbound_scandate'] || d['Ngy vn hnh_Inbound'])) && isDateMatch(d['op_date_inbound'] || d['Ngy vn hnh_Inbound'] || getDateInbound(d), activeDate) && !isNorthRow(d));
   const filteredForecast = inboundData.filter(d => getStatus(d) === 'Created' && isDateMatch(d['op_date_forecast'] || getDateForecast(d), activeDate) && !isNorthRow(d));
   const filteredPickup = inboundData.filter(d => getStatus(d) === 'Pickup Done' && isDateMatch(d['op_date_pickup'] || d['op_date_forecast'] || getDatePickup(d), activeDate) && !isNorthRow(d));
   const filteredTransportingInbound = inboundData.filter(d => {
