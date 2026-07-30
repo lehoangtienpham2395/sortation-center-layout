@@ -447,8 +447,9 @@ export default function InboundDashboard({
   }
 
   const incomingVehicles = Object.values(groupedStationVehicles)
-    .filter(v => v.orders > 0 || v.tongDon > 0 || v.vehicles > 0)
+    .filter(v => v.orders > 0)
     .sort((a, b) => b.orders - a.orders);
+
 
   // Split by Shuttle and Linehaul ranks
   const shuttleVehicles = incomingVehicles.filter(v => v.rank === 'Shuttle');
