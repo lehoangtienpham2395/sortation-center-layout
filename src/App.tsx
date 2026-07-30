@@ -1856,7 +1856,7 @@ export default function App() {
                           <div className="mono font-bold" style={{ fontSize: '13px', color: zone.color, lineHeight: 1.2 }}>{stats.fillRate}%</div>
                           <div className="mono font-bold" style={{ fontSize: '13px', color: '#B8F7E4', lineHeight: 1.2 }}>{stats.current.toLocaleString()}</div>
                           <div className="mono font-bold" style={{ fontSize: '13px', color: '#f1f5f9', lineHeight: 1.2 }}>{(stats as any).totalShare}%</div>
-                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#B8F7E4', lineHeight: 1.2 }}>{(stats.weight / 1000).toFixed(1).replace('.', ',')} Tấn</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#B8F7E4', lineHeight: 1.2 }}>{stats.weight.toFixed(1).replace('.', ',')} Tấn</div>
                         </div>
                       );
                     })}
@@ -2390,7 +2390,7 @@ export default function App() {
                           <div className="grid grid-cols-2 gap-2 text-[10px] text-[var(--muted)]">
                             <div>Bưu cục có hàng: <b className="text-white mono">{zInfo.activeChutesCount}/{zInfo.totalChutes}</b></div>
                             <div>Tổng lượng đơn: <b className="text-white mono">{zInfo.zoneOrders.toLocaleString()}</b></div>
-                            <div className="col-span-2 mt-1 border-t border-white/5 pt-1">Tổng trọng lượng: <b className="text-white mono">{zInfo.zoneWeight.toLocaleString()} kg</b></div>
+                            <div className="col-span-2 mt-1 border-t border-white/5 pt-1">Tổng trọng lượng: <b className="text-white mono">{zInfo.zoneWeight.toFixed(1).replace('.', ',')} Tấn</b></div>
                           </div>
                         </div>
                       );
