@@ -176,8 +176,7 @@ export default function InboundDashboard({
 
   const getDateInbound = (d: any) => d['op_date_inbound'] || d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound'];
   const getDateForecast = (d: any) => d['op_date_forecast'] || d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast'];
-  const getDatePickup = (d: any) => d['op_date_pickup'] || d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Pickup'] || getDateForecast(d);
-  const getDateArrival = (d: any) => d['op_date_arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Arrival'] || getDateForecast(d);
+
 
   const isNorthRow = (row: any) => {
     if (!row) return false;
@@ -233,10 +232,15 @@ export default function InboundDashboard({
 
 
 
-  const filteredInbound = inboundData.filter(d => getWaterfallStatus(d) === 'Inbound' && isDateMatch(getDateInbound(d), activeDate));
-  const filteredTransportingInbound = inboundData.filter(d => getWaterfallStatus(d) === 'Transporting' && isDateMatch(getDateArrival(d), activeDate) && !isNorthRow(d));
-  const filteredPickup = inboundData.filter(d => getWaterfallStatus(d) === 'Pickup Done' && isDateMatch(getDatePickup(d), activeDate) && !isNorthRow(d));
-  const filteredForecast = inboundData.filter(d => getWaterfallStatus(d) === 'Created' && isDateMatch(getDateForecast(d), activeDate) && !isNorthRow(d));
+  const getRowOpDate = (d: any) => {
+    return d['Ngày vận hành'] || d['op_date'] || d['op_date_forecast'] || d['Ngày vận hành_Forecast'] || getDateForecast(d) || getDateInbound(d);
+  };
+
+  const filteredInbound = inboundData.filter(d => getWaterfallStatus(d) === 'Inbound' && isDateMatch(getRowOpDate(d), activeDate));
+  const filteredTransportingInbound = inboundData.filter(d => getWaterfallStatus(d) === 'Transporting' && isDateMatch(getRowOpDate(d), activeDate) && !isNorthRow(d));
+  const filteredPickup = inboundData.filter(d => getWaterfallStatus(d) === 'Pickup Done' && isDateMatch(getRowOpDate(d), activeDate) && !isNorthRow(d));
+  const filteredForecast = inboundData.filter(d => getWaterfallStatus(d) === 'Created' && isDateMatch(getRowOpDate(d), activeDate) && !isNorthRow(d));
+
 
   const filteredTransporting = filteredTransportingInbound;
   const filteredChuaVeHub = [...filteredForecast, ...filteredPickup, ...filteredTransporting];
