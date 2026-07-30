@@ -905,7 +905,7 @@ export default function InboundDashboard({
 
         {/* CENTER: Title — absolute center of header */}
         <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', pointerEvents: 'none' }}>
-          <h1 style={{ fontSize: '36px', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', lineHeight: '1.1', textShadow: '0 2px 20px rgba(99,102,241,0.5)', margin: 0, whiteSpace: 'nowrap' }}>HCM HUB Inbound Dashboard</h1>
+          <h1 style={{ fontSize: '36px', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', lineHeight: '1.1', textShadow: '0 2px 20px rgba(99,102,241,0.5)', margin: 0, whiteSpace: 'nowrap' }}>HCM HUB Inbound Dashboard <span style={{ fontSize: '13px', color: '#00e5ff', verticalAlign: 'middle', background: 'rgba(0,229,255,0.12)', padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(0,229,255,0.3)' }}>v2.2 FIXED</span></h1>
           <p className="subtitle text-xs text-slate-400" style={{ marginTop: '4px', textAlign: 'center', display: 'block' }}>Operational overview of today's inbound activities</p>
         </div>
 
