@@ -1027,7 +1027,8 @@ def main():
         arr_t  = arr_scan_map.get(wb, '')
         st_name = arr_station_map.get(wb) or ib_station_map.get(wb) or 'BN HUB'
         
-        st_sys = 'Inbound' if inb_t else ('Outbound' if outb_t else 'Arrival')
+        st_sys = 'Inbound' if inb_t else ('Outbound' if outb_t else 'Transporting')
+
         cr_t = inb_t or outb_t or arr_t
         
         orphan_rows.append({
