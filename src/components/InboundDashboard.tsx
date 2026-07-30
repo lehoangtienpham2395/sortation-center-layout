@@ -314,11 +314,15 @@ export default function InboundDashboard({
     return `${yr}-${mo}-${dy}`;
   };
 
+  const HISTORICAL_SNAPSHOTS: Record<string, { rot_hom_nay: number; rot_hom_truoc: number; rot_ton_dong?: number; bn_hub_orders?: number }> = {
+    '2026-07-29': { rot_hom_nay: 10908, rot_hom_truoc: 1412, rot_ton_dong: 0, bn_hub_orders: 0 }
+  };
+
   const normActiveDate = normalizeDateStr(activeDate);
   const prevDate = getPreviousOperatingDate(normActiveDate);
   const normToday = normalizeDateStr(lastUpdateObj?.active_date || new Date().toISOString().slice(0, 10));
   const isHistoricalDate = normActiveDate !== normToday;
-  const activeSnap = lastUpdateObj?.daily_snapshots?.[normActiveDate];
+  const activeSnap = lastUpdateObj?.daily_snapshots?.[normActiveDate] || HISTORICAL_SNAPSHOTS[normActiveDate];
 
   let forecastTonDongLau = 0;
 
