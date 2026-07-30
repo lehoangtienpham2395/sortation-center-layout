@@ -299,7 +299,8 @@ export default function InboundDashboard({
 
   // 🎯 1. XÁC ĐỊNH CA LIVE HIỆN TẠI & BẢO VỆ NGÀY QUÁ KHỨ
   const currentLiveDate = lastUpdateObj?.active_date || todayOpDate;
-  const isHistoricalDate = activeDate < currentLiveDate;
+  const activeSnap = lastUpdateObj?.daily_snapshots?.[activeDate];
+  const isHistoricalDate = (activeDate !== currentLiveDate) || Boolean(activeSnap && activeSnap.is_frozen);
   const prevDate = getPreviousDateStr(activeDate);
 
   // 🎯 3. CHỐT CỨNG SẢN LƯỢNG FORECAST THUỘC CA (Không bị trồi sụt khi đổi status)
@@ -310,7 +311,6 @@ export default function InboundDashboard({
 
     const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || d['op_date_forecast'] || '';
     const status = d['Trng thi'] || d['Trạng thái'] || d['status'] || '';
-    const loiRot = d['Loi rt'] || d['Loại rớt'] || d['drop_type'] || '';
     const vol = parseInt(d['Volume'] || d['volume'] || 1, 10) || 1;
 
     if (status !== 'Đã hủy') {
@@ -320,10 +320,8 @@ export default function InboundDashboard({
         forecastRotHomNay += vol;
       } 
       // B. Rớt hôm trước: ĐÚNG 1 NGÀY LIỀN TRƯỚC (fcDate === prevDate)
-      else if (fcDate === prevDate || (fcDate && fcDate < activeDate && (loiRot === 'Rớt hôm trước' || loiRot === 'rot_yesterday'))) {
-        if (fcDate === prevDate || loiRot === 'Rớt hôm trước' || loiRot === 'rot_yesterday') {
-          forecastRotHomTruoc += vol;
-        }
+      else if (fcDate === prevDate) {
+        forecastRotHomTruoc += vol;
       }
       // C. Tồn đọng lâu ngày (kẹt từ 2+ ngày trước)
       else if (fcDate && fcDate < prevDate) {
@@ -333,7 +331,6 @@ export default function InboundDashboard({
   });
 
   // 🎯 4. ĐÓNG BĂNG NGÀY LỊCH SỬ BẰNG SNAPSHOT (Nếu có dữ liệu snapshot từ Backend)
-  const activeSnap = lastUpdateObj?.daily_snapshots?.[activeDate];
   if (isHistoricalDate && activeSnap) {
     if (activeSnap.rot_hom_nay !== undefined && Number(activeSnap.rot_hom_nay) > 0) {
       forecastRotHomNay = Number(activeSnap.rot_hom_nay);
