@@ -629,8 +629,8 @@ export default function InboundDashboard({
     ? Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalPickupDone) 
     : stages['Created'].orders;
 
-  totalOrders = totalInbound;
-  totalWeight = stages['Inbound'].weight;
+  const totalOrders = totalInbound;
+  const totalWeight = stages['Inbound'].weight;
 
   let inboundPct   = totalBase > 0 ? Math.round((totalInbound           / totalBase) * 100) : 0;
   let inTransitPct = totalBase > 0 ? Math.round((totalInTransitOrders   / totalBase) * 100) : 0;
