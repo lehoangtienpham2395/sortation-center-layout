@@ -580,9 +580,11 @@ export default function App() {
 
       if (ibDates.length > 0) {
         setSelectedInboundDate(prev => {
-          // Ưu tiên tự động nhảy sang ca mới (todayOpDate) khi backend có dữ liệu ca mới
-          if (ibDates.includes(todayOpDate)) return todayOpDate;
+          // 1. Nếu người dùng đã chọn ngày (prev) và ngày đó vẫn hợp lệ -> GIỮ NGUYÊN
           if (prev && ibDates.includes(prev)) return prev;
+          // 2. Nếu là lần đầu load (prev rỗng) -> Ưu tiên ngày hôm nay (todayOpDate)
+          if (ibDates.includes(todayOpDate)) return todayOpDate;
+          // 3. Fallback lấy ngày mới nhất
           return ibDates[0];
         });
       }
@@ -597,7 +599,7 @@ export default function App() {
     if (combined.length > 0) {
       setRawSheetRows(combined);
 
-      // Extract unique dates from all sources (Outbound, Backlog, Inventory, Inbound), sorted descending
+      // Extract unique dates from all sources (Outbound, Backlog, Inventory, Inbound)
       const dates = Array.from(new Set([
         ...combined.map(r => r.date).filter(Boolean),
         ...(ibRows ?? []).map(r => r['Ngày vận hành_Inbound'] || r['op_date_inbound'] || r['Ngày vận hành_Forecast'] || r['op_date_forecast']).filter(Boolean)
@@ -608,8 +610,10 @@ export default function App() {
 
       if (recentDates.length > 0) {
         setSelectedDate(prev => {
-          if (recentDates.includes(todayOpDate)) return todayOpDate;
+          // 1. Giữ nguyên ngày người dùng đang chọn trên Layout
           if (prev && recentDates.includes(prev)) return prev;
+          // 2. Lần đầu load mới mặc định lấy todayOpDate
+          if (recentDates.includes(todayOpDate)) return todayOpDate;
           return recentDates[0];
         });
       }
