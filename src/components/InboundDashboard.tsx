@@ -365,7 +365,9 @@ export default function InboundDashboard({
     const inTransitOrders = Number(d['Chưa đến Hub'] ?? d['Chua dn Hub'] ?? d['Orders'] ?? d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
     const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
     const lastTime = d['Last time'] || d['ETA'] || d['Giờ đến bãi'] || d['actualArrivalTime'] || d['predictArriveTime'] || '';
-    const wt = Number(d['weight'] ?? d['weight_kg'] ?? d['package_charge_weight'] ?? d['loadpackageweight'] ?? d['Tổng trọng lượng (kg)'] ?? 0);
+    const wtKg = Number(d['weight_kg'] ?? d['loadpackageweight'] ?? d['Tổng trọng lượng (kg)'] ?? 0);
+    const wtTon = Number(d['weight'] ?? d['weight_ton'] ?? d['package_charge_weight'] ?? 0);
+    const wt = wtKg > 0 ? wtKg / 1000.0 : (wtTon > 100 ? wtTon / 1000.0 : wtTon);
 
     if (!groupedStationVehicles[st]) {
       groupedStationVehicles[st] = {
@@ -582,7 +584,6 @@ export default function InboundDashboard({
 
   const totalInbound = stages['Inbound'].orders;
   const totalPickupDone = stages['Pickup Done'].orders;
-  totalForecast = forecastRotHomTruoc + forecastRotHomNay;
 
   const inboundTrendData  = labels.map(l => hourlyInbound[l]);
   const arrivedTrendData  = labels.map(l => hourlyArrived[l]);
@@ -603,7 +604,6 @@ export default function InboundDashboard({
     ? Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalPickupDone) 
     : stages['Created'].orders;
 
-  const pendingOrders = totalCreated; // for fallback UI components
   totalOrders = totalInbound;
   totalWeight = stages['Inbound'].weight;
 
@@ -869,7 +869,7 @@ export default function InboundDashboard({
         });
       }
     }
-  }, [activeDate, inboundData, linehaulData, totalOrders, totalInTransitOrders, pendingOrders, forecastTrendData, arrivedTrendData, pickupTrendData, inboundTrendData, truckEtaData]);
+  }, [activeDate, loading, inboundData.length, linehaulData.length, truckEtaData.length]);
 
   const handleExportCSV = () => {
     if (!filteredInbound || filteredInbound.length === 0) {
@@ -1296,9 +1296,9 @@ export default function InboundDashboard({
                       {incomingVehicles.reduce((a, b) => a + b.orders, 0).toLocaleString()}
                     </td>
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b' }}>
-                      {(incomingVehicles.reduce((a, b) => a + b.weight, 0) / 1000 >= 0.1
-                        ? (incomingVehicles.reduce((a, b) => a + b.weight, 0) / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-                        : (incomingVehicles.reduce((a, b) => a + b.weight, 0) / 1000).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+                      {(incomingVehicles.reduce((a, b) => a + b.weight, 0) >= 0.1
+                        ? (incomingVehicles.reduce((a, b) => a + b.weight, 0)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                        : (incomingVehicles.reduce((a, b) => a + b.weight, 0)).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })
                       )} tấn
                     </td>
                     <td style={{ textAlign: 'center', color: '#f59e0b' }}>-</td>
@@ -1311,9 +1311,9 @@ export default function InboundDashboard({
                      <td className="num-tabular" style={{ textAlign: 'left', color: '#38bdf8', fontWeight: 500 }}>{v.trucking} xe</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#f59e0b', fontWeight: 600 }}>{v.orders.toLocaleString()}</td>
                      <td className="num-tabular" style={{ textAlign: 'right', color: '#a78bfa' }}>
-                       {(v.weight / 1000 >= 0.1
-                         ? (v.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-                         : (v.weight / 1000).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+                       {(v.weight >= 0.1
+                         ? (v.weight).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                         : (v.weight).toLocaleString(undefined, { minimumFractionDigits: 3, maximumFractionDigits: 3 })
                        )} tấn
                      </td>
                      <td className="num-tabular" style={{ textAlign: 'center', color: '#64748b' }}>{v.eta ? v.eta : '--:--'}</td>
