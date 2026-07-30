@@ -435,7 +435,7 @@ export default function InboundDashboard({
   // Tổng Forecast nhất quán
   let totalOrders = stages['Inbound'].orders;
   let totalWeight = stages['Inbound'].weight;
-  let totalForecast = forecastRotHomTruoc + forecastRotHomNay;
+  let totalForecast = forecastRotHomNay;
 
 
 
