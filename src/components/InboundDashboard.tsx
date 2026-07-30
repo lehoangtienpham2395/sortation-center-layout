@@ -286,28 +286,27 @@ export default function InboundDashboard({
 
 
 
+  // 🎯 1. XÁC ĐỊNH CA LIVE HIỆN TẠI & BẢO VỆ NGÀY QUÁ KHỨ
+  const currentLiveDate = lastUpdateObj?.active_date || todayOpDate;
+  const isHistoricalDate = activeDate < currentLiveDate;
+
+  // 🎯 3. CHỐT CỨNG SẢN LƯỢNG FORECAST THUỘC CA (Không bị trồi sụt khi đổi status)
   inboundData.forEach(d => {
     if (isNorthRow(d)) return;
 
     const fcDate = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || d['op_date_forecast'] || '';
     const status = d['Trng thi'] || d['Trạng thái'] || d['status'] || '';
-
     const loiRot = d['Loi rt'] || d['Loại rớt'] || d['drop_type'] || '';
     const vol = parseInt(d['Volume'] || d['volume'] || 1, 10) || 1;
 
-    // Logic chuẩn người dùng:
-    // 1. Rớt Hôm Nay   : Đơn CREATED trong ca activeDate chưa Inbound & chưa Outbound
-    // 2. Rớt Hôm Trước : Đơn CREATED các ngày trước (< activeDate), ĐÃ PICKUP/ARRIVED nhưng chưa Inbound & chưa Outbound
-    // 🎯 CHÍNH SÁCH BẤT BIẾN THEO YÊU CẦU NGƯỜI DÙNG:
-    // Forecast & Rớt Hôm Nay / Rớt Hôm Trước là con số CỘNG DỒN ĐẾN CUỐI NGÀY.
-    // TUYỆT ĐỐI KHÔNG TRỪ HOẶC LỌC BỎ ĐƠN ĐÃ INBOUND KHỎI FORECAST!
     if (status !== 'Đã hủy') {
-      // CHỈ tính nếu ngày forecast trùng hoặc nhỏ hơn activeDate
+      // A. Forecast chuẩn ca activeDate: Tổng TẤT CẢ đơn phát sinh cho ca activeDate 
+      // (Cố định 100%, không bị biến động khi đơn chuyển sang Inbound)
       if (fcDate === activeDate) {
-        if (loiRot === 'Rớt hôm nay' || loiRot === 'rot_today' || status === 'Created') {
-          forecastRotHomNay += vol;
-        }
-      } else if (fcDate && fcDate < activeDate) {
+        forecastRotHomNay += vol;
+      } 
+      // B. Rớt ca trước dồn sang ca activeDate
+      else if (fcDate && fcDate < activeDate) {
         if (loiRot === 'Rớt hôm trước' || loiRot === 'rot_yesterday') {
           forecastRotHomTruoc += vol;
         }
@@ -315,17 +314,14 @@ export default function InboundDashboard({
     }
   });
 
-  // Kiểm tra Snapshot lịch sử
+  // 🎯 4. ĐÓNG BĂNG NGÀY LỊCH SỬ BẰNG SNAPSHOT (Nếu có dữ liệu snapshot từ Backend)
   const activeSnap = lastUpdateObj?.daily_snapshots?.[activeDate];
-  const isHistoricalDate = activeDate < todayOpDate || (activeSnap && activeSnap.is_frozen);
-
-  if (isHistoricalDate) {
-    // Không dùng số hardcode 10908/1412, nếu thiếu snapshot thì dùng số đã tính từ DB
-    forecastRotHomTruoc = activeSnap?.rot_hom_truoc !== undefined ? Number(activeSnap.rot_hom_truoc) : forecastRotHomTruoc;
-    forecastRotHomNay = activeSnap?.rot_hom_nay !== undefined ? Number(activeSnap.rot_hom_nay) : forecastRotHomNay;
-  } else if (lastUpdateObj && (activeDate === lastUpdateObj.active_date || activeDate === todayOpDate)) {
-    if (lastUpdateObj.rot_hom_truoc !== undefined && Number(lastUpdateObj.rot_hom_truoc) > 0) {
-      forecastRotHomTruoc = Number(lastUpdateObj.rot_hom_truoc);
+  if (isHistoricalDate && activeSnap) {
+    if (activeSnap.rot_hom_nay !== undefined && Number(activeSnap.rot_hom_nay) > 0) {
+      forecastRotHomNay = Number(activeSnap.rot_hom_nay);
+    }
+    if (activeSnap.rot_hom_truoc !== undefined && Number(activeSnap.rot_hom_truoc) > 0) {
+      forecastRotHomTruoc = Number(activeSnap.rot_hom_truoc);
     }
   }
 
