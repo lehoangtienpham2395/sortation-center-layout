@@ -152,25 +152,24 @@ export default function InboundDashboard({
   // 2. Filter datasets by active date
   const getWaterfallStatus = (d: any) => {
     const st = (d['status'] || d['Trạng thái'] || d['Trng thi'] || '').trim();
+    if (st === 'Inbound' || st === 'Đã nhập kho') return 'Inbound';
+    if (st === 'Transporting' || st === 'Đang vận chuyển') return 'Transporting';
+    if (st === 'Pickup Done' || st === 'Đã lấy hàng') return 'Pickup Done';
+    if (st === 'Created' || st === 'Đã điều phối bưu cục') return 'Created';
+
     const hasInbound = Boolean(
-      d['inbound_scandate'] || d['inbound_time'] || d['op_date_inbound'] || 
-      d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound'] || 
-      st === 'Inbound' || st === 'Đã nhập kho'
+      d['inbound_scandate'] || d['inbound_time'] || 
+      (d['op_date_inbound'] && d['op_date_inbound'] !== '') || 
+      (d['Ngày vận hành_Inbound'] && d['Ngày vận hành_Inbound'] !== '')
     );
     if (hasInbound) return 'Inbound';
 
     const hasArrival = Boolean(
-      d['arrival_scandate'] || d['arrival_time'] || d['transporing_time'] || 
-      d['op_date_arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Arrival'] || 
-      st === 'Transporting' || st === 'Đang vận chuyển'
+      d['arrival_scandate'] || d['arrival_time'] || d['transporing_time']
     );
     if (hasArrival) return 'Transporting';
 
-    const hasPickup = Boolean(
-      d['pickup_time'] || d['op_date_pickup'] || 
-      d['Ngày vận hành_Pickup'] || d['Ngy vn hnh_Pickup'] || 
-      st === 'Pickup Done' || st === 'Đã lấy hàng'
-    );
+    const hasPickup = Boolean(d['pickup_time']);
     if (hasPickup) return 'Pickup Done';
 
     return 'Created';
@@ -624,7 +623,7 @@ export default function InboundDashboard({
     ? Math.max(0, totalForecast - totalInbound - totalInTransitOrders - totalPickupDone) 
     : stages['Created'].orders;
 
-  totalOrders = totalInbound;
+  totalOrders = (isHistoricalDate && activeSnap?.inbound_orders) ? Number(activeSnap.inbound_orders) : totalInbound;
   totalWeight = stages['Inbound'].weight;
 
   let inboundPct   = totalBase > 0 ? Math.round((totalInbound           / totalBase) * 100) : 0;
