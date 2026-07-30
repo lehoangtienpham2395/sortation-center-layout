@@ -699,7 +699,8 @@ def sync_postgre_to_dashboard():
         transpd_t= clean_ts_str(r.get('transported_time'))
         op_date  = str(r.get('operation_date_created', today))[:10] or today
 
-        has_in   = bool(inb_t)
+        op_date_inb_eff = str(r.get('operation_date_inbound') or r.get('op_date_inbound_effective') or '')[:10]
+        has_in   = bool(inb_t or op_date_inb_eff)
         has_out  = bool(outb_t)
         has_arr  = bool(arr_t)
         has_pick = bool(pk_t)
