@@ -310,8 +310,6 @@ export default function InboundDashboard({
     const fcDateRaw = d['Ngy vn hnh_Forecast'] || d['Ngày vận hành_Forecast'] || d['op_date_forecast'] || '';
     const normFcDate = normalizeDateStr(fcDateRaw);
     const status = d['Trng thi'] || d['Trạng thái'] || d['status'] || '';
-    const dropTypeRaw = d['Loi rt'] || d['Loại rớt'] || d['drop_type'] || '';
-    const normDropType = normalizeDropType(dropTypeRaw);
     const vol = parseInt(d['Volume'] || d['volume'] || 1, 10) || 1;
 
     if (status !== 'Đã hủy') {
