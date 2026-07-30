@@ -654,27 +654,37 @@ def pull_backlog(session, token_mgr, bh_headers, bp_payload):
     pl = bp_payload.copy()
     pl['endDate'] = datetime.now().strftime('%Y-%m-%d') + ' 23:59:59'
     pl['size'] = SCAN_PAGE_SIZE
-    pl['paginationSearchType'] = 'list'
 
     print('   Backlog (Hàng Tồn Realtime)...', flush=True)
-    all_records = []
-    page = 1
-    while True:
-        pl['current'] = page
+    count_payload = pl.copy()
+    count_payload['paginationSearchType'] = 'count'
+    count_payload['size'] = 1
+
+    total = 0
+    try:
+        r = auth_post(session, url, token_mgr, hdrs, params=params, json_body=count_payload, label='Backlog count')
+        total = r.json().get('data', {}).get('total', 0) or 0
+    except Exception as e:
+        print('   Backlog count error: ' + str(e))
+
+    if total <= 0:
+        print('   OK Backlog: 0 dong')
+        return []
+
+    def fetch_backlog_page(p):
+        page_payload = pl.copy()
+        page_payload['current'] = p
+        page_payload['paginationSearchType'] = 'list'
         try:
-            r = auth_post(session, url, token_mgr, hdrs, params=params, json=pl, label='Backlog report')
-            records = r.json().get('data', {}).get('records', []) or []
-            if not records:
-                break
-            all_records.extend(records)
-            if len(records) < SCAN_PAGE_SIZE:
-                break
-            page += 1
-        except Exception as e:
-            print('   Lỗi pull_backlog trang ' + str(page) + ': ' + str(e))
-            break
-    print('   OK Backlog: ' + str(len(all_records)) + ' dong')
-    return all_records
+            r = auth_post(session, url, token_mgr, hdrs, params=params, json_body=page_payload, label='Backlog p' + str(p))
+            return p, r.json().get('data', {}).get('records', []) or []
+        except Exception:
+            return p, []
+
+    records = pull_pages_parallel(fetch_backlog_page, total, SCAN_PAGE_SIZE, 'Backlog Report JFS')
+    print('   OK Backlog: ' + str(len(records)) + ' dong')
+    return records
+
 
 # ============================================================
 # OPTIMIZED BATCH FORECAST PULLER (100 mã / batch)
