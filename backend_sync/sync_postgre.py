@@ -631,6 +631,7 @@ def sync_postgre_to_dashboard():
 
     rot_hom_truoc = 0   # Pickup hôm trước, chưa về HUB → live dynamic tracking cho Layout Volume
     rot_hom_nay   = 0   # Pickup hôm nay, chưa về HUB  → đang trên đường
+    rot_ton_dong  = 0   # Tồn đọng lâu ngày
     ZONE_MAP = {'SR0001': '1', 'BNI001': '1', '1': '1', '2': '2', '3': '3'}
 
     # Bảng quy hoạch layout ô chứa chuẩn từ Google Sheets người dùng cấp
