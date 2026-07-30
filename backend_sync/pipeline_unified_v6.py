@@ -640,6 +640,43 @@ def pull_shuttle(session, arr_tmgr, start_str, end_str):
         return []
 
 # ============================================================
+# PULL BACKLOG REPORT (realtime_inv_man_dtl)
+# ============================================================
+def pull_backlog(session, token_mgr, bh_headers, bp_payload):
+    url = 'https://gw.jtcargo.com.vn/jfs-report-leader/report/dynamicReport/findByPagination'
+    params = {
+        'sqlCode': bp_payload.get('sqlCode', 'realtime_inv_man_dtl'),
+        'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693',
+        'routeName': bh_headers.get('routeName', ''),
+    }
+    hdrs = bh_headers.copy()
+
+    pl = bp_payload.copy()
+    pl['endDate'] = datetime.now().strftime('%Y-%m-%d') + ' 23:59:59'
+    pl['size'] = SCAN_PAGE_SIZE
+    pl['paginationSearchType'] = 'list'
+
+    print('   Backlog (Hàng Tồn Realtime)...', flush=True)
+    all_records = []
+    page = 1
+    while True:
+        pl['current'] = page
+        try:
+            r = auth_post(session, url, token_mgr, hdrs, params=params, json=pl, label='Backlog report')
+            records = r.json().get('data', {}).get('records', []) or []
+            if not records:
+                break
+            all_records.extend(records)
+            if len(records) < SCAN_PAGE_SIZE:
+                break
+            page += 1
+        except Exception as e:
+            print('   Lỗi pull_backlog trang ' + str(page) + ': ' + str(e))
+            break
+    print('   OK Backlog: ' + str(len(all_records)) + ' dong')
+    return all_records
+
+# ============================================================
 # OPTIMIZED BATCH FORECAST PULLER (100 mã / batch)
 # ============================================================
 def pull_forecast_by_bills(session, token_mgr, base_payload, bills_list):
@@ -813,12 +850,16 @@ def main():
     dp_payload['current']        = '1'
     dp_payload['size']           = str(PAGE_SIZE)
 
-    # ── Phase 1: Keo song song 7 nguon ──────────────────────
-    print('\nPhase 1 -- Keo song song 7 nguon...')
+    bh_headers = load_json(cfg('backlogheaders.json'))
+    bp_payload = load_json(cfg('backlogpayload.json'))
+    bp_payload['beginDate'] = start_str
+
+    # ── Phase 1: Keo song song 8 nguon ──────────────────────
+    print('\nPhase 1 -- Keo song song 8 nguon...')
     t0  = time.time()
     raw = {}
 
-    with ThreadPoolExecutor(max_workers=7) as ex:
+    with ThreadPoolExecutor(max_workers=8) as ex:
         futures = {
             ex.submit(pull_dispatch,       session_main, tkn_main, dh_headers, dp_payload):        'dispatch',
             ex.submit(pull_scan,           session_main, tkn_main, ih_headers, i_params, ip_payload, 'Inbound'):  'inbound',
@@ -827,7 +868,9 @@ def main():
             ex.submit(pull_linehaul_consol,session_main, tkn_main, start_str, end_str_plus1):        'lh_consol',
             ex.submit(pull_arrival,        session_arr,  tkn_arr,  ih_headers, start_str, end_str):  'arrival',
             ex.submit(pull_shuttle,        session_arr,  tkn_arr,  start_str, end_str):              'shuttle',
+            ex.submit(pull_backlog,        session_main, tkn_main, bh_headers, bp_payload):        'backlog',
         }
+
         for f in as_completed(futures):
             key = futures[f]
             try:
@@ -1048,9 +1091,17 @@ def main():
                 if trip: arr_trip_map[wb] = trip
                 if send_st: arr_station_map[wb] = send_st
 
+    backlog_dest_map = {}
+    for r in raw.get('backlog', []):
+        wb = clean_wb(r.get('billcode') or r.get('billNo') or r.get('waybillNo'))
+        dest_st = str(r.get('destination_site_name') or r.get('SEND_NEXTSTATION') or '').strip()
+        if wb and dest_st:
+            backlog_dest_map[wb] = dest_st
+
     print('   Inbound  map: ' + str(len(ib_scan_map)) + ' don (bao gồm ' + str(len(ib_station_map)) + ' trạm nguồn upOrNextStation/sendSite)')
     print('   Outbound map: ' + str(len(ob_map)) + ' don (bao gồm ' + str(len(ob_next_station_map)) + ' trạm đích nextSite)')
     print('   Arrival  map: ' + str(len(arr_scan_map)) + ' don (bao gồm ' + str(len(arr_station_map)) + ' trạm nguồn last_dept_name/scansitename)')
+    print('   Backlog  map: ' + str(len(backlog_dest_map)) + ' don (trạm đích destination_site_name từ Backlog Report JFS)')
 
     # ── Phase 5: Merge (FULL OUTER JOIN across all scan sources) ───────────────
     print('\nPhase 5 -- Merge (FULL OUTER JOIN all scan sources & deduplicate)...')
@@ -1112,13 +1163,14 @@ def main():
 
     df['Pickup_station'] = df.apply(lambda r: arr_station_map.get(r['tracking']) or ib_station_map.get(r['tracking']) or r.get('Pickup_station') or 'BN HUB', axis=1)
 
-    # Waterfall Next_station Lookup (SỬA DỨT ĐIỂM: Khớp Dispatch_code/sortcode/Station_1 -> Station_2 trong valid.csv, KHÔNG gán bằng Pickup_station)
+    # Waterfall Next_station Lookup (Khớp Backlog destination_site_name / Dispatch_code -> Station_2 trong valid.csv)
     def resolve_waterfall_next_station(r):
         wb = str(r['tracking']).strip()
         sc = str(r.get('Dispatch_code') or '').strip().upper()
         ob_st = ob_next_station_map.get(wb, '')
         disp_st = str(r.get('Next_station') or '').strip()
         pk_st = str(r.get('Pickup_station') or '').strip()
+        bl_st = backlog_dest_map.get(wb, '')
 
         # 1. Tra cứu trực tiếp mã Dispatch_code / sortcode trong valid.csv -> Cột Station_2
         if sc and dict_station.get(sc):
@@ -1126,19 +1178,21 @@ def main():
         if sc and len(sc) >= 6 and dict_station.get(sc[:6]):
             return dict_station[sc[:6]]
 
-        # 2. Outbound nextSite (Trạm đích quét xuất kho)
-        if ob_st and ob_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC'):
+        # 2. Tra cứu bưu cục đích từ Backlog Report (destination_site_name) -> Station_1 -> Station_2
+        if bl_st and dict_station.get(bl_st.upper()):
+            return dict_station[bl_st.upper()]
+        if bl_st and bl_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
+            return bl_st
+
+        # 3. Outbound nextSite (Trạm đích quét xuất kho)
+        if ob_st and ob_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
             return dict_station.get(ob_st.upper(), ob_st)
 
-        # 3. Next_station quy hoạch nếu khớp với Station_1 trong valid.csv -> Station_2
-        if disp_st and disp_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC'):
+        # 4. Next_station quy hoạch nếu khớp với Station_1 trong valid.csv -> Station_2
+        if disp_st and disp_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
             return dict_station.get(disp_st.upper(), disp_st)
 
-        # 4. Tra cứu trạm quét Pickup_station nếu là Station_1 -> Station_2 (Ví dụ: HN CẦU GIẤY -> BN HUB)
-        if pk_st and dict_station.get(pk_st.upper()):
-            return dict_station[pk_st.upper()]
-
-        # 5. Fallback luồng Bắc -> BN HUB, còn lại -> Trả về pk_st hợp lệ nếu có
+        # 5. Luồng Miền Bắc xuất phát từ HN/BN/HD/HY -> Gán về BN HUB
         pk_upper = pk_st.upper()
         if 'HN ' in pk_upper or 'BN ' in pk_upper or 'HD ' in pk_upper or 'HY ' in pk_upper:
             return 'BN HUB'
