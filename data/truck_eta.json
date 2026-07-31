@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-31 22:17:32",
-  "total_trucks_en_route": 3,
+  "generated_at": "2026-07-31 22:47:33",
+  "total_trucks_en_route": 6,
   "trucks": [
     {
       "send_network": "BN HUB",
@@ -21,9 +21,9 @@
       "send_network": "BN HUB",
       "arrive_network": "HCM HUB",
       "trip_code": "JBGX26080100001",
-      "orders_count": 1017,
-      "weight_kg": 8099.57,
-      "weight_ton": 8.1,
+      "orders_count": 1071,
+      "weight_kg": 8446.07,
+      "weight_ton": 8.446,
       "planned_departure": "2026-08-01 04:30:00",
       "planned_arrival": "2026-08-02 18:30:00",
       "actual_departure": "",
@@ -31,6 +31,21 @@
       "rank": "Linehaul",
       "status": "loading",
       "op_date": "2026-08-02"
+    },
+    {
+      "send_network": "BD BÌNH HÒA",
+      "arrive_network": "HCM HUB",
+      "trip_code": "ZXZB26000347991",
+      "orders_count": 2,
+      "weight_kg": 1.0,
+      "weight_ton": 0.001,
+      "planned_departure": "2026-07-31 22:39",
+      "planned_arrival": "2026-07-31 22:39",
+      "actual_departure": "2026-07-31 22:39",
+      "eta": "2026-07-31 22:39",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-07-31"
     },
     {
       "send_network": "SG NHƠN ĐỨC",
@@ -43,6 +58,36 @@
       "planned_arrival": "2026-07-31 18:25",
       "actual_departure": "2026-07-31 18:25",
       "eta": "2026-07-31 18:25",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-07-31"
+    },
+    {
+      "send_network": "SG CỦ CHI",
+      "arrive_network": "HCM HUB",
+      "trip_code": "ZXZB26000378080",
+      "orders_count": 1,
+      "weight_kg": 5.08,
+      "weight_ton": 0.005,
+      "planned_departure": "2026-07-31 18:11",
+      "planned_arrival": "2026-07-31 18:11",
+      "actual_departure": "2026-07-31 18:11",
+      "eta": "2026-07-31 18:11",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-07-31"
+    },
+    {
+      "send_network": "BD BÌNH HÒA",
+      "arrive_network": "HCM HUB",
+      "trip_code": "ZXJB26000367591",
+      "orders_count": 1,
+      "weight_kg": 0.5,
+      "weight_ton": 0.001,
+      "planned_departure": "2026-07-31 22:43",
+      "planned_arrival": "2026-07-31 22:43",
+      "actual_departure": "2026-07-31 22:43",
+      "eta": "2026-07-31 22:43",
       "rank": "Shuttle",
       "status": "arrived",
       "op_date": "2026-07-31"
