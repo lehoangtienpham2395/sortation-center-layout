@@ -1118,17 +1118,23 @@ def main():
                 if trip: arr_trip_map[wb] = trip
                 if send_st: arr_station_map[wb] = send_st
 
-    backlog_dest_map = {}
+    backlog_info_map = {}
     for r in raw.get('backlog', []):
         wb = clean_wb(r.get('billcode') or r.get('billNo') or r.get('waybillNo'))
-        dest_st = str(r.get('destination_site_name') or r.get('SEND_NEXTSTATION') or '').strip()
-        if wb and dest_st:
-            backlog_dest_map[wb] = dest_st
+        dest_st = str(r.get('destination_site_name') or r.get('SEND_NEXTSTATION') or r.get('destinationSiteName') or '').strip()
+        abnormal_rmk = str(r.get('abnormal_remark') or r.get('ABNORMAL_REMARK') or r.get('abnormal_reason') or r.get('abnormalRemark') or '').strip()
+        take_st = str(r.get('take_site_name') or r.get('TAKE_SITE_NAME') or r.get('takeSiteName') or r.get('take_site') or '').strip()
+        if wb:
+            backlog_info_map[wb] = {
+                'dest': dest_st,
+                'remark': abnormal_rmk,
+                'take_site': take_st
+            }
 
     print('   Inbound  map: ' + str(len(ib_scan_map)) + ' don (bao gồm ' + str(len(ib_station_map)) + ' trạm nguồn upOrNextStation/sendSite)')
     print('   Outbound map: ' + str(len(ob_map)) + ' don (bao gồm ' + str(len(ob_next_station_map)) + ' trạm đích nextSite)')
     print('   Arrival  map: ' + str(len(arr_scan_map)) + ' don (bao gồm ' + str(len(arr_station_map)) + ' trạm nguồn last_dept_name/scansitename)')
-    print('   Backlog  map: ' + str(len(backlog_dest_map)) + ' don (trạm đích destination_site_name từ Backlog Report JFS)')
+    print('   Backlog  map: ' + str(len(backlog_info_map)) + ' don (trạm đích, abnormal_remark & take_site_name từ Backlog JFS)')
 
     # ── Phase 5: Merge (FULL OUTER JOIN across all scan sources) ───────────────
     print('\nPhase 5 -- Merge (FULL OUTER JOIN all scan sources & deduplicate)...')
@@ -1149,13 +1155,13 @@ def main():
         arr_t  = arr_scan_map.get(wb, '')
         st_name = arr_station_map.get(wb) or ib_station_map.get(wb) or 'BN HUB'
         
-        st_sys = 'Inbound' if inb_t else ('Outbound' if outb_t else 'Transporting')
+        st_src = 'Outbound' if outb_t else ('Inbound' if inb_t else 'Arrival')
 
         cr_t = inb_t or outb_t or arr_t
         
         orphan_rows.append({
             'tracking': wb,
-            'status_sys': st_sys,
+            'status_sys': st_src,
             'Created_time': cr_t,
             'Pickup_station': st_name,
             'Dispatch_code': '',
@@ -1190,20 +1196,34 @@ def main():
 
     df['Pickup_station'] = df.apply(lambda r: arr_station_map.get(r['tracking']) or ib_station_map.get(r['tracking']) or r.get('Pickup_station') or 'BN HUB', axis=1)
 
-    # Waterfall Next_station, Round, Rank Lookup (Mapping Dispatch_code / sortcode trong valid.csv -> Station_2, Round, Rank)
+    # 6 Lý do hoàn/trả hàng Backlog
+    RETURN_REASONS = {
+        'Số điện thoại không liên lạc được',
+        'Người nhận từ chối nhận hàng',
+        'Khách từ chối thanh toán',
+        'Khách không đặt hàng',
+        'Sai số điện thoại',
+        'Người nhận đặt trùng đơn / mua nhầm'
+    }
+
+    # Waterfall Next_station, Round, Rank Lookup (Chính xác 6 bước theo yêu cầu cải tiến)
     def resolve_waterfall_next_station_round_rank(r):
         wb = str(r['tracking']).strip()
         sc = str(r.get('Dispatch_code') or '').strip().upper()
         ob_st = ob_next_station_map.get(wb, '')
         disp_st = str(r.get('Next_station') or '').strip()
         pk_st = str(r.get('Pickup_station') or '').strip()
-        bl_st = backlog_dest_map.get(wb, '')
+
+        bl_info = backlog_info_map.get(wb, {})
+        bl_dest = bl_info.get('dest', '')
+        bl_rmk  = bl_info.get('remark', '')
+        bl_take = bl_info.get('take_site', '')
 
         next_st = ''
         rnd = ''
         rnk = ''
 
-        # 1. Tra cứu trực tiếp mã Dispatch_code / sortcode trong valid.csv -> Cột Station_2, Round, Rank
+        # Step 1: Match Dispatch_code -> sortcode valid.csv -> Station_2, Round, Rank
         if sc and dict_station.get(sc):
             next_st = dict_station[sc]
             rnd     = dict_round.get(sc, '')
@@ -1213,17 +1233,32 @@ def main():
             rnd     = dict_round.get(sc[:6], '')
             rnk     = dict_rank.get(sc[:6], '')
 
-        # 2. Tra cứu bưu cục đích từ Backlog Report (destination_site_name) -> Station_1 / Station_2 -> Station_2, Round, Rank
-        if not next_st and bl_st:
-            bl_upper = bl_st.upper()
+        # Step 6 (Inbound/Transporting/Backlog mapping với Backlog theo tracking):
+        # Nếu abnormal_remark thuộc 6 lý do hoàn/trả -> lấy take_site_name, ngược lại lấy destination_site_name -> mapping Station_1 trong valid.csv ra Station_2
+        if not next_st and bl_info:
+            is_return = any(rr.lower() in bl_rmk.lower() for rr in RETURN_REASONS if bl_rmk and rr)
+            target_bl_st = bl_take if (is_return and bl_take) else bl_dest
+
+            if target_bl_st:
+                tbl_upper = target_bl_st.upper()
+                if dict_station.get(tbl_upper):
+                    next_st = dict_station[tbl_upper]
+                    rnd     = dict_round.get(tbl_upper, '')
+                    rnk     = dict_rank.get(tbl_upper, '')
+                elif target_bl_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
+                    next_st = target_bl_st
+
+        # Step 2: Fallback Backlog dest -> valid.csv (nếu chưa match được ở trên)
+        if not next_st and bl_dest:
+            bl_upper = bl_dest.upper()
             if dict_station.get(bl_upper):
                 next_st = dict_station[bl_upper]
                 rnd     = dict_round.get(bl_upper, '')
                 rnk     = dict_rank.get(bl_upper, '')
-            elif bl_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
-                next_st = bl_st
+            elif bl_dest not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
+                next_st = bl_dest
 
-        # 3. Outbound nextSite (Trạm đích quét xuất kho)
+        # Step 3: Giữ nguyên nextSite / nextNetworkName / receiveSite của Outbound
         if not next_st and ob_st:
             ob_upper = ob_st.upper()
             if dict_station.get(ob_upper):
@@ -1233,15 +1268,7 @@ def main():
             elif ob_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
                 next_st = ob_st
 
-        # 4. Next_station quy hoạch nếu khớp với Station_1 trong valid.csv -> Station_2
-        if not next_st and disp_st:
-            disp_upper = disp_st.upper()
-            if dict_station.get(disp_upper):
-                next_st = dict_station[disp_upper]
-                rnd     = dict_round.get(disp_upper, '')
-                rnk     = dict_rank.get(disp_upper, '')
-
-        # 5. Luồng Miền Bắc xuất phát từ HN/BN/HD/HY/BN HUB -> Gán về BN HUB
+        # Step 4: Miền Bắc / BN HUB -> Gán BN HUB, Linehaul, BN HUB
         pk_upper = pk_st.upper()
         if 'HN ' in pk_upper or 'BN ' in pk_upper or 'HD ' in pk_upper or 'HY ' in pk_upper or 'BN HUB' in pk_upper:
             if not next_st:
@@ -1251,7 +1278,7 @@ def main():
             if not rnk:
                 rnk = 'BN HUB'
 
-        # Fallback nếu không tìm thấy
+        # Step 5: Bỏ hoàn toàn việc gán nhầm Pickup_station -> Fallback chuẩn nếu không tìm thấy
         if not next_st:
             next_st = disp_st if disp_st else 'Chưa phân vùng'
         if not rnd:
@@ -1266,7 +1293,22 @@ def main():
     df['Round']        = mapped_res[1]
     df['Rank']         = mapped_res[2]
 
-    df['status_sys']   = df['status_sys'].apply(clean_status_sys)
+    # Cập nhật cột status_sys: Đơn hàng được lấy từ nguồn dữ liệu nào (Outbound, Inbound, Arrival, Backlog, Linehaul, Dispatch)
+    def resolve_source_status_sys(r):
+        wb = str(r['tracking']).strip()
+        if r.get('outbound_scanDate') or ob_map.get(wb):
+            return 'Outbound'
+        if r.get('inbound_scanDate') or ib_scan_map.get(wb):
+            return 'Inbound'
+        if r.get('arrival_scanDate') or arr_scan_map.get(wb):
+            return 'Arrival'
+        if backlog_info_map.get(wb):
+            return 'Backlog'
+        if r.get('trip_code') and (r.get('transporing_time') or r.get('transported_time')):
+            return 'Linehaul'
+        return 'Dispatch'
+
+    df['status_sys'] = df.apply(resolve_source_status_sys, axis=1)
 
 
 
