@@ -151,28 +151,13 @@ export default function InboundDashboard({
   // 2. Filter datasets by active date
   const getWaterfallStatus = (d: any) => {
     const st = (d['status'] || d['Trạng thái'] || d['Trng thi'] || '').trim();
+    if (st === 'Đã hủy' || st === 'Canceled' || st === 'Cancelled') return 'Canceled';
     if (st === 'Inbound' || st === 'Đã nhập kho') return 'Inbound';
     if (st === 'Transporting' || st === 'Đang vận chuyển') return 'Transporting';
     if (st === 'Pickup Done' || st === 'Đã lấy hàng') return 'Pickup Done';
-    if (st === 'Created' || st === 'Đã điều phối bưu cục') return 'Created';
-
-    const hasInbound = Boolean(
-      d['inbound_scandate'] || d['inbound_time'] || 
-      (d['op_date_inbound'] && d['op_date_inbound'] !== '') || 
-      (d['Ngày vận hành_Inbound'] && d['Ngày vận hành_Inbound'] !== '')
-    );
-    if (hasInbound) return 'Inbound';
-
-    const hasArrival = Boolean(
-      d['arrival_scandate'] || d['arrival_time'] || d['transporing_time']
-    );
-    if (hasArrival) return 'Transporting';
-
-    const hasPickup = Boolean(d['pickup_time']);
-    if (hasPickup) return 'Pickup Done';
-
     return 'Created';
   };
+
 
   const getDateInbound = (d: any) => d['op_date_inbound'] || d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound'];
   const getDateForecast = (d: any) => d['op_date_forecast'] || d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast'];
@@ -288,23 +273,23 @@ export default function InboundDashboard({
   };
 
   const HISTORICAL_SNAPSHOTS: Record<string, { rot_hom_nay: number; rot_hom_truoc: number; rot_ton_dong?: number; bn_hub_orders?: number }> = {
-    '2026-07-29': { rot_hom_nay: 10908, rot_hom_truoc: 1412, rot_ton_dong: 0, bn_hub_orders: 0 }
+    '2026-07-29': { rot_hom_nay: 10908, rot_hom_truoc: 1412, rot_ton_dong: 0, bn_hub_orders: 0 },
+    '2026-07-30': { rot_hom_nay: 12794, rot_hom_truoc: 1250, rot_ton_dong: 0, bn_hub_orders: 2602 }
   };
 
   const normActiveDate = normalizeDateStr(activeDate);
   const prevDate = getPreviousOperatingDate(normActiveDate);
-  const normToday = normalizeDateStr(lastUpdateObj?.active_date || new Date().toISOString().slice(0, 10));
-  const isHistoricalDate = normActiveDate !== normToday;
+
+  const isHistoricalDate = normActiveDate < todayOpDate;
+
   const activeSnap = lastUpdateObj?.daily_snapshots?.[normActiveDate] || HISTORICAL_SNAPSHOTS[normActiveDate];
 
   let forecastTonDongLau = 0;
+  let bnHubLinehaulOrdersFromInbound = 0;
 
   const getFcOpDate = (row: any) => {
-    const rawTime = row['forecast_time'] || row['Created_time'] || row['created_time'] || '';
-    if (rawTime) return getOperatingDateFromTimestamp(rawTime);
     return normalizeDateStr(row['op_date_forecast'] || row['Ngy vn hnh_Forecast'] || row['Ngày vận hành_Forecast'] || '');
   };
-
 
   const stationTransportingMap: Record<string, number> = {};
 
@@ -313,27 +298,38 @@ export default function InboundDashboard({
     const status = d.status || d['Trng thi'] || d['Trạng thái'] || '';
     const vol = parseInt(d.volume ?? d['Volume'] ?? 1, 10) || 1;
     const wt = parseFloat(d['Weight'] || d['weight_ton'] || 0) || 0;
+    const isNorth = isNorthRow(d);
 
-    if (status !== 'Đã hủy') {
+    if (status !== 'Đã hủy' && status !== 'Canceled') {
+
       const isInbound = status === 'Inbound' || status === 'Đã nhập kho';
       let isForecastMember = false;
 
       // A. Rớt hôm nay: normFcDate === normActiveDate
       if (normFcDate === normActiveDate) {
-        forecastRotHomNay += vol;
-        isForecastMember = true;
+        if (isNorth) {
+          bnHubLinehaulOrdersFromInbound += vol;
+        } else {
+          forecastRotHomNay += vol;
+          isForecastMember = true;
+        }
       } 
       // B. Rớt hôm trước: CHỈ đúng 1 ngày liền trước (prevDate) CHƯA INBOUND
       else if (normFcDate === prevDate && !isInbound) {
-        forecastRotHomTruoc += vol;
-        isForecastMember = true;
+        if (!isNorth) {
+          forecastRotHomTruoc += vol;
+          isForecastMember = true;
+        }
       }
       // C. Tồn đọng lâu ngày: các ngày cũ hơn (< prevDate) CHƯA INBOUND
       else if (normFcDate && normFcDate < prevDate && !isInbound) {
-        forecastTonDongLau += vol;
+        if (!isNorth) {
+          forecastTonDongLau += vol;
+        }
       }
 
-      if (isForecastMember) {
+      // 🛑 BIỂU ĐỒ ORDERS STATUS CHỈ TÍNH CÁC ĐƠN FORECAST (KHÔNG TÍNH CÁC ĐƠN INBOUND CÓ PICKUP_STATION LÀ BN HUB TRUNG CHUYỂN)
+      if (isForecastMember && !isNorth) {
         const wfStatus = getWaterfallStatus(d);
         if (stages[wfStatus]) {
           stages[wfStatus].orders += vol;
@@ -342,7 +338,7 @@ export default function InboundDashboard({
         }
         if (wfStatus === 'Transporting') {
           const pkSt = (d['pickup_station'] || d['station_name'] || '').trim().toUpperCase();
-          if (pkSt) {
+          if (pkSt && pkSt !== 'BN HUB') {
             stationTransportingMap[pkSt] = (stationTransportingMap[pkSt] || 0) + vol;
           }
         }
@@ -350,7 +346,11 @@ export default function InboundDashboard({
     }
   });
 
+  console.log('[DEBUG BROWSER STAGES]', activeDate, JSON.stringify(stages));
+
   const rawTrucksList: any[] = Array.isArray(truckEtaData) ? truckEtaData : ((truckEtaData as any)?.trucks || []);
+
+
 
 
 
@@ -477,11 +477,12 @@ export default function InboundDashboard({
   let totalInTransitOrders = incomingVehicles.reduce((sum, s) => sum + s.orders, 0);
   let totalInTransitWeight = incomingVehicles.reduce((sum, s) => sum + s.weight, 0);
 
-  let bnHubLinehaulOrders = 0;
+  let bnHubLinehaulOrders = bnHubLinehaulOrdersFromInbound;
   const bnHubObj = incomingVehicles.find(v => (v.name || v.station || '').toUpperCase().includes('BN HUB'));
-  if (bnHubObj) {
-    bnHubLinehaulOrders = bnHubObj.orders || bnHubObj.tongDon || 0;
+  if (bnHubObj && bnHubObj.orders > 0) {
+    bnHubLinehaulOrders = Math.max(bnHubLinehaulOrders, bnHubObj.orders || bnHubObj.tongDon || 0);
   }
+
 
   // 🎯 Khóa cứng Snapshot Lock cho ngày lịch sử (activeDate !== today)
   if (isHistoricalDate && activeSnap) {
