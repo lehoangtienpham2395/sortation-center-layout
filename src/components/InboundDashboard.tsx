@@ -272,17 +272,19 @@ export default function InboundDashboard({
     return `${yr}-${mo}-${dy}`;
   };
 
-  const HISTORICAL_SNAPSHOTS: Record<string, { rot_hom_nay: number; rot_hom_truoc: number; rot_ton_dong?: number; bn_hub_orders?: number }> = {
-    '2026-07-29': { rot_hom_nay: 10908, rot_hom_truoc: 1412, rot_ton_dong: 0, bn_hub_orders: 0 },
-    '2026-07-30': { rot_hom_nay: 12794, rot_hom_truoc: 1250, rot_ton_dong: 0, bn_hub_orders: 2602 }
-  };
+  // Đã BỎ HISTORICAL_SNAPSHOTS hardcode tay từng ngày — đây chính là nguyên nhân gốc
+  // của bug "chốt rồi vẫn tăng": mỗi ngày phải tự gõ tay 1 dòng, ngày nào quên gõ thì
+  // ngày đó mãi mãi không được chốt, cứ hiển thị số live tăng dần.
+  // Giờ backend (sync_postgre.py -> save_and_get_daily_snapshots) tự động chốt MỌI
+  // ngày trong PostgreSQL, xuất sẵn trong lastUpdateObj.daily_snapshots — không cần
+  // fallback tay ở đây nữa.
 
   const normActiveDate = normalizeDateStr(activeDate);
   const prevDate = getPreviousOperatingDate(normActiveDate);
 
   const isHistoricalDate = normActiveDate < todayOpDate;
 
-  const activeSnap = lastUpdateObj?.daily_snapshots?.[normActiveDate] || HISTORICAL_SNAPSHOTS[normActiveDate];
+  const activeSnap = lastUpdateObj?.daily_snapshots?.[normActiveDate];
 
   let forecastTonDongLau = 0;
   let bnHubLinehaulOrdersFromInbound = 0;
@@ -489,11 +491,14 @@ export default function InboundDashboard({
     forecastRotHomNay = activeSnap.rot_hom_nay ?? forecastRotHomNay;
     forecastRotHomTruoc = activeSnap.rot_hom_truoc ?? forecastRotHomTruoc;
     forecastTonDongLau = activeSnap.rot_ton_dong ?? forecastTonDongLau;
-    bnHubLinehaulOrders = activeSnap.bn_hub_orders ?? 0;
+    // bn_hub_orders: backend hiện chưa tính field này (Linehaul BN HUB được Frontend tự
+    // tính riêng từ inbound.json/truck data) — giữ nguyên giá trị live thay vì ép về 0.
+    bnHubLinehaulOrders = activeSnap.bn_hub_orders ?? bnHubLinehaulOrders;
   }
 
-  // 🎯 Tổng Forecast nhất quán theo công thức chuẩn: Total = Rớt hôm nay + Rớt hôm trước + Linehaul BN HUB
-  let totalForecast = forecastRotHomNay + forecastRotHomTruoc + bnHubLinehaulOrders;
+  // 🎯 Tổng Forecast nhất quán theo công thức chuẩn:
+  // Total = Rớt hôm nay + Rớt hôm trước + Tồn đọng lâu ngày + Linehaul BN HUB
+  let totalForecast = forecastRotHomNay + forecastRotHomTruoc + forecastTonDongLau + bnHubLinehaulOrders;
 
 
 
