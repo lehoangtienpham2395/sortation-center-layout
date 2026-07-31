@@ -230,7 +230,9 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
     if (!rawData) {
       const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
       const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
-      let response = await fetch(getApiUrl(`${sheetType.toLowerCase()}.json`), fetchOpts);
+      const baseUrl = getApiUrl(`${sheetType.toLowerCase()}.json`);
+      const cacheBustUrl = baseUrl.includes('?') ? `${baseUrl}&t=${t}` : `${baseUrl}?t=${t}`;
+      let response = await fetch(cacheBustUrl, fetchOpts);
       if (!response.ok) {
         response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, fetchOpts);
       }
@@ -269,10 +271,13 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
 async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[] | null> {
   try {
     const todayStr = new Date().toISOString().split('T')[0];
+    const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
     const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
-    let response = await fetch(getApiUrl(`${sheetType.toLowerCase()}.json`), fetchOpts);
+    const baseUrl = getApiUrl(`${sheetType.toLowerCase()}.json`);
+    const cacheBustUrl = baseUrl.includes('?') ? `${baseUrl}&t=${t}` : `${baseUrl}?t=${t}`;
+    let response = await fetch(cacheBustUrl, fetchOpts);
     if (!response.ok && getApiUrl('').startsWith('./')) {
-      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${Date.now()}`, fetchOpts);
+      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, fetchOpts);
     }
     if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
     const rawData = await response.json();
