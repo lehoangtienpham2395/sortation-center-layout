@@ -1100,14 +1100,14 @@ def main():
                 'transporing_time': '', 'transported_time': '',
             })
 
-    ob_map = {}
-    ob_next_station_map = {}
+    ob_map, ob_next_station_map = {}, {}
     for r in raw.get('outbound', []):
         wb = clean_wb(r.get('billNo') or r.get('waybillNo'))
-        st = str(r.get('scanDate') or '').strip()
-        next_st = str(r.get('nextSite') or r.get('nextNetworkName') or r.get('next_network') or r.get('receiveSite') or '').strip()
-        if wb and st and st.lower() not in ('nan', 'none', ''):
-            if wb not in ob_map or st > ob_map[wb]:
+        st = str(r.get('scanDate') or r.get('scanTime') or r.get('inputDate') or '').strip()
+        next_st = str(r.get('upOrNextStation') or r.get('nextSite') or r.get('nextSiteName') or r.get('nextNetworkName') or r.get('next_network') or r.get('receiveSite') or r.get('receiveSiteName') or '').strip()
+        if wb:
+            if not st: st = '2026-07-30 00:00:00'
+            if wb not in ob_map or st >= ob_map[wb]:
                 ob_map[wb] = st
                 if next_st:
                     ob_next_station_map[wb] = next_st
@@ -1576,16 +1576,19 @@ def main():
                  'Next_station','Round','Rank',
                  'inbound_scanDate','outbound_scanDate','arrival_scanDate',
                  'trip_code','transporing_time','transported_time']
-    df['status_sys'] = df['status_sys'].apply(clean_status_sys)
+    # Giữ nguyên status_sys là tên Nguồn dữ liệu (Outbound, Inbound, Backlog, Arrival, Linehaul, Dispatch)
     df = df[[c for c in col_order if c in df.columns]]
     try:
-
         df.to_csv(OUTPUT_FILE, index=False, encoding='utf-8-sig')
         print('   DA LUU -> ' + OUTPUT_FILE)
     except PermissionError:
-        alt = OUTPUT_FILE.replace('.csv', '_out.csv')
-        df.to_csv(alt, index=False, encoding='utf-8-sig')
-        print('   File dang mo -> luu vao: ' + alt)
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        alt = OUTPUT_FILE.replace('.csv', f'_{ts}.csv')
+        try:
+            df.to_csv(alt, index=False, encoding='utf-8-sig')
+            print('   File đang mở -> lưu vào file mới: ' + alt)
+        except Exception as e:
+            print('   Bỏ qua lưu file CSV (PermissionError): ' + str(e))
 
     # ── Summary ──────────────────────────────────────────────
     total = len(df)
