@@ -60,6 +60,14 @@ CONFIG_DIR  = next((p for p in _cfg_candidates if os.path.exists(os.path.join(p,
 VALID_FILE  = find_config_file('valid.csv') or os.path.join(CONFIG_DIR, 'valid.csv')
 OUTPUT_FILE = os.path.join(BASE_DIR, 'full_multi_source_7days_v6.csv')
 
+# Cấu hình số ngày kéo dữ liệu (Mặc định 7 ngày, đổi thành 1 để test nhanh)
+DAYS_BACK = 7
+if len(sys.argv) > 1:
+    try:
+        DAYS_BACK = int(sys.argv[1].replace('--days=', '').strip())
+    except ValueError:
+        pass
+
 # Network tuning
 PAGE_WORKERS     = 10
 PAGE_SIZE        = 500      # Dispatch page size
@@ -831,14 +839,14 @@ def merge_in_out_chronological(df_in: pd.DataFrame, df_out: pd.DataFrame) -> pd.
 def main():
     tz_vn  = ZoneInfo('Asia/Ho_Chi_Minh')
     now    = datetime.now(tz_vn)
-    start_dt = now - timedelta(days=7)
+    start_dt = now - timedelta(days=DAYS_BACK)
 
     start_str     = start_dt.strftime('%Y-%m-%d 00:00:00')
     end_str       = now.strftime('%Y-%m-%d %H:%M:%S')
     end_str_plus1 = (now + timedelta(days=1)).strftime('%Y-%m-%d 23:59:59')
 
     print('=' * 65)
-    print('PIPELINE UNIFIED V6 -- Song song 7 nguon, khong file trung gian')
+    print(f'PIPELINE UNIFIED V6 -- Song song 7 nguon ({DAYS_BACK} ngay), khong file trung gian')
     print(start_str + '  ->  ' + end_str)
     print('=' * 65)
 
