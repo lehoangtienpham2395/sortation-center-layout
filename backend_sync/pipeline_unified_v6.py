@@ -61,7 +61,7 @@ VALID_FILE  = find_config_file('valid.csv') or os.path.join(CONFIG_DIR, 'valid.c
 OUTPUT_FILE = os.path.join(BASE_DIR, 'full_multi_source_7days_v6.csv')
 
 # Cấu hình số ngày kéo dữ liệu (Mặc định 7 ngày, đổi thành 1 để test nhanh)
-DAYS_BACK = 2
+DAYS_BACK = 7
 if len(sys.argv) > 1:
     try:
         DAYS_BACK = int(sys.argv[1].replace('--days=', '').strip())
@@ -1276,9 +1276,9 @@ def main():
             elif ob_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
                 next_st = ob_st
 
-        # Step 4: Miền Bắc / BN HUB -> Gán BN HUB, Linehaul, BN HUB
+        # Step 4: Miền Bắc (HN, BN, HD, HY...) -> Gán Linehaul/BN HUB nếu trạm nguồn thuộc Miền Bắc ngoài BN HUB
         pk_upper = pk_st.upper()
-        if 'HN ' in pk_upper or 'BN ' in pk_upper or 'HD ' in pk_upper or 'HY ' in pk_upper or 'BN HUB' in pk_upper:
+        if any(prefix in pk_upper for prefix in ['HN ', 'BN ', 'HD ', 'HY ']):
             if not next_st:
                 next_st = 'BN HUB'
             if not rnd:
