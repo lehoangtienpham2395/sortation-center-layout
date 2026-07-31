@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-31 23:47:32",
-  "total_trucks_en_route": 5,
+  "generated_at": "2026-08-01 00:17:32",
+  "total_trucks_en_route": 3,
   "trucks": [
     {
       "send_network": "BN HUB",
@@ -21,9 +21,24 @@
       "send_network": "BN HUB",
       "arrive_network": "HCM HUB",
       "trip_code": "JBGX26080100001",
-      "orders_count": 1072,
-      "weight_kg": 8462.07,
-      "weight_ton": 8.462,
+      "orders_count": 1082,
+      "weight_kg": 8584.53,
+      "weight_ton": 8.585,
+      "planned_departure": "2026-08-01 04:30:00",
+      "planned_arrival": "2026-08-02 14:05:19",
+      "actual_departure": "2026-08-01 00:05:19",
+      "eta": "2026-08-02 14:05:19",
+      "rank": "Linehaul",
+      "status": "in_transit",
+      "op_date": "2026-08-02"
+    },
+    {
+      "send_network": "BN HUB",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DKGX26080100002",
+      "orders_count": 214,
+      "weight_kg": 1673.69,
+      "weight_ton": 1.674,
       "planned_departure": "2026-08-01 04:30:00",
       "planned_arrival": "2026-08-02 18:30:00",
       "actual_departure": "",
@@ -31,51 +46,6 @@
       "rank": "Linehaul",
       "status": "loading",
       "op_date": "2026-08-02"
-    },
-    {
-      "send_network": "BD BÌNH HÒA",
-      "arrive_network": "HCM HUB",
-      "trip_code": "ZXZB26000347991",
-      "orders_count": 2,
-      "weight_kg": 1.0,
-      "weight_ton": 0.001,
-      "planned_departure": "2026-07-31 22:39",
-      "planned_arrival": "2026-07-31 22:39",
-      "actual_departure": "2026-07-31 22:39",
-      "eta": "2026-07-31 22:39",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-07-31"
-    },
-    {
-      "send_network": "SG CỦ CHI",
-      "arrive_network": "HCM HUB",
-      "trip_code": "ZXZB26000378080",
-      "orders_count": 1,
-      "weight_kg": 5.08,
-      "weight_ton": 0.005,
-      "planned_departure": "2026-07-31 18:11",
-      "planned_arrival": "2026-07-31 18:11",
-      "actual_departure": "2026-07-31 18:11",
-      "eta": "2026-07-31 18:11",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-07-31"
-    },
-    {
-      "send_network": "BD BÌNH HÒA",
-      "arrive_network": "HCM HUB",
-      "trip_code": "ZXJB26000367591",
-      "orders_count": 1,
-      "weight_kg": 0.5,
-      "weight_ton": 0.001,
-      "planned_departure": "2026-07-31 22:43",
-      "planned_arrival": "2026-07-31 22:43",
-      "actual_departure": "2026-07-31 22:43",
-      "eta": "2026-07-31 22:43",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-07-31"
     }
   ]
 }
