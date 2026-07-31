@@ -1,36 +1,84 @@
-import { useState, useEffect, useMemo } from 'react';
+import RouteMapDashboard from './components/RouteMapDashboard';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import InboundDashboard from './components/InboundDashboard';
-import { 
-  LayoutDashboard, 
-  Activity, 
-  TrendingUp, 
-  Sliders, 
-  RefreshCw, 
-  Power,
-  ListOrdered,
-  Menu,
-  Inbox
-} from 'lucide-react';
+import HeatmapDashboard from './components/HeatmapDashboard';
+import KpiDashboard from './components/KpiDashboard';
+import { DatePicker } from './components/DatePicker';
+import { Menu } from 'lucide-react';
+import configData from './data/config.json';
 
-// ── Rack / chute definitions (Cập nhật: Zone 3 = 23 chutes + 24 trucks, Zone 2 = 23 chutes + 23 trucks, Zone 1 = 15 chutes) ──
+// Animated Number Ticker Component
+function NumberTicker({ value }: { value: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  
+  useEffect(() => {
+    let start = 0;
+    const end = value;
+    if (start === end) {
+      if (ref.current) ref.current.textContent = end.toLocaleString();
+      return;
+    }
+    const duration = 0.8; // seconds
+    let startTime: number | null = null;
+    
+    const animateCount = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / (duration * 1000), 1);
+      const current = Math.floor(progress * (end - start) + start);
+      if (ref.current) {
+        ref.current.textContent = current.toLocaleString();
+      }
+      if (progress < 1) {
+        window.requestAnimationFrame(animateCount);
+      }
+    };
+    
+    window.requestAnimationFrame(animateCount);
+  }, [value]);
+
+  return <span ref={ref}>0</span>;
+}
+
+const MASTER_CONFIG_MAP: { [key: string]: string } = {};
+try {
+  const items = Array.isArray(configData) 
+    ? configData 
+    : ((configData as any)?.default || (configData as any)?.valid || []);
+  if (Array.isArray(items)) {
+    items.forEach((c: any) => {
+      const key = c?.AreaID || c?.areaId || c?.Station_1;
+      const name = c?.['Bưu cục'] || c?.buuCuc || c?.Station_2;
+      if (key && name) {
+        MASTER_CONFIG_MAP[String(key).trim()] = String(name).trim();
+      }
+    });
+  }
+} catch (e) {
+  console.error("Error loading master config map:", e);
+}
+
+
+// ── Rack / chute definitions (Chuẩn hóa 100% tên bưu cục theo valid.csv) ──
 const ZONE3_LIST = [
   // 5 ô chutes bên phải vách ngăn (vùng xanh lá)
-  { areaId: 'C01', name: 'C01 Chờ tải', zone: 3 },
-  { areaId: 'C02', name: 'C02 Chờ tải', zone: 3 },
-  { areaId: 'C03', name: 'C03 Chờ tải', zone: 3 },
-  { areaId: 'C04', name: 'C04 Chờ tải', zone: 3 },
-  { areaId: 'C05', name: 'C05 Chờ tải', zone: 3 },
-  // 19 ô chutes bên trái vách ngăn (C06 -> C24, giữ nguyên bưu cục cũ của C01->C18)
-  { areaId: 'C06', name: 'BD BÌNH PHƯỚC', zone: 3 }, { areaId: 'C07', name: 'SG BẢY HIỀN', zone: 3 },
-  { areaId: 'C08', name: 'BD PHÚ NHUẬN', zone: 3 },   { areaId: 'C09', name: 'AG THOẠI SƠN', zone: 3 },
-  { areaId: 'C10', name: 'AG TỊNH BIÊN', zone: 3 },   { areaId: 'C11', name: 'AG TÂN CHÂU', zone: 3 },
-  { areaId: 'C12', name: 'AG AN PHÚ', zone: 3 },     { areaId: 'C13', name: 'VL CHỢ LÁCH', zone: 3 },
-  { areaId: 'C14', name: 'SG NHÀ BÈ', zone: 3 },     { areaId: 'C15', name: 'ST PHÚ LỘC', zone: 3 },
-  { areaId: 'C16', name: 'CT LONG MỸ', zone: 3 },    { areaId: 'C17', name: 'ST VĨNH CHÂU', zone: 3 },
-  { areaId: 'C18', name: 'SG GÒ VẤP', zone: 3 },     { areaId: 'C19', name: 'LA BẾN LỨC', zone: 3 },
-  { areaId: 'C20', name: 'SG XUÂN LỘC', zone: 3 },   { areaId: 'C21', name: 'DC NHÀ BÈ', zone: 3 },
-  { areaId: 'C22', name: 'DC BÌNH HƯNG', zone: 3 },  { areaId: 'C23', name: 'DC GIA ĐỊNH', zone: 3 },
-  { areaId: 'C24', name: 'C24 Dự phòng', zone: 3 }
+  { areaId: 'C01', name: 'SG CHỢ LỚN', zone: 3 },
+  { areaId: 'C02', name: 'SG HƯNG LONG', zone: 3 },
+  { areaId: 'C03', name: 'SG BÌNH LỢI TRUNG', zone: 3 },
+  { areaId: 'C04', name: 'SG BÌNH TRỊ ĐÔNG', zone: 3 },
+  { areaId: 'C05', name: 'SG KHÁNH HỘI', zone: 3 },
+  // 21 ô chutes bên trái vách ngăn (C06 -> C26)
+  { areaId: 'C06', name: 'BD DĨ AN', zone: 3 },       { areaId: 'C07', name: 'DC GIA ĐỊNH', zone: 3 },
+  { areaId: 'C08', name: 'TG GÒ CÔNG', zone: 3 },   { areaId: 'C09', name: 'LA HẬU NGHĨA', zone: 3 },
+  { areaId: 'C10', name: 'SG XUÂN HÒA', zone: 3 },   { areaId: 'C11', name: 'LA CẦN ĐƯỚC', zone: 3 },
+  { areaId: 'C12', name: 'SG PHÚ NHUẬN', zone: 3 },  { areaId: 'C13', name: 'ST VĨNH CHÂU', zone: 3 },
+  { areaId: 'C14', name: 'CT LONG MỸ', zone: 3 },    { areaId: 'C15', name: 'ST PHÚ LỢI', zone: 3 },
+  { areaId: 'C16', name: 'SG NHƠN ĐỨC', zone: 3 },   { areaId: 'C17', name: 'VL CHỢ LÁCH', zone: 3 },
+  { areaId: 'C18', name: 'AG AN PHÚ', zone: 3 },     { areaId: 'C19', name: 'AG TÂN CHÂU', zone: 3 },
+  { areaId: 'C20', name: 'AG TỊNH BIÊN', zone: 3 },  { areaId: 'C21', name: 'AG THOẠI SƠN', zone: 3 },
+  { areaId: 'C22', name: 'VT LONG ĐẤT', zone: 3 },   { areaId: 'C23', name: 'SG BẢY HIỀN', zone: 3 },
+  { areaId: 'C24', name: 'BD BÌNH HÒA', zone: 3 },
+  { areaId: 'C25', name: 'LA BẾN LỨC', zone: 3 },
+  { areaId: 'C26', name: '3PL', zone: 3 }
 ];
 
 const ZONE3_TRUCKS = Array.from({ length: 24 }, (_, i) => ({
@@ -41,20 +89,20 @@ const ZONE3_TRUCKS = Array.from({ length: 24 }, (_, i) => ({
 
 const ZONE2_LIST = [
   // 5 ô chutes bên phải vách ngăn (vùng màu vàng)
-  { areaId: 'A00', name: 'A00 Chờ tải', zone: 3 },
-  { areaId: 'A01', name: 'A01 Chờ tải', zone: 3 },
-  { areaId: 'A02', name: 'A02 Chờ tải', zone: 3 },
-  { areaId: 'A03', name: 'A03 Chờ tải', zone: 3 },
-  { areaId: 'A04', name: 'A04 Chờ tải', zone: 3 },
+  { areaId: 'A00', name: 'VT LONG ĐẤT', zone: 3 },
+  { areaId: 'A01', name: 'SG HÓC MÔN', zone: 3 },
+  { areaId: 'A02', name: 'SG BÌNH LỢI', zone: 3 },
+  { areaId: 'A03', name: 'SG TÂN THỚI HIỆP', zone: 3 },
+  { areaId: 'A04', name: 'LA ĐỨC HÒA', zone: 3 },
   // 18 ô chutes bên trái vách ngăn (B01 -> B18)
-  { areaId: 'B01', name: 'SG XUÂN THỚI SƠN', zone: 2 }, { areaId: 'B02', name: 'SG TÂN NHỰT', zone: 2 },
-  { areaId: 'B03', name: 'SG VĨNH LỘC', zone: 2 },      { areaId: 'B04', name: 'YT XUYÊN MỘC', zone: 2 },
-  { areaId: 'B05', name: 'YT CHÂU ĐỨC', zone: 2 },      { areaId: 'B06', name: 'AN PHÚ ĐÔNG', zone: 2 },
-  { areaId: 'B07', name: 'TÂN THỚI HIỆP', zone: 2 },    { areaId: 'B08', name: 'SG TÂN TẠO', zone: 2 },
-  { areaId: 'B09', name: 'SG CỦ CHI', zone: 2 },         { areaId: 'B10', name: 'SG TÂN SƠN NHÌ', zone: 2 },
-  { areaId: 'B11', name: 'SG HIỆP BÌNH', zone: 2 },      { areaId: 'B12', name: 'SG PHÚ LÂM', zone: 2 },
-  { areaId: 'B13', name: 'SG AN LẠC', zone: 2 },         { areaId: 'B14', name: 'SG BÌNH TÂN', zone: 2 },
-  { areaId: 'B15', name: 'SG TÂN HƯNG', zone: 2 },       { areaId: 'B16', name: 'SG ĐÔNG THẠNH', zone: 2 }
+  { areaId: 'B01', name: 'SG ĐÔNG HƯNG THUẬN', zone: 2 }, { areaId: 'B02', name: 'SG TÂN HƯNG', zone: 2 },
+  { areaId: 'B03', name: 'SG BÌNH TÂN', zone: 2 },         { areaId: 'B04', name: 'SG AN LẠC', zone: 2 },
+  { areaId: 'B05', name: 'SG PHÚ LÂM', zone: 2 },          { areaId: 'B06', name: 'SG HIỆP BÌNH', zone: 2 },
+  { areaId: 'B07', name: 'SG TÂN SƠN NHÌ', zone: 2 },       { areaId: 'B08', name: 'SG CỦ CHI', zone: 2 },
+  { areaId: 'B09', name: 'SG TÂN TẠO', zone: 2 },          { areaId: 'B10', name: 'SG GÒ VẤP', zone: 2 },
+  { areaId: 'B11', name: 'SG AN PHÚ ĐÔNG', zone: 2 },      { areaId: 'B12', name: 'VT CHÂU ĐỨC', zone: 2 },
+  { areaId: 'B13', name: 'VT XUYÊN MỘC', zone: 2 },        { areaId: 'B14', name: 'SG VĨNH LỘC', zone: 2 },
+  { areaId: 'B15', name: 'SG TÂN NHỰT', zone: 2 },         { areaId: 'B16', name: 'SG BÀ ĐIỂM', zone: 2 }
 ];
 
 const ZONE2_TRUCKS = Array.from({ length: 21 }, (_, i) => {
@@ -67,15 +115,15 @@ const ZONE2_TRUCKS = Array.from({ length: 21 }, (_, i) => {
 });
 
 const ZONE1_LIST = [
-  // 15 ô chutes bên trái vách ngăn (A05 -> A19, loại bỏ A03, A04 để tránh trùng lặp với Zone 2)
-  { areaId: 'A05', name: 'AG LONG XUYÊN', zone: 1 },  { areaId: 'A06', name: 'AG CẦN ĐĂNG', zone: 1 },
+  // 15 ô chutes bên trái vách ngăn (A06 -> A20, loại bỏ A03, A04 để tránh trùng lặp với Zone 2)
+  { areaId: 'A06', name: 'BN HUB', zone: 1 },
   { areaId: 'A07', name: 'CT Ô MÔN', zone: 1 },       { areaId: 'A08', name: 'CT BÌNH THỦY', zone: 1 },
   { areaId: 'A09', name: 'CT NINH KIỀU', zone: 1 },   { areaId: 'A10', name: 'DT CAO LÃNH', zone: 1 },
   { areaId: 'A11', name: 'DT SA ĐÉC', zone: 1 },      { areaId: 'A12', name: 'TG HÒA KHÁNH', zone: 1 },
   { areaId: 'A13', name: 'VL VĨNH LONG', zone: 1 },   { areaId: 'A14', name: 'TG AN HỮU', zone: 1 },
-  { areaId: 'A15', name: 'LA TÂN AN', zone: 1 },      { areaId: 'A16', name: 'TG MỸ THO', zone: 1 },
+  { areaId: 'A15', name: 'LA TÂN AN', zone: 1 },      { areaId: 'A16', name: 'SG THỦ ĐỨC', zone: 1 },
   { areaId: 'A17', name: 'TG TRUNG AN', zone: 1 },    { areaId: 'A18', name: 'VT VŨNG TÀU', zone: 1 },
-  { areaId: 'A19', name: 'BN HUB', zone: 1 }
+  { areaId: 'A19', name: 'AG LONG XUYÊN', zone: 1 },  { areaId: 'A20', name: 'AG CẦN ĐĂNG', zone: 1 }
 ];
 
 const ZONE1_TRUCKS = Array.from({ length: 16 }, (_, i) => ({
@@ -84,42 +132,33 @@ const ZONE1_TRUCKS = Array.from({ length: 16 }, (_, i) => ({
   zone: 1
 }));
 
-const CHUTE_RACKS = [...ZONE3_LIST, ...ZONE2_LIST, ...ZONE1_LIST];
-const ALL_RACKS = [...CHUTE_RACKS, ...ZONE3_TRUCKS, ...ZONE2_TRUCKS, ...ZONE1_TRUCKS];
+const INBOUND_TRUCKS = [
+  { areaId: 'TI-01', name: 'Bãi chờ nhập 01', zone: 4, bx: 663 },
+  { areaId: 'TI-02', name: 'Bãi chờ nhập 02', zone: 4, bx: 691 },
+  { areaId: 'TI-03', name: 'Bãi chờ nhập 03', zone: 4, bx: 719 },
+  { areaId: 'TI-04', name: 'Bãi chờ nhập 04', zone: 4, bx: 747 },
+  { areaId: 'TI-05', name: 'Bãi chờ nhập 05', zone: 4, bx: 775 },
+  { areaId: 'TI-06', name: 'Bãi chờ nhập 06', zone: 4, bx: 803 }
+];
 
-function generateMockData() {
+const CHUTE_RACKS = [...ZONE3_LIST, ...ZONE2_LIST, ...ZONE1_LIST];
+const ALL_RACKS = [...CHUTE_RACKS, ...ZONE3_TRUCKS, ...ZONE2_TRUCKS, ...ZONE1_TRUCKS, ...INBOUND_TRUCKS];
+
+ALL_RACKS.forEach(item => {
+  if (MASTER_CONFIG_MAP[item.areaId]) {
+    item.name = MASTER_CONFIG_MAP[item.areaId];
+  }
+});
+
+function generateEmptyData() {
   return ALL_RACKS.reduce((acc, curr) => {
-    const util = Math.floor(Math.random() * 110);
-    let bucket = 'green';
-    if (util > 100) bucket = 'darkred';
-    else if (util >= 95) bucket = 'red';
-    else if (util >= 80) bucket = 'orange';
-    else if (util >= 50) bucket = 'yellow';
-    const capacity = 780;
-    const current = Math.floor(capacity * (util / 100));
-    acc[curr.areaId] = { current, capacity, remaining: Math.max(0, capacity - current), utilization: util, bucket, name: curr.name };
+    const capacity = curr.areaId === 'A06' ? 1400 : 780;
+    acc[curr.areaId] = { current: 0, capacity, remaining: capacity, utilization: 0, bucket: 'green', name: curr.name, weight: 0 };
     return acc;
   }, {} as any);
 }
 
-function parseCSVLine(line: string): string[] {
-  const parts: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  for (let charIndex = 0; charIndex < line.length; charIndex++) {
-    const char = line[charIndex];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      parts.push(current);
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  parts.push(current);
-  return parts;
-}
+
 
 interface SheetRow {
   zone: string;
@@ -133,44 +172,96 @@ interface SheetRow {
   status?: string;
 }
 
-// Sheet GIDs for Google Spreadsheet
-const SHEET_GIDS: Record<string, string> = {
-  'Outbound':         '1650516820',
-  'Backlog':          '1380336385',
-  'Backlog CAP 6AM':  '1380336385',
-  'Inventory':        '1359945051',
-};
+// ════════════════════════════════════════════════════════════════════
+// ⚠️ HỢP ĐỒNG DỮ LIỆU BACKEND ↔ FRONTEND (single source of truth)
+// ════════════════════════════════════════════════════════════════════
+// backend_sync/sync_postgre.py xuất `status`/`inv_status`/`drop_type` dưới dạng
+// giá trị HIỂN THỊ SẴN (display-ready): 'Inbound', 'Transporting', 'Pickup Done',
+// 'Created', 'Outbound', 'Rớt hôm nay', 'Rớt hôm trước' — khớp trực tiếp với các
+// chuỗi so sánh cứng trong InboundDashboard.tsx.
+//
+// 2 bảng dưới đây là LỚP AN TOÀN DỰ PHÒNG (không phải lớp dịch bắt buộc):
+// nếu backend lỡ đổi về dạng snake_case (vd 'inbound', 'rot_today') hoặc dữ liệu
+// cũ từ Google Sheet còn sót lại, map vẫn tự quy về đúng giá trị UI cần — tránh
+// lặp lại lỗi cũ (dashboard sai âm thầm, không báo lỗi).
+//
+// ➜ Nguyên tắc bắt buộc: MỌI so sánh status/drop_type trong toàn bộ app phải đi
+//   qua normalizeStatus()/normalizeDropType(), KHÔNG so sánh chuỗi cứng rải rác
+import {
+  KEY_MAP,
+  normalizeStatus,
+  normalizeDropType
+} from './contracts/data_contract';
 
-async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival'): Promise<any[] | null> {
-  try {
-    const url = `https://docs.google.com/spreadsheets/d/1GMgvwa1MIEg0P102MDBcvwJPd-0wAeZh3hewmz_LBQI/gviz/tq?tqx=out:csv&sheet=${sheetType}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Network response was not ok');
-    const csvText = await response.text();
-    const lines = csvText.split('\n');
-    const rows: any[] = [];
 
-    if (lines.length === 0) return [];
 
-    const headerLine = lines[0].trim();
-    const headers = parseCSVLine(headerLine).map(h => h.trim().replace(/^"|"$/g, ''));
+function getApiUrl(filename: string): string {
+  const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+  const isGitHubPages = typeof window !== 'undefined' && (
+    window.location.hostname.includes('github.io') ||
+    window.location.hostname.includes('githubusercontent.com')
+  );
+  if (isGitHubPages) {
+    return `https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${filename}?t=${t}`;
+  }
+  return `./data/${filename}?t=${t}`;
+}
 
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
-      const parts = parseCSVLine(line).map(p => p.trim().replace(/^"|"$/g, ''));
-      if (parts.length === 0) continue;
-
-      const rowObj: Record<string, any> = {};
-      headers.forEach((h, idx) => {
-        if (idx < parts.length) {
-          rowObj[h] = parts[idx];
-        }
-      });
-      rows.push(rowObj);
+function getOperatingDateFromTimestamp(timestamp: string): string {
+  if (!timestamp) return '';
+  const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
+  if (match) {
+    const datePart = match[1];
+    const hour = parseInt(match[2], 10);
+    if (hour < 6) {
+      const d = new Date(datePart);
+      d.setDate(d.getDate() - 1);
+      return d.toISOString().split('T')[0];
     }
-    return rows;
+    return datePart;
+  }
+  return timestamp.split(' ')[0] || '';
+}
+
+async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival' | 'Truck_ETA'): Promise<any[] | null> {
+  try {
+    let rawData: any = null;
+
+    if (!rawData) {
+      const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+      const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
+      const baseUrl = getApiUrl(`${sheetType.toLowerCase()}.json`);
+      const cacheBustUrl = baseUrl.includes('?') ? `${baseUrl}&t=${t}` : `${baseUrl}?t=${t}`;
+      let response = await fetch(cacheBustUrl, fetchOpts);
+      if (!response.ok) {
+        response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, fetchOpts);
+      }
+      if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
+      rawData = await response.json();
+    }
+    const data = Array.isArray(rawData) ? rawData : (rawData?.trucks || rawData?.pivot_data || rawData?.data || []);
+    
+    return data.map((row: Record<string, any>) => {
+      const out: Record<string, any> = { ...row };
+      for (const [k, v] of Object.entries(row)) {
+        if (KEY_MAP[k]) {
+          out[KEY_MAP[k]] = v;
+        }
+      }
+      if (out['Trạng thái'] !== undefined) {
+        out['Trạng thái'] = normalizeStatus(out['Trạng thái']);
+      }
+      if (out['status'] !== undefined) {
+        out['status'] = normalizeStatus(out['status']);
+      }
+      if (out['Loại rớt'] !== undefined) {
+        out['Loại rớt'] = normalizeDropType(out['Loại rớt']);
+      }
+      if (out['drop_type'] !== undefined) {
+        out['drop_type'] = normalizeDropType(out['drop_type']);
+      }
+      return out;
+    });
   } catch (error) {
     console.error(`Error fetching inbound sheet ${sheetType}:`, error);
     return null;
@@ -179,72 +270,55 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
 
 async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[] | null> {
   try {
-    const gid = SHEET_GIDS[sheetType] || '1650516820';
-    const url = `https://docs.google.com/spreadsheets/d/1GMgvwa1MIEg0P102MDBcvwJPd-0wAeZh3hewmz_LBQI/export?format=csv&gid=${gid}`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Network response was not ok');
-    const csvText = await response.text();
-    const lines = csvText.split('\n');
+    const todayStr = new Date().toISOString().split('T')[0];
+    const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
+    const baseUrl = getApiUrl(`${sheetType.toLowerCase()}.json`);
+    const cacheBustUrl = baseUrl.includes('?') ? `${baseUrl}&t=${t}` : `${baseUrl}?t=${t}`;
+    let response = await fetch(cacheBustUrl, fetchOpts);
+    if (!response.ok && getApiUrl('').startsWith('./')) {
+      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${sheetType.toLowerCase()}.json?t=${t}`, fetchOpts);
+    }
+    if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${sheetType}`);
+    const rawData = await response.json();
+    const data = Array.isArray(rawData) ? rawData : (rawData?.pivot_data || rawData?.data || []);
+    if (sheetType.toLowerCase() === 'heatmap') {
+      return data;
+    }
+
     const rows: SheetRow[] = [];
 
-    if (lines.length === 0) return [];
+    // NOTE: status ở đây dùng chung BACKEND_STATUS_MAP (khai báo phía trên) —
+    // KHÔNG khai báo map riêng nữa để tránh lệch với Inbound dashboard.
+    for (const item of data) {
+      const zone       = String(item['zone'] ?? item['Zone'] ?? item['round'] ?? item['Round'] ?? '');
+      const areaId     = String(item['area_id'] ?? item['AreaID'] ?? item['rank'] ?? item['Rank'] ?? '');
+      const buuCuc     = String(item['station_name'] ?? item['Bu cc'] ?? item['Bưu cục'] ?? item['name'] ?? item['Next_station'] ?? item['Pickup_station'] ?? '');
+      const volumeRaw  = item['volume'] ?? item['Volume'] ?? item['Orders_num'];
+      const volume     = Number(volumeRaw) || 0;
+      const weightRaw  = item['weight_ton'] ?? item['weight'] ?? item['Weight'] ?? item['Orders_weight'] ?? item['weight_kg'];
+      const capRaw     = item['capacity'] ?? item['Sc cha'] ?? item['Sức chứa'] ?? 780;
+      const dateRaw    = item['op_date'] ?? item['Ngy'] ?? item['Ngày'] ?? item['date'] ?? item['operation_date_created'] ?? item['operation_date'] ?? item['operation_date_inbound'] ?? todayStr;
+      const rawSt      = item['status'] ?? item['Trng thi'] ?? item['Trạng thái'] ?? item['status_sys'] ?? undefined;
+      const statusRaw  = normalizeStatus(rawSt);
 
-    const headerLine = lines[0].trim();
-    const headers = parseCSVLine(headerLine).map(h => h.trim().replace(/^"|"$/g, ''));
+      let weight     = Number(weightRaw) || 0;
+      if (item['weight_kg'] !== undefined && item['weight_ton'] === undefined) {
+        weight       = Number(item['weight_kg']) / 1000.0;
+      }
+      const capacity = Number(capRaw) || 780;
 
-    const colZone = headers.indexOf("Zone") !== -1 ? headers.indexOf("Zone") : 0;
-    const colArea = headers.indexOf("AreaID") !== -1 ? headers.indexOf("AreaID") : (headers.indexOf("Area ID") !== -1 ? headers.indexOf("Area ID") : 1);
-    const colName = headers.indexOf("BuuCuc") !== -1 ? headers.indexOf("BuuCuc") : (headers.indexOf("B\u01b0u c\u1ee5c") !== -1 ? headers.indexOf("B\u01b0u c\u1ee5c") : 2);
-    // Inventory has an extra "Tr\u1ea1ng th\u00e1i" col at index 3, so Volume shifts to col 4
-    const colVol = sheetType === 'Inventory'
-      ? (headers.indexOf("Volume") !== -1 ? headers.indexOf("Volume") : 4)
-      : (headers.indexOf("Volume") !== -1 ? headers.indexOf("Volume") : 3);
-    const colCap = headers.indexOf("S\u1ee9c ch\u1ee9a") !== -1 ? headers.indexOf("S\u1ee9c ch\u1ee9a")
-      : (headers.indexOf("Ki\u1ec7n h\u00e0ng") !== -1 ? headers.indexOf("Ki\u1ec7n h\u00e0ng")
-      : (headers.indexOf("S\u1ee9c ch\u1ee9a Pallet") !== -1 ? headers.indexOf("S\u1ee9c ch\u1ee9a Pallet") : 7));
-    const colDate = headers.indexOf("Ng\u00e0y") !== -1 ? headers.indexOf("Ng\u00e0y") : (headers.indexOf("Date") !== -1 ? headers.indexOf("Date") : -1);
-    const colWeight = headers.indexOf("Weight") !== -1 ? headers.indexOf("Weight") : (headers.indexOf("Trọng lượng") !== -1 ? headers.indexOf("Trọng lượng") : -1);
-    // Parse Trạng thái column for Inventory sheet (col index 3)
-    const colStatus = sheetType === 'Inventory'
-      ? (headers.indexOf("Tr\u1ea1ng th\u00e1i") !== -1 ? headers.indexOf("Tr\u1ea1ng th\u00e1i") : 3)
-      : -1;
-
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
-      const parts = parseCSVLine(line).map(p => p.trim().replace(/^"|"$/g, ''));
-      if (parts.length === 0) continue;
-
-      const zone    = parts[colZone] ? parts[colZone] : '';
-      const areaId  = parts[colArea] ? parts[colArea] : '';
-      const buuCuc  = parts[colName] ? parts[colName] : '';
-      const volumeStr   = parts[colVol] ? parts[colVol].replace(/[,.]/g, '') : '';
-      const weightStr   = colWeight !== -1 && parts[colWeight] ? parts[colWeight].replace(/[,.]/g, '') : '';
-      const capacityStr = parts[colCap] ? parts[colCap].replace(/[,.]/g, '') : '780';
-      const date    = colDate !== -1 && parts[colDate] ? parts[colDate] : todayStr;
-      // Force type from which sheet we fetched
-      const type = sheetType;
-      // Parse status for Inventory rows
-      const status = colStatus !== -1 && parts[colStatus] ? parts[colStatus].trim() : undefined;
-
-      const volume   = volumeStr !== '' ? parseInt(volumeStr, 10) : NaN;
-      const capacity = capacityStr !== '' ? parseInt(capacityStr, 10) : 780;
-      const weight   = weightStr !== '' ? parseInt(weightStr, 10) : 0;
-
-      if (areaId && zone) {
+      if (areaId || buuCuc) {
         rows.push({
-          zone,
-          areaId,
+          zone: (zone && zone !== 'None') ? zone : 'ZONE 1',
+          areaId: (areaId && areaId !== 'None') ? areaId : 'A01',
           buuCuc,
-          volume: isNaN(volume) ? 0 : volume,
-          weight: isNaN(weight) ? 0 : weight,
-          capacity: isNaN(capacity) ? 780 : capacity,
-          date,
-          type,
-          status
+          volume: isNaN(volume) ? 1 : volume,
+          weight,
+          capacity,
+          date: String(dateRaw),
+          type: sheetType,
+          status: statusRaw ? String(statusRaw) : undefined
         });
       }
     }
@@ -256,7 +330,7 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
 }
 
 
-const UTILCOL: any = { green:'#0c883d', yellow:'#0c883d', orange:'#0c883d', red:'#0c883d', darkred:'#0c883d' };
+const UTILCOL: any = { green:'#10b981', yellow:'#f59e0b', orange:'#f97316', red:'#ef4444', darkred:'#dc2626' };
 
 const WL = 60;                        
 const WR = 894;                       
@@ -300,25 +374,29 @@ const IB_NAMES = ['A', 'AA', 'B', 'C', 'BN HUB'];
 const DOCK_Y = WB;
 const DOCK_H = 55;
 
-function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, onEnter, onLeave, onClick, addCenterLine, isTruck }:
+function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, isMatched, onEnter, onLeave, onClick, addCenterLine, isTruck }:
   { c:any, d:any, bx:number, by:number, bw:number, bh:number, midLabelY:number,
-    isHovered:boolean, onEnter:()=>void, onLeave:()=>void, onClick?:()=>void, addCenterLine?:boolean, isTruck?:boolean }) {
+    isHovered:boolean, isMatched?:boolean, onEnter:()=>void, onLeave:()=>void, onClick?:()=>void, addCenterLine?:boolean, isTruck?:boolean }) {
   const zoneColors: Record<number, string> = {
+    4: 'var(--inbound)',
     3: 'var(--green)',
     2: 'var(--yellow)',
     1: 'var(--orange)'
   };
-  const col = isTruck ? 'rgba(255,255,255,0.2)' : (zoneColors[c.zone] || '#374151');
+  const col = isTruck ? (c.zone === 4 ? 'rgba(96,165,250,0.4)' : 'rgba(255,255,255,0.2)') : (zoneColors[c.zone] || '#374151');
   const fillH = (bh - 2) * Math.min(d.utilization, 110) / 110;
   return (
     <g onMouseEnter={onEnter} onMouseLeave={onLeave} onClick={onClick} className="cursor-pointer">
       <rect x={bx} y={by} width={bw} height={bh}
-            fill={isTruck ? (isHovered ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.02)') : col}
-            fillOpacity={isTruck ? 1 : (isHovered ? 0.35 : 0.14)}
-            stroke={col} strokeWidth="0.7" />
+            fill={isMatched ? '#00e5ff' : (isTruck ? (isHovered ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.02)') : col)}
+            fillOpacity={isMatched ? 0.6 : (isTruck ? 1 : (isHovered ? 0.35 : 0.14))}
+            stroke={isMatched ? '#00e5ff' : col} strokeWidth={isMatched ? "2" : "0.7"} />
+      {isMatched && (
+        <rect x={bx-2} y={by-2} width={bw+4} height={bh+4} fill="none" stroke="#00e5ff" strokeWidth="1.5" strokeDasharray="3 2" className="animate-pulse" />
+      )}
       {!isTruck && (
         <rect x={bx+1} y={by + bh - 1 - fillH} width={bw-2} height={fillH}
-              fill={col} fillOpacity={0.7} />
+              fill={isMatched ? '#00e5ff' : col} fillOpacity={0.7} />
       )}
       {addCenterLine && !isTruck && (
         <line x1={bx+bw/2} y1={by+4} x2={bx+bw/2} y2={by+bh-4}
@@ -329,7 +407,7 @@ function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, onEnter, onLeave
             transform={`rotate(-90 ${bx+bw/2} ${midLabelY})`}
             pointerEvents="none">{c.name}</text>
       <text x={bx+bw/2} y={by-4} textAnchor="middle"
-            fill={isHovered ? '#fff' : (isTruck ? 'rgba(255,255,255,0.4)' : 'rgba(154,167,194,0.7)')}
+            fill={isMatched ? '#00e5ff' : (isHovered ? '#fff' : (isTruck ? 'rgba(255,255,255,0.4)' : 'rgba(154,167,194,0.7)'))}
             className="mono text-[5.5px] font-medium" pointerEvents="none">{c.areaId}</text>
     </g>
   );
@@ -338,18 +416,19 @@ function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, onEnter, onLeave
 export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [sidebarHovered, setSidebarHovered] = useState(false);
-  const [currentView, setCurrentView] = useState<'master' | 'inbound'>('master');
+  const [currentView, setCurrentView] = useState<'master' | 'inbound' | 'heatmap' | 'kpi' | 'maps'>('inbound');
   const [inboundData, setInboundData] = useState<any[]>([]);
   const [linehaulData, setLinehaulData] = useState<any[]>([]);
   const [arrivalData, setArrivalData] = useState<any[]>([]);
+  const [truckEtaData, setTruckEtaData] = useState<any[]>([]);
   const [selectedInboundDate, setSelectedInboundDate] = useState<string>('');
   const [showMonitor, setShowMonitor] = useState(true);
   const [showTelemetry, setShowTelemetry] = useState(true);
   const [showControls, setShowControls] = useState(true);
   const [showTop10, setShowTop10] = useState(true);
-  const [activeTab, setActiveTab] = useState<'layout' | 'inbound' | 'top10' | 'stats'>('layout');
+  const [activeTab, setActiveTab] = useState<'layout' | 'inbound' | 'top10' | 'stats' | 'heatmap' | 'kpi'>('inbound');
   const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
-  const [data,       setData]       = useState<any>(generateMockData());
+  const [data,       setData]       = useState<any>(generateEmptyData());
   const [utilTotal,  setUtilTotal]  = useState('0.0');
   const [free,       setFree]       = useState(0);
   const [usedCells,  setUsedCells]  = useState(0);
@@ -360,16 +439,21 @@ export default function App() {
   const [tickerText, setTickerText] = useState('HỆ THỐNG ỔN ĐỊNH — KHÔNG CÓ CẢNH BÁO');
   const [loading,    setLoading]    = useState(false);
   const [hoveredZone,setHoveredZone] = useState<number | null>(null);
-  const [masterDateDropdownOpen, setMasterDateDropdownOpen] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<string>('');
+  const [lastUpdateObj, setLastUpdateObj] = useState<any>(null);
 
 
   // State variables for historic date/type filter
   const [rawSheetRows, setRawSheetRows] = useState<SheetRow[]>([]);
+  const [heatmapRows, setHeatmapRows] = useState<any[]>([]);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory'>('Outbound');
-  const INVENTORY_STATUSES = ['\u0110ang tr\u00ean b\u00e3i', 'Ch\u01b0a v\u1ec1 HUB', '\u0110\u00e3 \u0111i\u1ec1u ph\u1ed1i nh\u00e2n vi\u00ean', '\u0110\u00e3 \u0111i\u1ec1u ph\u1ed1i b\u01b0u c\u1ee5c'];
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(['\u0110ang tr\u00ean b\u00e3i']);
+  const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory' | 'Volume'>('Outbound');
+  const [outboundRate, setOutboundRate] = useState<string>('0.0');
+  const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Created'];
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([...INVENTORY_STATUSES]);
+
+  const [selectedDetailRack, setSelectedDetailRack] = useState<any | null>(null);
 
   const toggleStatus = (status: string) => {
     setSelectedStatuses(prev =>
@@ -423,12 +507,40 @@ export default function App() {
     return stats;
   }, [data, selectedType]);
 
-  // Fetch sheet records directly from Google Sheets (all 3 tabs in parallel)
   const fetchAndUpdateData = async () => {
     setLoading(true);
+    const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const padStr = (n: number) => String(n).padStart(2, '0');
+    const currentLoadTime = `${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}:${padStr(nowVN.getSeconds())} ${padStr(nowVN.getDate())}/${padStr(nowVN.getMonth() + 1)}/${nowVN.getFullYear()}`;
+    setLastUpdate(currentLoadTime);
+    lastUpdateTimestampRef.current = currentLoadTime;
+
+    const todayOpDate = getOperatingDateFromTimestamp(
+      `${nowVN.getFullYear()}-${padStr(nowVN.getMonth() + 1)}-${padStr(nowVN.getDate())} ${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}`
+    );
+
+    // 1. Fetch last_update.json ngay lập tức để lấy daily_snapshots & metadata
+    try {
+      const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+      const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
+      let res = await fetch(`data/last_update.json?t=${t}`, fetchOpts);
+      if (!res.ok) {
+        res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, fetchOpts);
+      }
+      if (res.ok) {
+        const d = await res.json();
+        if (d) {
+          setLastUpdateObj(d);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching last_update:', err);
+    }
+
+    // 2. Fetch toàn bộ các tab dữ liệu song song
     const [
       outboundRows, backlogRows, inventoryRows,
-      ibRows, lhRows, arrivalRows
+      ibRows, lhRows, arrivalRows, truckEtaRows, heatmapData
     ] = await Promise.all([
       fetchSheetData('Outbound'),
       fetchSheetData('Backlog'),
@@ -436,18 +548,56 @@ export default function App() {
       fetchInboundSheetData('Inbound'),
       fetchInboundSheetData('Linehaul'),
       fetchInboundSheetData('Arrival'),
+      fetchInboundSheetData('Truck_ETA'),
+      fetchSheetData('Heatmap'),
     ]);
 
-    setInboundData(ibRows ?? []);
-    setLinehaulData(lhRows ?? []);
-    setArrivalData(arrivalRows ?? []);
+    if (ibRows && ibRows.length > 0) setInboundData(ibRows);
+    if (lhRows && lhRows.length > 0) setLinehaulData(lhRows);
+    if (arrivalRows && arrivalRows.length > 0) setArrivalData(arrivalRows);
+
+    // Đảm bảo truck_eta.json được nạp 100% với GitHub Raw fallback trực tiếp
+    let finalTruckEta = truckEtaRows;
+    if (!finalTruckEta || finalTruckEta.length === 0) {
+      try {
+        const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+        const r = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/truck_eta.json?t=${t}`, { cache: 'no-store' });
+        if (r.ok) {
+          const json = await r.json();
+          finalTruckEta = Array.isArray(json) ? json : (json?.trucks || []);
+        }
+      } catch (e) {
+        console.warn('Direct GitHub Raw truck_eta fallback error:', e);
+      }
+    }
+    if (finalTruckEta && finalTruckEta.length > 0) setTruckEtaData(finalTruckEta);
+    if (heatmapData) {
+      setHeatmapRows(heatmapData);
+    }
 
     if (ibRows && ibRows.length > 0) {
-      const ibDates = Array.from(new Set(ibRows.map(r => r['Ngày vận hành']).filter(Boolean))) as string[];
+      const ibDates = Array.from(
+        new Set([
+          ...ibRows.map(r => r['Ngày vận hành_Inbound'] || r['op_date_inbound']),
+          ...ibRows.map(r => r['Ngày vận hành_Forecast'] || r['op_date_forecast']),
+          ...ibRows.map(r => r['Ngày vận hành_Pickup'] || r['op_date_pickup'])
+        ].filter(Boolean))
+      ) as string[];
       ibDates.sort((a, b) => b.localeCompare(a));
+      
+      const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+      const padStr = (n: number) => String(n).padStart(2, '0');
+      const todayOpDate = getOperatingDateFromTimestamp(
+        `${nowVN.getFullYear()}-${padStr(nowVN.getMonth() + 1)}-${padStr(nowVN.getDate())} ${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}`
+      );
+
       if (ibDates.length > 0) {
         setSelectedInboundDate(prev => {
+          // 1. Nếu người dùng đã chọn ngày (prev) và ngày đó vẫn hợp lệ -> GIỮ NGUYÊN
           if (prev && ibDates.includes(prev)) return prev;
+          // 2. Nếu là lần đầu load (prev rỗng) -> Ưu tiên ngày hôm nay (todayOpDate)
+          if (ibDates.includes(todayOpDate)) return todayOpDate;
+          // 3. Fallback lấy ngày mới nhất
           return ibDates[0];
         });
       }
@@ -462,67 +612,133 @@ export default function App() {
     if (combined.length > 0) {
       setRawSheetRows(combined);
 
-      // Extract unique dates from all rows (Outbound, Backlog, Inventory), sorted descending
-      const dates = Array.from(new Set(combined.map(r => r.date).filter(Boolean))) as string[];
+      // Extract unique dates from all sources (Outbound, Backlog, Inventory, Inbound)
+      const dates = Array.from(new Set([
+        ...combined.map(r => r.date).filter(Boolean),
+        ...(ibRows ?? []).map(r => r['Ngày vận hành_Inbound'] || r['op_date_inbound'] || r['Ngày vận hành_Forecast'] || r['op_date_forecast']).filter(Boolean)
+      ])) as string[];
       dates.sort((a, b) => b.localeCompare(a));
-      const recentDates = dates.slice(0, 7);
+      const recentDates = dates.slice(0, 10);
       setAvailableDates(recentDates);
 
       if (recentDates.length > 0) {
         setSelectedDate(prev => {
+          // 1. Giữ nguyên ngày người dùng đang chọn trên Layout
           if (prev && recentDates.includes(prev)) return prev;
+          // 2. Lần đầu load mới mặc định lấy todayOpDate
+          if (recentDates.includes(todayOpDate)) return todayOpDate;
           return recentDates[0];
         });
       }
     } else {
       console.warn('Fetched sheet data is empty or null.');
     }
+
     setLoading(false);
   };
 
-  // Derived state/Filtering effect
+  // Derived state/Filtering effect for Layout Racks & Control Center
   useEffect(() => {
     if (rawSheetRows.length === 0) return;
 
-    // Create lookup maps for both Backlog and the selectedType for the selectedDate
-    const selectedMap: Record<string, SheetRow> = {};
-    const backlogMap: Record<string, SheetRow> = {};
-    // For Inventory: accumulate volumes per areaId across selected statuses
+    const normalizeDateStr = (dStr: string): string => {
+      if (!dStr) return '';
+      const str = String(dStr).trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+      const dt = new Date(str);
+      if (!isNaN(dt.getTime())) {
+        const yyyy = dt.getFullYear();
+        const mm = String(dt.getMonth() + 1).padStart(2, '0');
+        const dd = String(dt.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      }
+      return str.slice(0, 10);
+    };
+
+    const isDateMatch = (rDate: string, sDate: string) => {
+      if (!rDate || !sDate) return true;
+      const normR = normalizeDateStr(rDate);
+      const normS = normalizeDateStr(sDate);
+      if (sDate.includes('..')) {
+        const [start, end] = sDate.split('..');
+        return normR >= normalizeDateStr(start) && normR <= normalizeDateStr(end);
+      }
+      return normR === normS;
+    };
+
+    // Find effective matching date: if selectedDate has no matching rows for selectedType, fallback to matching any available date or active shift
+    const matchingRowsForSelectedDate = rawSheetRows.filter(r => isDateMatch(r.date, selectedDate));
+    const effectiveDate = (matchingRowsForSelectedDate.length > 0 || !selectedDate) ? selectedDate : (availableDates[0] || '');
+
+    // Create lookup maps for selectedType, backlog, and inventory per areaId
+    const selectedMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
+    const backlogMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
     const inventoryMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
 
     rawSheetRows.forEach(row => {
-      if (row.date === selectedDate) {
-        const key = `${row.zone}_${row.areaId}`;
-        if (row.type === selectedType && selectedType !== 'Inventory') {
-          selectedMap[key] = row;
+      const key = row.areaId;
+      if (!key) return;
+
+      const dateMatched = !effectiveDate || isDateMatch(row.date, effectiveDate);
+      if (!dateMatched) return;
+
+      const rowStatus = row.status ? String(row.status) : '';
+
+      // 🎯 LỌC THEO TRẠNG THÁI (selectedStatuses): Chỉ nhận các dòng thuộc trạng thái được chọn (Inbound, Transporting, Created...)
+      const statusMatched = !rowStatus || selectedStatuses.includes(rowStatus);
+
+      // 1. Phân loại lọc theo selectedType chuẩn nghiệp vụ
+      let isForSelectedType = false;
+      if (selectedType === 'Outbound') {
+        isForSelectedType = row.type === 'Outbound' || rowStatus === 'Outbound';
+      } else if (selectedType === 'Backlog') {
+        isForSelectedType = (row.type === 'Backlog' || (row.type === 'Inventory' && rowStatus !== 'Outbound')) && statusMatched;
+      } else if (selectedType === 'Inventory' || selectedType === 'Volume') {
+        // Volume = Dự kiến Forecast (Inventory: Inbound/Transporting/Created) + Backlog
+        isForSelectedType = (row.type === 'Inventory' || row.type === 'Backlog') && statusMatched;
+      }
+
+      if (isForSelectedType) {
+        if (!selectedMap[key]) {
+          selectedMap[key] = { volume: 0, weight: 0, capacity: row.capacity || 780, buuCuc: row.buuCuc };
         }
-        if (row.type === 'Inventory' && selectedType === 'Inventory') {
-          // Only sum volumes for the user-selected statuses
-          if (!row.status || selectedStatuses.includes(row.status)) {
-            if (!inventoryMap[key]) {
-              inventoryMap[key] = { volume: 0, weight: 0, capacity: row.capacity, buuCuc: row.buuCuc };
-            }
-            inventoryMap[key].volume += row.volume;
-            inventoryMap[key].weight += row.weight;
-          }
+        selectedMap[key].volume += row.volume;
+        selectedMap[key].weight += row.weight;
+      }
+
+      // Populate inventoryMap (đơn tồn kho thỏa trạng thái lọc)
+      if (row.type === 'Inventory' && statusMatched) {
+        if (!inventoryMap[key]) {
+          inventoryMap[key] = { volume: 0, weight: 0, capacity: row.capacity || 780, buuCuc: row.buuCuc };
         }
-        if (row.type === 'Backlog') {
-          backlogMap[key] = row;
+        inventoryMap[key].volume += row.volume;
+        inventoryMap[key].weight += row.weight;
+      }
+
+      // Populate backlogMap (đơn tồn đọng)
+      if ((row.type === 'Backlog' || (row.type === 'Inventory' && statusMatched)) && rowStatus !== 'Outbound') {
+        if (!backlogMap[key]) {
+          backlogMap[key] = { volume: 0, weight: 0, capacity: row.capacity || 780, buuCuc: row.buuCuc };
         }
+        backlogMap[key].volume += row.volume;
+        backlogMap[key].weight += row.weight;
       }
     });
 
-    // Update static lists (prefer inventoryMap > selectedMap > backlogMap for names)
+    // Update static lists
     const updateListName = (list: any[]) => {
       list.forEach(item => {
-        const key = `${item.zone}_${item.areaId}`;
+        const key = item.areaId;
         const invEntry = inventoryMap[key];
         const activeItem = selectedMap[key] || backlogMap[key];
-        const name = invEntry?.buuCuc || activeItem?.buuCuc;
-        if (name) {
+        
+        const name = MASTER_CONFIG_MAP[key] || invEntry?.buuCuc || activeItem?.buuCuc;
+        if (name && name !== 'Chờ tải' && !name.includes('Dự phòng')) {
           item.name = name;
+        } else if (item.name && !item.name.includes('Dự phòng')) {
+          // Keep whatever is already statically set in ZONE arrays
         } else {
-          item.name = `${item.areaId} Dự phòng`;
+          item.name = item.areaId + " Dự phòng";
         }
       });
     };
@@ -530,65 +746,47 @@ export default function App() {
     updateListName(ZONE2_LIST);
     updateListName(ZONE1_LIST);
 
+    const totalOrdersOfSelectedType = Object.values(selectedMap).reduce((sum, item) => sum + item.volume, 0);
+    const totalWeightOfSelectedType = Object.values(selectedMap).reduce((sum, item) => sum + item.weight, 0);
+    setTotalOrders(totalOrdersOfSelectedType);
+    setTotalWeight(totalWeightOfSelectedType);
+
     // Recompute visual data for ALL_RACKS
     const newData = ALL_RACKS.reduce((acc, curr: any) => {
       let capacity = 780;
       let current = 0;
       let weight = 0;
       let util = 0;
-      let isMocked = rawSheetRows.length === 0;
       let backlogCurrent = 0;
 
-      const isTruck = curr.areaId.startsWith('T');
-      const key = curr.zone ? `${curr.zone}_${curr.areaId}` : null;
+      const key = curr.areaId || null;
 
       if (key) {
-        const item = selectedType === 'Inventory' ? null : selectedMap[key];
+        const item = selectedMap[key];
         const blItem = backlogMap[key];
-        const invEntry = inventoryMap[key];
 
-        if (selectedType === 'Inventory' && invEntry) {
-          capacity = invEntry.capacity || 780;
-          current = invEntry.volume;
-          weight = invEntry.weight || 0;
-          isMocked = false;
-          util = Math.floor((current / capacity) * 100);
-        } else if (item) {
-          capacity = item.capacity;
-          if (item.volume !== -1) {
-            current = item.volume;
-            weight = item.weight || 0;
-            isMocked = false;
-          }
+        if (item) {
+          capacity = item.capacity || 780;
+          current = item.volume;
+          weight = item.weight || 0;
         }
 
         if (blItem && blItem.volume !== -1) {
           backlogCurrent = blItem.volume;
           if (selectedType === 'Backlog') {
+            capacity = blItem.capacity || 780;
+            current = blItem.volume;
             weight = blItem.weight || 0;
           }
         }
 
-        // Calculate utilization based on capacity for all modes
-        if (!isMocked) {
-          util = Math.floor((current / capacity) * 100);
-        }
+        // Calculate utilization based on capacity for all modes (Standard current / capacity * 100)
+        util = capacity > 0 ? Math.floor((current / capacity) * 100) : 0;
       }
 
-      if (isMocked) {
-        if (!isTruck) {
-          util = Math.floor(Math.random() * 110);
-          current = Math.floor(capacity * (util / 100));
-          weight = Math.floor(current * 4.5);
-          backlogCurrent = Math.floor(current * 0.3);
-        }
-      }
-
-      if (curr.areaId === 'A19') {
+      if (curr.areaId === 'A06') {
         capacity = 1400;
-        if (!isMocked) {
-          util = Math.floor((current / capacity) * 100);
-        }
+        util = capacity > 0 ? Math.floor((current / capacity) * 100) : 0;
       }
 
       let bucket = 'green';
@@ -731,47 +929,132 @@ export default function App() {
     e.currentTarget.style.setProperty('--mouse-y', `${y}px`);
   };
 
+  const lastUpdateTimestampRef = useRef<string | null>(null);
+
   useEffect(() => {
     fetchAndUpdateData();
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+
+    // Smart Polling 5s & Tab Focus: Ép buộc chống cache 100% khi đọc last_update.json
+    // Tự động làm mới dữ liệu liên tục 5s/lần trong nền mà KHÔNG CẦN F5 hay bấm bất kỳ nút nào.
+    const checkAndPoll = async () => {
+      try {
+        const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+        const fetchOpts: RequestInit = {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache'
+          }
+        };
+        const baseUrl = getApiUrl('last_update.json');
+        const cacheBustUrl = baseUrl.includes('?') ? `${baseUrl}&t=${t}` : `${baseUrl}?t=${t}`;
+        let res = await fetch(cacheBustUrl, fetchOpts);
+        if (!res.ok && getApiUrl('').startsWith('./')) {
+          res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, fetchOpts);
+        }
+        if (res.ok) {
+          const d = await res.json();
+          const newTime = d?.last_update || null;
+          if (!lastUpdateTimestampRef.current || (newTime && newTime !== lastUpdateTimestampRef.current)) {
+            console.log(`[Auto Sync] Dữ liệu mới phát hiện (${lastUpdateTimestampRef.current} -> ${newTime}). Đang tự động cập nhật...`);
+            lastUpdateTimestampRef.current = newTime;
+            await fetchAndUpdateData();
+          }
+        }
+      } catch (e) {
+        console.error('[Auto Sync] Lỗi kiểm tra last_update:', e);
+      }
+    };
+
+    const intervalId = setInterval(checkAndPoll, 5000);
+    const handleFocus = () => { checkAndPoll(); };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+      clearInterval(intervalId);
+    };
   }, []);
 
   useEffect(() => {
-    let tCap=0, tCur=0, tRem=0, tOver=0, tUsed=0, tBacklog=0, tWeight=0;
-    const alerts: string[] = [];
-    CHUTE_RACKS.forEach(c => {
-      const d = data[c.areaId]; if (!d) return;
-      tCap += d.capacity; tCur += d.current; tRem += d.remaining;
-      tBacklog += d.backlogCurrent ?? 0;
-      tWeight += d.weight ?? 0;
-      if (d.current > 0) tUsed++;
-      if (d.utilization > 100) { tOver++; alerts.push(`${c.areaId} VƯỢT SỨC CHỨA (${d.utilization}%)`); }
-      else if (d.utilization >= 95) alerts.push(`${c.areaId} SẮP ĐẦY (${d.utilization}%)`);
-    });
-    
-    if (selectedType === 'Outbound') {
-      const denominator = tCur + tBacklog;
-      setUtilTotal((denominator ? (tCur / denominator) * 100 : 0).toFixed(1));
-    } else {
-      setUtilTotal((tCap ? (tCur/tCap)*100 : 0).toFixed(1));
-    }
-    
-    setFree(tRem); setUsedCells(tUsed); setTotalOrders(tCur); setTotalWeight(tWeight);
-    
-    const label = selectedType === 'Outbound' ? 'TỈ LỆ OUTBOUND' : 'LẤP ĐẦY';
-    const rate = selectedType === 'Outbound'
-      ? (tCur + tBacklog ? (tCur / (tCur + tBacklog)) * 100 : 0)
-      : (tCap ? (tCur / tCap) * 100 : 0);
+    if (currentView === 'inbound') {
+      const inboundDates = Array.from(
+        new Set([
+          ...inboundData.map(d => d['Ngày vận hành_Inbound']),
+          ...inboundData.map(d => d['Ngày vận hành_Forecast']),
+          ...inboundData.map(d => d['Ngày vận hành_Pickup'])
+        ].filter(Boolean))
+      ) as string[];
+      inboundDates.sort((a, b) => b.localeCompare(a));
+      const activeDate = selectedInboundDate || inboundDates[0] || '';
       
-    setTickerText(alerts.length > 0
-      ? alerts.join(' // ') + ' // ' + alerts.join(' // ')
-      : `HỆ THỐNG ỔN ĐỊNH — KHÔNG CÓ CẢNH BÁO // TỔNG ${tCur} ĐƠN HÀNG // ${label} ${rate.toFixed(1)}%`
-    );
-  }, [data, selectedType]);
+      const filteredArrival = arrivalData.filter(d => 
+        (d['Ngày vận hành_Arrival'] || d['op_date_arrival'] || d['Ngày vận hành']) === activeDate
+      );
+      const stationMap: Record<string, number> = {};
+      filteredArrival.forEach(d => {
+        const station = (d['Pickup_station'] || '').trim().toUpperCase();
+        if (!station) return;
+        const chuaDen = parseInt(d['Chưa đến Hub'], 10) || 0;
+        if (chuaDen > 0) {
+          stationMap[station] = (stationMap[station] || 0) + chuaDen;
+        }
+      });
+      
+      const sortedStations = Object.entries(stationMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+        
+      if (sortedStations.length > 0) {
+        const warningItems = sortedStations.map(([st, vol]) => `${st} CÓ XE VỀ (${vol.toLocaleString()} đơn)`);
+        const warningText = `DANH SÁCH BƯU CỤC ĐANG VỀ HÀNG NHIỀU NHẤT: ` + warningItems.join(' // ');
+        setTickerText(warningText + ' // ' + warningText);
+      } else {
+        setTickerText(`HỆ THỐNG INBOUND ỔN ĐỊNH — KHÔNG CÓ XE ĐANG VỀ`);
+      }
+    } else {
+      let tCap=0, tCur=0, tRem=0, tOver=0, tUsed=0, tBacklog=0, tWeight=0;
+      const alerts: string[] = [];
+      CHUTE_RACKS.forEach(c => {
+        const d = data[c.areaId]; if (!d) return;
+        tCap += d.capacity; tCur += d.current; tRem += d.remaining;
+        tBacklog += d.backlogCurrent ?? 0;
+        tWeight += d.weight ?? 0;
+        if (d.current > 0) tUsed++;
+        if (d.utilization > 100) { tOver++; alerts.push(`${c.areaId} VƯỢT SỨC CHỨA (${d.utilization}%)`); }
+        else if (d.utilization >= 95) alerts.push(`${c.areaId} SẮP ĐẦY (${d.utilization}%)`);
+      });
+      
+      // Always compute outbound rate regardless of selectedType
+      const outDenominator = tCur + tBacklog;
+      setOutboundRate((outDenominator ? (tCur / outDenominator) * 100 : 0).toFixed(1));
+
+      if (selectedType === 'Outbound') {
+        setUtilTotal((outDenominator ? (tCur / outDenominator) * 100 : 0).toFixed(1));
+      } else {
+        setUtilTotal((tCap ? (tCur/tCap)*100 : 0).toFixed(1));
+      }
+      
+      setFree(tRem); setUsedCells(tUsed); setTotalOrders(tCur); setTotalWeight(tWeight);
+      
+      const label = selectedType === 'Outbound' ? 'TỈ LỆ OUTBOUND' : 'LẤP ĐẦY';
+      const rate = selectedType === 'Outbound'
+        ? (tCur + tBacklog ? (tCur / (tCur + tBacklog)) * 100 : 0)
+        : (tCap ? (tCur / tCap) * 100 : 0);
+        
+      setTickerText(alerts.length > 0
+        ? alerts.join(' // ') + ' // ' + alerts.join(' // ')
+        : `HỆ THỐNG ỔN ĐỊNH — KHÔNG CÓ CẢNH BÁO // TỔNG ${tCur} ĐƠN HÀNG // ${label} ${rate.toFixed(1)}%`
+      );
+    }
+  }, [currentView, data, selectedType, arrivalData, inboundData, selectedInboundDate]);
 
   const getZoneBorderProps = (zone: number, colorVar: string) => {
     const isHovered = hoveredZone === zone;
@@ -835,9 +1118,6 @@ export default function App() {
           <line x1={A23_X} y1={280} x2={A23_X} y2={392} stroke="#8da0c4" strokeWidth="3"/>
           <line x1={A23_X} y1={452} x2={A23_X} y2={WB}  stroke="#8da0c4" strokeWidth="3"/>
 
-          <text x={A23_X+4} y={93} fill="rgba(141,160,196,0.6)" className="mono text-[6px]">Lối 6m</text>
-          <text x={A23_X+4} y={247} fill="rgba(141,160,196,0.6)" className="mono text-[6px]">Lối 6m</text>
-          <text x={A23_X+4} y={405} fill="rgba(141,160,196,0.6)" className="mono text-[6px]">Lối 6m</text>
 
           <text x={(WL+A12_X)/2} y={WT-8} textAnchor="middle"
                 fill="#8da0c4" className="disp text-[11px] font-extrabold tracking-wider">A1 (47.2M)</text>
@@ -896,7 +1176,7 @@ export default function App() {
 
           <g>
             {/* Zone 3 Chutes */}
-            {ZONE3_LIST.map((c, i) => {
+            {ZONE3_LIST.filter(c => c.areaId !== 'C26').map((c, i) => {
               const d = data[c.areaId]; if (!d) return null;
               const isRight = i < 5;
               const bx = isRight ? 642 + (4 - i) * TR_BAY_W : 614 - (i - 5) * TR_BAY_W;
@@ -915,7 +1195,7 @@ export default function App() {
                           }}
                           onClick={() => {
                             setHoveredRack({...c,...d});
-                            if (isMobile) setBottomSheetOpen(true);
+                            setSelectedDetailRack({ item: c, detail: d });
                           }}
                           addCenterLine={true}/>
               );
@@ -952,8 +1232,8 @@ export default function App() {
                 </g>
               );
             })}
-            {/* Zone 3 Chutes Left border (bao quanh C06->C24) */}
-            <rect x={110} y={118} width={532} height={Z_H} rx="2"
+            {/* Zone 3 Chutes Left border (bao quanh C06->C25) */}
+            <rect x={82} y={118} width={560} height={Z_H} rx="2"
                   {...getZoneBorderProps(3, '--green')}/>
             {/* Zone 3 Chutes Right border (bao quanh C01->C05) */}
             <rect x={642} y={118} width={140} height={Z_H} rx="2"
@@ -1039,9 +1319,9 @@ export default function App() {
                 fill="rgba(234,179,8,0.65)" className="mono text-[5.5px] font-bold">XE TẢI CHỤM ĐẦU</text>
 
           <g>
-            {ZONE1_LIST.filter(c => c.areaId !== 'A19').map((c, i) => {
+            {ZONE1_LIST.filter(c => c.areaId !== 'A06').map((c, i) => {
               const d = data[c.areaId]; if (!d) return null;
-              const bx = 612 - i * TR_BAY_W;
+              const bx = 556 - i * TR_BAY_W;
               return <ZoneCell key={c.areaId} c={c} d={d} bx={bx} by={Z1_Y}
                                bw={TR_BAY_W} bh={Z_H} midLabelY={Z1_Y+Z_H/2}
                                isHovered={hoveredRack?.areaId===c.areaId}
@@ -1052,30 +1332,73 @@ export default function App() {
                                onLeave={() => {
                                  setHoveredRack(null);
                                  setHoveredZone(null);
-                                }}
+                               }}
                                onClick={() => {
                                  setHoveredRack({...c,...d});
                                  if (isMobile) setBottomSheetOpen(true);
                                }}
                                addCenterLine={true}/>;
             })}
-            <rect x={248} y={Z1_Y} width={392} height={Z_H} rx="2"
+            <rect x={192} y={Z1_Y} width={448} height={Z_H} rx="2"
                   {...getZoneBorderProps(1, '--orange')}/>
-            <text x={248} y={Z1_Y-6} fill="rgba(234, 67, 53, 0.75)"
-                  className="mono text-[6.5px] font-bold tracking-wide">KHU CHỜ XUẤT TẢI (ZONE 1)</text>
+
           </g>
  
-          {/* Render A19 (BN HUB) separately at A1-A2 with double cell width */}
+          {/* Render C26 (Zone 3) separately next to BN HUB on the left */}
           <g>
             {(() => {
-              const c = ZONE1_LIST.find(item => item.areaId === 'A19');
+              const c = ZONE3_LIST.find(item => item.areaId === 'C26');
               if (!c) return null;
               const d = data[c.areaId];
               if (!d) return null;
-              const bx = 181;
+              const bx = 153;
+              const by = Z1_Y;
+              const bw = TR_BAY_W;
+              const isChuteHovered = hoveredRack?.areaId === 'C26';
+              return (
+                <>
+                  <ZoneCell c={c} d={d} bx={bx} by={by}
+                            bw={bw} bh={Z_H} midLabelY={by+Z_H/2}
+                            isHovered={hoveredRack?.areaId===c.areaId}
+                            onEnter={() => {
+                              setHoveredRack({...c,...d});
+                              setHoveredZone(3);
+                            }}
+                            onLeave={() => {
+                              setHoveredRack(null);
+                              setHoveredZone(null);
+                            }}
+                            onClick={() => {
+                              setHoveredRack({...c,...d});
+                              if (isMobile) setBottomSheetOpen(true);
+                            }}
+                            addCenterLine={true}/>
+                  <rect x={bx} y={by} width={bw} height={Z_H} rx="2"
+                        fill="none"
+                        stroke="var(--green)"
+                        strokeWidth={isChuteHovered ? 1.5 : 0.8}
+                        strokeOpacity={isChuteHovered ? 1.0 : 0.5}
+                        style={{
+                          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                          filter: isChuteHovered ? 'drop-shadow(0 3px 6px rgba(0,0,0,0.4)) drop-shadow(0 3px 6px var(--green))' : 'none'
+                        }}
+                        pointerEvents="none"/>
+                </>
+              );
+            })()}
+          </g>
+
+          {/* Render A06 (BN HUB) separately next to A07 with double cell width */}
+          <g>
+            {(() => {
+              const c = ZONE1_LIST.find(item => item.areaId === 'A06');
+              if (!c) return null;
+              const d = data[c.areaId];
+              if (!d) return null;
+              const bx = 584;
               const by = Z1_Y;
               const bw = 56; // 2 cells wide
-              const isHubHovered = hoveredRack?.areaId === 'A19';
+              const isHubHovered = hoveredRack?.areaId === 'A06';
               return (
                 <>
                   <ZoneCell c={c} d={d} bx={bx} by={by}
@@ -1100,8 +1423,7 @@ export default function App() {
                           filter: isHubHovered ? 'drop-shadow(0 3px 6px rgba(0,0,0,0.4)) drop-shadow(0 3px 6px var(--orange))' : 'none'
                         }}
                         pointerEvents="none"/>
-                  <text x={bx} y={by-6} fill="rgba(234, 67, 53, 0.75)"
-                        className="mono text-[6.5px] font-bold tracking-wide">BN HUB</text>
+
                 </>
               );
             })()}
@@ -1143,22 +1465,73 @@ export default function App() {
             })}
             <rect x={181} y={563} width={448} height={Z_H} rx="2"
                   {...getZoneBorderProps(1, '--orange')}/>
-            <text x={181} y={632} fill="rgba(234, 67, 53, 0.75)"
-                  className="mono text-[6.5px] font-bold tracking-wide">BÃI CHỜ XE TẢI (ZONE 1) - QUAY ĐẦU HƯỚNG RA</text>
+
           </g>
 
+          {/* Inbound Trucks (Xe chờ xuống tải đối diện cổng A13-A18) */}
           <g>
+            {INBOUND_TRUCKS.map((c) => {
+              const d = data[c.areaId] || { current: 0, capacity: 780, remaining: 780, utilization: 0, bucket: 'green', name: c.name };
+              const bx = c.bx;
+              const by = 563; // Ngoài mặt DOCK
+              const isTrHovered = hoveredRack?.areaId===c.areaId || hoveredZone===4;
+              return (
+                <g key={c.areaId}>
+                  <ZoneCell c={c} d={d} bx={bx} by={by}
+                            bw={TR_BAY_W} bh={Z_H} midLabelY={by+Z_H/2}
+                            isHovered={isTrHovered}
+                            onEnter={() => {
+                              setHoveredRack({...c,...d});
+                              setHoveredZone(4);
+                            }}
+                            onLeave={() => {
+                              setHoveredRack(null);
+                              setHoveredZone(null);
+                            }}
+                            onClick={() => {
+                              setHoveredRack({...c,...d});
+                              if (isMobile) setBottomSheetOpen(true);
+                            }}
+                            isTruck={true}/>
+                  <g pointerEvents="none" opacity="0.8">
+                    {/* Quay đầu hướng ra: cabin ở dưới, thùng hàng ở trên */}
+                    <rect x={bx+4} y={by+4} width={TR_BAY_W-8} height={Z_H-22}
+                          rx="1" 
+                          fill={hoveredZone === 4 ? "rgba(96,165,250,0.3)" : "rgba(96,165,250,0.15)"} 
+                          stroke={hoveredZone === 4 ? "rgba(96,165,250,0.8)" : "rgba(96,165,250,0.4)"} 
+                          strokeWidth={hoveredZone === 4 ? 1.0 : 0.6}/>
+                    <rect x={bx+3} y={by+Z_H-16} width={TR_BAY_W-6} height={10}
+                          rx="1.5" 
+                          fill={hoveredZone === 4 ? "rgba(96,165,250,0.45)" : "rgba(96,165,250,0.25)"} 
+                          stroke={hoveredZone === 4 ? "rgba(96,165,250,0.9)" : "rgba(96,165,250,0.5)"} 
+                          strokeWidth={hoveredZone === 4 ? 1.1 : 0.7}/>
+                  </g>
+                </g>
+              );
+            })}
+            <rect x={653} y={563} width={188} height={Z_H} rx="2"
+                  {...getZoneBorderProps(4, '--inbound')}/>
+          </g>
+
+          <g onMouseEnter={() => setHoveredZone(4)}
+             onMouseLeave={() => setHoveredZone(null)}
+             className="cursor-pointer">
             <text x={(IB_XL1+IB_XL2+IB_LW)/2} y={IB_Y-6} textAnchor="middle"
                   fill="var(--inbound)" className="disp text-[7.5px] font-bold tracking-wider">
               INBOUND SORT L1
             </text>
 
             {[IB_XL1, IB_XL2].map((lx, li) => {
+              const isL1Hovered = hoveredZone === 4;
               return (
                 <g key={li}>
                   <rect x={lx} y={IB_Y} width={IB_LW} height={IB_H}
                         rx="2" fill="rgba(96,165,250,0.05)"
-                        stroke="var(--inbound)" strokeWidth="1.1" strokeDasharray="3 2"/>
+                        stroke="var(--inbound)" 
+                        strokeWidth={isL1Hovered ? 1.8 : 1.1} 
+                        strokeOpacity={isL1Hovered ? 1.0 : 0.6}
+                        strokeDasharray={isL1Hovered ? "none" : "3 2"}
+                        style={{ transition: 'all 0.25s ease' }}/>
 
                   {IB_NAMES.map((name, si) => {
                     const sx = lx + si * IB_SW;
@@ -1209,7 +1582,9 @@ export default function App() {
               { id: 'A17', x: 833, w: 25, type: 'inbound' },
               { id: 'A18', x: 869, w: 25, type: 'inbound' }
             ].map(g => (
-              <g key={g.id} className="cursor-pointer hover:opacity-80">
+              <g key={g.id} className="cursor-pointer hover:opacity-80"
+                 onMouseEnter={() => setHoveredZone(g.type === 'inbound' ? 4 : 1)}
+                 onMouseLeave={() => setHoveredZone(null)}>
                 <rect x={g.x} y={DOCK_Y+8} width={g.w} height={DOCK_H-16}
                       rx="1"
                       fill={g.type==='inbound'?(g.id==='A18'?'rgba(96,165,250,0.22)':'rgba(96,165,250,0.12)'):'rgba(249,115,22,0.12)'}
@@ -1228,200 +1603,171 @@ export default function App() {
           <text x={NS_X-2} y={WB+25} fill="rgba(96,165,250,0.75)"
                 className="mono text-[5px] font-bold">VÀO ĐƯỜNG ĐI (A18)</text>
 
-          {/* ── Footer note ── */}
-          <text x={(WL+WR)/2} y={650} textAnchor="middle"
-                fill="var(--muted)" className="font-sans text-[7.5px] tracking-wide">
-            A1–A12: Cổng xuất (Outbound) | A13–A18: Cổng nhập hàng (Inbound)
-          </text>
+          
           </g>
         </svg>
     );
   };
 
   return (
-    <div className="w-full h-full relative font-sans text-white bg-[#09111C]">
-      {(!isMobile ? currentView === 'master' : activeTab === 'layout') && (
-        <div className={`absolute top-0 right-0 h-12 flex items-center justify-between px-6 z-20 transition-all duration-300 ${
-        isMobile ? 'left-0' : 'left-16'
-      }`}
-           style={{background:'linear-gradient(180deg,rgba(9,17,28,.95),rgba(9,17,28,0))'}}>
-        <div className="flex items-center gap-3 select-none">
-          {/* Logo J&T Cargo */}
-          <svg width="120" height="30" viewBox="0 0 135 50" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-8 w-auto">
-            <rect width="135" height="50" rx="6" fill="#006a38" />
-            <g transform="skewX(-16) translate(6, 2)">
-              <path d="M 28,10 H 20 V 32 H 5 V 37 H 28 Z" fill="#ffffff" />
-              <text x="29" y="33" fill="#ffffff" fontSize="20" fontWeight="950" fontFamily="'Arial', sans-serif">{"&"}</text>
-              <rect x="52" y="15" width="8" height="22" fill="#ffffff" />
-              <rect x="40" y="10" width="32" height="5" fill="#ffffff" />
-              <rect x="72" y="10" width="16" height="1.4" fill="#ffffff" />
-              <rect x="72" y="11.8" width="11" height="1.4" fill="#ffffff" />
-              <rect x="72" y="13.6" width="6" height="1.4" fill="#ffffff" />
-              <text x="76" y="36" fill="#ffffff" fontSize="18" fontWeight="bold" fontFamily="'Montserrat', 'Arial', sans-serif">Cargo</text>
-            </g>
-          </svg>
-          <div className="h-5 w-px bg-white/20" />
-          <div className="disp font-extrabold text-sm tracking-[0.18em] text-white/90"
-               style={{textShadow:'0 0 12px rgba(255,255,255,0.1)'}}>HCM HUB</div>
-        </div>
-                {!isMobile ? (
-          <div className="flex items-center gap-4">
-            <div className="mono text-[10px] text-slate-400 flex items-center gap-1.5 bg-[#121824]/60 border border-white/5 rounded-full px-3 py-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse-slow"></span>
-              Update: <b className="text-emerald-400">{new Date().toLocaleString('vi-VN')}</b>
-            </div>
-            <div className="mono text-[10px] text-slate-400 bg-[#121824]/60 border border-white/5 rounded-full px-3 py-1">
-              ZONE: LAT 10.823 • LONG 106.63
+    <div className="w-full h-full relative font-sans text-white bg-[#02040a]">
+      {!isMobile && currentView === 'master' && (
+        <div className="absolute top-0 right-0 h-14 flex items-center justify-between px-6 z-50 transition-all duration-300 left-16 pointer-events-none"
+             style={{ background: 'transparent' }}>
+          <div className="flex items-center select-none" />
+          <div className="flex items-center gap-4 pointer-events-auto">
+            {lastUpdate && (
+              <div style={{ 
+                fontSize: '11px', 
+                color: '#B8F7E4', 
+                background: 'rgba(184, 247, 228, 0.05)', 
+                border: '1px solid rgba(184, 247, 228, 0.2)', 
+                padding: '5px 14px', 
+                borderRadius: '20px', 
+                fontWeight: 600, 
+                fontFamily: "'Inter', sans-serif",
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                textShadow: '0 0 8px rgba(184,247,228,0.3)'
+              }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+                Update: {lastUpdate}
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 font-semibold select-none">Operations Date</span>
+              <DatePicker
+                selectedDate={selectedDate || selectedInboundDate}
+                onDateChange={(d) => {
+                  setSelectedDate(d);
+                  setSelectedInboundDate(d);
+                }}
+                availableDates={availableDates}
+                align="right"
+                className="w-[210px]"
+                buttonClassName="!py-1.5 !px-4 !rounded-full text-xs font-bold"
+              />
             </div>
           </div>
-        ) : null}
-      </div>
+        </div>
       )}
 
       {!isMobile ? (
         /* ── DESKTOP LAYOUT ── */
         <>
-          {/* Sidebar Menu */}
+          {/* Sidebar Menu - Hover Collapsible with 30% Compact Width (w-40) & Dashboard Theme Colors */}
           <div 
             onMouseEnter={() => setSidebarHovered(true)}
             onMouseLeave={() => setSidebarHovered(false)}
-            className={`fixed top-0 left-0 h-full z-40 flex flex-col bg-gradient-to-b from-[#09111C] to-[#111827] border-r border-white/[0.06] transition-all duration-180 shadow-2xl ${
-              sidebarHovered ? 'w-60' : 'w-16'
+            className={`fixed top-0 left-0 h-full z-40 flex flex-col bg-[#121519]/95 backdrop-blur-xl border-r border-white/[0.08] font-outfit select-none transition-all duration-200 ${
+              sidebarHovered ? 'w-40' : 'w-12'
             }`}
+            style={{ fontFamily: "'Outfit', sans-serif" }}
           >
-            {/* Sidebar Header */}
-            <div className={`flex items-center p-3 border-b border-white/[0.06] h-12 ${
-              sidebarHovered ? 'justify-between px-4' : 'justify-center'
-            }`}>
-              {sidebarHovered ? (
-                <span className="text-[10px] text-slate-500 font-bold tracking-[0.08em] uppercase select-none">Danh mục giám sát</span>
-              ) : (
-                <Menu size={16} className="text-slate-400" />
+            {/* Sidebar Header - Fixed w-12 slot for 100% pixel alignment */}
+            <div className="flex items-center border-b border-white/[0.08] h-12 select-none shrink-0">
+              <div className="w-12 h-full flex items-center justify-center shrink-0">
+                <Menu size={18} className="text-slate-200" />
+              </div>
+              {sidebarHovered && (
+                <span className="text-[17px] font-black text-slate-100 tracking-tight font-outfit pr-3 whitespace-nowrap">Menu</span>
               )}
             </div>
 
             {/* Menu Items */}
-            <div className="flex-1 py-4 space-y-4 px-3 overflow-y-auto scrollbar-none" style={{ scrollbarWidth: 'none' }}>
+            <div className="flex-1 py-3 space-y-3 px-0 overflow-y-auto scrollbar-none font-outfit" style={{ scrollbarWidth: 'none' }}>
               
-              {/* Group 1: DASHBOARD VIEWS */}
-              <div className="space-y-1">
-                {sidebarHovered && (
-                  <div className="px-3 text-[11px] text-[#94A3B8] font-bold tracking-[0.08em] uppercase mb-2.5 select-none">
-                    Dashboard
-                  </div>
-                )}
+              {/* Group 1: DASHBOARD VIEWS (Fixed w-12 slot - Text starts at exact 48px) */}
+              <div className="space-y-1 font-outfit">
                 {[
-                  { id: 'master', label: 'Layout Master', desc: 'Toàn bộ thông tin tổng thể', icon: LayoutDashboard, color: '#4F8CFF', active: currentView === 'master', onClick: () => setCurrentView('master') },
-                  { id: 'inbound', label: 'Inbound', desc: 'Thống kê chi tiết luồng nhập', icon: Inbox, color: '#4F8CFF', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
+                  { id: 'master', label: 'Layout', color: '#4F8CFF', active: currentView === 'master', onClick: () => setCurrentView('master') },
+                  { id: 'inbound', label: 'Inbound', color: '#B8F7E4', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
+                  { id: 'heatmap', label: 'Heatmap', color: '#B8F7E4', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
+                  { id: 'kpi', label: 'KPI', color: '#F59E0B', active: currentView === 'kpi', onClick: () => setCurrentView('kpi') },
+    { id: 'maps', label: 'Maps', color: '#00F2FE', active: currentView === 'maps', onClick: () => setCurrentView('maps') },
                 ].map(item => {
-                  const Icon = item.icon;
                   return (
                     <button
                       key={item.id}
                       onClick={item.onClick}
-                      className={`w-full flex items-center gap-4 px-3 py-2.5 rounded-2xl text-left transition-all duration-180 group relative ${
+                      className={`w-full h-10 flex items-center text-left transition-all duration-150 font-outfit relative rounded-r-sm ${
                         item.active 
-                          ? 'text-white bg-[#2d466e]/30' 
-                          : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.02]'
+                          ? 'bg-[#2c303a] font-extrabold shadow-sm' 
+                          : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-semibold'
                       }`}
                       style={item.active ? { 
-                        boxShadow: `0 0 8px ${item.color}08`
-                      } : {}}
+                        color: item.color,
+                        boxShadow: `0 0 10px ${item.color}20`,
+                        fontFamily: "'Outfit', sans-serif" 
+                      } : { fontFamily: "'Outfit', sans-serif" }}
                     >
                       {item.active && (
                         <div 
-                          className="absolute left-0 top-3.5 bottom-3.5 w-[3px] rounded-r"
+                          className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r-sm"
                           style={{ backgroundColor: item.color }}
                         />
                       )}
-                      <div 
-                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-180 group-hover:scale-105"
-                        style={{ 
-                          backgroundColor: 'rgba(255,255,255,0.03)',
-                          border: '1px solid rgba(255,255,255,0.05)',
-                          color: item.active ? item.color : '#94A3B8',
-                          boxShadow: item.active ? `0 0 12px ${item.color}40` : 'none'
-                        }}
-                      >
-                        <Icon 
-                          size={18} 
-                          strokeWidth={2}
-                        />
+                      
+                      {/* Left w-12 Slot */}
+                      <div className="w-12 h-full flex items-center justify-center shrink-0">
+                        {!sidebarHovered && (
+                          <span className="text-xs font-black text-center font-outfit" style={{ color: item.active ? item.color : '#94A3B8' }}>
+                            {item.label.charAt(0)}
+                          </span>
+                        )}
                       </div>
+
+                      {/* Text Label - Starts at 48px */}
                       {sidebarHovered && (
-                        <div className="flex flex-col select-none">
-                          <span className="text-base font-semibold leading-normal tracking-wide">{item.label}</span>
-                          <span className="text-xs text-[#94A3B8] mt-1 font-normal leading-relaxed">{item.desc}</span>
-                        </div>
-                      )}
-                      {!sidebarHovered && (
-                        <div className="absolute left-16 bg-[#0a0e14] text-white text-[9.5px] py-1 px-2 rounded border border-white/10 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-180 whitespace-nowrap z-50 shadow-xl">
+                        <span className="text-[15px] font-extrabold tracking-tight font-outfit pr-3 whitespace-nowrap" style={{ color: item.active ? item.color : undefined }}>
                           {item.label}
-                        </div>
+                        </span>
                       )}
                     </button>
                   );
                 })}
               </div>
 
-              {/* Group 2: VIEW CONTROLS (Only visible for Master Layout to toggle widgets) */}
+              {/* Group 2: PANEL / TIỆN ÍCH (Fixed w-12 slot - Text starts at exact 48px) */}
               {currentView === 'master' && (
-                <div className="space-y-1 pt-4 border-t border-white/[0.06]">
+                <div className="space-y-0.5 pt-2.5 border-t border-white/[0.08] font-outfit">
                   {sidebarHovered && (
-                    <div className="px-3 text-[11px] text-[#94A3B8] font-bold tracking-[0.08em] uppercase mb-2.5 select-none">
-                      Tiện ích / Panel
+                    <div className="flex items-center h-6 select-none">
+                      <div className="w-12 shrink-0" />
+                      <span className="text-[10px] text-slate-400 font-semibold tracking-[0.08em] uppercase pr-3 font-outfit whitespace-nowrap">
+                        PANEL / TIỆN ÍCH
+                      </span>
                     </div>
                   )}
                   {[
-                    { id: 'monitor', label: 'Giám sát phân khu', desc: 'Operational Monitor', icon: Activity, color: '#22C55E', active: showMonitor, onClick: () => setShowMonitor(!showMonitor) },
-                    { id: 'telemetry', label: 'Thông số kho', desc: 'Real-time Telemetry', icon: TrendingUp, color: '#F59E0B', active: showTelemetry, onClick: () => setShowTelemetry(!showTelemetry) },
-                    { id: 'controls', label: 'Bộ lọc dữ liệu', desc: 'Control Center', icon: Sliders, color: '#22D3EE', active: showControls, onClick: () => setShowControls(!showControls) },
-                    { id: 'top10', label: 'Bảng xếp hạng', desc: 'Top 10 bưu cục', icon: ListOrdered, color: '#8B5CF6', active: showTop10, onClick: () => setShowTop10(!showTop10) },
+                    { id: 'monitor', label: 'Giám sát phân khu', active: showMonitor, onClick: () => setShowMonitor(!showMonitor) },
+                    { id: 'telemetry', label: 'Thông số kho', active: showTelemetry, onClick: () => setShowTelemetry(!showTelemetry) },
+                    { id: 'controls', label: 'Bộ lọc dữ liệu', active: showControls, onClick: () => setShowControls(!showControls) },
+                    { id: 'top10', label: 'Bảng xếp hạng', active: showTop10, onClick: () => setShowTop10(!showTop10) },
                   ].map(item => {
-                    const Icon = item.icon;
                     return (
                       <button
                         key={item.id}
                         onClick={item.onClick}
-                        className={`w-full flex items-center gap-4 px-3 py-2.5 rounded-2xl text-left transition-all duration-180 group relative ${
+                        className={`w-full h-8 flex items-center rounded-r-sm text-left transition-all duration-150 font-outfit ${
                           item.active 
-                            ? 'text-white bg-[#2d466e]/30' 
-                            : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.02]'
+                            ? 'text-white bg-[#2c303a] font-normal shadow-sm' 
+                            : 'text-[#94A3B8] hover:text-white hover:bg-white/[0.04] font-normal'
                         }`}
-                        style={item.active ? { 
-                          boxShadow: `0 0 8px ${item.color}08`
-                        } : {}}
+                        style={{ fontFamily: "'Outfit', sans-serif" }}
                       >
-                        {item.active && (
-                          <div 
-                            className="absolute left-0 top-3.5 bottom-3.5 w-[3px] rounded-r"
-                            style={{ backgroundColor: item.color }}
-                          />
-                        )}
-                        <div 
-                          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all duration-180 group-hover:scale-105"
-                          style={{ 
-                            backgroundColor: 'rgba(255,255,255,0.03)',
-                            border: '1px solid rgba(255,255,255,0.05)',
-                            color: item.active ? item.color : '#94A3B8',
-                            boxShadow: item.active ? `0 0 12px ${item.color}40` : 'none'
-                          }}
-                        >
-                          <Icon 
-                            size={18} 
-                            strokeWidth={2}
-                          />
+                        {/* Left w-12 Slot */}
+                        <div className="w-12 h-full flex items-center justify-center shrink-0">
+                          {!sidebarHovered && (
+                            <span className="text-[10px] font-normal text-slate-400 font-outfit">{item.label.substring(0, 2)}</span>
+                          )}
                         </div>
+
+                        {/* Text Label - Starts at 48px */}
                         {sidebarHovered && (
-                          <div className="flex flex-col select-none">
-                            <span className="text-base font-semibold leading-normal tracking-wide">{item.label}</span>
-                            <span className="text-xs text-[#94A3B8] mt-1 font-normal leading-relaxed">{item.desc}</span>
-                          </div>
-                        )}
-                        {!sidebarHovered && (
-                          <div className="absolute left-16 bg-[#0a0e14] text-white text-[9.5px] py-1 px-2 rounded border border-white/10 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-180 whitespace-nowrap z-50 shadow-xl">
-                            {item.label}
-                          </div>
+                          <span className="text-[13px] font-normal tracking-normal whitespace-nowrap font-outfit text-slate-300 pr-3">{item.label}</span>
                         )}
                       </button>
                     );
@@ -1430,323 +1776,242 @@ export default function App() {
               )}
 
             </div>
-
-            {/* Bottom Actions */}
-            <div className="p-3 border-t border-white/[0.06] space-y-2">
-              {sidebarHovered && (
-                <div className="px-2 py-1 rounded bg-[#101622]/40 border border-white/5 flex items-center justify-between select-none">
-                  <span className="text-[8.5px] font-mono text-slate-500">SYS STATUS</span>
-                  <div className="flex items-center gap-1">
-                    <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span className="text-[8.5px] font-mono text-emerald-400 font-bold">ONLINE</span>
-                  </div>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <button 
-                  onClick={fetchAndUpdateData}
-                  disabled={loading}
-                  className={`flex-1 flex items-center justify-center gap-2 py-1.5 rounded-lg border text-[9.5px] font-bold cursor-pointer transition-colors duration-200 ${
-                    loading 
-                      ? 'bg-slate-800 border-white/5 text-slate-500' 
-                      : 'bg-[#101622]/60 border-white/10 text-slate-300 hover:bg-white/5 hover:text-white'
-                  }`}
-                  title="Đồng bộ Google Sheets"
-                >
-                  <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
-                  {sidebarHovered && (loading ? 'Đang đồng bộ...' : 'Đồng bộ')}
-                </button>
-                <button 
-                  onClick={() => {
-                    const nextVal = !(showMonitor && showTelemetry && showControls && showTop10);
-                    setShowMonitor(nextVal);
-                    setShowTelemetry(nextVal);
-                    setShowControls(nextVal);
-                    setShowTop10(nextVal);
-                  }}
-                  className="p-1.5 rounded-lg border border-white/10 bg-[#101622]/60 text-slate-400 hover:bg-white/5 hover:text-white cursor-pointer transition-colors"
-                  title="Minimal Mode (Ẩn/Hiện tất cả)"
-                >
-                  <Power size={10} />
-                </button>
-              </div>
-            </div>
           </div>
 
-          {/* Left Column: Stacked panels (w-80) */}
+          {/* Logo J&T Cargo - absolute top-left, above left panels */}
           {currentView === 'master' && (
-            <div className="absolute z-20 top-16 left-[80px] w-72 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-300">
+            <div
+              className="absolute z-30 select-none transition-all duration-200"
+              style={{ top: '14px', left: sidebarHovered ? '176px' : '64px' }}
+            >
+              <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '72px', display: 'block' }} />
+            </div>
+          )}
+
+          {/* Left Column: Stacked panels (w-72) */}
+          {currentView === 'master' && (
+            <div 
+              className="absolute z-20 top-[104px] w-72 flex flex-col gap-4 max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-6 scrollbar-thin transition-all duration-200"
+              style={{ left: sidebarHovered ? '176px' : '64px' }}
+            >
               
               {/* 1. OPERATIONAL MONITOR & ZONE METRICS */}
               {showMonitor && (
-                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
-              <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">OPERATIONAL MONITOR</h3>
-              <div className="space-y-3">
-                {[
-                  [displayUtilizationLabel, `${utilTotal}%`, 'var(--cyan)'],
-                  ['CÒN TRỐNG', `${free}`, 'var(--green)'],
-                  ['Ô ĐANG DÙNG', `${usedCells}/${CHUTE_RACKS.length}`, '#fff']
-                ].map(([label, val, col]) => (
-                  <div key={label} className="flex justify-between items-center text-[13px] text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
-                    <span>{label}</span>
-                    <span className="mono font-bold text-[15px]" style={{color: col}}>{val}</span>
-                  </div>
-                ))}
-                <div className="h-1.5 rounded bg-[var(--line)] overflow-hidden">
-                  <div className="h-full bg-gradient-to-r from-[var(--green)] to-[var(--cyan)] transition-all duration-1000"
-                       style={{width:`${Math.min(100,Number(utilTotal))}%`}}/>
-                </div>
-              </div>
+                <div className="jt-glowing-card shadow-2xl shrink-0" style={{ padding: '18px 20px', background: 'rgba(255,255,255,0.03)' }}>
 
-              {/* Zone metrics section */}
-              <div className="mt-5 pt-4 border-t border-[var(--line)]">
-                <h4 className="disp text-[10px] tracking-[0.12em] text-[var(--muted)] mb-3">ZONE METRICS (CHI TIẾT PHÂN KHU)</h4>
-                <div className="space-y-3">
-                  {[
-                    { id: 3, name: 'ZONE 3 CHUTES (A00-A04)', color: 'var(--green)' },
-                    { id: 2, name: 'ZONE 2 CHUTES (A05-A11)', color: 'var(--yellow)' },
-                    { id: 1, name: 'ZONE 1 CHUTES (A12-A19)', color: 'var(--orange)' }
-                  ].map(zone => {
-                    const stats = zoneStats[zone.id];
-                    const isHovered = hoveredZone === zone.id;
+                  {/* Title */}
+                  <div className="font-bold text-[13px] tracking-[0.15em] text-center" style={{ color: '#FFF4D6', fontFamily: "'Inter', sans-serif", marginBottom: '14px', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
+                    OPERATIONAL MONITOR
+                  </div>
+
+                  {/* Tỉ lệ lấp đầy - full width with UTILCOL warning */}
+                  {(() => {
+                    const utilNum = Number(utilTotal);
+                    const utilBucket = utilNum > 100 ? 'darkred' : utilNum >= 95 ? 'red' : utilNum >= 80 ? 'orange' : utilNum >= 50 ? 'yellow' : 'green';
+                    const utilColor = UTILCOL[utilBucket];
                     return (
-                      <div 
-                        key={zone.id} 
-                        className={`p-2.5 rounded-md border transition-all duration-300 cursor-pointer ${
-                          isHovered 
-                            ? 'bg-[#101622]/90 border-white/20 shadow-[0_0_12px_rgba(255,255,255,0.05)]' 
-                            : 'bg-[#101622]/40 border-white/5 hover:border-white/10'
-                        }`}
-                        style={isHovered ? { borderColor: zone.color, boxShadow: `0 0 10px ${zone.color}22` } : {}}
-                        onMouseEnter={() => setHoveredZone(zone.id)}
-                        onMouseLeave={() => setHoveredZone(null)}
-                      >
-                        <div className="flex justify-between items-start mb-1">
-                          <span className="font-bold text-[10px] tracking-wide max-w-[170px]" style={{ color: zone.color }}>
-                            {zone.name} <span className="text-[9px] font-bold text-slate-400 ml-1">({(stats as any).totalShare}%)</span>
-                          </span>
-                          <span className="mono text-[11px] font-bold text-white flex flex-col items-end shrink-0">
-                            <span>{stats.current.toLocaleString()} đơn</span>
-                            <span className="text-[9.5px] text-slate-400 font-medium mt-0.5">{stats.weight.toLocaleString()} kg</span>
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] text-[var(--muted)] mb-1.5 mt-2">
-                          <span>{displayUtilizationLabelLc}</span>
-                          <span className="mono font-bold text-white">{stats.fillRate}%</span>
-                        </div>
-                        <div className="h-1 rounded bg-[var(--line)] overflow-hidden">
-                          <div className="h-full transition-all duration-500"
-                               style={{ 
-                                 width: `${Math.min(100, Number(stats.fillRate))}%`,
-                                 backgroundColor: zone.color
-                               }}/>
+                      <div style={{ background: `${utilColor}12`, border: `1px solid ${utilColor}40`, borderRadius: '10px', padding: '12px 16px', marginBottom: '10px' }}>
+                        <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: '#e2e8f0', marginBottom: '6px', fontFamily: "'Inter',sans-serif" }}>{displayUtilizationLabel}</div>
+                        <div className="flex items-center gap-3">
+                          <div style={{ flex: 1, height: '8px', borderRadius: '99px', background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', borderRadius: '99px', background: utilColor, width: `${Math.min(100, utilNum)}%`, transition: 'width 1s ease' }} />
+                          </div>
+                          <div className="mono font-bold" style={{ fontSize: '18px', lineHeight: 1, color: utilColor, minWidth: '44px', textAlign: 'right', textShadow: `0 0 10px ${utilColor}99` }}>{utilTotal}%</div>
                         </div>
                       </div>
                     );
-                  })}
-                </div>
-              </div>
+                  })()}
 
-              {/* Chi tiết ô chứa (nếu có hover) */}
-              <div className="mt-5 pt-4 border-t border-[var(--line)]">
-                <h4 className="disp text-[10px] tracking-[0.12em] text-[var(--muted)] mb-3">CHI TIẾT Ô CHỨA</h4>
-                {hoveredRack ? (
-                  <div className="space-y-2 bg-[#101622]/60 rounded-md p-3 border border-white/5">
+                  {/* Ô ĐANG DÙNG + TỈ LỆ OUTBOUND - compact 2-column row */}
+                  <div className="grid grid-cols-2 gap-2" style={{ marginBottom: '16px' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '7px 10px' }}>
+                      <div style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '0.12em', color: '#94a3b8', fontFamily: "'Inter',sans-serif", marginBottom: '2px' }}>Ô ĐANG DÙNG</div>
+                      <div className="mono font-bold" style={{ fontSize: '16px', lineHeight: 1, color: '#f1f5f9' }}>{usedCells}<span style={{ fontSize: '11px', color: '#64748b' }}>/{CHUTE_RACKS.length}</span></div>
+                    </div>
+                    {(() => {
+                      const obNum = Number(outboundRate);
+                      const obBucket = obNum > 100 ? 'darkred' : obNum >= 95 ? 'red' : obNum >= 80 ? 'orange' : obNum >= 50 ? 'yellow' : 'green';
+                      const obColor = UTILCOL[obBucket];
+                      return (
+                        <div style={{ background: `${obColor}10`, border: `1px solid ${obColor}35`, borderRadius: '8px', padding: '7px 10px' }}>
+                          <div style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '0.12em', color: '#94a3b8', fontFamily: "'Inter',sans-serif", marginBottom: '2px' }}>TỈ LỆ OUTBOUND</div>
+                          <div className="mono font-bold" style={{ fontSize: '16px', lineHeight: 1, color: obColor, textShadow: `0 0 8px ${obColor}88` }}>{outboundRate}%</div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Zone cards 3-column grid */}
+                  <div className="grid grid-cols-3 gap-2 mb-4">
                     {[
-                      ['Mã ô', hoveredRack.areaId, 'var(--cyan)'],
-                      ['Tên', hoveredRack.name, '#fff'],
-                      ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#fff'],
-                      ['Trọng lượng', `${(hoveredRack.weight || 0).toLocaleString()} kg`, '#fff'],
-                      [displayUtilizationLabelLc, `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
-                    ].map(([k,v,c]) => (
-                      <div key={k} className="flex justify-between">
-                        <span className="text-[11px] text-[var(--muted)]">{k}:</span>
-                        <span className="mono text-[11px] font-bold truncate max-w-[150px]" style={{color:c}}>{v}</span>
-                      </div>
-                    ))}
+                      { id: 3, shortName: 'ZONE 3', sub: '', color: '#B8F7E4', colorBg: 'rgba(16,185,129,0.1)', colorBorder: 'rgba(16,185,129,0.3)' },
+                      { id: 2, shortName: 'ZONE 2', sub: '', color: '#f59e0b', colorBg: 'rgba(245,158,11,0.1)', colorBorder: 'rgba(245,158,11,0.3)' },
+                      { id: 1, shortName: 'ZONE 1', sub: '', color: '#f97316', colorBg: 'rgba(249,115,22,0.1)', colorBorder: 'rgba(249,115,22,0.3)' }
+                    ].map(zone => {
+                      const stats = zoneStats[zone.id];
+                      const isHovered = hoveredZone === zone.id;
+                      return (
+                        <div
+                          key={zone.id}
+                          style={{
+                            background: isHovered ? zone.colorBg : 'rgba(255,255,255,0.04)',
+                            border: `1px solid ${isHovered ? zone.colorBorder : 'rgba(255,255,255,0.12)'}`,
+                            borderRadius: '10px', padding: '12px 6px',
+                            cursor: 'pointer', transition: 'all 0.25s ease',
+                            boxShadow: isHovered ? `0 0 16px ${zone.color}33` : 'none',
+                            textAlign: 'center',
+                            display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center'
+                          }}
+                          onMouseEnter={() => setHoveredZone(zone.id)}
+                          onMouseLeave={() => setHoveredZone(null)}
+                        >
+                          <div className="mono font-extrabold" style={{ fontSize: '13px', color: zone.color, lineHeight: 1.2, textShadow: `0 0 8px ${zone.color}88` }}>{zone.shortName}</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: zone.color, lineHeight: 1.2 }}>{stats.fillRate}%</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#B8F7E4', lineHeight: 1.2 }}>{stats.current.toLocaleString()}</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#f1f5f9', lineHeight: 1.2 }}>{(stats as any).totalShare}%</div>
+                          <div className="mono font-bold" style={{ fontSize: '13px', color: '#B8F7E4', lineHeight: 1.2 }}>{stats.weight.toFixed(1).replace('.', ',')} Tấn</div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <div className="text-center py-6 text-[11px] text-[var(--muted)] border border-dashed border-[var(--line)] rounded-md">
-                    Rê chuột vào ô để xem thông tin chi tiết
-                  </div>
-                )}
-              </div>
-            </div>
-            )}
 
-            {/* 2. REAL-TIME TELEMETRY */}
-            {showTelemetry && (
-              <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 w-full">
-              <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)]">REAL-TIME TELEMETRY</h3>
-              <div className="space-y-4">
-                <div className="p-3 text-center border-b border-[var(--line)] bg-[#101622]/30 rounded-md">
-                  <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">TỔNG ĐƠN HÀNG</div>
-                  <div className="disp font-extrabold text-3xl text-[var(--cyan)]">{totalOrders.toLocaleString()}</div>
-                  <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">ĐƠN HÀNG / KHO</div>
-                </div>
-                <div className="p-3 text-center bg-[#101622]/30 rounded-md">
-                  <div className="mono text-[10px] tracking-[0.12em] text-[var(--muted)] mb-1">TỔNG TRỌNG LƯỢNG</div>
-                  <div className="disp font-extrabold text-2xl text-[var(--green)]">
-                    {totalWeight.toLocaleString()} kg
+                  {/* Chi tiết ô chứa */}
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px' }}>
+                    <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: '#cbd5e1', marginBottom: '8px', fontFamily: "'Inter',sans-serif" }}>CHI TIẾT Ô CHỨA</div>
+                    {hoveredRack ? (
+                      <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '8px', padding: '10px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        {[
+                          ['Mã ô', hoveredRack.areaId, 'var(--cyan)'],
+                          ['Tên', hoveredRack.name, '#f1f5f9'],
+                          ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#f1f5f9'],
+                          ['Trọng lượng', `${((hoveredRack.weight || 0) / 1000.0).toFixed(1).replace('.', ',')} Tấn`, '#f1f5f9'],
+                          [displayUtilizationLabelLc, `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
+                        ].map(([k, v, c]) => (
+                          <div key={k} className="flex justify-between" style={{ marginBottom: '4px' }}>
+                            <span style={{ fontSize: '10px', color: '#94a3b8' }}>{k}:</span>
+                            <span className="mono font-bold" style={{ fontSize: '10px', color: c, maxWidth: '130px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '10px', fontSize: '10px', color: '#94a3b8', border: '1px dashed rgba(255,255,255,0.15)', borderRadius: '8px' }}>
+                        Rê chuột vào ô để xem thông tin chi tiết
+                      </div>
+                    )}
                   </div>
-                  <div className="mono text-[9px] tracking-[0.1em] text-[var(--muted)] mt-1">TRỌNG LƯỢNG KHO</div>
+
                 </div>
-              </div>
-            </div>
+              )}
+
+              {showTelemetry && (
+                <div className="jt-glowing-card shadow-2xl shrink-0 w-full" style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.04)' }}>
+                  <div className="font-bold text-[13px] tracking-[0.15em] text-center" style={{ color: '#FFF4D6', fontFamily: "'Inter', sans-serif", marginBottom: '10px', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
+                    METRICS
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div className="flex justify-between items-center">
+                      <span style={{ fontSize: '13px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng đơn hàng</span>
+                      <span className="mono font-bold" style={{ fontSize: '15px', color: '#B8F7E4', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
+                        <NumberTicker value={totalOrders} /> <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Đơn</span>
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span style={{ fontSize: '13px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng trọng lượng</span>
+                      <span className="mono font-bold" style={{ fontSize: '15px', color: '#B8F7E4', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
+                        {(totalWeight > 0 && totalWeight < 0.1) ? totalWeight.toFixed(3).replace('.', ',') : totalWeight.toFixed(1).replace('.', ',')} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )}
 
-          {/* Right Column: Control Center & Top 10 Racks (w-90) */}
+          {/* Right Column: Control Center & Top 10 Racks (w-90, 15px gap, 10% rounded corners) */}
           {currentView === 'master' && (
-            <div className="absolute z-20 top-16 right-6 w-90 flex flex-col gap-4 max-h-[calc(100vh-100px)] overflow-visible pr-2 pb-6">
+            <div className="absolute z-40 top-16 right-6 w-90 flex flex-col gap-[15px] max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-6 scrollbar-none">
               {/* A. Control Center Panel */}
               {showControls && (
-                <div className="bg-[var(--panel)] border border-[var(--panel-border)] border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0 transition-all duration-300 hover:border-[var(--panel-border-hover)] hover:shadow-[0_0_30px_rgba(139,92,246,0.12)]">
+                <div 
+                  className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-20 rounded-lg"
+                  style={{ borderRadius: '8px' }}
+                >
                   {currentView === 'master' ? (
                     <>
-                      <h3 className="disp text-[11px] font-bold tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[var(--accent)]">CONTROL CENTER</h3>
-                      <div className="space-y-4">
+                      <h3 className="font-outfit text-[13px] font-bold tracking-[0.08em] pb-2 mb-2.5 border-b border-white/[0.08] text-center" style={{ margin: 0, color: '#FFF4D6', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>CONTROL CENTER</h3>
+                      <div className="flex flex-col gap-[4px]">
                         {/* 1. LOẠI (Type Selector) - Segmented Control */}
-                        <div className="space-y-2">
-                          <div className="mono text-[9px] font-semibold tracking-[0.08em] text-[var(--text-muted)]">LOẠI DỮ LIỆU</div>
-                          <div className="flex bg-[#05030a] border border-[var(--panel-border)] rounded-full p-1 w-full">
-                            {(['Outbound', 'Backlog', 'Inventory'] as const).map(type => {
-                              const isActive = selectedType === type;
-                              const labelMap = { Outbound: 'Outbound', Backlog: 'Backlog', Inventory: 'Volume' };
-                              return (
-                                <button
-                                  key={type}
-                                  onClick={() => setSelectedType(type)}
-                                  className={`flex-1 text-center py-1.5 rounded-full text-[11px] font-bold transition-all duration-300 relative z-10 ${
-                                    isActive
-                                      ? 'text-[#f8fafc] bg-[var(--accent)] shadow-[0_0_12px_rgba(13,131,70,0.4)]'
-                                      : 'text-[var(--text-secondary)] hover:text-[#f8fafc]'
-                                  }`}
-                                >
-                                  {labelMap[type]}
-                                </button>
-                              );
-                            })}
-                          </div>
+                        <div className="flex bg-black/35 rounded-lg p-0.5 w-full">
+                          {(['Outbound', 'Backlog', 'Inventory'] as const).map(type => {
+                            const isActive = selectedType === type;
+                            const labelMap = { Outbound: 'Outbound', Backlog: 'Backlog', Inventory: 'Volume' };
+                            return (
+                              <button
+                                key={type}
+                                onClick={() => setSelectedType(type)}
+                                className={`flex-1 text-center py-1.5 rounded-md text-[11.5px] font-bold transition-all duration-200 relative z-10 ${
+                                  isActive
+                                    ? 'text-white bg-emerald-500/20 shadow-[0_2px_8px_rgba(16,185,129,0.25)]'
+                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                }`}
+                              >
+                                {labelMap[type]}
+                              </button>
+                            );
+                          })}
                         </div>
 
-                        {/* 2. NGÀY (Date Selector) - Custom Dropdown (100% giống INBOUND CONTROL) */}
-                        <div className="space-y-2 relative z-50">
-                          <div className="mono text-[9px] font-semibold tracking-[0.08em] text-[var(--text-muted)]">NGÀY BÁO CÁO</div>
-                          <div className={`custom-datepicker ${masterDateDropdownOpen ? 'open' : ''} w-full`}>
-                            <button 
-                              className="datepicker-trigger w-full flex justify-between items-center bg-[#05030a] border border-[var(--panel-border)] hover:border-[var(--panel-border-hover)] rounded-md px-3 py-2 text-[11px] font-medium text-white transition-all duration-200"
-                              onClick={() => setMasterDateDropdownOpen(!masterDateDropdownOpen)}
-                            >
-                              <div className="flex items-center">
-                                <i className="fa-regular fa-calendar-days icon-cal text-[var(--accent)]" style={{ marginRight: '8px' }}></i>
-                                <span>{selectedDate || 'Chọn ngày'}</span>
-                              </div>
-                              <i className="fa-solid fa-chevron-down icon-arrow text-slate-500 text-[9px] transition-transform duration-200" style={{ transform: masterDateDropdownOpen ? 'rotate(180deg)' : 'none' }}></i>
-                            </button>
-                            {masterDateDropdownOpen && (
-                              <div className="datepicker-dropdown absolute left-0 right-0 mt-1 bg-[#120f22] border border-[var(--panel-border)] rounded-lg shadow-2xl p-3 z-[600]">
-                                <div className="datepicker-presets grid grid-cols-2 gap-2 mb-2">
-                                  <button 
-                                    className="preset-btn bg-[#05030a] border border-white/5 hover:border-[var(--panel-border-hover)] rounded-md py-1.5 text-[10.5px] text-[var(--text-secondary)] hover:text-white transition-all font-semibold"
-                                    onClick={() => {
-                                      if (availableDates.length > 0) {
-                                        setSelectedDate(availableDates[0]);
-                                        setMasterDateDropdownOpen(false);
-                                      }
-                                    }}
-                                  >
-                                    Hôm nay
-                                  </button>
-                                  <button 
-                                    className="preset-btn bg-[#05030a] border border-white/5 hover:border-[var(--panel-border-hover)] rounded-md py-1.5 text-[10.5px] text-[var(--text-secondary)] hover:text-white transition-all font-semibold"
-                                    onClick={() => {
-                                      if (availableDates.length > 1) {
-                                        setSelectedDate(availableDates[1]);
-                                        setMasterDateDropdownOpen(false);
-                                      }
-                                    }}
-                                  >
-                                    Hôm qua
-                                  </button>
-                                </div>
-                                <div className="datepicker-list-header text-[9.5px] text-[var(--text-muted)] font-semibold mb-2 select-none uppercase tracking-wider">Chọn ngày vận hành (30 ngày gần đây)</div>
-                                <div className="datepicker-list max-h-[160px] overflow-y-auto space-y-1 pr-1 scrollbar-thin">
-                                  {availableDates.map(d => (
-                                    <button
-                                      key={d}
-                                      className={`datepicker-list-item w-full text-left px-3 py-1.5 rounded text-[11px] transition-all ${
-                                        d === selectedDate 
-                                          ? 'bg-cyan-500/10 text-[var(--cyan)] font-bold border-l-2 border-[var(--cyan)]' 
-                                          : 'text-[var(--text-secondary)] hover:bg-white/5 hover:text-white'
-                                      }`}
-                                      onClick={() => {
-                                        setSelectedDate(d);
-                                        setMasterDateDropdownOpen(false);
-                                      }}
-                                    >
-                                      {d}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* 3. TRẠNG THÁI (Status Selector) - Modern Toggle Buttons */}
-                        <div className={`space-y-2 transition-all duration-300 ${
+                        {/* 2. TRẠNG THÁI (Status Selector) - CHIP style with checkmarks */}
+                        <div className={`grid grid-cols-2 gap-[2px] transition-all duration-300 ${
                           selectedType !== 'Inventory' ? 'opacity-30 pointer-events-none select-none filter blur-[0.4px]' : 'opacity-100'
                         }`}>
-                          <div className="mono text-[9px] font-semibold tracking-[0.08em] text-[var(--text-muted)]">TRẠNG THÁI (VOLUME)</div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <button
-                              onClick={toggleAllStatuses}
-                              className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[11px] font-medium transition-all duration-200 ${
-                                selectedStatuses.length === INVENTORY_STATUSES.length
-                                  ? 'bg-yellow-500/10 border-[var(--yellow)] text-[var(--yellow)] font-bold shadow-[0_0_10px_rgba(234,179,8,0.2)]'
-                                  : 'bg-[#05030a]/40 border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)] hover:text-[#f8fafc]'
-                              }`}
-                            >
-                              <span className={`w-2 h-2 rounded-full ${
-                                selectedStatuses.length === INVENTORY_STATUSES.length ? 'bg-[var(--yellow)] animate-pulse' : 'bg-slate-600'
-                              }`} />
-                              Tất cả
-                            </button>
-                            {INVENTORY_STATUSES.map(status => {
-                              const isChecked = selectedStatuses.includes(status);
-                              return (
-                                <button
-                                  key={status}
-                                  onClick={() => toggleStatus(status)}
-                                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-[10.5px] font-medium transition-all duration-200 ${
-                                    isChecked
-                                      ? 'bg-yellow-500/10 border-[var(--yellow)] text-[var(--yellow)] font-bold shadow-[0_0_10px_rgba(234,179,8,0.2)]'
-                                      : 'bg-[#05030a]/40 border-[var(--panel-border)] text-[var(--text-secondary)] hover:border-[var(--text-muted)] hover:text-[#f8fafc]'
-                                  }`}
-                                >
-                                  <span className={`w-2 h-2 rounded-full ${
-                                    isChecked ? 'bg-[var(--yellow)] animate-pulse' : 'bg-slate-600'
-                                  }`} />
-                                  {status}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          <button
+                            onClick={toggleAllStatuses}
+                            className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11.5px] font-bold transition-all duration-200 ${
+                              selectedStatuses.length === INVENTORY_STATUSES.length
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-[0_4px_12px_rgba(0,0,0,0.3),_0_0_8px_rgba(16,185,129,0.15)] hover:translate-y-[-1px]'
+                                : 'bg-white/[0.04] border border-white/5 text-slate-400 hover:bg-white/[0.07] hover:text-white hover:translate-y-[-1px]'
+                            }`}
+                          >
+                            {selectedStatuses.length === INVENTORY_STATUSES.length && <i className="fa-solid fa-check text-[10px] text-emerald-400"></i>}
+                            <span>Total</span>
+                          </button>
+                          {INVENTORY_STATUSES.map(status => {
+                            const isChecked = selectedStatuses.includes(status);
+                            return (
+                              <button
+                                key={status}
+                                onClick={() => toggleStatus(status)}
+                                className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11.5px] font-bold transition-all duration-200 ${
+                                  isChecked
+                                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-[0_4px_12px_rgba(0,0,0,0.3),_0_0_8px_rgba(16,185,129,0.15)] hover:translate-y-[-1px]'
+                                    : 'bg-white/[0.04] border border-white/5 text-slate-400 hover:bg-white/[0.07] hover:text-white hover:translate-y-[-1px]'
+                                }`}
+                              >
+                                {isChecked && <i className="fa-solid fa-check text-[10px] text-emerald-400"></i>}
+                                <span>{status}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     </>
                   ) : (
                     <>
-                      <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[#8B5CF6]">INBOUND CONTROL</h3>
+                      <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[#8B5CF6]">OPERATIONS DATE</h3>
                       <div className="space-y-4">
                         {/* Operating Date Selector for Inbound */}
                         <div className="space-y-2">
                           <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">NGÀY VẬN HÀNH</div>
                           <div className="flex gap-1.5 overflow-x-auto py-1 scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                             {(() => {
-                              const inboundDates = Array.from(new Set(inboundData.map(d => d['Ngày vận hành']).filter(Boolean))) as string[];
+                              const inboundDates = Array.from(
+                                new Set([
+                                  ...inboundData.map(d => d['Ngày vận hành_Inbound']),
+                                  ...inboundData.map(d => d['Ngày vận hành_Forecast']),
+                                  ...inboundData.map(d => d['Ngày vận hành_Pickup'])
+                                ].filter(Boolean))
+                              ) as string[];
                               inboundDates.sort((a, b) => b.localeCompare(a));
                               const activeDate = selectedInboundDate || inboundDates[0] || '';
                               return inboundDates.slice(0, 7).map(d => {
@@ -1776,35 +2041,33 @@ export default function App() {
 
               {/* B. TOP 10 RACKS */}
               {currentView === 'master' && showTop10 && (
-                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg backdrop-blur-md shadow-2xl p-4 shrink-0">
-                  <h3 className="disp text-[11px] font-bold tracking-[0.14em] pb-3 mb-2 border-b border-[var(--line)] text-[var(--accent)] uppercase">
-                    {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC NHIỀU HÀNG NHẤT'}
-                  </h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                <div 
+                  className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-10 animate-fade-in rounded-lg"
+                  style={{ borderRadius: '8px' }}
+                >
+                  {/* Header Title */}
+                  <div className="flex justify-center items-center mb-2.5 pb-2.5 border-b border-white/[0.08]">
+                    <h3 className="font-outfit text-[12px] font-bold tracking-[0.08em] text-center" style={{ margin: 0, color: '#FFF4D6', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
+                      {selectedType === 'Outbound' ? 'DỰ KIẾN SẢN LƯỢNG BƯU CỤC TOP 10' : 'DỰ KIẾN TỒN KHO BƯU CỤC TOP 10'}
+                    </h3>
+                  </div>
+
+                  <div className="table-wrapper" style={{ maxHeight: '330px', overflowY: 'auto' }}>
+                    <table className="jt-grid-table">
                       <thead>
-                        <tr className="border-b border-[var(--line)] text-[10px] text-[var(--muted)] uppercase mono font-bold">
-                          <th className="py-1 w-6">#</th>
-                          <th className="py-1 w-10">Mã</th>
-                          <th className="py-1">Bưu Cục</th>
-                          <th className="py-1 text-right w-14">{selectedType === 'Outbound' ? 'Xuất' : 'Tồn'}</th>
-                          <th className="py-1 text-right w-16">T.lượng</th>
-                          <th className="py-1 text-right w-10">{displayUtilizationLabelLc}</th>
+                        <tr style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                          <th style={{ width: '25px', textAlign: 'center' }}>#</th>
+                          <th style={{ width: '45px', textAlign: 'center' }}>MÃ</th>
+                          <th style={{ textAlign: 'left' }}>BƯU CỤC</th>
+                          <th style={{ textAlign: 'center', width: '45px' }}>{selectedType === 'Outbound' ? 'XUẤT' : 'TỒN'}</th>
+                          <th style={{ textAlign: 'center', width: '70px' }}>T.LƯỢNG</th>
+                          <th style={{ textAlign: 'center', width: '60px' }}>%Volume</th>
                         </tr>
                       </thead>
                       <tbody>
                         {getTop10Chutes().map((chute, index) => {
-                          const colors: Record<string, string> = {
-                            green: 'var(--green)',
-                            yellow: 'var(--yellow)',
-                            orange: 'var(--orange)',
-                            red: 'var(--red)',
-                            darkred: 'var(--red)'
-                          };
-                          const col = colors[chute.bucket] || '#fff';
-
                           return (
-                            <tr key={chute.areaId} className="border-b border-[#1e2942]/20 last:border-0 hover:bg-white/5 transition-colors cursor-pointer text-[11px]"
+                            <tr key={chute.areaId} className="cursor-pointer"
                                 onMouseEnter={() => {
                                   const d = data[chute.areaId];
                                   setHoveredRack({ areaId: chute.areaId, name: chute.name, ...d });
@@ -1814,14 +2077,16 @@ export default function App() {
                                   setHoveredRack(null);
                                   setHoveredZone(null);
                                 }}>
-                              <td className="py-1 text-[var(--muted)] mono">{index + 1}</td>
-                              <td className="py-1 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
-                              <td className="py-1 truncate max-w-[80px] font-medium text-white/95" title={chute.name}>
+                              <td className="font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.2)' }}>{index + 1}</td>
+                              <td className="mono font-bold text-center" style={{ color: '#22d3ee', fontSize: '11.5px', textShadow: '0 0 8px rgba(34, 211, 238, 0.5)' }}>{chute.areaId}</td>
+                              <td className="font-bold uppercase" style={{ color: '#22d3ee', fontSize: '11px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2', textShadow: '0 0 8px rgba(34, 211, 238, 0.3)' }} title={chute.name}>
                                 {chute.name}
                               </td>
-                              <td className="py-1 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
-                              <td className="py-1 text-right mono text-slate-300">{chute.weight.toLocaleString()} kg</td>
-                              <td className="py-1 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
+                              <td className="mono font-bold text-center" style={{ color: '#B8F7E4', fontSize: '12px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
+                              <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>
+                                {(chute.weight > 0 && chute.weight < 0.1) ? chute.weight.toFixed(3) : chute.weight.toFixed(1)} Tấn
+                              </td>
+                              <td className="mono font-bold text-center" style={{ color: UTILCOL[chute.bucket], fontSize: '11.5px', textShadow: chute.bucket === 'darkred' || chute.bucket === 'red' ? '0 0 8px rgba(239,68,68,0.6)' : '0 0 8px rgba(16,185,129,0.5)' }}>{chute.utilization}%</td>
                             </tr>
                           );
                         })}
@@ -1835,7 +2100,10 @@ export default function App() {
 
           {/* Floating Legend */}
           {currentView === 'master' && (
-            <div className="absolute bottom-16 left-[80px] z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg transition-all duration-300">
+            <div 
+              className="absolute bottom-16 z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg transition-all duration-200"
+              style={{ left: sidebarHovered ? '176px' : '64px' }}
+            >
               {[['#0c883d','Ô chứa'],['var(--orange)','Cổng Outbound'],
                 ['var(--inbound)','Cổng Inbound'],['rgba(100,116,139,0.7)','Xe tải']].map(([c,l])=>(
                 <span key={l} className="flex items-center gap-1.5">
@@ -1848,7 +2116,7 @@ export default function App() {
 
           {/* Aligned bottom right buttons */}
           {currentView === 'master' && (
-            <div className="absolute bottom-16 right-6 z-20 flex gap-3 w-90 justify-between" >
+            <div className="absolute bottom-16 right-6 z-20 flex gap-3 w-[300px] justify-between" >
               {currentView === 'master' ? (
                 <button onClick={handleResetZoom}
                         className="flex-1 font-sans font-bold text-[10.5px] uppercase py-2.5 px-4 rounded-md border border-white/20 bg-[var(--panel)] text-[var(--muted)] cursor-pointer hover:bg-white/10 hover:text-white transition-all shadow-lg text-center">
@@ -1868,27 +2136,61 @@ export default function App() {
           )}
 
           {/* Center Content: Switch between Layout Master and Inbound */}
-          <div className={currentView === 'master'
-            ? 'absolute left-[368px] right-[384px] top-16 bottom-20 flex items-center justify-center transition-all duration-300'
-            : `absolute inset-0 pt-16 pb-6 overflow-y-auto scrollbar-thin transition-all duration-300 flex flex-col items-center ${
-                isMobile 
-                  ? 'px-6' 
-                  : sidebarHovered 
-                    ? 'pl-[264px] pr-[264px]' 
-                    : 'pl-[88px] pr-[88px]'
-              }`
-          }>
+          <div 
+            className={currentView === 'master'
+              ? 'absolute top-16 bottom-20 flex items-center justify-center transition-all duration-200'
+              : 'absolute inset-0 pt-16 pb-6 overflow-y-auto scrollbar-thin transition-all duration-200 flex flex-col items-center'
+            }
+            style={!isMobile ? (
+              currentView === 'master'
+                ? {
+                    left: sidebarHovered ? '468px' : '356px',
+                    right: '384px'
+                  }
+                : {
+                    paddingLeft: sidebarHovered ? '176px' : '64px',
+                    paddingRight: '24px'
+                  }
+            ) : {
+              paddingLeft: '24px',
+              paddingRight: '24px'
+            }}
+          >
             {currentView === 'master' ? (
               renderSVG()
+            ) : currentView === 'heatmap' ? (
+              <HeatmapDashboard
+                loading={loading}
+                fetchAndUpdateData={fetchAndUpdateData}
+                lastUpdate={lastUpdate}
+                heatmapData={heatmapRows}
+              />
+            ) : currentView === 'maps' ? (
+              <RouteMapDashboard />
+            ) : currentView === 'kpi' ? (
+              <KpiDashboard
+                inboundData={inboundData}
+                linehaulData={linehaulData}
+                arrivalData={arrivalData}
+                truckEtaData={truckEtaData}
+                selectedInboundDate={selectedInboundDate}
+                setSelectedInboundDate={setSelectedInboundDate}
+                loading={loading}
+                fetchAndUpdateData={fetchAndUpdateData}
+                lastUpdate={lastUpdate}
+              />
             ) : (
               <InboundDashboard
                 inboundData={inboundData}
                 linehaulData={linehaulData}
                 arrivalData={arrivalData}
+                truckEtaData={truckEtaData}
                 selectedInboundDate={selectedInboundDate}
                 setSelectedInboundDate={setSelectedInboundDate}
                 loading={loading}
                 fetchAndUpdateData={fetchAndUpdateData}
+                lastUpdate={lastUpdate}
+                lastUpdateObj={lastUpdateObj}
               />
             )}
           </div>
@@ -1992,44 +2294,49 @@ export default function App() {
 
             {activeTab === 'top10' && (
               <div className="w-full h-full overflow-y-auto px-1 pt-2">
-                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg p-4 shadow-xl">
-                  <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)] text-center">
-                    {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
-                  </h3>
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-[var(--line)] text-[10px] text-[var(--muted)] uppercase mono font-bold">
-                        <th className="py-2 w-8">#</th>
-                        <th className="py-2 w-12">Mã</th>
-                        <th className="py-2">Bưu Cục</th>
-                        <th className="py-2 text-right w-16">{selectedType === 'Outbound' ? 'Lượng xuất' : 'Tồn'}</th>
-                        <th className="py-2 text-right w-16">T.lượng</th>
-                        <th className="py-2 text-right w-12">%</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {getTop10Chutes().map((chute, index) => {
-                        const colors: Record<string, string> = {
-                          green: 'var(--green)',
-                          yellow: 'var(--yellow)',
-                          orange: 'var(--orange)',
-                          red: 'var(--red)',
-                          darkred: 'var(--red)'
-                        };
-                        const col = colors[chute.bucket] || '#fff';
-                        return (
-                          <tr key={chute.areaId} className="border-b border-[#1e2942]/20 last:border-0 hover:bg-white/5 transition-colors text-[11px]">
-                            <td className="py-2 text-[var(--muted)] mono">{index + 1}</td>
-                            <td className="py-2 font-bold text-[var(--cyan)] mono">{chute.areaId}</td>
-                            <td className="py-2 truncate max-w-[90px] font-medium text-white/95">{chute.name}</td>
-                            <td className="py-2 text-right mono font-bold text-white">{chute.current.toLocaleString()}</td>
-                            <td className="py-2 text-right mono text-slate-300">{chute.weight.toLocaleString()} kg</td>
-                            <td className="py-2 text-right mono font-bold" style={{ color: col }}>{chute.utilization}%</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                <div className="glass-card p-5 shadow-2xl">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px', marginBottom: '16px' }}>
+                    <h3 className="disp text-xs tracking-[0.14em] text-[var(--accent)] font-bold uppercase" style={{ margin: 0 }}>
+                      {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
+                    </h3>
+                    <span className="badge-count sky">Top 10</span>
+                  </div>
+                  <div className="premium-table-wrapper">
+                    <table className="premium-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '40px' }}>#</th>
+                          <th style={{ width: '60px' }}>Mã</th>
+                          <th>Bưu Cục</th>
+                          <th style={{ textAlign: 'right', width: '90px' }}>{selectedType === 'Outbound' ? 'Lượng xuất' : 'Tồn'}</th>
+                          <th style={{ textAlign: 'right', width: '100px' }}>T.lượng</th>
+                          <th style={{ textAlign: 'right', width: '60px' }}>%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {getTop10Chutes().map((chute, index) => {
+                          const colors: Record<string, string> = {
+                            green: '#10b981',
+                            yellow: '#f59e0b',
+                            orange: '#f97316',
+                            red: '#ef4444',
+                            darkred: '#ef4444'
+                          };
+                          const col = colors[chute.bucket] || '#fff';
+                          return (
+                            <tr key={chute.areaId}>
+                              <td className="table-index">{index + 1}</td>
+                              <td className="num-tabular font-bold" style={{ color: 'var(--cyan)' }}>{chute.areaId}</td>
+                              <td className="table-buucuc">{chute.name}</td>
+                              <td className="num-tabular" style={{ textAlign: 'right', fontWeight: 600 }}>{chute.current.toLocaleString()}</td>
+                              <td className="num-tabular" style={{ textAlign: 'right', color: '#cbd5e1' }}>{Math.round(chute.weight).toLocaleString()} kg</td>
+                              <td className="num-tabular" style={{ textAlign: 'right', fontWeight: 'bold', color: col }}>{chute.utilization}%</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
@@ -2047,7 +2354,7 @@ export default function App() {
                     <div className="p-3 text-center bg-[#101622]/30 rounded-md">
                       <div className="mono text-[9px] text-[var(--muted)] mb-1">TỔNG TRỌNG LƯỢNG</div>
                       <div className="disp font-extrabold text-xl text-[var(--green)]">
-                        {totalWeight.toLocaleString()} kg
+                        {Math.ceil(totalWeight).toLocaleString()} kg
                       </div>
                     </div>
                   </div>
@@ -2096,7 +2403,7 @@ export default function App() {
                           <div className="grid grid-cols-2 gap-2 text-[10px] text-[var(--muted)]">
                             <div>Bưu cục có hàng: <b className="text-white mono">{zInfo.activeChutesCount}/{zInfo.totalChutes}</b></div>
                             <div>Tổng lượng đơn: <b className="text-white mono">{zInfo.zoneOrders.toLocaleString()}</b></div>
-                            <div className="col-span-2 mt-1 border-t border-white/5 pt-1">Tổng trọng lượng: <b className="text-white mono">{zInfo.zoneWeight.toLocaleString()} kg</b></div>
+                            <div className="col-span-2 mt-1 border-t border-white/5 pt-1">Tổng trọng lượng: <b className="text-white mono">{zInfo.zoneWeight.toFixed(1).replace('.', ',')} Tấn</b></div>
                           </div>
                         </div>
                       );
@@ -2112,10 +2419,41 @@ export default function App() {
                   inboundData={inboundData}
                   linehaulData={linehaulData}
                   arrivalData={arrivalData}
+                  truckEtaData={truckEtaData}
                   selectedInboundDate={selectedInboundDate}
                   setSelectedInboundDate={setSelectedInboundDate}
                   loading={loading}
                   fetchAndUpdateData={fetchAndUpdateData}
+                  lastUpdate={lastUpdate}
+                  lastUpdateObj={lastUpdateObj}
+                />
+              </div>
+            )}
+
+            {activeTab === 'heatmap' && (
+              <div className="w-full h-full overflow-y-auto space-y-4 px-1 pt-2 pb-6">
+                <HeatmapDashboard
+                  loading={loading}
+                  fetchAndUpdateData={fetchAndUpdateData}
+                  lastUpdate={lastUpdate}
+                  heatmapData={heatmapRows}
+                />
+              </div>
+            )}
+
+            {activeTab === 'kpi' && (
+              <div className="w-full h-full overflow-y-auto space-y-4 px-1 pt-2 pb-6">
+                <KpiDashboard
+                  inboundData={inboundData}
+                  linehaulData={linehaulData}
+                  arrivalData={arrivalData}
+                  truckEtaData={truckEtaData}
+                  selectedInboundDate={selectedInboundDate}
+                  setSelectedInboundDate={setSelectedInboundDate}
+                  loading={loading}
+                  fetchAndUpdateData={fetchAndUpdateData}
+                  lastUpdate={lastUpdate}
+                  lastUpdateObj={lastUpdateObj}
                 />
               </div>
             )}
@@ -2132,9 +2470,17 @@ export default function App() {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
               <span>Inbound</span>
             </div>
+            <div className={`mobile-nav-item ${activeTab === 'heatmap' ? 'active' : ''}`} onClick={() => setActiveTab('heatmap')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span>Heatmap</span>
+            </div>
             <div className={`mobile-nav-item ${activeTab === 'top10' ? 'active' : ''}`} onClick={() => setActiveTab('top10')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
               <span>Top 10</span>
+            </div>
+            <div className={`mobile-nav-item ${activeTab === 'kpi' ? 'active' : ''}`} onClick={() => setActiveTab('kpi')}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              <span>KPI</span>
             </div>
             <div className={`mobile-nav-item ${activeTab === 'stats' ? 'active' : ''}`} onClick={() => setActiveTab('stats')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -2147,10 +2493,88 @@ export default function App() {
       {/* ── Critical Alert Ticker ── */}
       <div className="absolute bottom-0 left-0 right-0 h-8 bg-[var(--accent)] text-[#0a0e14] flex items-center z-30 mono font-bold text-[12px] tracking-[0.05em] overflow-hidden">
         <div className="bg-[#0a0e14] text-[var(--accent)] px-4 h-full flex items-center shrink-0 z-10 font-bold border-r border-[var(--accent)]">
-          ● CRITICAL ALERT
+          {currentView === 'inbound' ? '● INBOUND ALERT' : '● CRITICAL ALERT'}
         </div>
         <div className="ticker-track">{tickerText}</div>
       </div>
+
+      {/* ── Interactive Detail Modal Drawer ── */}
+      {selectedDetailRack && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm transition-all" onClick={() => setSelectedDetailRack(null)}>
+          <div className="w-full max-w-md bg-[#0f172a] border-l border-white/10 p-6 flex flex-col gap-6 text-white shadow-2xl relative" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-[#00e5ff]/10 border border-[#00e5ff]/30 flex items-center justify-center text-[#00e5ff] font-bold mono text-xl shadow-[0_0_15px_rgba(0,229,255,0.2)]">
+                  {selectedDetailRack.item.areaId}
+                </div>
+                <div>
+                  <h2 className="font-bold text-lg text-white">{selectedDetailRack.item.name || selectedDetailRack.item.areaId}</h2>
+                  <p className="text-xs text-slate-400">Phân khu Zone {selectedDetailRack.item.zone || 1} — Chi tiết ô chia chọn</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedDetailRack(null)} className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all text-sm font-bold">
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-white/[0.03] border border-white/5 p-4 rounded-xl">
+                  <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">Sản lượng hiện tại</div>
+                  <div className="text-2xl font-bold mono text-[#00e5ff]">
+                    {selectedDetailRack.detail?.current?.toLocaleString() || 0} <span className="text-xs font-normal text-slate-400">đơn</span>
+                  </div>
+                </div>
+
+                <div className="bg-white/[0.03] border border-white/5 p-4 rounded-xl">
+                  <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">Tỷ lệ lấp đầy</div>
+                  <div className="text-2xl font-bold mono text-[#10b981]">
+                    {selectedDetailRack.detail?.utilization || 0}%
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white/[0.03] border border-white/5 p-4 rounded-xl space-y-3">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">Sức chứa tối đa:</span>
+                  <span className="mono font-bold">{selectedDetailRack.detail?.capacity || 780} đơn</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">Còn trống:</span>
+                  <span className="mono font-bold text-[#38bdf8]">{selectedDetailRack.detail?.remaining || 0} đơn</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">Tổng trọng lượng:</span>
+                  <span className="mono font-bold text-[#f59e0b]">{(selectedDetailRack.detail?.weight || 0).toLocaleString()} kg</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-slate-400">Trạng thái vận hành:</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    (selectedDetailRack.detail?.utilization || 0) >= 95 ? 'bg-red-500/20 text-red-400 border border-red-500/30' :
+                    (selectedDetailRack.detail?.utilization || 0) >= 80 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                    'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  }`}>
+                    {(selectedDetailRack.detail?.utilization || 0) >= 95 ? 'QUÁ TẢI (CRITICAL)' :
+                     (selectedDetailRack.detail?.utilization || 0) >= 80 ? 'CẢNH BÁO (WARNING)' : 'BÌNH THƯỜNG (OK)'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-white/[0.03] border border-white/5 p-4 rounded-xl space-y-2">
+                <div className="text-xs font-bold text-slate-300">Tuyến / Bưu cục kết nối:</div>
+                <div className="text-sm font-semibold text-[#60a5fa]">{selectedDetailRack.item.name}</div>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Đảm bảo tiến độ luồng hàng nhập & phát theo cam kết thời gian SLA vận hành HUB.
+                </p>
+              </div>
+            </div>
+
+            <button onClick={() => setSelectedDetailRack(null)} className="w-full py-3 bg-[#00e5ff]/10 hover:bg-[#00e5ff]/20 border border-[#00e5ff]/30 text-[#00e5ff] font-bold rounded-xl transition-all text-xs tracking-wider uppercase">
+              Đóng Cửa Sổ
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
