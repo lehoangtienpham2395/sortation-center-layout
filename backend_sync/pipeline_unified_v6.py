@@ -1202,7 +1202,7 @@ def main():
     df['outbound_scanDate'] = df.apply(lambda r: r.get('outbound_scanDate') or ob_map.get(r['tracking'], ''), axis=1)
     df['arrival_scanDate']  = df.apply(lambda r: r.get('arrival_scanDate') or arr_scan_map.get(r['tracking'], ''), axis=1)
     df['trip_code']         = df.apply(lambda r: r.get('trip_code') or ob_trip_map.get(r['tracking']) or ib_trip_map.get(r['tracking']) or arr_trip_map.get(r['tracking'], ''), axis=1)
-    df['transporing_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transporing_time', '') if tc else '')
+    df['transporing_time']  = df.apply(lambda r: (ttm.get(r['trip_code'], {}).get('transporing_time', '') if r.get('trip_code') else '') or r.get('arrival_scanDate') or arr_scan_map.get(r['tracking'], ''), axis=1)
     df['transported_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transported_time', '') if tc else '')
 
     df['Pickup_station'] = df.apply(lambda r: arr_station_map.get(r['tracking']) or ib_station_map.get(r['tracking']) or r.get('Pickup_station') or 'BN HUB', axis=1)
