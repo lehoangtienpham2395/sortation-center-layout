@@ -1177,8 +1177,8 @@ def main():
 
     df['Pickup_station'] = df.apply(lambda r: arr_station_map.get(r['tracking']) or ib_station_map.get(r['tracking']) or r.get('Pickup_station') or 'BN HUB', axis=1)
 
-    # Waterfall Next_station Lookup (Khớp Backlog destination_site_name / Dispatch_code -> Station_2 trong valid.csv)
-    def resolve_waterfall_next_station(r):
+    # Waterfall Next_station, Round, Rank Lookup (Mapping Dispatch_code / sortcode trong valid.csv -> Station_2, Round, Rank)
+    def resolve_waterfall_next_station_round_rank(r):
         wb = str(r['tracking']).strip()
         sc = str(r.get('Dispatch_code') or '').strip().upper()
         ob_st = ob_next_station_map.get(wb, '')
@@ -1186,34 +1186,72 @@ def main():
         pk_st = str(r.get('Pickup_station') or '').strip()
         bl_st = backlog_dest_map.get(wb, '')
 
-        # 1. Tra cứu trực tiếp mã Dispatch_code / sortcode trong valid.csv -> Cột Station_2
-        if sc and dict_station.get(sc):
-            return dict_station[sc]
-        if sc and len(sc) >= 6 and dict_station.get(sc[:6]):
-            return dict_station[sc[:6]]
+        next_st = ''
+        rnd = ''
+        rnk = ''
 
-        # 2. Tra cứu bưu cục đích từ Backlog Report (destination_site_name) -> Station_1 -> Station_2
-        if bl_st and dict_station.get(bl_st.upper()):
-            return dict_station[bl_st.upper()]
-        if bl_st and bl_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
-            return bl_st
+        # 1. Tra cứu trực tiếp mã Dispatch_code / sortcode trong valid.csv -> Cột Station_2, Round, Rank
+        if sc and dict_station.get(sc):
+            next_st = dict_station[sc]
+            rnd     = dict_round.get(sc, '')
+            rnk     = dict_rank.get(sc, '')
+        elif sc and len(sc) >= 6 and dict_station.get(sc[:6]):
+            next_st = dict_station[sc[:6]]
+            rnd     = dict_round.get(sc[:6], '')
+            rnk     = dict_rank.get(sc[:6], '')
+
+        # 2. Tra cứu bưu cục đích từ Backlog Report (destination_site_name) -> Station_1 / Station_2 -> Station_2, Round, Rank
+        if not next_st and bl_st:
+            bl_upper = bl_st.upper()
+            if dict_station.get(bl_upper):
+                next_st = dict_station[bl_upper]
+                rnd     = dict_round.get(bl_upper, '')
+                rnk     = dict_rank.get(bl_upper, '')
+            elif bl_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
+                next_st = bl_st
 
         # 3. Outbound nextSite (Trạm đích quét xuất kho)
-        if ob_st and ob_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
-            return dict_station.get(ob_st.upper(), ob_st)
+        if not next_st and ob_st:
+            ob_upper = ob_st.upper()
+            if dict_station.get(ob_upper):
+                next_st = dict_station[ob_upper]
+                rnd     = dict_round.get(ob_upper, '')
+                rnk     = dict_rank.get(ob_upper, '')
+            elif ob_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
+                next_st = ob_st
 
         # 4. Next_station quy hoạch nếu khớp với Station_1 trong valid.csv -> Station_2
-        if disp_st and disp_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
-            return dict_station.get(disp_st.upper(), disp_st)
+        if not next_st and disp_st:
+            disp_upper = disp_st.upper()
+            if dict_station.get(disp_upper):
+                next_st = dict_station[disp_upper]
+                rnd     = dict_round.get(disp_upper, '')
+                rnk     = dict_rank.get(disp_upper, '')
 
-        # 5. Luồng Miền Bắc xuất phát từ HN/BN/HD/HY -> Gán về BN HUB
+        # 5. Luồng Miền Bắc xuất phát từ HN/BN/HD/HY/BN HUB -> Gán về BN HUB
         pk_upper = pk_st.upper()
-        if 'HN ' in pk_upper or 'BN ' in pk_upper or 'HD ' in pk_upper or 'HY ' in pk_upper:
-            return 'BN HUB'
-        return pk_st if pk_st and pk_st.lower() not in ('nan', 'none', '') else 'Chưa phân vùng'
+        if 'HN ' in pk_upper or 'BN ' in pk_upper or 'HD ' in pk_upper or 'HY ' in pk_upper or 'BN HUB' in pk_upper:
+            if not next_st:
+                next_st = 'BN HUB'
+            if not rnd:
+                rnd = 'Linehaul'
+            if not rnk:
+                rnk = 'BN HUB'
 
+        # Fallback nếu không tìm thấy
+        if not next_st:
+            next_st = disp_st if disp_st else 'Chưa phân vùng'
+        if not rnd:
+            rnd = r.get('Round') or 'Shuttle'
+        if not rnk:
+            rnk = r.get('Rank') or rnd or 'FC'
 
-    df['Next_station'] = df.apply(resolve_waterfall_next_station, axis=1)
+        return pd.Series([next_st, rnd, rnk])
+
+    mapped_res = df.apply(resolve_waterfall_next_station_round_rank, axis=1)
+    df['Next_station'] = mapped_res[0]
+    df['Round']        = mapped_res[1]
+    df['Rank']         = mapped_res[2]
 
     df['status_sys']   = df['status_sys'].apply(clean_status_sys)
 
