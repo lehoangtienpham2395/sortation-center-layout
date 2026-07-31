@@ -560,7 +560,10 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
             send_net = str(row.get('sendNetworkName') or row.get('startName') or '').strip()
             trip     = str(row.get('shipmentNo') or row.get('taskNo') or '').strip().upper()
             orders_cnt = int(row.get('loadscanwaybillnum') or row.get('waybillNum') or 0)
-            if orders_cnt <= 0 or not trip:
+
+            # 🎯 CHỈ LẤY CÁC XE ĐANG CHẠY ĐẾN HCM HUB (INBOUND TRUCK ETA)
+            # BỎ QUA các xe xuất phát từ HCM HUB đi tỉnh (Outbound Linehaul)
+            if orders_cnt <= 0 or not trip or 'HCM' in send_net.upper() or ('HCM' not in arr_net.upper() and arr_net != ''):
                 continue
 
             key = (send_net, trip)
@@ -607,6 +610,9 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
             trip = str(row.get('shipmentNo') or row.get('taskNo') or '').strip().upper()
             send_net = str(row.get('sendNetworkName') or row.get('startName') or '').strip()
             arr_net  = str(row.get('arriveNetworkName') or row.get('endName') or '').strip()
+
+            if 'HCM' in send_net.upper():
+                continue  # Bỏ qua các xe shuttle xuất phát từ HCM HUB
 
             key = (send_net, trip)
             if key not in seen_keys:
