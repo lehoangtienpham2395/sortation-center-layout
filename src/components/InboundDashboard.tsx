@@ -330,8 +330,14 @@ export default function InboundDashboard({
         }
       }
 
-      // 🛑 BIỂU ĐỒ ORDERS STATUS CHỈ TÍNH CÁC ĐƠN FORECAST (KHÔNG TÍNH CÁC ĐƠN INBOUND CÓ PICKUP_STATION LÀ BN HUB TRUNG CHUYỂN)
-      if (isForecastMember && !isNorth) {
+      const arrOpDate = normalizeDateStr(d['op_date_arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Arrival'] || (d['Arrival Time'] ? getOperatingDateFromTimestamp(d['Arrival Time']) : ''));
+      const pkOpDate  = normalizeDateStr(d['op_date_pickup']  || d['Ngày vận hành_Pickup']  || d['Ngy vn hnh_Pickup']  || '');
+      const inbOpDate = normalizeDateStr(d['op_date_inbound'] || d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound'] || '');
+
+      const isOpMatch = isForecastMember || (normFcDate === normActiveDate) || (arrOpDate === normActiveDate) || (pkOpDate === normActiveDate) || (inbOpDate === normActiveDate);
+
+      // 🛑 BIỂU ĐỒ ORDERS STATUS TÍNH TẤT CẢ CÁC ĐƠN THUỘC CA VẬN HÀNH HÔM NAY (KHÔNG TÍNH ĐƠN MIỀN BẮC TRUNG CHUYỂN)
+      if (isOpMatch && !isNorth) {
         const wfStatus = getWaterfallStatus(d);
         if (stages[wfStatus]) {
           stages[wfStatus].orders += vol;

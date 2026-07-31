@@ -546,11 +546,16 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
     except Exception as e:
         print(f"   ⚠️ PostgreSQL truck_eta aggregation error: {e}")
 
-    # ── 2. JFS API: Bổ sung các chuyến Linehaul & Shuttle thực tế từ TMS (orders_count > 0) ──
+    # ── 2. JFS API: Bổ sung các chuyến Linehaul & Shuttle thực tế từ TMS (chưa nhập bãi/chưa hoàn thành) ──
     try:
         start_2d = (datetime.datetime.now(tz_vn) - datetime.timedelta(days=2)).strftime('%Y-%m-%d 00:00:00')
         lh_recs = pull_linehaul_consol(session, token_mgr, start_2d, end_plus1)
         for row in lh_recs:
+            actual_arr = str(row.get('actualArrivalTime') or row.get('unloadEndTime') or '').strip()
+            state = row.get('shipmentState')
+            if actual_arr or state == 4:
+                continue  # Bỏ qua các chuyến Linehaul đã hoàn thành / đã nhập kho
+
             arr_net  = str(row.get('arriveNetworkName') or row.get('endName') or '').strip()
             send_net = str(row.get('sendNetworkName') or row.get('startName') or '').strip()
             trip     = str(row.get('shipmentNo') or row.get('taskNo') or '').strip().upper()
@@ -563,7 +568,9 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
                 seen_keys.add(key)
                 p_dep = str(row.get('plannedDepartureTime') or row.get('scanTime') or '').strip()
                 actual_dep = str(row.get('actualDepartureTime') or row.get('trackOutTime') or '').strip()
+                predict_arr = str(row.get('predictArriveTime') or row.get('plannedArrivalTime') or '').strip()
                 ref_t = actual_dep or p_dep
+                op_d = get_op_date(predict_arr) if predict_arr else (get_op_date(ref_t) if ref_t else today)
                 wt_kg = float(row.get('loadpackageweight') or 0)
                 trucks.append({
                     "send_network":     send_net,
@@ -573,12 +580,12 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
                     "weight_kg":        wt_kg,
                     "weight_ton":       round(wt_kg / 1000.0, 3),
                     "planned_departure":p_dep,
-                    "planned_arrival":  str(row.get('plannedArrivalTime') or row.get('predictArriveTime') or '').strip(),
+                    "planned_arrival":  predict_arr,
                     "actual_departure": actual_dep,
-                    "eta":              str(row.get('predictArriveTime') or '').strip(),
+                    "eta":              predict_arr,
                     "rank":             "Linehaul",
                     "status":           "in_transit" if actual_dep else "loading",
-                    "op_date":          today,
+                    "op_date":          op_d,
                 })
     except Exception as e:
         print(f"   ⚠️ pull_linehaul_consol API call skipped/failed: {e}")
