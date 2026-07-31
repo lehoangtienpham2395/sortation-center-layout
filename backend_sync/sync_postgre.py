@@ -511,6 +511,7 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
               AND (flag_arrival = 1 OR flag_pickup = 1)
               AND (is_completed = FALSE OR is_active = 1)
               AND COALESCE(NULLIF(TRIM(trip_code), ''), 'DIRECT') NOT IN ('DIRECT', '', 'None')
+              AND UPPER(COALESCE(NULLIF(TRIM(pickup_station), ''), '')) NOT IN ('BN HUB', 'BNI001H')
             GROUP BY send_net, trip_c
             HAVING COUNT(*) > 0
             ORDER BY vol DESC;
