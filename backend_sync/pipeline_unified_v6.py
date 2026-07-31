@@ -38,6 +38,7 @@ URL_FORECAST      = 'https://gw.jtcargo.com.vn/networkmanagement/omsWaybill/ship
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _cfg_candidates = [
+    r'C:\Users\lehoa\OneDrive\Desktop\testing\Exportauto\Valid',
     r'C:\Users\lehoa\OneDrive\Desktop\testing\config',
     r'C:\Users\lehoa\OneDrive\Desktop\testing',
     os.path.join(BASE_DIR, 'config'),
