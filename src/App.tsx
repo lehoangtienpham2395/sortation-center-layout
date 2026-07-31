@@ -938,11 +938,11 @@ export default function App() {
     };
     window.addEventListener('resize', handleResize);
 
-    // Smart Polling 10s & Tab Focus: Chỉ kiểm tra file siêu nhẹ last_update.json (300B) mỗi 10s
-    // và kiểm tra ngay lập tức khi người dùng chuyển lại tab (focus / visibilitychange)
+    // Smart Polling 5s & Tab Focus: Ép buộc chống cache 100% khi đọc last_update.json
+    // Tự động làm mới dữ liệu liên tục 5s/lần trong nền mà KHÔNG CẦN F5 hay bấm bất kỳ nút nào.
     const checkAndPoll = async () => {
       try {
-        const t = Date.now();
+        const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
         const fetchOpts: RequestInit = {
           cache: 'no-store',
           headers: {
@@ -950,27 +950,27 @@ export default function App() {
             'Pragma': 'no-cache'
           }
         };
-        let res = await fetch(getApiUrl('last_update.json'), fetchOpts);
+        const baseUrl = getApiUrl('last_update.json');
+        const cacheBustUrl = baseUrl.includes('?') ? `${baseUrl}&t=${t}` : `${baseUrl}?t=${t}`;
+        let res = await fetch(cacheBustUrl, fetchOpts);
         if (!res.ok && getApiUrl('').startsWith('./')) {
           res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, fetchOpts);
         }
         if (res.ok) {
           const d = await res.json();
           const newTime = d?.last_update || null;
-          if (newTime && lastUpdateTimestampRef.current && newTime !== lastUpdateTimestampRef.current) {
-            console.log(`[Smart Polling] Dữ liệu đã cập nhật (${lastUpdateTimestampRef.current} -> ${newTime}). Tải lại dữ liệu mới...`);
+          if (!lastUpdateTimestampRef.current || (newTime && newTime !== lastUpdateTimestampRef.current)) {
+            console.log(`[Auto Sync] Dữ liệu mới phát hiện (${lastUpdateTimestampRef.current} -> ${newTime}). Đang tự động cập nhật...`);
             lastUpdateTimestampRef.current = newTime;
             await fetchAndUpdateData();
-          } else if (newTime) {
-            lastUpdateTimestampRef.current = newTime;
           }
         }
       } catch (e) {
-        console.error('[Smart Polling] Lỗi kiểm tra last_update:', e);
+        console.error('[Auto Sync] Lỗi kiểm tra last_update:', e);
       }
     };
 
-    const intervalId = setInterval(checkAndPoll, 10000);
+    const intervalId = setInterval(checkAndPoll, 5000);
     const handleFocus = () => { checkAndPoll(); };
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleFocus);
