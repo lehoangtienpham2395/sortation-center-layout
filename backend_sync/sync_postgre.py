@@ -184,10 +184,83 @@ def validate_payload_contract(records: list, dataset_name: str) -> None:
         print(f"   ⚠️  [Data Contract] {dataset_name:<30}: {invalid_count} records non-canonical status")
 
 
+def save_and_get_daily_snapshots(conn, today_date_str: str, rot_hom_truoc_val: int,
+                                   rot_hom_nay_val: int, rot_ton_dong_val: int,
+                                   lookback_days: int = 60) -> dict:
+    """
+    Tự động chốt số Forecast theo TỪNG NGÀY VẬN HÀNH — KHÔNG cần hardcode tay
+    bất kỳ ngày nào trong source code (đây là nguyên nhân gốc của bug "chốt rồi
+    vẫn tăng": trước đây phải tay gõ từng ngày vào dict, ngày nào quên gõ thì
+    ngày đó không bao giờ được chốt, cứ tính live mãi mãi).
+
+    Cơ chế: mỗi lần sync (30 phút/lần) chỉ UPSERT đúng 1 dòng của `today_date_str`
+    với số liệu LIVE mới nhất. Vì KHÔNG dòng nào khác bị đụng tới, nên ngay khi
+    một ngày không còn là "hôm nay" nữa (đã sang ngày mới), dòng của ngày đó tự
+    động đứng yên vĩnh viễn — tự nhiên trở thành "đã chốt" mà không cần bất kỳ
+    thao tác thủ công/hardcode nào. Áp dụng tự động cho MỌI ngày, kể cả các ngày
+    trong tương lai xa mà không ai từng biết tới.
+    """
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS enriched.daily_kpi_snapshot (
+                op_date       DATE PRIMARY KEY,
+                rot_hom_truoc INT NOT NULL DEFAULT 0,
+                rot_hom_nay   INT NOT NULL DEFAULT 0,
+                rot_ton_dong  INT NOT NULL DEFAULT 0,
+                updated_at    TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            );
+        """)
+        conn.commit()
+
+        # Chỉ UPSERT đúng dòng của HÔM NAY. Các ngày khác (đã kết thúc) không
+        # nằm trong câu lệnh này nên không bao giờ bị ghi đè nữa.
+        cur.execute("""
+            INSERT INTO enriched.daily_kpi_snapshot (op_date, rot_hom_truoc, rot_hom_nay, rot_ton_dong, updated_at)
+            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+            ON CONFLICT (op_date) DO UPDATE SET
+                rot_hom_truoc = EXCLUDED.rot_hom_truoc,
+                rot_hom_nay   = EXCLUDED.rot_hom_nay,
+                rot_ton_dong  = EXCLUDED.rot_ton_dong,
+                updated_at    = CURRENT_TIMESTAMP;
+        """, (today_date_str, rot_hom_truoc_val, rot_hom_nay_val, rot_ton_dong_val))
+        conn.commit()
+
+        cur.execute("""
+            SELECT op_date, rot_hom_truoc, rot_hom_nay, rot_ton_dong
+            FROM enriched.daily_kpi_snapshot
+            WHERE op_date >= %s::date - (%s || ' days')::interval
+            ORDER BY op_date;
+        """, (today_date_str, lookback_days))
+        rows = cur.fetchall()
+        cur.close()
+
+        snapshots = {}
+        for op_date_val, rht, rhn, rtd in rows:
+            date_str = op_date_val.strftime('%Y-%m-%d')
+            snapshots[date_str] = {
+                "rot_hom_truoc": int(rht or 0),
+                "rot_hom_nay":   int(rhn or 0),
+                "rot_ton_dong":  int(rtd or 0),
+                "is_frozen":     date_str != today_date_str,
+            }
+        print(f"   📌 Daily snapshot: tự động chốt/đọc {len(snapshots)} ngày (không hardcode) — hôm nay '{today_date_str}' vẫn live, các ngày khác đã khoá cố định.")
+        return snapshots
+    except Exception as e:
+        print(f"   ⚠️  Không thể lưu/đọc daily_kpi_snapshot: {e}")
+        return {}
+
+
 def get_or_create_daily_baseline(conn, today_date_str: str) -> int:
     """
     Tạo và đọc baseline rot_hom_truoc tại 06:00 AM mỗi ngày trong PostgreSQL.
     Bảng: enriched.daily_baseline_snapshot
+
+    ⚠️ QUAN TRỌNG: hàm này PHẢI chỉ tính COUNT(*) và ghi 1 LẦN DUY NHẤT cho mỗi
+    op_date. Các lần gọi sau (mỗi 30 phút, suốt cả ngày) chỉ được ĐỌC LẠI giá trị
+    đã lưu, KHÔNG được tính lại/ghi đè — nếu không baseline sẽ "trôi" theo mỗi
+    lần sync thay vì đứng yên như tên hàm mô tả (đây chính là bug đã gặp: số liệu
+    tưởng đã chốt nhưng vẫn tăng đều mỗi lần đồng bộ).
     """
     try:
         cur = conn.cursor()
@@ -200,6 +273,20 @@ def get_or_create_daily_baseline(conn, today_date_str: str) -> int:
         """)
         conn.commit()
 
+        # BƯỚC 1: Đọc trước — nếu op_date này ĐÃ có baseline rồi thì trả về ngay,
+        # KHÔNG tính lại, KHÔNG ghi đè.
+        cur.execute("""
+            SELECT rot_hom_truoc_count FROM enriched.daily_baseline_snapshot
+            WHERE op_date = %s::date;
+        """, (today_date_str,))
+        existing = cur.fetchone()
+        if existing is not None:
+            cur.close()
+            print(f"   📌 Baseline Rớt Hôm Trước (ĐÃ CHỐT sẵn cho ngày {today_date_str}, đọc lại — không tính lại): {existing[0]:,} đơn")
+            return existing[0]
+
+        # BƯỚC 2: Chưa có baseline cho ngày này (lần sync đầu tiên sau 06:00 AM)
+        # → tính 1 lần duy nhất rồi ghi cố định.
         cur.execute("""
             SELECT COUNT(*) FROM enriched.dispatch_enriched
             WHERE (inbound_scandate IS NULL)
@@ -215,15 +302,32 @@ def get_or_create_daily_baseline(conn, today_date_str: str) -> int:
         """, (today_date_str, today_date_str))
         calc_val = cur.fetchone()[0] or 0
 
+        # ON CONFLICT DO NOTHING: đề phòng race-condition nếu 2 tiến trình sync
+        # cùng chạy đúng lúc giao ca — chỉ bản ghi đầu tiên được giữ, không ai
+        # được phép ghi đè sau đó.
         cur.execute("""
             INSERT INTO enriched.daily_baseline_snapshot (op_date, rot_hom_truoc_count)
             VALUES (%s, %s)
-            ON CONFLICT (op_date) DO UPDATE SET rot_hom_truoc_count = EXCLUDED.rot_hom_truoc_count;
+            ON CONFLICT (op_date) DO NOTHING
+            RETURNING rot_hom_truoc_count;
         """, (today_date_str, calc_val))
+        row = cur.fetchone()
         conn.commit()
+
+        if row is not None:
+            final_val = row[0]
+            print(f"   📌 Baseline Rớt Hôm Trước (CHỐT MỚI lúc {today_date_str} 06:00 AM, ĐÃ PICKUP, CHƯA INBOUND): {final_val:,} đơn")
+        else:
+            # Trường hợp cực hiếm: 1 process khác vừa insert xong trước ta 1 nhịp -> đọc lại giá trị họ đã chốt
+            cur.execute("""
+                SELECT rot_hom_truoc_count FROM enriched.daily_baseline_snapshot
+                WHERE op_date = %s::date;
+            """, (today_date_str,))
+            final_val = (cur.fetchone() or [calc_val])[0]
+            print(f"   📌 Baseline Rớt Hôm Trước (process khác vừa chốt trước, đọc lại cho ngày {today_date_str}): {final_val:,} đơn")
+
         cur.close()
-        print(f"   📌 Baseline Rớt Hôm Trước (chốt 06:00 AM cho ngày {today_date_str}, ĐÃ PICKUP, CHƯA INBOUND): {calc_val:,} đơn")
-        return calc_val
+        return final_val
     except Exception as e:
         print(f"   ⚠️  Không thể lưu/đọc baseline snapshot: {e}")
         return 0
@@ -646,7 +750,10 @@ def sync_postgre_to_dashboard():
         yesterday_str = ''
 
     # ── Cờ Rớt đơn (Nguyên tắc 6) ────────────────────────────────
-    # Baseline chốt 06:00 AM cho Inbound Dashboard (bất biến)
+    # rot_hom_truoc_baseline: GIỮ LẠI biến này để tương thích ngược (dùng ở vài
+    # chỗ khác trong script), nhưng việc CHỐT thật sự giờ nằm ở
+    # save_and_get_daily_snapshots() gọi bên dưới, sau khi rot_hom_truoc/nay/ton_dong
+    # đã được tính xong từ vòng lặp chính.
     rot_hom_truoc_baseline = 0
     try:
         conn_b = get_pg_conn()
@@ -984,18 +1091,28 @@ def sync_postgre_to_dashboard():
         v for h, v in hourly.items()
         if h >= '06:00'  # từ 06:00 sáng (đầu ca vận hành)
     )
-    daily_snapshots = {
-        "2026-07-29": {
-            "rot_hom_truoc": 1412,
-            "rot_hom_nay": 10908,
-            "is_frozen": True
-        },
-        today: {
-            "rot_hom_truoc": rot_hom_truoc_baseline if rot_hom_truoc_baseline > 0 else rot_hom_truoc,
-            "rot_hom_nay": rot_hom_nay,
-            "is_frozen": False
+    # 🎯 TỰ ĐỘNG chốt + đọc snapshot cho MỌI ngày — không hardcode bất kỳ ngày nào.
+    # Đây chính là điểm sửa cho bug "chốt rồi vẫn tăng": trước đây dict này bị gõ
+    # tay từng ngày, ngày nào quên gõ thì mãi mãi không được chốt.
+    try:
+        conn_snap = get_pg_conn()
+        daily_snapshots = save_and_get_daily_snapshots(
+            conn_snap, today,
+            rot_hom_truoc_val=rot_hom_truoc,
+            rot_hom_nay_val=rot_hom_nay,
+            rot_ton_dong_val=rot_ton_dong,
+        )
+        conn_snap.close()
+    except Exception as _es:
+        print(f"   ⚠️ Daily snapshot error: {_es}")
+        daily_snapshots = {
+            today: {
+                "rot_hom_truoc": rot_hom_truoc_baseline if rot_hom_truoc_baseline > 0 else rot_hom_truoc,
+                "rot_hom_nay":   rot_hom_nay,
+                "rot_ton_dong":  rot_ton_dong,
+                "is_frozen":     False,
+            }
         }
-    }
     last_update_obj = {
         "last_update":           now_display,
         "active_date":           today,
