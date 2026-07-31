@@ -1013,8 +1013,9 @@ def sync_postgre_to_dashboard():
         op_date_pick = get_op_date(pk_t)   if pk_t   else ''
         op_date_arr  = get_op_date(arr_t)  if arr_t  else ''
 
-        final_op_date_inb = op_inb_2 if (is_reb and op_inb_2) else (op_date_inb if inb_t else (op_date_arr or op_date_pick or op_date_fc or today))
-        final_inb_hour    = inb_t_2[11:16] if (is_reb and len(inb_t_2) >= 16) else (inb_t[11:16] if len(inb_t) >= 16 else (arr_t[11:16] if len(arr_t) >= 16 else '00:00'))
+        actual_op_date_inb = op_inb_2 if (is_reb and op_inb_2) else (op_date_inb if inb_t else '')
+        final_op_date_inb  = actual_op_date_inb or (op_date_arr or op_date_pick or op_date_fc or today)
+        final_inb_hour     = inb_t_2[11:16] if (is_reb and len(inb_t_2) >= 16) else (inb_t[11:16] if len(inb_t) >= 16 else '')
 
         # Mốc chuẩn để đưa đơn vào đúng ngày vận hành của nó trong inbound.json (KHÔNG dồn các ngày cũ vào yesterday):
         if has_in or is_reb:
@@ -1044,7 +1045,7 @@ def sync_postgre_to_dashboard():
 
             key_ib = (
                 station, pk_st_raw or 'BN HUB', in_status,
-                final_op_date_inb, fc_op, pk_op, ar_op,
+                actual_op_date_inb, fc_op, pk_op, ar_op,
                 final_inb_hour, fc_hr, pk_hr, ar_hr,
                 drop_type, trip, transp_t, transpd_t, is_reb
             )
