@@ -1100,17 +1100,20 @@ def main():
                 'transporing_time': '', 'transported_time': '',
             })
 
-    ob_map, ob_next_station_map = {}, {}
+    ob_map, ob_next_station_map, ob_trip_map = {}, {}, {}
     for r in raw.get('outbound', []):
         wb = clean_wb(r.get('billNo') or r.get('waybillNo'))
         st = str(r.get('scanDate') or r.get('scanTime') or r.get('inputDate') or '').strip()
         next_st = str(r.get('upOrNextStation') or r.get('nextSite') or r.get('nextSiteName') or r.get('nextNetworkName') or r.get('next_network') or r.get('receiveSite') or r.get('receiveSiteName') or '').strip()
+        trip = clean_wb(r.get('transferCode') or r.get('transfercode') or r.get('billTaskCode') or r.get('taskCode'))
         if wb:
             if not st: st = '2026-07-30 00:00:00'
             if wb not in ob_map or st >= ob_map[wb]:
                 ob_map[wb] = st
                 if next_st:
                     ob_next_station_map[wb] = next_st
+                if trip:
+                    ob_trip_map[wb] = trip
 
     arr_scan_map, arr_trip_map, arr_station_map = {}, {}, {}
     for r in raw.get('arrival', []):
@@ -1198,7 +1201,7 @@ def main():
     df['inbound_scanDate']  = df.apply(lambda r: r.get('inbound_scanDate') or ib_scan_map.get(r['tracking'], ''), axis=1)
     df['outbound_scanDate'] = df.apply(lambda r: r.get('outbound_scanDate') or ob_map.get(r['tracking'], ''), axis=1)
     df['arrival_scanDate']  = df.apply(lambda r: r.get('arrival_scanDate') or arr_scan_map.get(r['tracking'], ''), axis=1)
-    df['trip_code']         = df.apply(lambda r: r.get('trip_code') or ib_trip_map.get(r['tracking']) or arr_trip_map.get(r['tracking'], ''), axis=1)
+    df['trip_code']         = df.apply(lambda r: r.get('trip_code') or ob_trip_map.get(r['tracking']) or ib_trip_map.get(r['tracking']) or arr_trip_map.get(r['tracking'], ''), axis=1)
     df['transporing_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transporing_time', '') if tc else '')
     df['transported_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transported_time', '') if tc else '')
 
