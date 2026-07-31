@@ -588,9 +588,7 @@ def pull_arrival(session, arr_tmgr, ib_headers, start_str, end_str):
 
     def fetch_one(st):
         pl = {'beginDate': start_str, 'endDate': end_str,
-              'nextNetworkCode': 'HCM004H', 'nextStationCode': 'HCM004H',
-              'nextStationCodeId': 11888, 'nextStationCodeName': 'HCM HUB',
-              'nextStationCodeTypeId': 335, 'countryId': '1', 'size': 1000,
+              'countryId': '1', 'size': 1000,
               'sqlCode': 'realtime_sca_sen_mon_dtl',
               'scanSiteCode': st['code'], 'scanSiteCodeId': '',
               'scanSiteCodeName': st['name'], 'scanSiteCodeTypeId': ''}
