@@ -932,6 +932,13 @@ export default function App() {
   const lastUpdateTimestampRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const BUILD_VER = '20260731_1838_FORCE_RELOAD';
+    if (localStorage.getItem('app_build_ver') !== BUILD_VER) {
+      localStorage.setItem('app_build_ver', BUILD_VER);
+      window.location.reload();
+      return;
+    }
+
     fetchAndUpdateData();
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
