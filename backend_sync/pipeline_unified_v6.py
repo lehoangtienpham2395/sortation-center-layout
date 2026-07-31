@@ -38,14 +38,25 @@ URL_FORECAST      = 'https://gw.jtcargo.com.vn/networkmanagement/omsWaybill/ship
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _cfg_candidates = [
-    r'C:\Users\lehoa\OneDrive\Desktop\testing',
     r'C:\Users\lehoa\OneDrive\Desktop\testing\config',
+    r'C:\Users\lehoa\OneDrive\Desktop\testing',
     os.path.join(BASE_DIR, 'config'),
     os.path.join(BASE_DIR, 'backend_sync', 'config'),
     os.path.join(BASE_DIR, 'sortation-center-layout', 'backend_sync', 'config'),
+    os.path.abspath('.'),
+    os.path.abspath('backend_sync'),
+    os.path.abspath('data')
 ]
+
+def find_config_file(filename):
+    for d in _cfg_candidates:
+        p = os.path.join(d, filename)
+        if os.path.exists(p):
+            return p
+    return ''
+
 CONFIG_DIR  = next((p for p in _cfg_candidates if os.path.exists(os.path.join(p, 'inboundheaders.json'))), _cfg_candidates[0])
-VALID_FILE  = os.path.join(CONFIG_DIR, 'valid.csv')
+VALID_FILE  = find_config_file('valid.csv') or os.path.join(CONFIG_DIR, 'valid.csv')
 OUTPUT_FILE = os.path.join(BASE_DIR, 'full_multi_source_7days_v6.csv')
 
 # Network tuning
@@ -929,7 +940,8 @@ def main():
     # ── Phase 3: Xu ly Dispatch ──────────────────────────────
     print('\nPhase 3 -- Xu ly Dispatch...')
 
-    vp  = VALID_FILE if os.path.exists(VALID_FILE) else os.path.join(CONFIG_DIR, 'valid.csv')
+    vp  = find_config_file('valid.csv') or (VALID_FILE if os.path.exists(VALID_FILE) else os.path.join(CONFIG_DIR, 'valid.csv'))
+    print(f'   📌 Read valid.csv from: {vp} (Exists: {os.path.exists(vp)})')
     valid_codes  = set()
     dict_station = {}
     dict_area    = {}
