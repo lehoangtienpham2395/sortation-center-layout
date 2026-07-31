@@ -506,11 +506,15 @@ export default function App() {
     setLoading(true);
     const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
     const padStr = (n: number) => String(n).padStart(2, '0');
+    const currentLoadTime = `${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}:${padStr(nowVN.getSeconds())} ${padStr(nowVN.getDate())}/${padStr(nowVN.getMonth() + 1)}/${nowVN.getFullYear()}`;
+    setLastUpdate(currentLoadTime);
+    lastUpdateTimestampRef.current = currentLoadTime;
+
     const todayOpDate = getOperatingDateFromTimestamp(
       `${nowVN.getFullYear()}-${padStr(nowVN.getMonth() + 1)}-${padStr(nowVN.getDate())} ${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}`
     );
 
-    // 1. Fetch last_update.json ngay lập tức để cập nhật mốc thời gian Update tức thì
+    // 1. Fetch last_update.json ngay lập tức để lấy daily_snapshots & metadata
     try {
       const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
       const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
@@ -520,9 +524,7 @@ export default function App() {
       }
       if (res.ok) {
         const d = await res.json();
-        if (d && d.last_update) {
-          setLastUpdate(d.last_update);
-          lastUpdateTimestampRef.current = d.last_update;
+        if (d) {
           setLastUpdateObj(d);
         }
       }

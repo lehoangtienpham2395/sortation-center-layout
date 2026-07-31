@@ -510,6 +510,7 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
             WHERE flag_inbound = 0 
               AND (flag_arrival = 1 OR flag_pickup = 1)
               AND (is_completed = FALSE OR is_active = 1)
+              AND COALESCE(NULLIF(TRIM(trip_code), ''), 'DIRECT') NOT IN ('DIRECT', '', 'None')
             GROUP BY send_net, trip_c
             HAVING COUNT(*) > 0
             ORDER BY vol DESC;
@@ -526,7 +527,7 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
                 key = (send_st, trip)
                 seen_keys.add(key)
                 avg_pkg_wt = (float(wt_kg) / float(vol)) if vol else 0
-                calc_wt_ton = round((float(wt_kg) * 10.0) / 1000.0, 3) if (send_st == 'BN HUB' or avg_pkg_wt < 2.0) else round(float(wt_kg) / 1000.0, 3)
+                calc_wt_ton = round(float(wt_kg) / 1000.0, 3)
                 trucks.append({
                     "send_network":     send_st,
                     "arrive_network":   arr_st,
@@ -545,7 +546,43 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
     except Exception as e:
         print(f"   ⚠️ PostgreSQL truck_eta aggregation error: {e}")
 
-    # ── 2. JFS API: Bổ sung các chuyến shuttle có đơn thực tế (orders_count > 0) ──
+    # ── 2. JFS API: Bổ sung các chuyến Linehaul & Shuttle thực tế từ TMS (orders_count > 0) ──
+    try:
+        start_2d = (datetime.datetime.now(tz_vn) - datetime.timedelta(days=2)).strftime('%Y-%m-%d 00:00:00')
+        lh_recs = pull_linehaul_consol(session, token_mgr, start_2d, end_plus1)
+        for row in lh_recs:
+            arr_net  = str(row.get('arriveNetworkName') or row.get('endName') or '').strip()
+            send_net = str(row.get('sendNetworkName') or row.get('startName') or '').strip()
+            trip     = str(row.get('shipmentNo') or row.get('taskNo') or '').strip().upper()
+            orders_cnt = int(row.get('loadscanwaybillnum') or row.get('waybillNum') or 0)
+            if orders_cnt <= 0 or not trip:
+                continue
+
+            key = (send_net, trip)
+            if key not in seen_keys:
+                seen_keys.add(key)
+                p_dep = str(row.get('plannedDepartureTime') or row.get('scanTime') or '').strip()
+                actual_dep = str(row.get('actualDepartureTime') or row.get('trackOutTime') or '').strip()
+                ref_t = actual_dep or p_dep
+                wt_kg = float(row.get('loadpackageweight') or 0)
+                trucks.append({
+                    "send_network":     send_net,
+                    "arrive_network":   arr_net,
+                    "trip_code":        trip,
+                    "orders_count":     orders_cnt,
+                    "weight_kg":        wt_kg,
+                    "weight_ton":       round(wt_kg / 1000.0, 3),
+                    "planned_departure":p_dep,
+                    "planned_arrival":  str(row.get('plannedArrivalTime') or row.get('predictArriveTime') or '').strip(),
+                    "actual_departure": actual_dep,
+                    "eta":              str(row.get('predictArriveTime') or '').strip(),
+                    "rank":             "Linehaul",
+                    "status":           "in_transit" if actual_dep else "loading",
+                    "op_date":          today,
+                })
+    except Exception as e:
+        print(f"   ⚠️ pull_linehaul_consol API call skipped/failed: {e}")
+
     try:
         today_start = today + ' 00:00:00'
         recs = pull_shuttle(session, token_mgr, today_start, end_plus1)
@@ -556,7 +593,7 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
 
             orders_cnt = int(row.get('loadscanwaybillnum') or row.get('waybillNum') or 0)
             if orders_cnt <= 0:
-                continue  # Bỏ qua 423 khung lịch trình rỗng không có đơn
+                continue  # Bỏ qua các chuyến rỗng không có đơn
 
             p_dep = str(row.get('plannedDepartureTime') or row.get('createTime') or '').strip()
             actual_dep = str(row.get('actualDepartureTime') or row.get('appDepartureTime') or '').strip()
