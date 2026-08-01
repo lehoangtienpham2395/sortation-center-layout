@@ -130,6 +130,8 @@ export default function InboundDashboard({
   fetchAndUpdateData,
   lastUpdate,
   lastUpdateObj,
+  kpiSummary,
+  ordersStatus,
 }: InboundDashboardProps) {
   const [hoveredStatus, setHoveredStatus] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -508,11 +510,15 @@ export default function InboundDashboard({
     bnHubLinehaulOrders = activeSnap.bn_hub_orders ?? bnHubLinehaulOrders;
   }
 
-  // 🎯 Tổng Forecast nhất quán theo công thức chuẩn:
-  // Total = Rớt hôm nay + Rớt hôm trước + Tồn đọng lâu ngày + Linehaul BN HUB
-  let totalForecast = forecastRotHomNay + forecastRotHomTruoc + forecastTonDongLau + bnHubLinehaulOrders;
+  // 🎯 Rebuild 4 Module (Forecast, Orders Status, Update, Truck ETA) theo Micro-JSON v2.0
+  const finalRotHomTruoc = kpiSummary?.rot_hom_truoc ?? (lastUpdateObj?.rot_hom_truoc ?? (activeSnap?.rot_hom_truoc ?? forecastRotHomTruoc));
+  const finalRotHomNay   = kpiSummary?.rot_hom_nay   ?? forecastRotHomNay;
+  const totalForecast    = kpiSummary?.forecast_total ?? (finalRotHomTruoc + finalRotHomNay);
 
-
+  const totalInbound     = ordersStatus?.inbound     ?? (kpiSummary?.inbound_orders ?? stages['Inbound'].orders);
+  const totalInTransit   = ordersStatus?.transporting  ?? stages['Transporting'].orders;
+  const totalPickupDone  = ordersStatus?.pickup_done   ?? stages['Pickup Done'].orders;
+  const totalCreated     = ordersStatus?.created       ?? stages['Created'].orders;
 
   if (totalInTransitOrders > 0 && stages['Transporting'].weight === 0) {
     stages['Transporting'].weight = totalInTransitWeight;
@@ -626,12 +632,6 @@ export default function InboundDashboard({
       }
     }
   });
-
-  // Synchronize orders status card strictly with actual forecast stages from inboundData
-  const totalInbound = stages['Inbound'].orders;
-  const totalInTransit = stages['Transporting'].orders;
-  const totalPickupDone = stages['Pickup Done'].orders;
-  const totalCreated = stages['Created'].orders;
 
   const totalBase = totalInbound + totalInTransit + totalPickupDone + totalCreated;
 
@@ -1071,11 +1071,11 @@ export default function InboundDashboard({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.88rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '5px', marginTop: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Rớt hôm trước:</span>
-                <strong style={{ color: '#FC6C26', fontSize: '1.05rem' }}><NumberTicker value={forecastRotHomTruoc} /></strong>
+                <strong style={{ color: '#FC6C26', fontSize: '1.05rem' }}><NumberTicker value={finalRotHomTruoc} /></strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Rớt hôm nay:</span>
-                <strong style={{ color: '#ffa066', fontSize: '1.05rem' }}><NumberTicker value={forecastRotHomNay} /></strong>
+                <strong style={{ color: '#ffa066', fontSize: '1.05rem' }}><NumberTicker value={finalRotHomNay} /></strong>
               </div>
             </div>
           </div>
