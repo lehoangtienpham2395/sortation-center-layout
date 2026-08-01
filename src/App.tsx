@@ -338,9 +338,9 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
       const rawSt      = item['status'] ?? item['Trng thi'] ?? item['Trạng thái'] ?? item['status_sys'] ?? undefined;
       const statusRaw  = normalizeStatus(rawSt);
 
-      let weight     = Number(weightRaw) || 0;
+      let weight     = parseFloat(String(weightRaw ?? 0)) || 0;
       if (item['weight_kg'] !== undefined && item['weight_ton'] === undefined) {
-        weight       = Number(item['weight_kg']) / 1000.0;
+        weight       = parseFloat(String(item['weight_kg'])) / 1000.0;
       }
       const capacity = Number(capRaw) || 780;
 
