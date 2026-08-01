@@ -1107,6 +1107,10 @@ export default function InboundDashboard({
                 <span>Rớt hôm nay:</span>
                 <strong style={{ color: '#ffa066', fontSize: '1.05rem' }}><NumberTicker value={finalRotHomNay} /></strong>
               </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Linehaul BN HUB (+36h):</span>
+                <strong style={{ color: '#38bdf8', fontSize: '1.05rem' }}><NumberTicker value={effectiveKpiSummary?.linehaul_bn_hub ?? bnHubLinehaulOrders} /></strong>
+              </div>
             </div>
           </div>
           <div className="kpi-glow"></div>
