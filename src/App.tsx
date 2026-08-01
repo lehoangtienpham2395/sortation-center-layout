@@ -778,7 +778,10 @@ export default function App() {
       // 🎯 BỘ LỌC 2: LOẠI (Outbound / Backlog / Volume)
       let isForSelectedType = false;
       if (selectedType === 'Outbound') {
-        isForSelectedType = (row.type === 'Outbound' || rowStatus === 'Outbound') && statusMatched;
+        // Mode Outbound: Chỉ nhận các dòng có status/type là 'Outbound' VÀ nút status 'Outbound' hoặc 'Total' được chọn
+        const isOutboundStatus = row.type === 'Outbound' || rowStatus === 'Outbound';
+        const isOutboundChecked = selectedStatuses.includes('Outbound') || selectedStatuses.includes('Total') || selectedStatuses.length === 0;
+        isForSelectedType = isOutboundStatus && isOutboundChecked;
       } else if (selectedType === 'Backlog') {
         isForSelectedType = (row.type === 'Backlog' || (row.type === 'Inventory' && rowStatus !== 'Outbound')) && statusMatched;
       } else if (selectedType === 'Inventory' || selectedType === 'Volume') {
