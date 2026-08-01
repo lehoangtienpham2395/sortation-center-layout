@@ -763,22 +763,25 @@ export default function App() {
       const key = row.areaId;
       if (!key) return;
 
-      const dateMatched = !effectiveDate || isDateMatch(row.date, effectiveDate);
-      if (!dateMatched) return;
-
       const rowStatus = row.status ? String(row.status) : '';
 
-      // 🎯 LỌC THEO TRẠNG THÁI (selectedStatuses): Chỉ nhận các dòng thuộc trạng thái được chọn (Inbound, Transporting, Created...)
+      // 🎯 BỘ LỌC 1: NGÀY VẬN HÀNH (Operating Date)
+      // Đối với Backlog: Bao gồm TỒN ĐỌNG CẢ NGÀY CŨ VÀ NGÀY MỚI
+      // Đối với Outbound & Volume: Lọc theo đúng Ngày vận hành chọn
+      const isBacklogRow = row.type === 'Backlog' || (row.type === 'Inventory' && rowStatus === 'Inbound');
+      const dateMatched = (selectedType === 'Backlog' && isBacklogRow) ? true : (!effectiveDate || isDateMatch(row.date, effectiveDate));
+      if (!dateMatched) return;
+
+      // 🎯 BỘ LỌC 3: TRẠNG THÁI (Inbound, Transporting, Pickup Done, Created, Outbound)
       const statusMatched = !rowStatus || selectedStatuses.includes(rowStatus);
 
-      // 1. Phân loại lọc theo selectedType chuẩn nghiệp vụ
+      // 🎯 BỘ LỌC 2: LOẠI (Outbound / Backlog / Volume)
       let isForSelectedType = false;
       if (selectedType === 'Outbound') {
-        isForSelectedType = row.type === 'Outbound' || rowStatus === 'Outbound';
+        isForSelectedType = (row.type === 'Outbound' || rowStatus === 'Outbound') && statusMatched;
       } else if (selectedType === 'Backlog') {
         isForSelectedType = (row.type === 'Backlog' || (row.type === 'Inventory' && rowStatus !== 'Outbound')) && statusMatched;
       } else if (selectedType === 'Inventory' || selectedType === 'Volume') {
-        // Volume = Dự kiến Forecast (Inventory: Inbound/Transporting/Created) + Backlog
         isForSelectedType = (row.type === 'Inventory' || row.type === 'Backlog') && statusMatched;
       }
 
