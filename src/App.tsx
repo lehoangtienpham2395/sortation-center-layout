@@ -693,6 +693,33 @@ export default function App() {
     setLoading(false);
   };
 
+  // 🎯 TỰ ĐỘNG RE-FETCH MICRO-JSON MỖI KHI NGƯỜI DÙNG ĐỔI NGÀY TRÊN DATEPICKER
+  useEffect(() => {
+    if (!selectedInboundDate) return;
+    let isMounted = true;
+    (async () => {
+      try {
+        const [kpiSummary, hourlyTrend, ordersStatus, truckEtaMicro, originStation] = await Promise.all([
+          fetchMicroJson<any>('inbound_kpi_summary.json', selectedInboundDate),
+          fetchMicroJson<any>('inbound_hourly_trend.json', selectedInboundDate),
+          fetchMicroJson<any>('inbound_orders_status.json', selectedInboundDate),
+          fetchMicroJson<any>('inbound_truck_eta.json', selectedInboundDate),
+          fetchMicroJson<any>('inbound_origin_station.json', selectedInboundDate),
+        ]);
+        if (isMounted) {
+          if (kpiSummary) setMicroKpiSummary(kpiSummary);
+          if (hourlyTrend) setMicroHourlyTrend(hourlyTrend);
+          if (ordersStatus) setMicroOrdersStatus(ordersStatus);
+          if (truckEtaMicro) setMicroTruckEta(truckEtaMicro);
+          if (originStation) setMicroOriginStation(originStation);
+        }
+      } catch (microErr) {
+        console.warn('Error refetching micro-JSON for selectedInboundDate:', selectedInboundDate, microErr);
+      }
+    })();
+    return () => { isMounted = false; };
+  }, [selectedInboundDate]);
+
   // Derived state/Filtering effect for Layout Racks & Control Center
   useEffect(() => {
     if (rawSheetRows.length === 0) return;
