@@ -19,7 +19,7 @@ export function useRealtimeSyncV2(serverUrl: string = 'ws://127.0.0.1:8088') {
 
   useEffect(() => {
     let ws: WebSocket | null = null;
-    let timer: NodeJS.Timeout | null = null;
+    let timer: any = null;
 
     const connect = () => {
       try {
