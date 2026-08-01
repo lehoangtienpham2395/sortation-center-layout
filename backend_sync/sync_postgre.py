@@ -1388,7 +1388,7 @@ def sync_postgre_to_dashboard():
         conn_clean = get_pg_conn()
         cur_clean  = conn_clean.cursor()
         cur_clean.execute("DELETE FROM raw.scan_logs WHERE scan_time < CURRENT_DATE - INTERVAL '30 days';")
-        cur_clean.execute("DELETE FROM enriched.dispatch_enriched WHERE create_time < CURRENT_DATE - INTERVAL '30 days';")
+        cur_clean.execute("DELETE FROM enriched.dispatch_enriched WHERE created_time < CURRENT_DATE - INTERVAL '30 days';")
         conn_clean.commit()
         cur_clean.close()
         conn_clean.close()
