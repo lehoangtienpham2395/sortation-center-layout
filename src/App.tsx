@@ -1978,7 +1978,7 @@ export default function App() {
                           ['Mã ô', hoveredRack.areaId, 'var(--cyan)'],
                           ['Tên', hoveredRack.name, '#f1f5f9'],
                           ['Số lượng', `${hoveredRack.current}/${hoveredRack.capacity} Đơn hàng`, '#f1f5f9'],
-                          ['Trọng lượng', `${((hoveredRack.weight || 0) / 1000.0).toFixed(1).replace('.', ',')} Tấn`, '#f1f5f9'],
+                          ['Trọng lượng', `${((hoveredRack.weight || 0) > 0 && (hoveredRack.weight || 0) < 0.1) ? (hoveredRack.weight || 0).toFixed(3).replace('.', ',') : (hoveredRack.weight || 0).toFixed(1).replace('.', ',')} Tấn`, '#f1f5f9'],
                           [displayUtilizationLabelLc, `${hoveredRack.utilization}%`, UTILCOL[hoveredRack.bucket]]
                         ].map(([k, v, c]) => (
                           <div key={k} className="flex justify-between" style={{ marginBottom: '4px' }}>
