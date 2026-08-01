@@ -105,21 +105,7 @@ def clean_ts_str(val) -> str:
         return str(val).strip()
 
 # ════════════════════════════════════════════════════════════════════
-# MAIN
-# ════════════════════════════════════════════════════════════════════
-tz_vn     = ZoneInfo("Asia/Ho_Chi_Minh")
-now_vn    = datetime.datetime.now(tz_vn)
-today     = now_vn.strftime("%Y-%m-%d")
-yesterday = (now_vn - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-tomorrow  = (now_vn + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-now_sys   = now_vn.strftime("%Y-%m-%d %H:%M:%S")
-start_str = (now_vn - datetime.timedelta(days=7)).strftime("%Y-%m-%d 00:00:00")
-end_str   = now_vn.strftime("%Y-%m-%d %H:%M:%S")
-end_plus1 = (now_vn + datetime.timedelta(days=1)).strftime("%Y-%m-%d 23:59:59")
-
-
-# ════════════════════════════════════════════════════════════════════
-# HELPERS
+# HELPERS & UNIFIED OPERATING DATE CONTRACT (6:00 AM BOUNDARY)
 # ════════════════════════════════════════════════════════════════════
 
 def get_op_date(dt_str: str) -> str:
@@ -133,6 +119,19 @@ def get_op_date(dt_str: str) -> str:
         return dt.strftime('%Y-%m-%d')
     except Exception:
         return str(dt_str)[:10]
+
+tz_vn     = ZoneInfo("Asia/Ho_Chi_Minh")
+now_vn    = datetime.datetime.now(tz_vn)
+now_sys   = now_vn.strftime("%Y-%m-%d %H:%M:%S")
+
+# UNIFIED OPERATING DATE CONTRACT: today & yesterday follow exact 6:00 AM cycle
+today     = get_op_date(now_sys)
+yesterday = (datetime.datetime.strptime(today, "%Y-%m-%d") - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+tomorrow  = (datetime.datetime.strptime(today, "%Y-%m-%d") + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+
+start_str = (now_vn - datetime.timedelta(days=7)).strftime("%Y-%m-%d 00:00:00")
+end_str   = now_vn.strftime("%Y-%m-%d %H:%M:%S")
+end_plus1 = (now_vn + datetime.timedelta(days=1)).strftime("%Y-%m-%d 23:59:59")
 
 
 def clean_status_sys(status_raw) -> str:
