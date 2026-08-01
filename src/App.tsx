@@ -740,7 +740,8 @@ export default function App() {
     };
 
     const isDateMatch = (rDate: string, sDate: string) => {
-      if (!rDate || !sDate) return true;
+      if (!sDate) return true;
+      if (!rDate) return false;
       const normR = normalizeDateStr(rDate);
       const normS = normalizeDateStr(sDate);
       if (sDate.includes('..')) {
