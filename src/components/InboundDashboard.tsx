@@ -292,8 +292,6 @@ export default function InboundDashboard({
 
   const isHistoricalDate = normActiveDate < todayOpDate;
 
-  const activeSnap = lastUpdateObj?.daily_snapshots?.[normActiveDate];
-
   let forecastTonDongLau = 0;
   let bnHubLinehaulOrdersFromInbound = 0;
 
