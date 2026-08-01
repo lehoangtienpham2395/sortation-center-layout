@@ -935,10 +935,14 @@ def sync_postgre_to_dashboard():
         DROP_TYPE_YESTERDAY = 'Rớt hôm trước'
         DROP_TYPE_AGED      = 'Tồn đọng lâu ngày'
 
-        stn = str(r.get('next_station', '')).strip()
-        is_canceled = (stn == 'Đã hủy' or r.get('status_sys') == 'Đã hủy')
-        # Rớt đơn: CHƯA NHẬP KHO, CHƯA XUẤT KHO, không hủy, không rebound
-        is_rot = (not has_in) and (not has_out) and (not is_canceled) and (not is_reb)
+        is_north = (
+            pk_st.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
+            stn.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
+            rank == 'BN HUB' or 
+            round == 'Linehaul'
+        )
+        # Rớt đơn: CHƯA NHẬP KHO, CHƯA XUẤT KHO, không hủy, không rebound, KHÔNG Thuộc Miền Bắc/Linehaul BN HUB
+        is_rot = (not has_in) and (not has_out) and (not is_canceled) and (not is_reb) and (not is_north)
 
         ref_rot_date = str(r.get('op_date_pickup') or get_op_date(cr_t) or op_date or '')[:10]
         if is_rot:
