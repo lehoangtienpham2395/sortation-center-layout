@@ -12,7 +12,7 @@ export interface LivePayload {
   }>;
 }
 
-export function useRealtimeSyncV2(serverUrl: string = 'ws://127.0.0.1:8088') {
+export function useRealtimeSyncV2(overrideUrl?: string) {
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const [liveData, setLiveData] = useState<LivePayload | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string>('');
@@ -21,13 +21,17 @@ export function useRealtimeSyncV2(serverUrl: string = 'ws://127.0.0.1:8088') {
     let ws: WebSocket | null = null;
     let timer: any = null;
 
+    // Dynamically derive WebSocket URL from window.location.hostname for LAN / WAN support
+    const hostname = typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : '127.0.0.1';
+    const serverUrl = overrideUrl || `ws://${hostname}:8088`;
+
     const connect = () => {
       try {
         ws = new WebSocket(serverUrl);
 
         ws.onopen = () => {
           setIsConnected(true);
-          console.log('🟢 [REALTIME V2] Connected to Live Server ws://127.0.0.1:8088');
+          console.log(`🟢 [REALTIME V2] Connected to Live Server ${serverUrl}`);
         };
 
         ws.onmessage = (event) => {
@@ -44,7 +48,6 @@ export function useRealtimeSyncV2(serverUrl: string = 'ws://127.0.0.1:8088') {
 
         ws.onclose = () => {
           setIsConnected(false);
-          // Auto reconnect after 5 seconds
           timer = setTimeout(connect, 5000);
         };
 
@@ -64,7 +67,7 @@ export function useRealtimeSyncV2(serverUrl: string = 'ws://127.0.0.1:8088') {
       if (ws) ws.close();
       if (timer) clearTimeout(timer);
     };
-  }, [serverUrl]);
+  }, [overrideUrl]);
 
   return { isConnected, liveData, lastSyncTime };
 }

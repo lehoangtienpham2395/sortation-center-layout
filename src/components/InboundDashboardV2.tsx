@@ -281,7 +281,7 @@ export default function InboundDashboard({
     return `${yr}-${mo}-${dy}`;
   };
 
-  const { isConnected, liveData } = useRealtimeSyncV2('ws://127.0.0.1:8088');
+  const { isConnected, liveData } = useRealtimeSyncV2();
 
   // Đã BỎ HISTORICAL_SNAPSHOTS hardcode tay từng ngày — đây chính là nguyên nhân gốc
   // của bug "chốt rồi vẫn tăng": mỗi ngày phải tự gõ tay 1 dòng, ngày nào quên gõ thì

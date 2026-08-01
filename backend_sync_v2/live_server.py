@@ -1,6 +1,6 @@
 """
-LIVE SERVER V2 -- WebSocket Realtime Broadcast Server (Port 8088)
-Broadcasts real-time KPI and update events to all connected Web clients.
+LIVE SERVER V2 -- WebSocket Realtime Broadcast Server (Host: 0.0.0.0, Port 8088)
+Broadcasts real-time KPI and update events to all connected Web clients across LAN & Localhost.
 """
 
 import sys
@@ -38,7 +38,6 @@ async def handler(websocket, path=None):
     await register(websocket)
     try:
         async for message in websocket:
-            # Echo or handle incoming client pings
             if message == "ping":
                 await websocket.send(json.dumps({"type": "pong", "time": datetime.datetime.now().strftime("%H:%M:%S")}))
     except websockets.ConnectionClosedError:
@@ -67,9 +66,9 @@ async def broadcast_loop():
         await asyncio.sleep(2)
 
 async def main():
-    host = "127.0.0.1"
+    host = "0.0.0.0"
     port = 8088
-    print(f"🚀 [LIVE SERVER V2] WebSocket Broadcast Server starting on ws://{host}:{port}...")
+    print(f"🚀 [LIVE SERVER V2] WebSocket Broadcast Server starting on ws://0.0.0.0:{port} (Accessible via Localhost & LAN)...")
     
     server = await websockets.serve(handler, host, port)
     await asyncio.gather(server.wait_closed(), broadcast_loop())

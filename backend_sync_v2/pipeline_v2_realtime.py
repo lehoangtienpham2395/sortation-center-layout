@@ -1,8 +1,8 @@
 """
-PIPELINE V2 REALTIME -- Micro-Polling Delta Engine
-Queries JFS API for recent scans in the last 15 minutes.
+PIPELINE V2 REALTIME -- Micro-Polling Delta Engine (Unified 3-Path JSON Sync)
+Queries JFS API for recent scans in the last 60 minutes.
 Upserts directly to PostgreSQL logistics_db.
-Exports updated JSON payloads to public/data/ for Web UI.
+Exports updated JSON payloads to ALL active JSON directories (public/data, data, src/data).
 """
 
 import sys
@@ -25,7 +25,7 @@ from pipeline_unified_v6 import (
     URL_SCAN, SCAN_PAGE_SIZE, ACCOUNT, PASSWORD
 )
 
-def run_realtime_delta_sync(minutes_back=15):
+def run_realtime_delta_sync(minutes_back=60):
     t_start = time.time()
     now_vn = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=7)))
     start_dt = now_vn - datetime.timedelta(minutes=minutes_back)
@@ -75,7 +75,7 @@ def run_realtime_delta_sync(minutes_back=15):
         'routeName': headers.get('routeName', '')
     }
 
-    print("   Fetching Inbound delta scans...")
+    print(f"   Fetching Inbound delta scans ({minutes_back}m lookback)...")
     recs = []
     page = 1
     while True:
@@ -119,7 +119,7 @@ def run_realtime_delta_sync(minutes_back=15):
 
         conn.commit()
 
-    # Recalculate today's snapshot
+    # Recalculate today's snapshot strictly filtering out North / Linehaul orders
     prev_date = (datetime.datetime.strptime(op_today, '%Y-%m-%d') - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
     
     cur.execute('''
@@ -169,7 +169,7 @@ def run_realtime_delta_sync(minutes_back=15):
 
     conn.commit()
 
-    # Query all active records for today and yesterday to update public/data/inbound.json
+    # Query active records for today & yesterday to update json payloads
     cur.execute('''
         SELECT 
             tracking, status_sys, created_time, pickup_station, orders_num, orders_weight,
@@ -182,13 +182,8 @@ def run_realtime_delta_sync(minutes_back=15):
     inb_rows = cur.fetchall()
 
     json_records = []
-    inbound_orders_count = 0
-
     for trk, st_sys, cr_tm, pk_st, ord_n, ord_w, in_dt, out_dt, op_cr, op_in, op_pk, rk, rd, next_st in inb_rows:
         status_norm = 'Inbound' if (st_sys == 'Inbound' or in_dt is not None) else (st_sys or 'Created')
-        if status_norm == 'Inbound':
-            inbound_orders_count += 1
-
         json_records.append({
             'tracking': trk,
             'status': status_norm,
@@ -206,52 +201,48 @@ def run_realtime_delta_sync(minutes_back=15):
             'round': rd or ''
         })
 
-    # Save to public/data/inbound.json and data/inbound.json
-    inbound_json_path = os.path.join(ROOT_DIR, "public", "data", "inbound.json")
-    with open(inbound_json_path, 'w', encoding='utf-8') as f:
-        json.dump(json_records, f, ensure_ascii=False)
-
-    data_inbound_json_path = os.path.join(ROOT_DIR, "data", "inbound.json")
-    if os.path.exists(os.path.dirname(data_inbound_json_path)):
-        with open(data_inbound_json_path, 'w', encoding='utf-8') as f:
-            json.dump(json_records, f, ensure_ascii=False)
-
-    # Save to public/data/last_update.json
-    last_update_path = os.path.join(ROOT_DIR, "public", "data", "last_update.json")
-    if os.path.exists(last_update_path):
-        with open(last_update_path, 'r', encoding='utf-8') as f:
-            lu = json.load(f)
-    else:
-        lu = {}
-
     timestamp_str = now_vn.strftime("%H:%M:%S %d/%m/%Y")
-    lu["last_update"] = timestamp_str
-    lu["rot_hom_truoc"] = rot_hom_truoc
-    lu["rot_hom_nay"] = rot_hom_nay
-    lu["total_records"] = len(json_records)
-
-    daily_snaps = lu.get("daily_snapshots", {})
-    daily_snaps[op_today] = {
+    
+    # Unified last_update object
+    lu = {
+        "last_update": timestamp_str,
         "rot_hom_truoc": rot_hom_truoc,
         "rot_hom_nay": rot_hom_nay,
-        "rot_ton_dong": rot_ton_dong,
-        "is_frozen": False
+        "total_records": len(json_records),
+        "daily_snapshots": {
+            op_today: {
+                "rot_hom_truoc": rot_hom_truoc,
+                "rot_hom_nay": rot_hom_nay,
+                "rot_ton_dong": rot_ton_dong,
+                "is_frozen": False
+            }
+        },
+        "contract_version": "2.0.0"
     }
-    lu["daily_snapshots"] = daily_snaps
 
-    with open(last_update_path, 'w', encoding='utf-8') as f:
-        json.dump(lu, f, ensure_ascii=False, indent=2)
+    # Write to ALL 3 directory locations simultaneously
+    json_targets = [
+        os.path.join(ROOT_DIR, "public", "data"),
+        os.path.join(ROOT_DIR, "data"),
+        os.path.join(ROOT_DIR, "src", "data")
+    ]
 
-    data_lu_path = os.path.join(ROOT_DIR, "data", "last_update.json")
-    if os.path.exists(os.path.dirname(data_lu_path)):
-        with open(data_lu_path, 'w', encoding='utf-8') as f:
+    for target_dir in json_targets:
+        os.makedirs(target_dir, exist_ok=True)
+        
+        # Save inbound.json
+        with open(os.path.join(target_dir, "inbound.json"), 'w', encoding='utf-8') as f:
+            json.dump(json_records, f, ensure_ascii=False)
+            
+        # Save last_update.json
+        with open(os.path.join(target_dir, "last_update.json"), 'w', encoding='utf-8') as f:
             json.dump(lu, f, ensure_ascii=False, indent=2)
 
     conn.close()
 
     elapsed = time.time() - t_start
-    print(f"✅ [VER 2 REALTIME DELTA] Done in {elapsed:.2f}s | Updated JSONs ({len(json_records):,} records) | Timestamp: {timestamp_str} | Today Rớt hôm trước: {rot_hom_truoc}, Rớt hôm nay: {rot_hom_nay}")
+    print(f"✅ [VER 2 REALTIME DELTA] Done in {elapsed:.2f}s | Updated 3 JSON paths ({len(json_records):,} records) | Timestamp: {timestamp_str} | Today Rớt hôm trước: {rot_hom_truoc}, Rớt hôm nay: {rot_hom_nay}")
     return True, updated_count
 
 if __name__ == "__main__":
-    run_realtime_delta_sync(15)
+    run_realtime_delta_sync(60)
