@@ -315,8 +315,8 @@ export default function InboundDashboard({
       const isInbound = status === 'Inbound' || status === 'Đã nhập kho';
       let isForecastMember = false;
 
-      // A. Rớt hôm nay: normFcDate === normActiveDate
-      if (normFcDate === normActiveDate) {
+      // A. Rớt hôm nay: normFcDate === normActiveDate CHƯA INBOUND VÀ CHƯA OUTBOUND
+      if (normFcDate === normActiveDate && !isInbound && status !== 'Outbound') {
         if (isNorth) {
           bnHubLinehaulOrdersFromInbound += vol;
         } else {
