@@ -756,12 +756,12 @@ export default function InboundDashboard({
     }
   });
 
-  // Option A: Chỉ đếm chuyến xe chính trong ngày (chuyến có >= 5 đơn), đếm tối thiểu 1 xe nếu tổng đơn > 0
+  // Option A: Chỉ đếm chuyến xe chính trong ngày (chuyến có >= 10 đơn), đếm tối thiểu 1 xe nếu tổng đơn > 0
   const allSendingFCs = Object.values(fcMetrics)
     .map(item => {
       let mainVehiclesCount = 0;
       item.tripCounts.forEach((count) => {
-        if (count >= 5) {
+        if (count >= 10) {
           mainVehiclesCount += 1;
         }
       });

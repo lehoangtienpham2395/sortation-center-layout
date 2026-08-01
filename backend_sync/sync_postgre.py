@@ -1262,7 +1262,7 @@ def sync_postgre_to_dashboard():
     origin_map = {}
     for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items():
         pk_clean = (pk or st).strip()
-        if not pk_clean or pk_clean.upper() == 'BN HUB':
+        if not pk_clean:
             continue
         is_match = (in_op == today) or (ar_op == today) or (pk_op == today) or (fc_op == today)
         if is_match:
