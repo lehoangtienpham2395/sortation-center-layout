@@ -235,11 +235,14 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                   const dateStr = `${viewYear}-${pad(viewMonth)}-${pad(dayNum)}`;
                   const isSelected = activeDay === dateStr;
                   const isToday = todayStr === dateStr;
+                  const isFuture = dateStr > todayStr;
 
                   // CSS classes: Perfect 1:1 Square Cells with Rounded Corners
                   let cellClasses = 'aspect-square w-full flex items-center justify-center text-center text-[13px] font-extrabold leading-none rounded-md transition-all font-outfit ';
 
-                  if (isSelected) {
+                  if (isFuture) {
+                    cellClasses += 'text-slate-600 opacity-40 cursor-not-allowed pointer-events-none ';
+                  } else if (isSelected) {
                     cellClasses += 'bg-[#a3e635] text-black font-black z-10 shadow-sm ';
                   } else if (isToday) {
                     cellClasses += 'border border-[#a3e635] text-[#a3e635] font-black hover:bg-[#a3e635]/15 ';
@@ -251,7 +254,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({
                     <button
                       key={dayNum}
                       type="button"
-                      onClick={() => handleDayClick(dateStr)}
+                      disabled={isFuture}
+                      onClick={() => !isFuture && handleDayClick(dateStr)}
                       className={cellClasses}
                       style={{ fontFamily: "'Outfit', sans-serif" }}
                     >

@@ -478,7 +478,7 @@ export default function InboundDashboard({
     });
   }
 
-  const incomingVehicles = Object.values(groupedStationVehicles)
+  let incomingVehicles = Object.values(groupedStationVehicles)
     .filter(v => v.orders > 0)
     .sort((a, b) => b.orders - a.orders);
 
@@ -510,15 +510,27 @@ export default function InboundDashboard({
     bnHubLinehaulOrders = activeSnap.bn_hub_orders ?? bnHubLinehaulOrders;
   }
 
-  // 🎯 Rebuild 4 Module (Forecast, Orders Status, Update, Truck ETA) theo Micro-JSON v2.0
-  const finalRotHomTruoc = kpiSummary?.rot_hom_truoc ?? (lastUpdateObj?.rot_hom_truoc ?? (activeSnap?.rot_hom_truoc ?? forecastRotHomTruoc));
-  const finalRotHomNay   = kpiSummary?.rot_hom_nay   ?? forecastRotHomNay;
-  const totalForecast    = kpiSummary?.forecast_total ?? (finalRotHomTruoc + finalRotHomNay);
+  const isFutureDate = activeDate > todayOpDate;
 
-  const totalInbound     = ordersStatus?.inbound     ?? (kpiSummary?.inbound_orders ?? stages['Inbound'].orders);
-  const totalInTransit   = ordersStatus?.transporting  ?? stages['Transporting'].orders;
-  const totalPickupDone  = ordersStatus?.pickup_done   ?? stages['Pickup Done'].orders;
-  const totalCreated     = ordersStatus?.created       ?? stages['Created'].orders;
+  // 🎯 Rebuild 4 Module (Forecast, Orders Status, Update, Truck ETA) theo Micro-JSON v2.0
+  const finalRotHomTruoc = isFutureDate ? 0 : (kpiSummary?.rot_hom_truoc ?? (lastUpdateObj?.rot_hom_truoc ?? (activeSnap?.rot_hom_truoc ?? forecastRotHomTruoc)));
+  const finalRotHomNay   = isFutureDate ? 0 : (kpiSummary?.rot_hom_nay   ?? forecastRotHomNay);
+  const totalForecast    = isFutureDate ? 0 : (kpiSummary?.forecast_total ?? (finalRotHomTruoc + finalRotHomNay));
+
+  const totalInbound     = isFutureDate ? 0 : (ordersStatus?.inbound     ?? (kpiSummary?.inbound_orders ?? stages['Inbound'].orders));
+  const totalInTransit   = isFutureDate ? 0 : (ordersStatus?.transporting  ?? stages['Transporting'].orders);
+  const totalPickupDone  = isFutureDate ? 0 : (ordersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
+  const totalCreated     = isFutureDate ? 0 : (ordersStatus?.created       ?? stages['Created'].orders);
+
+  if (isFutureDate) {
+    incomingVehicles = [];
+    totalShuttleVehicles = 0;
+    totalLinehaulVehicles = 0;
+    totalTransitVehicles = 0;
+    totalInTransitOrders = 0;
+    totalInTransitWeight = 0;
+    bnHubLinehaulOrders = 0;
+  }
 
   if (totalInTransitOrders > 0 && stages['Transporting'].weight === 0) {
     stages['Transporting'].weight = totalInTransitWeight;

@@ -639,18 +639,10 @@ export default function App() {
     if (ibRows && ibRows.length > 0) {
       const ibDates = Array.from(
         new Set([
-          ...ibRows.map(r => r['Ngày vận hành_Inbound'] || r['op_date_inbound']),
-          ...ibRows.map(r => r['Ngày vận hành_Forecast'] || r['op_date_forecast']),
-          ...ibRows.map(r => r['Ngày vận hành_Pickup'] || r['op_date_pickup'])
-        ].filter(Boolean))
-      ) as string[];
+          ...(ibRows ?? []).map(r => r['Ngày vận hành_Inbound'] || r['op_date_inbound'] || r['Ngày vận hành_Forecast'] || r['op_date_forecast']).filter(Boolean)
+        ])
+      ).filter(d => d <= todayOpDate) as string[];
       ibDates.sort((a, b) => b.localeCompare(a));
-      
-      const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-      const padStr = (n: number) => String(n).padStart(2, '0');
-      const todayOpDate = getOperatingDateFromTimestamp(
-        `${nowVN.getFullYear()}-${padStr(nowVN.getMonth() + 1)}-${padStr(nowVN.getDate())} ${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}`
-      );
 
       if (ibDates.length > 0) {
         setSelectedInboundDate(prev => {
