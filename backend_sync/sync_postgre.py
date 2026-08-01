@@ -987,8 +987,11 @@ def sync_postgre_to_dashboard():
                       'Transporting' if has_arr else
                       'Pickup Done'  if has_pk else 'Created')
 
-        # 1. inventory group — Đơn hiện ĐANG TỒN TẠI KHO và có area_id hợp lệ
-        if is_currently_at_hub and valid_area:
+        # 🎯 1. inventory group — Đơn thuộc NGÀY VẬN HÀNH HÔM NAY & LOẠI BỎ HOÀN TOÀN status 'Outbound'
+        is_today_inventory = (op_date == today or ref_rot_date == today)
+        is_not_outbound = (inv_status != 'Outbound' and not has_out)
+        
+        if is_today_inventory and is_not_outbound and valid_area:
             ki = (zone, area_id, station, inv_status)
             if ki not in inv_group:
                 inv_group[ki] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
