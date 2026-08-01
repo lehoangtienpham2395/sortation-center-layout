@@ -129,7 +129,7 @@ today     = get_op_date(now_sys)
 yesterday = (datetime.datetime.strptime(today, "%Y-%m-%d") - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
 tomorrow  = (datetime.datetime.strptime(today, "%Y-%m-%d") + datetime.timedelta(days=1)).strftime("%Y-%m-%d")
 
-start_str = (now_vn - datetime.timedelta(days=7)).strftime("%Y-%m-%d 00:00:00")
+start_str = (now_vn - datetime.timedelta(days=15)).strftime("%Y-%m-%d 00:00:00")
 end_str   = now_vn.strftime("%Y-%m-%d %H:%M:%S")
 end_plus1 = (now_vn + datetime.timedelta(days=1)).strftime("%Y-%m-%d 23:59:59")
 
