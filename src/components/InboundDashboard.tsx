@@ -250,7 +250,7 @@ export default function InboundDashboard({
     }
     return '';
   };
-  const filteredLinehaul = linehaulData.filter(d => isDateMatch(getLinehaulOperatingDate(d), activeDate));
+  // const filteredLinehaul = linehaulData.filter(d => isDateMatch(getLinehaulOperatingDate(d), activeDate));
 
   // 3. Aggregate operational statistics
 
