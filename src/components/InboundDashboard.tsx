@@ -500,24 +500,34 @@ export default function InboundDashboard({
   }
 
 
-  // 🎯 Khóa cứng Snapshot Lock cho ngày lịch sử (activeDate !== today)
-  if (isHistoricalDate && activeSnap) {
-    forecastRotHomNay = activeSnap.rot_hom_nay ?? forecastRotHomNay;
-    forecastRotHomTruoc = activeSnap.rot_hom_truoc ?? forecastRotHomTruoc;
-    forecastTonDongLau = activeSnap.rot_ton_dong ?? forecastTonDongLau;
-    bnHubLinehaulOrders = activeSnap.bn_hub_orders ?? bnHubLinehaulOrders;
-  }
+  // 🎯 Khóa cứng Snapshot Lock tuyệt đối cho ngày lịch sử (activeDate < todayOpDate)
+  const snapForActiveDate = lastUpdateObj?.daily_snapshots?.[normActiveDate];
 
   const isFutureDate = normActiveDate > todayOpDate;
 
   // 🎯 Rebuild 4 Module (Forecast, Orders Status, Update, Truck ETA) theo Micro-JSON v2.0
-  // Nếu chọn ngày lịch sử (activeDate !== todayOpDate) và kpiSummary thuộc ngày khác -> ưu tiên activeSnap / forecastRotHom...
   const effectiveKpiSummary = (kpiSummary && kpiSummary.op_date === normActiveDate) ? kpiSummary : null;
   const effectiveOrdersStatus = (ordersStatus && ordersStatus.op_date === normActiveDate) ? ordersStatus : null;
 
-  const finalRotHomTruoc = isFutureDate ? 0 : (effectiveKpiSummary?.rot_hom_truoc ?? (isHistoricalDate ? (activeSnap?.rot_hom_truoc ?? forecastRotHomTruoc) : (lastUpdateObj?.rot_hom_truoc ?? forecastRotHomTruoc)));
-  const finalRotHomNay   = isFutureDate ? 0 : (effectiveKpiSummary?.rot_hom_nay   ?? (isHistoricalDate ? (activeSnap?.rot_hom_nay ?? forecastRotHomNay) : (lastUpdateObj?.rot_hom_nay ?? forecastRotHomNay)));
-  const totalForecast    = isFutureDate ? 0 : (effectiveKpiSummary?.forecast_total ?? (finalRotHomTruoc + finalRotHomNay));
+  const finalRotHomTruoc = isFutureDate ? 0 : (
+    effectiveKpiSummary?.rot_hom_truoc ?? (
+      snapForActiveDate?.rot_hom_truoc ?? (
+        isHistoricalDate ? 0 : (lastUpdateObj?.rot_hom_truoc ?? forecastRotHomTruoc)
+      )
+    )
+  );
+
+  const finalRotHomNay   = isFutureDate ? 0 : (
+    effectiveKpiSummary?.rot_hom_nay ?? (
+      snapForActiveDate?.rot_hom_nay ?? (
+        isHistoricalDate ? 0 : (lastUpdateObj?.rot_hom_nay ?? forecastRotHomNay)
+      )
+    )
+  );
+
+  const totalForecast    = isFutureDate ? 0 : (
+    effectiveKpiSummary?.forecast_total ?? (finalRotHomTruoc + finalRotHomNay)
+  );
 
   const totalInbound     = isFutureDate ? 0 : (effectiveOrdersStatus?.inbound     ?? (effectiveKpiSummary?.inbound_orders ?? stages['Inbound'].orders));
   const totalInTransit   = isFutureDate ? 0 : (effectiveOrdersStatus?.transporting  ?? stages['Transporting'].orders);
