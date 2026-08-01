@@ -574,6 +574,9 @@ export default function App() {
         const d = await res.json();
         if (d) {
           setLastUpdateObj(d);
+          if (d.last_update) {
+            lastUpdateTimestampRef.current = d.last_update;
+          }
         }
       }
     } catch (err) {
@@ -985,7 +988,7 @@ export default function App() {
   const lastUpdateTimestampRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const BUILD_VER = '20260731_1838_FORCE_RELOAD';
+    const BUILD_VER = '20260801_1022_PURGE_CACHE_V5';
     if (localStorage.getItem('app_build_ver') !== BUILD_VER) {
       localStorage.setItem('app_build_ver', BUILD_VER);
       window.location.reload();
