@@ -1,6 +1,8 @@
 /**
- * Central Data Contract Module — Single Source of Truth for Frontend Data Normalization
+ * Central Data Contract Module v2.0 — Single Source of Truth for Frontend Data Normalization
  */
+export const CONTRACT_VERSION = "2.0.0";
+
 export const CANONICAL_STATUSES = [
   'Inbound',
   'Transporting',
@@ -73,6 +75,77 @@ export const KEY_MAP: Record<string, string> = {
   'Ngy vn hnh':         'Ngày vận hành',
   'Tng s n':           'Tổng số đơn'
 };
+
+// Micro-JSON Payload Contracts (v2.0)
+export interface InboundKpiSummaryPayload {
+  op_date: string;
+  inbound_orders: number;
+  inbound_weight_ton: number;
+  forecast_total: number;
+  rot_hom_truoc: number;
+  rot_hom_nay: number;
+  linehaul_bn_hub: number;
+  contract_version?: string;
+}
+
+export interface InboundHourlyTrendPayload {
+  op_date: string;
+  hours: string[];
+  series: {
+    inbound: number[];
+    transporting: number[];
+    pickup_done: number[];
+    created: number[];
+  };
+}
+
+export interface InboundOrdersStatusPayload {
+  op_date: string;
+  inbound: number;
+  transporting: number;
+  pickup_done: number;
+  created: number;
+  total: number;
+  inbound_weight?: number;
+  transporting_weight?: number;
+  pickup_done_weight?: number;
+  created_weight?: number;
+}
+
+export interface TruckEtaItem {
+  send_network: string;
+  arrive_network: string;
+  trip_code: string;
+  orders_count: number;
+  weight_kg: number;
+  weight_ton: number;
+  planned_departure?: string;
+  planned_arrival?: string;
+  actual_departure?: string;
+  eta?: string;
+  rank?: string;
+  status?: string;
+  op_date?: string;
+}
+
+export interface InboundTruckEtaPayload {
+  op_date: string;
+  trucks: TruckEtaItem[];
+}
+
+export interface OriginStationItem {
+  station_name: string;
+  total_volume: number;
+  inbound_volume: number;
+  transporting_volume: number;
+  pickup_done_volume: number;
+  created_volume: number;
+}
+
+export interface InboundOriginStationPayload {
+  op_date: string;
+  stations: OriginStationItem[];
+}
 
 export function normalizeStatus(raw: unknown): string | undefined {
   if (raw === undefined || raw === null || raw === '') return undefined;

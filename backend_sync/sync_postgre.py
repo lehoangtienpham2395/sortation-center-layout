@@ -1177,40 +1177,108 @@ def sync_postgre_to_dashboard():
         "rot_hom_truoc_live":    rot_hom_truoc,
         "rot_hom_nay":           rot_hom_nay,
         "daily_snapshots":       daily_snapshots,
+        "contract_version":      "2.0.0",
         "sync_success":          True,
     }
     print(f"   📊 Cờ Rớt: Rớt hôm trước (Baseline 6AM)={last_update_obj['rot_hom_truoc']:,} | Live={rot_hom_truoc:,} | Rớt hôm nay={rot_hom_nay:,}")
 
-    # ── 5. Validate & Write dispatch JSONs ────────────────────────
-    print(f"\n📤 Validating Data Contract & Writing JSON files → {DATA_DIR}")
-    validate_payload_contract(inbound_json, "inbound.json / latest.json.gz")
-    validate_payload_contract(inventory_json, "inventory.json")
-    write_json("inventory.json",          inventory_json)
-    write_json("outbound.json",           outbound_json)
-    write_json("backlog.json",            backlog_json)
-    write_json("inbound.json",            inbound_json)
-    write_json("arrival.json",            arrival_json)
-    write_json("heatmap.json",            hourly)
-    write_json("hub_inventory_pivot.json",hub_pivot_json)
-    write_json("last_update.json",        last_update_obj)
-    # Sync sang public/data & src/data để tránh lệch file static
-    json_files_to_sync = ["inventory.json", "outbound.json", "backlog.json", "inbound.json", "arrival.json", "heatmap.json", "hub_inventory_pivot.json", "last_update.json"]
-    for sub in ['public/data', 'src/data']:
-        sub_dir = os.path.normpath(os.path.join(DATA_DIR, '..', sub))
-        if os.path.exists(sub_dir):
-            for jf in json_files_to_sync:
-                src_p = os.path.join(DATA_DIR, jf)
-                dst_p = os.path.join(sub_dir, jf)
-                if os.path.exists(src_p):
-                    import shutil
-                    shutil.copy2(src_p, dst_p)
+    # ── 5. Build Micro-JSONs (Data Architecture v2.0 - Ultra Light) ──
+    print(f"\n⚡ Building Micro-JSON Payloads (Data Architecture v2.0)...")
+    
+    # 5.1 inbound_kpi_summary.json
+    inbound_kpi_summary = {
+        "op_date": today,
+        "contract_version": "2.0.0",
+        "inbound_orders": total_inbound_today,
+        "inbound_weight_ton": round(sum(stats['weight_kg'] for (st, pk, status, in_op, *rest), stats in inbound_group.items() if status == 'Inbound' and in_op == today) / 1000.0, 3),
+        "forecast_total": rot_hom_truoc + rot_hom_nay,
+        "rot_hom_truoc": rot_hom_truoc_baseline if rot_hom_truoc_baseline > 0 else rot_hom_truoc,
+        "rot_hom_nay": rot_hom_nay,
+        "linehaul_bn_hub": sum(stats['volume'] for (st, pk, status, in_op, fc_op, *rest), stats in inbound_group.items() if (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))) and (fc_op == today or in_op == today))
+    }
 
-    # Gzip inbound
-    raw_bytes = json.dumps(inbound_json, ensure_ascii=False).encode('utf-8')
-    gz_path   = os.path.join(DATA_DIR, "latest.json.gz")
-    with gzip.open(gz_path, 'wb') as gz:
-        gz.write(raw_bytes)
-    print(f"   ✅ {'latest.json.gz':<42} {os.path.getsize(gz_path)//1024:>6} KB  |  {len(inbound_json):,} records")
+    # 5.2 inbound_hourly_trend.json
+    hours_list = [f"{h:02d}:00" for h in (list(range(6, 24)) + list(range(0, 6)))]
+    hourly_series_inbound = [hourly.get(h, 0) for h in hours_list]
+    hourly_series_transporting = []
+    hourly_series_pickup_done = []
+    hourly_series_created = []
+
+    for h in hours_list:
+        tr_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if status == 'Transporting' and ar_hr.startswith(h[:2]) and (ar_op == today or pk_op == today or fc_op == today))
+        pk_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if status == 'Pickup Done' and pk_hr.startswith(h[:2]) and (pk_op == today or fc_op == today))
+        cr_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if status == 'Created' and fc_hr.startswith(h[:2]) and fc_op == today)
+        hourly_series_transporting.append(tr_vol)
+        hourly_series_pickup_done.append(pk_vol)
+        hourly_series_created.append(cr_vol)
+
+    inbound_hourly_trend = {
+        "op_date": today,
+        "contract_version": "2.0.0",
+        "hours": hours_list,
+        "series": {
+            "inbound": hourly_series_inbound,
+            "transporting": hourly_series_transporting,
+            "pickup_done": hourly_series_pickup_done,
+            "created": hourly_series_created
+        }
+    }
+
+    # 5.3 inbound_orders_status.json
+    status_counts  = {'Inbound': 0, 'Transporting': 0, 'Pickup Done': 0, 'Created': 0}
+    status_weights = {'Inbound': 0.0, 'Transporting': 0.0, 'Pickup Done': 0.0, 'Created': 0.0}
+
+    for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items():
+        is_north = st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))
+        if is_north:
+            continue
+        is_match = (in_op == today) or (ar_op == today) or (pk_op == today) or (fc_op == today)
+        if is_match and status in status_counts:
+            status_counts[status]  += stats['volume']
+            status_weights[status] += stats['weight_kg'] / 1000.0
+
+    inbound_orders_status = {
+        "op_date": today,
+        "contract_version": "2.0.0",
+        "inbound": status_counts['Inbound'],
+        "transporting": status_counts['Transporting'],
+        "pickup_done": status_counts['Pickup Done'],
+        "created": status_counts['Created'],
+        "total": sum(status_counts.values()),
+        "inbound_weight": round(status_weights['Inbound'], 3),
+        "transporting_weight": round(status_weights['Transporting'], 3),
+        "pickup_done_weight": round(status_weights['Pickup Done'], 3),
+        "created_weight": round(status_weights['Created'], 3)
+    }
+
+    # 5.4 inbound_origin_station.json
+    origin_map = {}
+    for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items():
+        pk_clean = (pk or st).strip()
+        if not pk_clean or pk_clean.upper() == 'BN HUB':
+            continue
+        is_match = (in_op == today) or (ar_op == today) or (pk_op == today) or (fc_op == today)
+        if is_match:
+            if pk_clean not in origin_map:
+                origin_map[pk_clean] = {'total_volume': 0, 'inbound_volume': 0, 'transporting_volume': 0, 'pickup_done_volume': 0, 'created_volume': 0}
+            vol = stats['volume']
+            origin_map[pk_clean]['total_volume'] += vol
+            if status == 'Inbound': origin_map[pk_clean]['inbound_volume'] += vol
+            elif status == 'Transporting': origin_map[pk_clean]['transporting_volume'] += vol
+            elif status == 'Pickup Done': origin_map[pk_clean]['pickup_done_volume'] += vol
+            elif status == 'Created': origin_map[pk_clean]['created_volume'] += vol
+
+    stations_list = [
+        {"station_name": k, "total_volume": v['total_volume'], "inbound_volume": v['inbound_volume'], "transporting_volume": v['transporting_volume'], "pickup_done_volume": v['pickup_done_volume'], "created_volume": v['created_volume']}
+        for k, v in origin_map.items()
+    ]
+    stations_list.sort(key=lambda x: x['total_volume'], reverse=True)
+
+    inbound_origin_station = {
+        "op_date": today,
+        "contract_version": "2.0.0",
+        "stations": stations_list
+    }
 
     # ── 6. JFS API — Linehaul & Truck ETA ────────────────────────
     linehaul_obj  = {"generated_at": now_sys, "total_trucks": 0, "trucks": []}
@@ -1224,14 +1292,12 @@ def sync_postgre_to_dashboard():
             tkn_main = TokenManager(session_lh,  ACCOUNT,     PASSWORD,     label='main')
             tkn_arr  = TokenManager(session_arr, ARR_ACCOUNT, ARR_PASSWORD, label='arr')
 
-            # Login song song
             from concurrent.futures import ThreadPoolExecutor
             with ThreadPoolExecutor(max_workers=2) as ex:
                 fa = ex.submit(tkn_main.get_token)
                 fb = ex.submit(tkn_arr.get_token)
                 fa.result(); fb.result()
 
-            # Linehaul + Shuttle song song
             with ThreadPoolExecutor(max_workers=2) as ex:
                 f_lh  = ex.submit(fetch_linehaul_json, session_lh,  tkn_main)
                 f_eta = ex.submit(fetch_truck_eta_json, session_arr, tkn_arr)
@@ -1243,10 +1309,95 @@ def sync_postgre_to_dashboard():
     else:
         print("   ⚠️  JFS API skipped (pipeline_unified_v6 not available)")
 
-    write_json("linehaul.json",  linehaul_obj)
-    write_json("truck_eta.json", truck_eta_obj)
+    inbound_truck_eta = {
+        "op_date": today,
+        "contract_version": "2.0.0",
+        "trucks": truck_eta_obj.get("trucks", [])
+    }
 
-    # ── 7. Done ───────────────────────────────────────────────────
+    # ── 7. Validate & Write dispatch JSONs ────────────────────────
+    print(f"\n📤 Validating Data Contract & Writing JSON files → {DATA_DIR}")
+    validate_payload_contract(inbound_json, "inbound.json / latest.json.gz")
+    validate_payload_contract(inventory_json, "inventory.json")
+
+    micro_payloads = {
+        "inbound_kpi_summary.json": inbound_kpi_summary,
+        "inbound_hourly_trend.json": inbound_hourly_trend,
+        "inbound_orders_status.json": inbound_orders_status,
+        "inbound_truck_eta.json": inbound_truck_eta,
+        "inbound_origin_station.json": inbound_origin_station,
+    }
+
+    # Write root data/ files
+    write_json("inventory.json",          inventory_json)
+    write_json("outbound.json",           outbound_json)
+    write_json("backlog.json",            backlog_json)
+    write_json("inbound.json",            inbound_json)
+    write_json("arrival.json",            arrival_json)
+    write_json("heatmap.json",            hourly)
+    write_json("hub_inventory_pivot.json",hub_pivot_json)
+    write_json("last_update.json",        last_update_obj)
+    write_json("linehaul.json",           linehaul_obj)
+    write_json("truck_eta.json",          truck_eta_obj)
+
+    for fn, pl in micro_payloads.items():
+        write_json(fn, pl)
+
+    # Write live/ and history/{today}/ files
+    live_rel = os.path.join(DATA_DIR, "live")
+    hist_rel = os.path.join(DATA_DIR, "history", today)
+    os.makedirs(live_rel, exist_ok=True)
+    os.makedirs(hist_rel, exist_ok=True)
+
+    for fn, pl in micro_payloads.items():
+        write_json(os.path.join("live", fn), pl)
+        write_json(os.path.join("history", today, fn), pl)
+
+    # Sync to public/data & src/data
+    json_files_to_sync = ["inventory.json", "outbound.json", "backlog.json", "inbound.json", "arrival.json", "heatmap.json", "hub_inventory_pivot.json", "last_update.json", "linehaul.json", "truck_eta.json"] + list(micro_payloads.keys())
+    
+    for sub in ['public/data', 'src/data']:
+        sub_dir = os.path.normpath(os.path.join(DATA_DIR, '..', sub))
+        sub_live = os.path.join(sub_dir, 'live')
+        sub_hist = os.path.join(sub_dir, 'history', today)
+        os.makedirs(sub_live, exist_ok=True)
+        os.makedirs(sub_hist, exist_ok=True)
+        
+        if os.path.exists(sub_dir):
+            import shutil
+            for jf in json_files_to_sync:
+                src_p = os.path.join(DATA_DIR, jf)
+                dst_p = os.path.join(sub_dir, jf)
+                if os.path.exists(src_p):
+                    shutil.copy2(src_p, dst_p)
+
+            for m_fname in micro_payloads.keys():
+                src_m = os.path.join(DATA_DIR, 'live', m_fname)
+                if os.path.exists(src_m):
+                    shutil.copy2(src_m, os.path.join(sub_live, m_fname))
+                    shutil.copy2(src_m, os.path.join(sub_hist, m_fname))
+
+    # Gzip inbound
+    raw_bytes = json.dumps(inbound_json, ensure_ascii=False).encode('utf-8')
+    gz_path   = os.path.join(DATA_DIR, "latest.json.gz")
+    with gzip.open(gz_path, 'wb') as gz:
+        gz.write(raw_bytes)
+    print(f"   ✅ {'latest.json.gz':<42} {os.path.getsize(gz_path)//1024:>6} KB  |  {len(inbound_json):,} records")
+
+    # ── 8. PostgreSQL 30-Day Retention Cleanup ────────────────────
+    try:
+        conn_clean = get_pg_conn()
+        cur_clean  = conn_clean.cursor()
+        cur_clean.execute("DELETE FROM raw.scan_logs WHERE scan_time < CURRENT_DATE - INTERVAL '30 days';")
+        cur_clean.execute("DELETE FROM enriched.dispatch_enriched WHERE create_time < CURRENT_DATE - INTERVAL '30 days';")
+        conn_clean.commit()
+        cur_clean.close()
+        conn_clean.close()
+        print("   🧹 PostgreSQL 30-day retention cleanup completed successfully.")
+    except Exception as _ec:
+        print(f"   ⚠️ PostgreSQL 30-day cleanup error: {_ec}")
+
+    # ── 9. Done ───────────────────────────────────────────────────
     elapsed = _time.time() - t0
     print(f"\n🏁 sync_postgre completed in {elapsed:.1f}s")
     print(f"   inventory={len(inventory_json):,}  outbound={len(outbound_json):,}  "

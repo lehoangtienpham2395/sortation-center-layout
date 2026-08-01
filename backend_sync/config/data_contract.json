@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "JFS HUB Sortation Center Data Contract",
-  "version": "1.1.0",
-  "notes": "Phân định rõ station_name (bưu cục đích quy hoạch) vs pickup_station (bưu cục lấy hàng/nguồn)",
+  "version": "2.0.0",
+  "notes": "Data Contract v2.0 - Micro-JSON & Immutable Daily History Architecture",
   "units": {
     "weight": {
       "field": "weight_ton",
@@ -58,6 +58,28 @@
       "prefix_rules": {
         "north": ["BN HUB", "HN ", "HD ", "HY "]
       }
+    }
+  },
+  "micro_json_files": {
+    "inbound_kpi_summary.json": {
+      "required_fields": ["op_date", "inbound_orders", "inbound_weight_ton", "forecast_total", "rot_hom_truoc", "rot_hom_nay", "linehaul_bn_hub"],
+      "description": "Summary KPIs for Inbound Header Cards (Tier 1 Locked + Current Hour)"
+    },
+    "inbound_hourly_trend.json": {
+      "required_fields": ["op_date", "hours", "series"],
+      "description": "24-hour processing trend series for Hourly Processing Trend chart (Tier 1 Locked)"
+    },
+    "inbound_orders_status.json": {
+      "required_fields": ["op_date", "inbound", "transporting", "pickup_done", "created", "total"],
+      "description": "Donut chart breakdown of active order stages for active date (Tier 2 Realtime)"
+    },
+    "inbound_truck_eta.json": {
+      "required_fields": ["op_date", "trucks"],
+      "description": "Active inbound trucks en-route to HCM HUB (Tier 2 Realtime)"
+    },
+    "inbound_origin_station.json": {
+      "required_fields": ["op_date", "stations"],
+      "description": "Aggregated pickup station origin volumes and breakdown"
     }
   },
   "key_map": {

@@ -268,6 +268,42 @@ async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbou
   }
 }
 
+async function fetchMicroJson<T>(fileName: string, targetDate?: string): Promise<T | null> {
+  try {
+    const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
+    
+    let subPath = 'live';
+    const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const padStr = (n: number) => String(n).padStart(2, '0');
+    const todayStr = getOperatingDateFromTimestamp(`${nowVN.getFullYear()}-${padStr(nowVN.getMonth() + 1)}-${padStr(nowVN.getDate())} ${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}`);
+    
+    if (targetDate && targetDate < todayStr) {
+      subPath = `history/${targetDate}`;
+    }
+
+    let baseUrl = getApiUrl(`${subPath}/${fileName}`);
+    let cacheBustUrl = baseUrl.includes('?') ? `${baseUrl}&t=${t}` : `${baseUrl}?t=${t}`;
+    let response = await fetch(cacheBustUrl, fetchOpts);
+
+    if (!response.ok) {
+      baseUrl = getApiUrl(fileName);
+      cacheBustUrl = baseUrl.includes('?') ? `${baseUrl}&t=${t}` : `${baseUrl}?t=${t}`;
+      response = await fetch(cacheBustUrl, fetchOpts);
+    }
+
+    if (!response.ok) {
+      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${subPath}/${fileName}?t=${t}`, fetchOpts);
+    }
+
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (err) {
+    console.warn(`Error fetching micro-JSON ${fileName}:`, err);
+    return null;
+  }
+}
+
 async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[] | null> {
   try {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -442,6 +478,13 @@ export default function App() {
   const [lastUpdate, setLastUpdate] = useState<string>('');
   const [lastUpdateObj, setLastUpdateObj] = useState<any>(null);
 
+  // Micro-JSON v2.0 State
+  const [microKpiSummary, setMicroKpiSummary]     = useState<any | null>(null);
+  const [microHourlyTrend, setMicroHourlyTrend]   = useState<any | null>(null);
+  const [microOrdersStatus, setMicroOrdersStatus] = useState<any | null>(null);
+  const [microTruckEta, setMicroTruckEta]         = useState<any | null>(null);
+  const [microOriginStation, setMicroOriginStation] = useState<any | null>(null);
+
 
   // State variables for historic date/type filter
   const [rawSheetRows, setRawSheetRows] = useState<SheetRow[]>([]);
@@ -555,6 +598,24 @@ export default function App() {
     if (ibRows && ibRows.length > 0) setInboundData(ibRows);
     if (lhRows && lhRows.length > 0) setLinehaulData(lhRows);
     if (arrivalRows && arrivalRows.length > 0) setArrivalData(arrivalRows);
+
+    // Fetch Micro-JSON payloads for Inbound Dashboard v2.0 in parallel
+    try {
+      const [kpiSummary, hourlyTrend, ordersStatus, truckEtaMicro, originStation] = await Promise.all([
+        fetchMicroJson<any>('inbound_kpi_summary.json', selectedInboundDate),
+        fetchMicroJson<any>('inbound_hourly_trend.json', selectedInboundDate),
+        fetchMicroJson<any>('inbound_orders_status.json', selectedInboundDate),
+        fetchMicroJson<any>('inbound_truck_eta.json', selectedInboundDate),
+        fetchMicroJson<any>('inbound_origin_station.json', selectedInboundDate),
+      ]);
+      if (kpiSummary) setMicroKpiSummary(kpiSummary);
+      if (hourlyTrend) setMicroHourlyTrend(hourlyTrend);
+      if (ordersStatus) setMicroOrdersStatus(ordersStatus);
+      if (truckEtaMicro) setMicroTruckEta(truckEtaMicro);
+      if (originStation) setMicroOriginStation(originStation);
+    } catch (microErr) {
+      console.warn('Micro-JSON fetch error:', microErr);
+    }
 
     // Đảm bảo truck_eta.json được nạp 100% với GitHub Raw fallback trực tiếp
     let finalTruckEta = truckEtaRows;
@@ -2433,6 +2494,11 @@ export default function App() {
                   fetchAndUpdateData={fetchAndUpdateData}
                   lastUpdate={lastUpdate}
                   lastUpdateObj={lastUpdateObj}
+                  kpiSummary={microKpiSummary}
+                  hourlyTrend={microHourlyTrend}
+                  ordersStatus={microOrdersStatus}
+                  truckEtaMicro={microTruckEta}
+                  originStation={microOriginStation}
                 />
               </div>
             )}

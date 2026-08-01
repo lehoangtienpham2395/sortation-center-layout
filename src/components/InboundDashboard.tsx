@@ -45,6 +45,12 @@ interface InboundDashboardProps {
   fetchAndUpdateData: () => void;
   lastUpdate?: string;
   lastUpdateObj?: any;
+
+  kpiSummary?: any;
+  hourlyTrend?: any;
+  ordersStatus?: any;
+  truckEtaMicro?: any;
+  originStation?: any;
 }
 
 /**
