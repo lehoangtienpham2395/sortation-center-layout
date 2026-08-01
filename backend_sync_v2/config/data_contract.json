@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "JFS HUB Sortation Center Data Contract",
+  "version": "2.0.0",
+  "notes": "Data Contract v2.0 - Micro-JSON & Immutable Daily History Architecture",
+  "units": {
+    "weight": {
+      "field": "weight_ton",
+      "unit": "Metric Ton (Tấn)",
+      "precision": 3,
+      "display_ready": true,
+      "frontend_calculation_allowed": false
+    },
+    "volume": {
+      "field": "volume",
+      "unit": "Orders Count (Đơn)",
+      "type": "integer"
+    }
+  },
+  "enums": {
+    "status": {
+      "canonical": ["Inbound", "Transporting", "Pickup Done", "Created", "Outbound", "Đã hủy"],
+      "aliases": {
+        "inbound": "Inbound",
+        "inbound_done": "Inbound",
+        "at_hub": "Inbound",
+        "Đang trên bãi": "Inbound",
+        "đã nhập kho": "Inbound",
+        "transporting": "Transporting",
+        "in_transit": "Transporting",
+        "chưa đến hub": "Transporting",
+        "Đang trên đường": "Transporting",
+        "đang vận chuyển": "Transporting",
+        "pickup_done": "Pickup Done",
+        "picked_up": "Pickup Done",
+        "Đã lấy hàng": "Pickup Done",
+        "created": "Created",
+        "Đã điều phối bưu cục": "Created",
+        "outbound": "Outbound",
+        "outbound_done": "Outbound",
+        "Đã xuất khỏi HUB": "Outbound",
+        "Đã rời HUB": "Outbound",
+        "đã xuất kho": "Outbound",
+        "canceled": "Đã hủy",
+        "cancelled": "Đã hủy",
+        "đã hủy": "Đã hủy"
+      }
+    },
+    "drop_type": {
+      "canonical": ["Rớt hôm nay", "Rớt hôm trước"],
+      "aliases": {
+        "rot_today": "Rớt hôm nay",
+        "rot_yesterday": "Rớt hôm trước"
+      }
+    },
+    "region": {
+      "canonical": ["north", "south"],
+      "prefix_rules": {
+        "north": ["BN HUB", "HN ", "HD ", "HY "]
+      }
+    }
+  },
+  "micro_json_files": {
+    "inbound_kpi_summary.json": {
+      "required_fields": ["op_date", "inbound_orders", "inbound_weight_ton", "forecast_total", "rot_hom_truoc", "rot_hom_nay", "linehaul_bn_hub"],
+      "description": "Summary KPIs for Inbound Header Cards (Tier 1 Locked + Current Hour)"
+    },
+    "inbound_hourly_trend.json": {
+      "required_fields": ["op_date", "hours", "series"],
+      "description": "24-hour processing trend series for Hourly Processing Trend chart (Tier 1 Locked)"
+    },
+    "inbound_orders_status.json": {
+      "required_fields": ["op_date", "inbound", "transporting", "pickup_done", "created", "total"],
+      "description": "Donut chart breakdown of active order stages for active date (Tier 2 Realtime)"
+    },
+    "inbound_truck_eta.json": {
+      "required_fields": ["op_date", "trucks"],
+      "description": "Active inbound trucks en-route to HCM HUB (Tier 2 Realtime)"
+    },
+    "inbound_origin_station.json": {
+      "required_fields": ["op_date", "stations"],
+      "description": "Aggregated pickup station origin volumes and breakdown"
+    }
+  },
+  "key_map": {
+    "station_name": "Bưu cục",
+    "next_station": "Bưu cục đích",
+    "pickup_station": "Bưu cục nộp",
+    "pickup_station2": "Bưu cục lấy thực tế",
+    "status": "Trạng thái",
+    "op_date_inbound": "Ngày vận hành_Inbound",
+    "op_date_forecast": "Ngày vận hành_Forecast",
+    "op_date_pickup": "Ngày vận hành_Pickup",
+    "op_date_arrival": "Ngày vận hành_Arrival",
+    "drop_type": "Loại rớt",
+    "op_date": "Ngày vận hành",
+    "total_orders": "Tổng số đơn",
+    "volume": "Volume",
+    "weight_ton": "Weight"
+  }
+}
