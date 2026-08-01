@@ -735,7 +735,7 @@ export default function InboundDashboard({
   filteredInbound.forEach(d => {
     const status = d.status || d['Trng thi'] || d['Trạng thái'] || '';
     if (status === 'Inbound' || status === 'Đã nhập kho') {
-      const fcName = d.station_name || d.pickup_station || d.send_network || d['Bưu cục nộp'] || d['Bưu cục'] || d['Bu cc'] || 'Chưa rõ';
+      const fcName = d.pickup_station || d.send_network || d['Bưu cục nộp'] || d['Bưu cục gốc'] || d['Bưu cục'] || d['Bu cc'] || d.station_name || 'Chưa rõ';
       const fc = getFC(fcName);
       if (fc) {
         const vol = parseInt(d.volume ?? d['Volume'] ?? 1, 10) || 1;
@@ -751,8 +751,8 @@ export default function InboundDashboard({
   });
 
   filteredLinehaul.forEach(d => {
-    // send_network / sendNetworkName là bưu cục nộp / gửi hàng từ tuyến xe
-    const fcName = d['send_network'] || d['sendNetworkName'] || d['nextNetworkName'] || '';
+    // send_network / sendNetworkName là bưu cục nộp / gửi hàng từ tuyến xe (không lấy nextNetworkName)
+    const fcName = d['send_network'] || d['sendNetworkName'] || d['pickup_station'] || '';
     const tripId = d['trip_code'] || d['Phiếu nhiệm vụ'] || d['plate_number'] || d['plateNumber'];
     if (fcName && tripId) {
       const clean = fcName.trim().toUpperCase();
