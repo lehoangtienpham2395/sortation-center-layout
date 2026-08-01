@@ -1,8 +1,8 @@
 """
-PIPELINE V2 REALTIME -- Micro-Polling Delta Engine (Unified 3-Path JSON Sync)
+PIPELINE V2 REALTIME -- Micro-Polling Delta Engine (Unified All-Micro-JSON Sync)
 Queries JFS API for recent scans in the last 60 minutes.
 Upserts directly to PostgreSQL logistics_db.
-Exports updated JSON payloads to ALL active JSON directories (public/data, data, src/data).
+Exports updated JSON payloads to ALL active JSON directories including Micro-JSONs.
 """
 
 import sys
@@ -182,8 +182,15 @@ def run_realtime_delta_sync(minutes_back=60):
     inb_rows = cur.fetchall()
 
     json_records = []
+    inbound_orders_count = 0
+    inbound_weight_ton = 0.0
+
     for trk, st_sys, cr_tm, pk_st, ord_n, ord_w, in_dt, out_dt, op_cr, op_in, op_pk, rk, rd, next_st in inb_rows:
         status_norm = 'Inbound' if (st_sys == 'Inbound' or in_dt is not None) else (st_sys or 'Created')
+        if status_norm == 'Inbound':
+            inbound_orders_count += int(ord_n or 1)
+            inbound_weight_ton += float(ord_w or 0.0)
+
         json_records.append({
             'tracking': trk,
             'status': status_norm,
@@ -220,7 +227,20 @@ def run_realtime_delta_sync(minutes_back=60):
         "contract_version": "2.0.0"
     }
 
-    # Write to ALL 3 directory locations simultaneously
+    # Micro-JSON inbound_kpi_summary.json payload
+    kpi_summary = {
+        "op_date": op_today,
+        "contract_version": "2.0.0",
+        "inbound_orders": inbound_orders_count,
+        "inbound_weight_ton": round(inbound_weight_ton, 3),
+        "forecast_total": rot_hom_truoc + rot_hom_nay,
+        "rot_hom_truoc": rot_hom_truoc,
+        "rot_hom_nay": rot_hom_nay,
+        "rot_ton_dong": rot_ton_dong,
+        "linehaul_bn_hub": 0
+    }
+
+    # Write to ALL 3 directory locations and all sub-micro-JSON paths
     json_targets = [
         os.path.join(ROOT_DIR, "public", "data"),
         os.path.join(ROOT_DIR, "data"),
@@ -238,10 +258,26 @@ def run_realtime_delta_sync(minutes_back=60):
         with open(os.path.join(target_dir, "last_update.json"), 'w', encoding='utf-8') as f:
             json.dump(lu, f, ensure_ascii=False, indent=2)
 
+        # Save inbound_kpi_summary.json
+        with open(os.path.join(target_dir, "inbound_kpi_summary.json"), 'w', encoding='utf-8') as f:
+            json.dump(kpi_summary, f, ensure_ascii=False, indent=2)
+
+        # Save live/inbound_kpi_summary.json
+        live_dir = os.path.join(target_dir, "live")
+        os.makedirs(live_dir, exist_ok=True)
+        with open(os.path.join(live_dir, "inbound_kpi_summary.json"), 'w', encoding='utf-8') as f:
+            json.dump(kpi_summary, f, ensure_ascii=False, indent=2)
+
+        # Save history/op_today/inbound_kpi_summary.json
+        hist_today_dir = os.path.join(target_dir, "history", op_today)
+        os.makedirs(hist_today_dir, exist_ok=True)
+        with open(os.path.join(hist_today_dir, "inbound_kpi_summary.json"), 'w', encoding='utf-8') as f:
+            json.dump(kpi_summary, f, ensure_ascii=False, indent=2)
+
     conn.close()
 
     elapsed = time.time() - t_start
-    print(f"✅ [VER 2 REALTIME DELTA] Done in {elapsed:.2f}s | Updated 3 JSON paths ({len(json_records):,} records) | Timestamp: {timestamp_str} | Today Rớt hôm trước: {rot_hom_truoc}, Rớt hôm nay: {rot_hom_nay}")
+    print(f"✅ [VER 2 REALTIME DELTA] Done in {elapsed:.2f}s | Updated ALL micro-JSONs ({len(json_records):,} records) | Timestamp: {timestamp_str} | Today Rớt hôm trước: {rot_hom_truoc}, Rớt hôm nay: {rot_hom_nay}, Total Forecast: {rot_hom_truoc + rot_hom_nay}")
     return True, updated_count
 
 if __name__ == "__main__":
