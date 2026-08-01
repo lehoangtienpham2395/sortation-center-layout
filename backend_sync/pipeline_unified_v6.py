@@ -575,12 +575,8 @@ def pull_arrival(session, arr_tmgr, ib_headers, start_str, end_str):
         if code:
             stations.append({'name': name.strip(), 'code': code})
 
-    # Robust fallback: If stations list is empty, populate directly from d_sc sortcodes
-    if not stations and d_sc:
-        for k, v in d_sc.items():
-            stations.append({'name': k, 'code': v})
-
-    print('   ' + label + ': ' + str(len(stations)) + ' buu cuc...')
+    # Strictly pull Arrival only for stations listed in stations_master.csv
+    print('   ' + label + ': ' + str(len(stations)) + ' buu cuc (stritcly filtered by stations_master.csv)...')
     arr_params = {'sqlCode': 'realtime_sca_sen_mon_dtl',
                   'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693'}
     all_recs = []
@@ -1085,7 +1081,7 @@ def main():
             wt = float(r.get('weight') or r.get('settlementWeight') or 0.0)
             rows_v6.append({
                 'tracking': wb, 'status_sys': 'Inbound', 'Created_time': st,
-                'Pickup_station': send_st or 'BN HUB', 'Dispatch_code': '',
+                'Pickup_station': send_st, 'Dispatch_code': '',
                 'Orders_num': int(r.get('piece') or 1),
                 'Orders_weight': (wt / 1000.0) if wt > 5000.0 else (wt if wt > 0 else 1.5),
                 'Pickup_station2': send_st,
