@@ -750,9 +750,8 @@ export default function App() {
       return normR === normS;
     };
 
-    // Find effective matching date: if selectedDate has no matching rows for selectedType, fallback to matching any available date or active shift
-    const matchingRowsForSelectedDate = rawSheetRows.filter(r => isDateMatch(r.date, selectedDate));
-    const effectiveDate = (matchingRowsForSelectedDate.length > 0 || !selectedDate) ? selectedDate : (availableDates[0] || '');
+    // 🎯 KHÔNG TỰ Ý FALLBACK SANG NGÀY CŨ KHI MỘT NGÀY CHƯA CÓ ĐƠN (Ví dụ Ngày 01/08 chưa có đơn Outbound -> Giữ nguyên 0 đơn)
+    const effectiveDate = selectedDate || (availableDates[0] || '');
 
     // Create lookup maps for selectedType, backlog, and inventory per areaId
     const selectedMap: Record<string, { volume: number; weight: number; capacity: number; buuCuc: string }> = {};
