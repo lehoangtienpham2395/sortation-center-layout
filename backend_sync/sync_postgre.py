@@ -935,11 +935,19 @@ def sync_postgre_to_dashboard():
         DROP_TYPE_YESTERDAY = 'Rớt hôm trước'
         DROP_TYPE_AGED      = 'Tồn đọng lâu ngày'
 
+        st_sys_val = str(r.get('status_sys') or r.get('status') or '').strip()
+        is_canceled = (st_sys_val == 'Đã hủy')
+        pk_st = str(r.get('pickup_station') or '').strip().upper()
+        next_st = str(r.get('next_station') or '').strip().upper()
+        st_name = str(station or '').strip().upper()
+        rk_val = str(r.get('rank') or '').strip().upper()
+        rd_val = str(r.get('round') or '').strip().upper()
         is_north = (
             pk_st.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
-            stn.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
-            rank == 'BN HUB' or 
-            round == 'Linehaul'
+            next_st.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
+            st_name.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
+            rk_val == 'BN HUB' or 
+            'LINEHAUL' in rd_val
         )
         # Rớt đơn: CHƯA NHẬP KHO, CHƯA XUẤT KHO, không hủy, không rebound, KHÔNG Thuộc Miền Bắc/Linehaul BN HUB
         is_rot = (not has_in) and (not has_out) and (not is_canceled) and (not is_reb) and (not is_north)

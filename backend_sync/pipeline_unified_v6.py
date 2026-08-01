@@ -61,7 +61,7 @@ VALID_FILE  = find_config_file('valid.csv') or os.path.join(CONFIG_DIR, 'valid.c
 OUTPUT_FILE = os.path.join(BASE_DIR, 'full_multi_source_7days_v6.csv')
 
 # Cấu hình số ngày kéo dữ liệu (Mặc định 15 ngày)
-DAYS_BACK = 15
+DAYS_BACK = 7
 if len(sys.argv) > 1:
     try:
         DAYS_BACK = int(sys.argv[1].replace('--days=', '').strip())
