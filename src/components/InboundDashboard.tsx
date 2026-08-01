@@ -479,7 +479,7 @@ export default function InboundDashboard({
   }
 
   let incomingVehicles = Object.values(groupedStationVehicles)
-    .filter(v => v.orders > 0)
+    .filter(v => v.orders >= 5)
     .sort((a, b) => b.orders - a.orders);
 
 
