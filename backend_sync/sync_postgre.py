@@ -922,15 +922,6 @@ def sync_postgre_to_dashboard():
         has_out_2 = bool(outb_t_2)
 
         # Dynamic Rot calculation theo tiêu chí USER:
-        # - Tất cả đơn CHƯA NHẬP KHO (flag_inb=0), trừ Đã hủy/Rebound, đều là ĐƠN RỚT CHƯA VỀ HUB
-        # - Rớt Hôm Nay   : Thuộc ca today (op_pk == today hoặc op_cr == today) - bao gồm cả Pickup, Arrival, Transporting
-        # - Rớt Hôm Trước : Thuộc ca các ngày trước (< today) - gối đầu tồn
-        #
-        # ⚠️ HỢP ĐỒNG DỮ LIỆU: drop_type xuất ra giá trị HIỂN THỊ SẴN (display-ready),
-        # y hệt cách `status`/`inv_status` bên dưới đang làm — để khớp trực tiếp với
-        # chuỗi so sánh cứng trong src/components/InboundDashboard.tsx
-        # (ví dụ: d['Loại rớt'] === 'Rớt hôm nay'). Nếu đổi giá trị ở đây, PHẢI đổi
-        # đồng thời BACKEND_DROP_TYPE_MAP trong src/App.tsx để 2 bên không bị lệch nữa.
         DROP_TYPE_TODAY     = 'Rớt hôm nay'
         DROP_TYPE_YESTERDAY = 'Rớt hôm trước'
         DROP_TYPE_AGED      = 'Tồn đọng lâu ngày'
@@ -949,7 +940,6 @@ def sync_postgre_to_dashboard():
             rk_val == 'BN HUB' or 
             'LINEHAUL' in rd_val
         )
-        # Rớt đơn: CHƯA NHẬP KHO, CHƯA XUẤT KHO, không hủy, không rebound, KHÔNG Thuộc Miền Bắc/Linehaul BN HUB
         is_rot = (not has_in) and (not has_out) and (not is_canceled) and (not is_reb) and (not is_north)
 
         ref_rot_date = str(r.get('op_date_pickup') or get_op_date(cr_t) or op_date or '')[:10]
@@ -966,52 +956,42 @@ def sync_postgre_to_dashboard():
         else:
             drop_type = ''
 
-        # Trạng thái Rebound đang tồn bãi thực tế (Đã quay đầu nhập kho Lần 2 mà chưa xuất kho Lần 2)
         is_active_rebound = (is_reb == 1 and not has_out_2)
-
-        # Đơn hiện tại đang NẰM TẠI KHO (chưa xuất kho lần 1, HOẶC đã Rebound quay đầu về kho mà chưa xuất kho lần 2)
         is_currently_at_hub = (not has_out) or is_active_rebound
-
         st_sys_raw = str(r.get('status_sys', '')).strip()
         has_pk = bool(r.get('flag_pickup') or pk_t or st_sys_raw in ('Đã lấy hàng', 'Pickup Done', 'pickup_done'))
 
-        # Inventory status (trùng khớp 100% với bộ lọc Control Center trong React UI)
-        # ⚠️ HỢP ĐỒNG DỮ LIỆU: đây là giá trị HIỂN THỊ SẴN (display-ready), phải khớp
-        # chính xác (kể cả hoa/thường) với danh sách INVENTORY_STATUSES trong src/App.tsx
-        # và BACKEND_STATUS_MAP dùng để chuẩn hoá dữ liệu. Nếu đổi giá trị ở đây,
-        # PHẢI đổi đồng thời bên frontend — nếu không dashboard sẽ lại sai âm thầm
-        # (không báo lỗi) giống lỗi drop_type đã từng gặp.
         inv_status = ('Inbound'      if is_active_rebound else
                       'Outbound'     if (has_out and not is_active_rebound) else
                       'Inbound'      if has_in  else
                       'Transporting' if has_arr else
                       'Pickup Done'  if has_pk else 'Created')
 
-        # 🎯 1. inventory group — Đơn thuộc NGÀY VẬN HÀNH HÔM NAY & LOẠI BỎ HOÀN TOÀN status 'Outbound'
-        is_today_inventory = (op_date == today or ref_rot_date == today)
+        # 🎯 1. inventory group — Đơn thuộc NGÀY VẬN HÀNH tương ứng & LOẠI BỎ 'Outbound'
         is_not_outbound = (inv_status != 'Outbound' and not has_out)
         
-        if is_today_inventory and is_not_outbound and valid_area:
-            ki = (zone, area_id, station, inv_status)
+        if is_not_outbound and valid_area:
+            ki = (zone, area_id, station, inv_status, op_date)
             if ki not in inv_group:
                 inv_group[ki] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
             inv_group[ki]['volume']    += 1
             inv_group[ki]['weight_kg'] += wt_kg
 
-        # 2. outbound group — đơn đã xuất kho hoàn tất (Lần 1 hoặc Lần 2)
+        # 🎯 2. outbound group — CHỈ nhận đơn CÓ MỐC THỜI GIAN XUẤT KHO THỰC TẾ (effective_out_time)
         if (has_out_2 or (has_out and not is_active_rebound)) and valid_area:
             effective_out_time = outb_t_2 if has_out_2 else outb_t
-            op_date_outb = get_op_date(effective_out_time)
-            if op_date_outb in (today, yesterday):
-                ko = (zone, area_id, station, op_date_outb)
-                if ko not in out_group:
-                    out_group[ko] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
-                out_group[ko]['volume']    += 1
-                out_group[ko]['weight_kg'] += wt_kg
+            if effective_out_time and len(effective_out_time) >= 10:
+                op_date_outb = get_op_date(effective_out_time)
+                if op_date_outb in (today, yesterday):
+                    ko = (zone, area_id, station, op_date_outb)
+                    if ko not in out_group:
+                        out_group[ko] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
+                    out_group[ko]['volume']    += 1
+                    out_group[ko]['weight_kg'] += wt_kg
 
-        # 3. backlog group — đơn ĐANG TỒN KHO đã từng Inbound (Lần 1 hoặc Rebound Lần 2)
+        # 🎯 3. backlog group — đơn ĐANG TỒN KHO (Tồn đọng cả ngày cũ và ngày mới)
         if is_currently_at_hub and (has_in or is_reb) and valid_area:
-            kb = (zone, area_id, station)
+            kb = (zone, area_id, station, op_date)
             if kb not in backlog_group:
                 backlog_group[kb] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
             backlog_group[kb]['volume']    += 1
@@ -1022,12 +1002,10 @@ def sync_postgre_to_dashboard():
         op_date_fc   = get_op_date(cr_t)   if cr_t   else ''
         op_date_pick = get_op_date(pk_t)   if pk_t   else ''
         op_date_arr  = get_op_date(arr_t)  if arr_t  else ''
-
         actual_op_date_inb = op_inb_2 if (is_reb and op_inb_2) else (op_date_inb if inb_t else '')
         final_op_date_inb  = actual_op_date_inb or (op_date_arr or op_date_pick or op_date_fc or today)
         final_inb_hour     = inb_t_2[11:16] if (is_reb and len(inb_t_2) >= 16) else (inb_t[11:16] if len(inb_t) >= 16 else '')
 
-        # Mốc chuẩn để đưa đơn vào đúng ngày vận hành của nó trong inbound.json (KHÔNG dồn các ngày cũ vào yesterday):
         if has_in or is_reb:
             ref_date = final_op_date_inb or today
         elif has_arr:
@@ -1042,20 +1020,15 @@ def sync_postgre_to_dashboard():
                          'Transporting' if (has_arr or arr_t or transp_t) else
                          'Pickup Done'  if (has_pick or pk_t) else 'Created')
 
-            # 🎯 TỐI ƯU HOÁ GOM NHÓM AGGREGATE (PRE-AGGREGATION OLAP PIVOT):
-            # 1. Đơn đã 'Inbound': UI chỉ lọc theo op_date_inbound & final_inb_hour. Các mốc tạo/pickup cũ được nén lại.
-            # 2. Đơn chưa 'Inbound' (Created, Pickup Done, Transporting): bucket mốc thời gian theo khung GIỜ (HH:00:00)
-            #    thay vì PHÚT (:16) vì UI chỉ dùng getHourFromTimestamp() để vẽ biểu đồ xu hướng theo giờ.
             fc_op = op_date_fc
             pk_op = op_date_pick
             ar_op = op_date_arr
             fc_hr = cr_t[:13] + ':00:00'  if len(cr_t)  >= 13 else ''
             pk_hr = pk_t[:13] + ':00:00'  if len(pk_t)  >= 13 else ''
             ar_hr = arr_t[:13] + ':00:00' if len(arr_t) >= 13 else ''
-
+            drop_t = drop_type
             key_ib = (
-                station, pk_st_raw or 'BN HUB', in_status,
-                actual_op_date_inb, fc_op, pk_op, ar_op,
+                station, pk_st_raw or 'BN HUB', in_status, ref_date, fc_op, pk_op, ar_op,
                 final_inb_hour, fc_hr, pk_hr, ar_hr,
                 drop_type, trip, transp_t, transpd_t, is_reb
             )
@@ -1087,22 +1060,22 @@ def sync_postgre_to_dashboard():
     inventory_json = [
         {"zone": z, "area_id": a, "station_name": s, "status": stt,
          "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000.0, 6),
-         "capacity": v['capacity'], "op_date": today}
-        for (z, a, s, stt), v in inv_group.items()
+         "capacity": v['capacity'], "op_date": d}
+        for (z, a, s, stt, d), v in inv_group.items()
     ]
 
     outbound_json = [
-        {"zone": z, "area_id": a, "station_name": s,
+        {"zone": z, "area_id": a, "station_name": s, "status": "Outbound",
          "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000.0, 6),
          "capacity": v['capacity'], "op_date": op_d}
         for (z, a, s, op_d), v in out_group.items()
     ]
 
     backlog_json = [
-        {"zone": z, "area_id": a, "station_name": s,
+        {"zone": z, "area_id": a, "station_name": s, "status": "Inbound",
          "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000.0, 6),
-         "capacity": v['capacity'], "op_date": today}
-        for (z, a, s), v in backlog_group.items()
+         "capacity": v['capacity'], "op_date": d}
+        for (z, a, s, d), v in backlog_group.items()
     ]
 
     inbound_json = [
@@ -1131,7 +1104,7 @@ def sync_postgre_to_dashboard():
 
     # hub_inventory_pivot — mỗi station 1 dòng (tổng mọi status)
     pivot_map = {}
-    for (z, a, s, _), v in inv_group.items():
+    for (z, a, s, _, _d), v in inv_group.items():
         k = (z, a, s)
         if k not in pivot_map:
             pivot_map[k] = {'volume': 0, 'weight_kg': 0.0, 'capacity': v['capacity']}

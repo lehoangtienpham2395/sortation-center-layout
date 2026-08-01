@@ -1,8 +1,14 @@
 {
-  "last_update": "17:10:36 01/08/2026",
-  "rot_hom_truoc": 323,
-  "rot_hom_nay": 8020,
-  "total_records": 30634,
+  "last_update": "17:33:34 01/08/2026",
+  "active_date": "2026-08-01",
+  "yesterday": "2026-07-31",
+  "total_records": 160397,
+  "total_inbound_today": 1778,
+  "total_backlog": 2365,
+  "total_inventory": 55674,
+  "rot_hom_truoc": 7293,
+  "rot_hom_truoc_live": 268,
+  "rot_hom_nay": 8494,
   "daily_snapshots": {
     "2026-07-27": {
       "rot_hom_truoc": 0,
@@ -35,11 +41,12 @@
       "is_frozen": true
     },
     "2026-08-01": {
-      "rot_hom_truoc": 323,
-      "rot_hom_nay": 8020,
-      "rot_ton_dong": 359,
+      "rot_hom_truoc": 268,
+      "rot_hom_nay": 8494,
+      "rot_ton_dong": 347,
       "is_frozen": false
     }
   },
-  "contract_version": "2.0.0"
+  "contract_version": "2.0.0",
+  "sync_success": true
 }
