@@ -505,22 +505,24 @@ export default function InboundDashboard({
     forecastRotHomNay = activeSnap.rot_hom_nay ?? forecastRotHomNay;
     forecastRotHomTruoc = activeSnap.rot_hom_truoc ?? forecastRotHomTruoc;
     forecastTonDongLau = activeSnap.rot_ton_dong ?? forecastTonDongLau;
-    // bn_hub_orders: backend hiện chưa tính field này (Linehaul BN HUB được Frontend tự
-    // tính riêng từ inbound.json/truck data) — giữ nguyên giá trị live thay vì ép về 0.
     bnHubLinehaulOrders = activeSnap.bn_hub_orders ?? bnHubLinehaulOrders;
   }
 
-  const isFutureDate = activeDate > todayOpDate;
+  const isFutureDate = normActiveDate > todayOpDate;
 
   // 🎯 Rebuild 4 Module (Forecast, Orders Status, Update, Truck ETA) theo Micro-JSON v2.0
-  const finalRotHomTruoc = isFutureDate ? 0 : (kpiSummary?.rot_hom_truoc ?? (lastUpdateObj?.rot_hom_truoc ?? (activeSnap?.rot_hom_truoc ?? forecastRotHomTruoc)));
-  const finalRotHomNay   = isFutureDate ? 0 : (kpiSummary?.rot_hom_nay   ?? forecastRotHomNay);
-  const totalForecast    = isFutureDate ? 0 : (kpiSummary?.forecast_total ?? (finalRotHomTruoc + finalRotHomNay));
+  // Nếu chọn ngày lịch sử (activeDate !== todayOpDate) và kpiSummary thuộc ngày khác -> ưu tiên activeSnap / forecastRotHom...
+  const effectiveKpiSummary = (kpiSummary && kpiSummary.op_date === normActiveDate) ? kpiSummary : null;
+  const effectiveOrdersStatus = (ordersStatus && ordersStatus.op_date === normActiveDate) ? ordersStatus : null;
 
-  const totalInbound     = isFutureDate ? 0 : (ordersStatus?.inbound     ?? (kpiSummary?.inbound_orders ?? stages['Inbound'].orders));
-  const totalInTransit   = isFutureDate ? 0 : (ordersStatus?.transporting  ?? stages['Transporting'].orders);
-  const totalPickupDone  = isFutureDate ? 0 : (ordersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
-  const totalCreated     = isFutureDate ? 0 : (ordersStatus?.created       ?? stages['Created'].orders);
+  const finalRotHomTruoc = isFutureDate ? 0 : (effectiveKpiSummary?.rot_hom_truoc ?? (isHistoricalDate ? (activeSnap?.rot_hom_truoc ?? forecastRotHomTruoc) : (lastUpdateObj?.rot_hom_truoc ?? forecastRotHomTruoc)));
+  const finalRotHomNay   = isFutureDate ? 0 : (effectiveKpiSummary?.rot_hom_nay   ?? (isHistoricalDate ? (activeSnap?.rot_hom_nay ?? forecastRotHomNay) : (lastUpdateObj?.rot_hom_nay ?? forecastRotHomNay)));
+  const totalForecast    = isFutureDate ? 0 : (effectiveKpiSummary?.forecast_total ?? (finalRotHomTruoc + finalRotHomNay));
+
+  const totalInbound     = isFutureDate ? 0 : (effectiveOrdersStatus?.inbound     ?? (effectiveKpiSummary?.inbound_orders ?? stages['Inbound'].orders));
+  const totalInTransit   = isFutureDate ? 0 : (effectiveOrdersStatus?.transporting  ?? stages['Transporting'].orders);
+  const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
+  const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       ?? stages['Created'].orders);
 
   if (isFutureDate) {
     incomingVehicles = [];
