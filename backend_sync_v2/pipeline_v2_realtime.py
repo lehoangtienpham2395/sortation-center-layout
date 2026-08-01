@@ -211,19 +211,35 @@ def run_realtime_delta_sync(minutes_back=60):
     timestamp_str = now_vn.strftime("%H:%M:%S %d/%m/%Y")
     
     # Unified last_update object
+    # Preserve existing daily_snapshots from current last_update.json to avoid
+    # clobbering historical (flag-based) daily snapshots.
+    merged_snapshots = {}
+    for target_dir in [
+        os.path.join(ROOT_DIR, "public", "data"),
+        os.path.join(ROOT_DIR, "data")
+    ]:
+        existing_lu_path = os.path.join(target_dir, "last_update.json")
+        if os.path.exists(existing_lu_path):
+            try:
+                with open(existing_lu_path, 'r', encoding='utf-8') as f:
+                    existing_lu = json.load(f)
+                merged_snapshots = existing_lu.get("daily_snapshots", {})
+                break
+            except (IOError, json.JSONDecodeError, AttributeError):
+                merged_snapshots = {}
+    merged_snapshots[op_today] = {
+        "rot_hom_truoc": rot_hom_truoc,
+        "rot_hom_nay": rot_hom_nay,
+        "rot_ton_dong": rot_ton_dong,
+        "is_frozen": False
+    }
+
     lu = {
         "last_update": timestamp_str,
         "rot_hom_truoc": rot_hom_truoc,
         "rot_hom_nay": rot_hom_nay,
         "total_records": len(json_records),
-        "daily_snapshots": {
-            op_today: {
-                "rot_hom_truoc": rot_hom_truoc,
-                "rot_hom_nay": rot_hom_nay,
-                "rot_ton_dong": rot_ton_dong,
-                "is_frozen": False
-            }
-        },
+        "daily_snapshots": merged_snapshots,
         "contract_version": "2.0.0"
     }
 

@@ -77,15 +77,25 @@ for target_date in dates:
         'forecast_total': fc_total
     }
     
-    cur.execute('''
-        INSERT INTO enriched.daily_kpi_snapshot (op_date, rot_hom_truoc, rot_hom_nay, rot_ton_dong, updated_at)
-        VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
-        ON CONFLICT (op_date) DO UPDATE SET
-            rot_hom_truoc = EXCLUDED.rot_hom_truoc,
-            rot_hom_nay   = EXCLUDED.rot_hom_nay,
-            rot_ton_dong  = EXCLUDED.rot_ton_dong,
-            updated_at    = CURRENT_TIMESTAMP;
-    ''', (target_date, rot_hom_truoc, rot_hom_nay, rot_ton_dong))
+    # Chỉ upsert cho ngày hôm nay; ngày lịch sử = frozen, KHÔNG được ghi đè
+    # (tránh làm lệch snapshot flag-based đã chốt cho dashboard).
+    is_today = (target_date == datetime.now().strftime('%Y-%m-%d'))
+    if is_today:
+        cur.execute('''
+            INSERT INTO enriched.daily_kpi_snapshot (op_date, rot_hom_truoc, rot_hom_nay, rot_ton_dong, updated_at)
+            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+            ON CONFLICT (op_date) DO UPDATE SET
+                rot_hom_truoc = EXCLUDED.rot_hom_truoc,
+                rot_hom_nay   = EXCLUDED.rot_hom_nay,
+                rot_ton_dong  = EXCLUDED.rot_ton_dong,
+                updated_at    = CURRENT_TIMESTAMP;
+        ''', (target_date, rot_hom_truoc, rot_hom_nay, rot_ton_dong))
+    else:
+        cur.execute('''
+            INSERT INTO enriched.daily_kpi_snapshot (op_date, rot_hom_truoc, rot_hom_nay, rot_ton_dong, updated_at)
+            VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+            ON CONFLICT (op_date) DO NOTHING;
+        ''', (target_date, rot_hom_truoc, rot_hom_nay, rot_ton_dong))
 
 conn.commit()
 
@@ -116,22 +126,8 @@ for d in dates:
         "rot_ton_dong": r['rot_ton_dong'],
         "is_frozen": (d < '2026-08-01')
     }
-    
-    hist_dir = os.path.join(BASE_DIR, "public", "data", "history", d)
-    os.makedirs(hist_dir, exist_ok=True)
-    hist_kpi_path = os.path.join(hist_dir, "inbound_kpi_summary.json")
-    
-    hist_kpi = {
-        "op_date": d,
-        "contract_version": "2.0.0",
-        "forecast_total": r['forecast_total'],
-        "rot_hom_truoc": r['rot_hom_truoc'],
-        "rot_hom_nay": r['rot_hom_nay'],
-        "rot_ton_dong": r['rot_ton_dong']
-    }
-    
-    with open(hist_kpi_path, 'w', encoding='utf-8') as f:
-        json.dump(hist_kpi, f, ensure_ascii=False, indent=2)
+    # Lưu ý: KHÔNG ghi đè history micro-JSON của ngày lịch sử ở đây nữa.
+    # History micro-JSON được tái tạo từ DB qua regenerate_history_microjson.py.
 
 lu_data["daily_snapshots"] = daily_snaps
 lu_data["rot_hom_truoc"] = results['2026-08-01']['rot_hom_truoc']
