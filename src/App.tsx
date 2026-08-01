@@ -1000,54 +1000,56 @@ export default function App() {
       return;
     }
 
-    fetchAndUpdateData();
+    let intervalId: any = null;
+
+    const initDataAndPoll = async () => {
+      // 1. Initial single-pass fetch (sequential await)
+      await fetchAndUpdateData();
+
+      // 2. ONLY AFTER initial fetch completes, define and start background polling
+      const checkAndPoll = async () => {
+        try {
+          const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+          const fetchOpts: RequestInit = {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache'
+            }
+          };
+          const baseUrl = getApiUrl('last_update.json');
+          const cacheBustUrl = baseUrl.includes('?') ? `${baseUrl}&t=${t}` : `${baseUrl}?t=${t}`;
+          let res = await fetch(cacheBustUrl, fetchOpts);
+          if (!res.ok && getApiUrl('').startsWith('./')) {
+            res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, fetchOpts);
+          }
+          if (res.ok) {
+            const d = await res.json();
+            const newTime = d?.last_update || null;
+            if (lastUpdateTimestampRef.current && newTime && newTime !== lastUpdateTimestampRef.current) {
+              console.log(`[Auto Sync] Dữ liệu mới phát hiện (${lastUpdateTimestampRef.current} -> ${newTime}). Đang tự động cập nhật...`);
+              lastUpdateTimestampRef.current = newTime;
+              await fetchAndUpdateData();
+            }
+          }
+        } catch (e) {
+          console.error('[Auto Sync] Lỗi kiểm tra last_update:', e);
+        }
+      };
+
+      intervalId = setInterval(checkAndPoll, 5000);
+    };
+
+    initDataAndPoll();
+
     const handleResize = () => {
       setIsMobile(window.innerWidth < 768);
     };
     window.addEventListener('resize', handleResize);
 
-    // Smart Polling 5s & Tab Focus: Ép buộc chống cache 100% khi đọc last_update.json
-    // Tự động làm mới dữ liệu liên tục 5s/lần trong nền mà KHÔNG CẦN F5 hay bấm bất kỳ nút nào.
-    const checkAndPoll = async () => {
-      try {
-        const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
-        const fetchOpts: RequestInit = {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
-        };
-        const baseUrl = getApiUrl('last_update.json');
-        const cacheBustUrl = baseUrl.includes('?') ? `${baseUrl}&t=${t}` : `${baseUrl}?t=${t}`;
-        let res = await fetch(cacheBustUrl, fetchOpts);
-        if (!res.ok && getApiUrl('').startsWith('./')) {
-          res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/last_update.json?t=${t}`, fetchOpts);
-        }
-        if (res.ok) {
-          const d = await res.json();
-          const newTime = d?.last_update || null;
-          if (!lastUpdateTimestampRef.current || (newTime && newTime !== lastUpdateTimestampRef.current)) {
-            console.log(`[Auto Sync] Dữ liệu mới phát hiện (${lastUpdateTimestampRef.current} -> ${newTime}). Đang tự động cập nhật...`);
-            lastUpdateTimestampRef.current = newTime;
-            await fetchAndUpdateData();
-          }
-        }
-      } catch (e) {
-        console.error('[Auto Sync] Lỗi kiểm tra last_update:', e);
-      }
-    };
-
-    const intervalId = setInterval(checkAndPoll, 5000);
-    const handleFocus = () => { checkAndPoll(); };
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleFocus);
-
     return () => {
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleFocus);
-      clearInterval(intervalId);
+      if (intervalId) clearInterval(intervalId);
     };
   }, []);
 
