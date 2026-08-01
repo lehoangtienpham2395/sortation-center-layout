@@ -725,14 +725,14 @@ export default function InboundDashboard({
     ? (segments.find(s => s.name === hoveredStatus) || highestStatus)
     : highestStatus;
 
-  // MỞ RỘNG METRICS BƯU CỤC GỬI (Đầy đủ bưu cục, tính tổng xe, tổng đơn, tổng trọng lượng, tỉ lệ %)
-  const fcMetrics: Record<string, { fc: string; vehicles: Set<string>; orders: number; weight: number }> = {};
+  // MỞ RỘNG METRICS BƯU CỤC GỬI (Option A: Chỉ đếm các chuyến xe chính >= 5 đơn)
+  const fcMetrics: Record<string, { fc: string; tripCounts: Map<string, number>; orders: number; weight: number }> = {};
   const getFC = (name: any) => {
     if (!name) return null;
     const clean = String(name).trim().toUpperCase();
     if (!clean) return null;
     if (!fcMetrics[clean]) {
-      fcMetrics[clean] = { fc: String(name).trim(), vehicles: new Set(), orders: 0, weight: 0 };
+      fcMetrics[clean] = { fc: String(name).trim(), tripCounts: new Map(), orders: 0, weight: 0 };
     }
     return fcMetrics[clean];
   };
@@ -749,20 +749,32 @@ export default function InboundDashboard({
         fc.weight += wt;
         const tripId = d.trip_code || d.trip_id || d.plate_number || d.vehicle_number || d['Phiếu nhiệm vụ'] || d['Mã chuyến xe'];
         if (tripId) {
-          fc.vehicles.add(String(tripId));
+          const tid = String(tripId).trim();
+          fc.tripCounts.set(tid, (fc.tripCounts.get(tid) || 0) + vol);
         }
       }
     }
   });
 
-  // Hiển thị đầy đủ bưu cục (bỏ slice(0,10))
+  // Option A: Chỉ đếm chuyến xe chính trong ngày (chuyến có >= 5 đơn), đếm tối thiểu 1 xe nếu tổng đơn > 0
   const allSendingFCs = Object.values(fcMetrics)
-    .map(item => ({
-      fc: item.fc,
-      vehicles: item.vehicles.size,
-      orders: item.orders,
-      weight: item.weight
-    }))
+    .map(item => {
+      let mainVehiclesCount = 0;
+      item.tripCounts.forEach((count) => {
+        if (count >= 5) {
+          mainVehiclesCount += 1;
+        }
+      });
+      if (mainVehiclesCount === 0 && item.tripCounts.size > 0) {
+        mainVehiclesCount = 1;
+      }
+      return {
+        fc: item.fc,
+        vehicles: mainVehiclesCount,
+        orders: item.orders,
+        weight: item.weight
+      };
+    })
     .filter(item => item.orders > 0 || item.vehicles > 0)
     .sort((a, b) => b.orders - a.orders || b.weight - a.weight);
 
