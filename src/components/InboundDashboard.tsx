@@ -344,8 +344,8 @@ export default function InboundDashboard({
 
       const isOpMatch = isForecastMember || (normFcDate === normActiveDate) || (arrOpDate === normActiveDate) || (pkOpDate === normActiveDate) || (inbOpDate === normActiveDate);
 
-      // 🛑 BIỂU ĐỒ ORDERS STATUS TÍNH TẤT CẢ CÁC ĐƠN THUỘC CA VẬN HÀNH HÔM NAY (KHÔNG TÍNH ĐƠN MIỀN BẮC TRUNG CHUYỂN)
-      if (isOpMatch && !isNorth) {
+      // 🎯 BIỂU ĐỒ ORDERS STATUS TÍNH TẤT CẢ CÁC ĐƠN THUỘC CA VẬN HÀNH HÔM NAY (BAO GỒM CẢ BN HUB / MIỀN BẮC)
+      if (isOpMatch) {
         const wfStatus = getWaterfallStatus(d);
         if (stages[wfStatus]) {
           stages[wfStatus].orders += vol;
