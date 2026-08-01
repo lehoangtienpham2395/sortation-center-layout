@@ -575,6 +575,7 @@ export default function App() {
         if (d) {
           setLastUpdateObj(d);
           if (d.last_update) {
+            setLastUpdate(d.last_update);
             lastUpdateTimestampRef.current = d.last_update;
           }
         }
@@ -783,7 +784,8 @@ export default function App() {
 
       if (isForSelectedType) {
         if (!selectedMap[key]) {
-          selectedMap[key] = { volume: 0, weight: 0, capacity: row.capacity || 780, buuCuc: row.buuCuc };
+          const defaultCap = key === 'A06' ? 1400 : 780;
+          selectedMap[key] = { volume: 0, weight: 0, capacity: (row.capacity && row.capacity > 0 && key !== 'A06') ? row.capacity : defaultCap, buuCuc: row.buuCuc };
         }
         selectedMap[key].volume += row.volume;
         selectedMap[key].weight += row.weight;
