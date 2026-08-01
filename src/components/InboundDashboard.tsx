@@ -233,6 +233,7 @@ export default function InboundDashboard({
 
 
 
+  /*
   const getLinehaulOperatingDate = (row: any) => {
     if (row['Ngày vận hành']) return row['Ngày vận hành'];
     const timeStr = row['unloadingStartTime'] || row['unloadingEndTime'] || row['sendTime'] || '';
@@ -250,6 +251,7 @@ export default function InboundDashboard({
     }
     return '';
   };
+  */
   // const filteredLinehaul = linehaulData.filter(d => isDateMatch(getLinehaulOperatingDate(d), activeDate));
 
   // 3. Aggregate operational statistics
