@@ -740,8 +740,11 @@ export default function InboundDashboard({
   filteredInbound.forEach(d => {
     const status = d.status || d['Trng thi'] || d['Trạng thái'] || '';
     if (status === 'Inbound' || status === 'Đã nhập kho') {
-      const fcName = d.pickup_station || d.send_network || d['Bưu cục nộp'] || d['Bưu cục gốc'] || d['Bưu cục'] || d['Bu cc'] || d.station_name || 'Chưa rõ';
-      const fc = getFC(fcName);
+      let rawFcName = d.pickup_station || d.send_network || d['Bưu cục nộp'] || d['Bưu cục gốc'] || d['Bưu cục'] || d['Bu cc'] || d.station_name || 'Chưa rõ';
+      if (isNorthRow(d)) {
+        rawFcName = 'BN HUB';
+      }
+      const fc = getFC(rawFcName);
       if (fc) {
         const vol = parseInt(d.volume ?? d['Volume'] ?? 1, 10) || 1;
         const wt = parseFloat(d.weight_ton ?? d['Weight'] ?? 0) || 0;
@@ -756,16 +759,18 @@ export default function InboundDashboard({
     }
   });
 
-  // Option A: Chỉ đếm chuyến xe chính trong ngày (chuyến có >= 10 đơn), đếm tối thiểu 1 xe nếu tổng đơn > 0
+  // Option A: Chỉ đếm chuyến xe chính trong ngày (Linehaul BN HUB: >= 20 đơn, Shuttle: >= 10 đơn), đếm tối thiểu 1 xe nếu tổng đơn > 0
   const allSendingFCs = Object.values(fcMetrics)
     .map(item => {
       let mainVehiclesCount = 0;
+      const isBnHub = item.fc.toUpperCase().includes('BN HUB');
+      const minThreshold = isBnHub ? 20 : 10;
       item.tripCounts.forEach((count) => {
-        if (count >= 10) {
+        if (count >= minThreshold) {
           mainVehiclesCount += 1;
         }
       });
-      if (mainVehiclesCount === 0 && item.tripCounts.size > 0) {
+      if (mainVehiclesCount === 0 && (item.orders > 0 || item.tripCounts.size > 0)) {
         mainVehiclesCount = 1;
       }
       return {
