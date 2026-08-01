@@ -728,7 +728,7 @@ export default function InboundDashboard({
   const getFC = (name: any) => {
     if (!name) return null;
     const clean = String(name).trim().toUpperCase();
-    if (!clean) return null;
+    if (!clean || clean.includes('BN HUB') || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ')) return null;
     if (!fcMetrics[clean]) {
       fcMetrics[clean] = { fc: String(name).trim(), vehicles: new Set(), orders: 0, weight: 0 };
     }
@@ -759,6 +759,7 @@ export default function InboundDashboard({
     const tripId = d['trip_code'] || d['Phiếu nhiệm vụ'] || d['plate_number'] || d['plateNumber'];
     if (fcName && tripId) {
       const clean = fcName.trim().toUpperCase();
+      if (clean.includes('BN HUB') || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ')) return;
       if (!fcMetrics[clean]) {
         fcMetrics[clean] = { fc: fcName.trim(), vehicles: new Set(), orders: 0, weight: 0 };
       }
