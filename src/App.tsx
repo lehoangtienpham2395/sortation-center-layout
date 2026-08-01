@@ -666,29 +666,25 @@ export default function App() {
       ...(inventoryRows ?? []),
     ];
 
-    if (combined.length > 0) {
-      setRawSheetRows(combined);
+    setRawSheetRows(combined);
 
-      // Extract unique dates from all sources (Outbound, Backlog, Inventory, Inbound)
-      const dates = Array.from(new Set([
-        ...combined.map(r => r.date).filter(Boolean),
-        ...(ibRows ?? []).map(r => r['Ngày vận hành_Inbound'] || r['op_date_inbound'] || r['Ngày vận hành_Forecast'] || r['op_date_forecast']).filter(Boolean)
-      ])) as string[];
-      dates.sort((a, b) => b.localeCompare(a));
-      const recentDates = dates.slice(0, 10);
-      setAvailableDates(recentDates);
+    // Extract unique dates from all sources (Outbound, Backlog, Inventory, Inbound)
+    const dates = Array.from(new Set([
+      ...combined.map(r => r.date).filter(Boolean),
+      ...(ibRows ?? []).map(r => r['Ngày vận hành_Inbound'] || r['op_date_inbound'] || r['Ngày vận hành_Forecast'] || r['op_date_forecast']).filter(Boolean)
+    ])) as string[];
+    dates.sort((a, b) => b.localeCompare(a));
+    const recentDates = dates.slice(0, 10);
+    setAvailableDates(recentDates);
 
-      if (recentDates.length > 0) {
-        setSelectedDate(prev => {
-          // 1. Giữ nguyên ngày người dùng đang chọn trên Layout
-          if (prev && recentDates.includes(prev)) return prev;
-          // 2. Lần đầu load mới mặc định lấy todayOpDate
-          if (recentDates.includes(todayOpDate)) return todayOpDate;
-          return recentDates[0];
-        });
-      }
-    } else {
-      console.warn('Fetched sheet data is empty or null.');
+    if (recentDates.length > 0) {
+      setSelectedDate(prev => {
+        // 1. Giữ nguyên ngày người dùng đang chọn trên Layout
+        if (prev && recentDates.includes(prev)) return prev;
+        // 2. Lần đầu load mới mặc định lấy todayOpDate
+        if (recentDates.includes(todayOpDate)) return todayOpDate;
+        return recentDates[0];
+      });
     }
 
     setLoading(false);
@@ -723,7 +719,6 @@ export default function App() {
 
   // Derived state/Filtering effect for Layout Racks & Control Center
   useEffect(() => {
-    if (rawSheetRows.length === 0) return;
 
     const normalizeDateStr = (dStr: string): string => {
       if (!dStr) return '';
