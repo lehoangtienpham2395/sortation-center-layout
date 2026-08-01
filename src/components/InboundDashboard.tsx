@@ -534,7 +534,13 @@ export default function InboundDashboard({
   const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
   const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       ?? stages['Created'].orders);
 
-  if (isFutureDate) {
+  const totalInboundWeight = isFutureDate ? 0 : (
+    effectiveOrdersStatus?.inbound_weight ?? (
+      effectiveKpiSummary?.inbound_weight_ton ?? stages['Inbound'].weight
+    )
+  );
+
+  if (isFutureDate || isHistoricalDate) {
     incomingVehicles = [];
     totalShuttleVehicles = 0;
     totalLinehaulVehicles = 0;
@@ -672,7 +678,7 @@ export default function InboundDashboard({
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
   const totalOrders = totalInbound;
-  const totalWeight = stages['Inbound'].weight;
+  const totalWeight = totalInboundWeight;
 
   const segments = [
     { name: 'Inbound', value: totalInbound, pct: inboundPct, color: '#B8F7E4', label: 'Inbound' },
