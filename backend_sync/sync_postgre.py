@@ -286,19 +286,16 @@ def get_or_create_daily_baseline(conn, today_date_str: str) -> int:
 
         # BƯỚC 2: Chưa có baseline cho ngày này (lần sync đầu tiên sau 06:00 AM)
         # → tính 1 lần duy nhất rồi ghi cố định.
+        yesterday_date_str = (datetime.datetime.strptime(today_date_str, '%Y-%m-%d') - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
         cur.execute("""
             SELECT COUNT(*) FROM enriched.dispatch_enriched
             WHERE (inbound_scandate IS NULL)
               AND (outbound_scandate IS NULL)
-              AND (flag_pickup = 1 OR pickup_time IS NOT NULL OR arrival_scandate IS NOT NULL)
               AND (next_station IS NULL OR next_station <> 'Đã hủy')
               AND (status_sys IS NULL OR status_sys <> 'Đã hủy')
               AND (is_rebound IS NULL OR is_rebound = 0)
-              AND (
-                (op_date_pickup IS NOT NULL AND op_date_pickup < %s::date)
-                OR (op_date_pickup IS NULL AND operation_date_created < %s::date)
-              );
-        """, (today_date_str, today_date_str))
+              AND COALESCE(op_date_pickup::text, operation_date_created::text) = %s;
+        """, (yesterday_date_str,))
         calc_val = cur.fetchone()[0] or 0
 
         # ON CONFLICT DO NOTHING: đề phòng race-condition nếu 2 tiến trình sync
@@ -940,16 +937,15 @@ def sync_postgre_to_dashboard():
 
         stn = str(r.get('next_station', '')).strip()
         is_canceled = (stn == 'Đã hủy' or r.get('status_sys') == 'Đã hủy')
-        is_rot = (not has_in) and (not is_canceled) and (not is_reb)
-
-        # Trống try-except vì yesterday_str đã tính ở ngoài vòng lặp
+        # Rớt đơn: CHƯA NHẬP KHO, CHƯA XUẤT KHO, không hủy, không rebound
+        is_rot = (not has_in) and (not has_out) and (not is_canceled) and (not is_reb)
 
         ref_rot_date = str(r.get('op_date_pickup') or get_op_date(cr_t) or op_date or '')[:10]
         if is_rot:
             if ref_rot_date == today:
                 rot_hom_nay   += 1
                 drop_type = DROP_TYPE_TODAY
-            elif ref_rot_date == yesterday_str:
+            elif ref_rot_date == yesterday:
                 rot_hom_truoc += 1
                 drop_type = DROP_TYPE_YESTERDAY
             else:
