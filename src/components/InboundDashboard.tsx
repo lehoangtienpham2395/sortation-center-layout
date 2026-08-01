@@ -725,7 +725,7 @@ export default function InboundDashboard({
   const getFC = (name: any) => {
     if (!name) return null;
     const clean = String(name).trim().toUpperCase();
-    if (!clean || clean.includes('BN HUB') || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ')) return null;
+    if (!clean) return null;
     if (!fcMetrics[clean]) {
       fcMetrics[clean] = { fc: String(name).trim(), vehicles: new Set(), orders: 0, weight: 0 };
     }
@@ -746,24 +746,6 @@ export default function InboundDashboard({
         if (tripId) {
           fc.vehicles.add(String(tripId));
         }
-      }
-    }
-  });
-
-  filteredLinehaul.forEach(d => {
-    // send_network / sendNetworkName là bưu cục nộp / gửi hàng từ tuyến xe (không lấy nextNetworkName)
-    const fcName = d['send_network'] || d['sendNetworkName'] || d['pickup_station'] || '';
-    const tripId = d['trip_code'] || d['Phiếu nhiệm vụ'] || d['plate_number'] || d['plateNumber'];
-    if (fcName && tripId) {
-      const clean = fcName.trim().toUpperCase();
-      if (clean.includes('BN HUB') || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ')) return;
-      if (!fcMetrics[clean]) {
-        fcMetrics[clean] = { fc: fcName.trim(), vehicles: new Set(), orders: 0, weight: 0 };
-      }
-      fcMetrics[clean].vehicles.add(String(tripId));
-      if (fcMetrics[clean].orders === 0) {
-        fcMetrics[clean].orders += parseInt(d['orders_count'] || d['unloadingBillPiece'] || 0, 10);
-        fcMetrics[clean].weight += parseFloat(d['weight_ton'] || d['unloadingWeight'] || 0);
       }
     }
   });
