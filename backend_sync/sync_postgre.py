@@ -1169,13 +1169,14 @@ def sync_postgre_to_dashboard():
     print(f"\n⚡ Building Micro-JSON Payloads (Data Architecture v2.0)...")
     
     # 5.1 inbound_kpi_summary.json
+    effective_rot_hom_truoc = rot_hom_truoc_baseline if rot_hom_truoc_baseline > 0 else rot_hom_truoc
     inbound_kpi_summary = {
         "op_date": today,
         "contract_version": "2.0.0",
         "inbound_orders": total_inbound_today,
         "inbound_weight_ton": round(sum(stats['weight_kg'] for (st, pk, status, in_op, *rest), stats in inbound_group.items() if status == 'Inbound' and in_op == today) / 1000.0, 3),
-        "forecast_total": rot_hom_truoc + rot_hom_nay,
-        "rot_hom_truoc": rot_hom_truoc_baseline if rot_hom_truoc_baseline > 0 else rot_hom_truoc,
+        "forecast_total": effective_rot_hom_truoc + rot_hom_nay,
+        "rot_hom_truoc": effective_rot_hom_truoc,
         "rot_hom_nay": rot_hom_nay,
         "linehaul_bn_hub": sum(stats['volume'] for (st, pk, status, in_op, fc_op, *rest), stats in inbound_group.items() if (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))) and (fc_op == today or in_op == today))
     }
