@@ -370,11 +370,7 @@ export default function InboundDashboard({
     if (!st) return;
     const cleanKey = st.toUpperCase();
 
-    const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
-    const mappedOrders = stationTransportingMap[cleanKey];
-    const inTransitOrders = (mappedOrders !== undefined && mappedOrders > 0)
-      ? mappedOrders
-      : Number(d['Chưa đến Hub'] ?? d['Chua dn Hub'] ?? d['Orders'] ?? tongDon);
+    const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? d['volume'] ?? 0);
     const lastTime = d['Last time'] || d['ETA'] || d['Giờ đến bãi'] || d['actualArrivalTime'] || d['predictArriveTime'] || '';
     const wtKg = Number(d['weight_kg'] ?? d['loadpackageweight'] ?? d['Tổng trọng lượng (kg)'] ?? 0);
     const wtTon = Number(d['weight'] ?? d['weight_ton'] ?? d['package_charge_weight'] ?? 0);
@@ -384,30 +380,28 @@ export default function InboundDashboard({
       groupedStationVehicles[st] = {
         station: st,
         trucking: 0,
-        orders: inTransitOrders,
+        orders: tongDon,
         weight: 0,
         eta: lastTime,
         rank: (cleanKey.includes('BN') || cleanKey.includes('NORTH')) ? 'Linehaul' : (d['rank'] || d['Rank'] || 'Shuttle'),
-        chuaDenHub: inTransitOrders,
+        chuaDenHub: tongDon,
         tongDon: tongDon,
         vehicles: 0,
         vehicleSet: new Set(),
         lastTime: lastTime
       };
     } else {
-      if (stationTransportingMap[cleanKey] !== undefined) {
-        groupedStationVehicles[st].orders = stationTransportingMap[cleanKey];
-        groupedStationVehicles[st].chuaDenHub = stationTransportingMap[cleanKey];
-      }
+      groupedStationVehicles[st].orders += tongDon;
+      groupedStationVehicles[st].tongDon += tongDon;
+      groupedStationVehicles[st].chuaDenHub += tongDon;
     }
 
     const tripId = d.trip_code || d.shipmentName || d.plateNumber || d.plate_number || `${st}_${idx}`;
     groupedStationVehicles[st].vehicleSet.add(String(tripId));
     groupedStationVehicles[st].vehicles = groupedStationVehicles[st].vehicleSet.size;
     groupedStationVehicles[st].trucking = groupedStationVehicles[st].vehicles;
-    groupedStationVehicles[st].tongDon += tongDon;
     groupedStationVehicles[st].weight += wt;
-    if (lastTime > groupedStationVehicles[st].lastTime) {
+    if (lastTime && lastTime > groupedStationVehicles[st].lastTime) {
       groupedStationVehicles[st].lastTime = lastTime;
       groupedStationVehicles[st].eta = lastTime;
     }
@@ -430,7 +424,7 @@ export default function InboundDashboard({
           groupedStationVehicles[st] = {
             station: st,
             trucking: 1,
-            orders: inTransitOrders,
+            orders: inTransitOrders > 0 ? inTransitOrders : tongDon,
             weight: 0,
             eta: lastTime,
             rank: (cleanKey.includes('BN') || cleanKey.includes('NORTH')) ? 'Linehaul' : 'Shuttle',
@@ -441,7 +435,7 @@ export default function InboundDashboard({
             lastTime: lastTime
           };
         } else {
-          groupedStationVehicles[st].orders += inTransitOrders;
+          groupedStationVehicles[st].orders += (inTransitOrders > 0 ? inTransitOrders : tongDon);
           groupedStationVehicles[st].tongDon += tongDon;
           groupedStationVehicles[st].chuaDenHub += inTransitOrders;
         }
@@ -450,7 +444,7 @@ export default function InboundDashboard({
   }
 
   let incomingVehicles = Object.values(groupedStationVehicles)
-    .filter(v => v.orders >= 5)
+    .filter(v => v.orders > 0 || v.tongDon > 0)
     .sort((a, b) => b.orders - a.orders);
 
 
