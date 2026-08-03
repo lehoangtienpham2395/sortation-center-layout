@@ -289,7 +289,6 @@ export default function InboundDashboard({
     const status = d.status || d['Trng thi'] || d['Trạng thái'] || '';
     const vol = parseInt(d.volume ?? d['Volume'] ?? 1, 10) || 1;
     const wt = parseFloat(d['Weight'] || d['weight_ton'] || 0) || 0;
-    const isNorth = isNorthRow(d);
 
     if (status !== 'Đã hủy' && status !== 'Canceled') {
 
