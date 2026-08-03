@@ -292,8 +292,6 @@ export default function InboundDashboard({
 
     if (status !== 'Đã hủy' && status !== 'Canceled') {
 
-      const isInbound = status === 'Inbound' || status === 'Đã nhập kho';
-      let isForecastMember = false;
 
       const arrOpDate = normalizeDateStr(d['op_date_arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Arrival'] || (d['Arrival Time'] ? getOperatingDateFromTimestamp(d['Arrival Time']) : ''));
       const pkOpDate  = normalizeDateStr(d['op_date_pickup']  || d['Ngày vận hành_Pickup']  || d['Ngy vn hnh_Pickup']  || '');
