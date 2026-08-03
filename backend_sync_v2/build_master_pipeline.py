@@ -144,17 +144,17 @@ def run_master_pipeline():
         is_history = (d_str < op_today)
         is_frozen = is_history
 
-        # Inbound / Status Breakdown Query
+        # 5 Milestone Progression Query (Created -> Pickup -> Transporting -> Inbound -> Outbound)
         cur.execute('''
             SELECT 
-                SUM(CASE WHEN status_sys = 'Inbound' THEN 1 ELSE 0 END) as inbound_cnt,
-                SUM(CASE WHEN status_sys = 'Transporting' THEN 1 ELSE 0 END) as transp_cnt,
-                SUM(CASE WHEN status_sys = 'Pickup Done' THEN 1 ELSE 0 END) as pickup_cnt,
-                SUM(CASE WHEN status_sys = 'Created' THEN 1 ELSE 0 END) as created_cnt,
-                SUM(CASE WHEN status_sys = 'Inbound' THEN orders_weight ELSE 0 END) / 1000.0 as inb_wt,
-                SUM(CASE WHEN status_sys = 'Transporting' THEN orders_weight ELSE 0 END) / 1000.0 as transp_wt,
-                SUM(CASE WHEN status_sys = 'Pickup Done' THEN orders_weight ELSE 0 END) / 1000.0 as pickup_wt,
-                SUM(CASE WHEN status_sys = 'Created' THEN orders_weight ELSE 0 END) / 1000.0 as created_wt
+                SUM(CASE WHEN flag_inbound = 1 OR inbound_scandate IS NOT NULL THEN 1 ELSE 0 END) as inbound_cnt,
+                SUM(CASE WHEN flag_arrival = 1 OR arrival_scandate IS NOT NULL THEN 1 ELSE 0 END) as transp_cnt,
+                SUM(CASE WHEN flag_pickup = 1 OR pickup_time IS NOT NULL THEN 1 ELSE 0 END) as pickup_cnt,
+                COUNT(*) as created_cnt,
+                SUM(CASE WHEN flag_inbound = 1 OR inbound_scandate IS NOT NULL THEN orders_weight ELSE 0 END) / 1000.0 as inb_wt,
+                SUM(CASE WHEN flag_arrival = 1 OR arrival_scandate IS NOT NULL THEN orders_weight ELSE 0 END) / 1000.0 as transp_wt,
+                SUM(CASE WHEN flag_pickup = 1 OR pickup_time IS NOT NULL THEN orders_weight ELSE 0 END) / 1000.0 as pickup_wt,
+                SUM(orders_weight) / 1000.0 as created_wt
             FROM enriched.dispatch_enriched
             WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date;
         ''', (d_str,))
