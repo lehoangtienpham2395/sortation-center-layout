@@ -608,7 +608,15 @@ export default function App() {
       if (kpiSummary) setMicroKpiSummary(kpiSummary);
       if (hourlyTrend) setMicroHourlyTrend(hourlyTrend);
       if (ordersStatus) setMicroOrdersStatus(ordersStatus);
-      if (truckEtaMicro) setMicroTruckEta(truckEtaMicro);
+      if (truckEtaMicro) {
+        setMicroTruckEta(truckEtaMicro);
+        // Also update truckEtaData so InboundDashboard table always gets full station list
+        const trucks = truckEtaMicro?.trucks;
+        if (Array.isArray(trucks) && trucks.length > 0) {
+          setTruckEtaData(trucks);
+          console.log('[APP] truckEtaData updated from inbound_truck_eta.json:', trucks.length, 'stations');
+        }
+      }
       if (originStation) setMicroOriginStation(originStation);
     } catch (microErr) {
       console.warn('Micro-JSON fetch error:', microErr);
@@ -700,7 +708,11 @@ export default function App() {
           if (kpiSummary) setMicroKpiSummary(kpiSummary);
           if (hourlyTrend) setMicroHourlyTrend(hourlyTrend);
           if (ordersStatus) setMicroOrdersStatus(ordersStatus);
-          if (truckEtaMicro) setMicroTruckEta(truckEtaMicro);
+          if (truckEtaMicro) {
+            setMicroTruckEta(truckEtaMicro);
+            const trucks = truckEtaMicro?.trucks;
+            if (Array.isArray(trucks) && trucks.length > 0) setTruckEtaData(trucks);
+          }
           if (originStation) setMicroOriginStation(originStation);
         }
       } catch (microErr) {
