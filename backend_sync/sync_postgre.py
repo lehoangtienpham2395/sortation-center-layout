@@ -1168,16 +1168,16 @@ def sync_postgre_to_dashboard():
     # ── 5. Build Micro-JSONs (Data Architecture v2.0 - Ultra Light) ──
     print(f"\n⚡ Building Micro-JSON Payloads (Data Architecture v2.0)...")
     
-    fc_shuttle = sum(stats['volume'] for (st, pk, status, in_op, fc_op, *rest), stats in inbound_group.items() if status not in ('Inbound', 'Outbound') and not (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))))
-    fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, *rest), stats in inbound_group.items() if status not in ('Inbound', 'Outbound') and (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))))
+    fc_orders_now = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if status not in ('Inbound', 'Outbound') and fc_op == today)
+    fc_orders_live = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if status not in ('Inbound', 'Outbound') and fc_op < today)
     inbound_kpi_summary = {
         "op_date": today,
         "contract_version": "2.0.0",
         "inbound_orders": total_inbound_today,
         "inbound_weight_ton": round(sum(stats['weight_kg'] for (st, pk, status, in_op, *rest), stats in inbound_group.items() if status == 'Inbound' and in_op == today) / 1000.0, 3),
-        "forecast_total": fc_shuttle + fc_linehaul,
-        "shuttle": fc_shuttle,
-        "linehaul": fc_linehaul
+        "forecast_total": fc_orders_now + fc_orders_live,
+        "orders_now": fc_orders_now,
+        "orders_live": fc_orders_live
     }
 
     # 5.2 inbound_hourly_trend.json
@@ -1374,9 +1374,8 @@ def sync_postgre_to_dashboard():
                     "inbound_orders": inb_c,
                     "inbound_weight_ton": inb_w,
                     "forecast_total": tr_c + pk_c + cr_c,
-                    "rot_hom_truoc": 17 if h_d == '2026-07-31' else 0,
-                    "rot_hom_nay": tr_c + pk_c,
-                    "linehaul_bn_hub": 0
+                    "orders_now": cr_c,
+                    "orders_live": tr_c + pk_c
                 }
                 h_status = {
                     "op_date": h_d,
