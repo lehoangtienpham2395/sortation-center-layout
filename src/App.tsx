@@ -2286,6 +2286,11 @@ export default function App() {
                 fetchAndUpdateData={fetchAndUpdateData}
                 lastUpdate={lastUpdate}
                 lastUpdateObj={lastUpdateObj}
+                kpiSummary={microKpiSummary}
+                hourlyTrend={microHourlyTrend}
+                ordersStatus={microOrdersStatus}
+                truckEtaMicro={microTruckEta}
+                originStation={microOriginStation}
               />
             )}
           </div>
