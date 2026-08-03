@@ -757,15 +757,11 @@ def sync_postgre_to_dashboard():
             op_date_inbound_effective      -- Ngay inbound chinh xac cho Rebound
         FROM enriched.dispatch_enriched
         WHERE 
-            -- POOL 1: TẤT CẢ các đơn ĐANG HOẠT ĐỘNG / TỒN KHO / ĐANG CHẠY (Bất kể tạo từ lâu)
+            -- POOL 1: TẤT CẢ các đơn ĐANG HOẠT ĐỘNG / TỒN KHO / ĐANG CHẠY
             (is_active = 1 OR is_completed = FALSE)
 
-            -- POOL 2: Các đơn ĐÃ HOÀN THÀNH nhưng mới phát sinh thao tác gần đây (Cửa sổ 2 ngày ca vận hành op_yesterday)
-            OR op_date_inbound_effective >= %(op_yesterday)s::date
-            OR operation_date_inbound >= %(op_yesterday)s::date
-            OR operation_date_inbound_2 >= %(op_yesterday)s::date
-            OR outbound_scandate >= (%(op_yesterday)s::date - INTERVAL '1 day')
-            OR last_updated >= (CURRENT_TIMESTAMP - INTERVAL '48 hours')
+            -- POOL 2: Các đơn thuộc Ngày vận hành Hôm nay & Hôm qua (Cửa sổ 2 ngày ca vận hành)
+            OR COALESCE(op_date_pickup::date, operation_date_created::date) >= %(op_yesterday)s::date
         ORDER BY operation_date_created DESC, created_time DESC
     """
     params = {'op_yesterday': yesterday}
@@ -795,9 +791,10 @@ def sync_postgre_to_dashboard():
     df = df.fillna('')
     total_rows = len(df)
     today_rows = len(df[df['operation_date_created'].astype(str).str[:10] == today])
-    print(f"   📦 {total_rows:,} records từ PostgreSQL (2 ngày gần nhất)")
+    yest_rows  = len(df[df['operation_date_created'].astype(str).str[:10] == yesterday])
+    print(f"   📦 {total_rows:,} records từ PostgreSQL (Live & Active 2 ngày)")
     print(f"   📅 Ngày vận hành hôm nay ({today}): {today_rows:,} đơn")
-    print(f"   📅 Ngày hôm qua ({yesterday})       : {total_rows - today_rows:,} đơn")
+    print(f"   📅 Ngày hôm qua ({yesterday})       : {yest_rows:,} đơn")
 
     # ── 3. Aggregate ──────────────────────────────────────────────
     inv_group     = {}   # (zone, area_id, station_name, status) → {volume, weight_kg, capacity}
