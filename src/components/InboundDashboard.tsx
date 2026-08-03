@@ -124,6 +124,7 @@ export default function InboundDashboard({
   linehaulData,
   arrivalData,
   truckEtaData,
+  truckEtaMicro,
   selectedInboundDate,
   setSelectedInboundDate,
   loading,
@@ -331,7 +332,12 @@ export default function InboundDashboard({
 
   console.log('[DEBUG BROWSER STAGES]', activeDate, JSON.stringify(stages));
 
-  const rawTrucksList: any[] = Array.isArray(truckEtaData) ? truckEtaData : ((truckEtaData as any)?.trucks || []);
+  // Priority: truckEtaMicro (inbound_truck_eta.json) > truckEtaData (truck_eta.json)
+  const rawTrucksList: any[] = (() => {
+    if (truckEtaMicro?.trucks && truckEtaMicro.trucks.length > 0) return truckEtaMicro.trucks;
+    if (Array.isArray(truckEtaData) && truckEtaData.length > 0) return truckEtaData;
+    return (truckEtaData as any)?.trucks || [];
+  })();
 
 
 
