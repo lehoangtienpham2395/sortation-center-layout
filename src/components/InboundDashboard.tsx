@@ -256,8 +256,8 @@ export default function InboundDashboard({
 
   // 3. Aggregate operational statistics
 
-  let forecastRotHomTruoc = 0;
-  let forecastRotHomNay = 0;
+  let forecastShuttle = 0;
+  let forecastLinehaul = 0;
 
   // ordersWithWeight: chỉ đếm đơn có weight > 0 để tính avg chính xác
   const stagesWithWeight: Record<string, number> = {
@@ -281,13 +281,6 @@ export default function InboundDashboard({
     const dy = String(dt.getDate()).padStart(2, '0');
     return `${yr}-${mo}-${dy}`;
   };
-
-  // Đã BỎ HISTORICAL_SNAPSHOTS hardcode tay từng ngày — đây chính là nguyên nhân gốc
-  // của bug "chốt rồi vẫn tăng": mỗi ngày phải tự gõ tay 1 dòng, ngày nào quên gõ thì
-  // ngày đó mãi mãi không được chốt, cứ hiển thị số live tăng dần.
-  // Giờ backend (sync_postgre.py -> save_and_get_daily_snapshots) tự động chốt MỌI
-  // ngày trong PostgreSQL, xuất sẵn trong lastUpdateObj.daily_snapshots — không cần
-  // fallback tay ở đây nữa.
 
   const normActiveDate = normalizeDateStr(activeDate);
   const prevDate = getPreviousOperatingDate(normActiveDate);
@@ -315,27 +308,14 @@ export default function InboundDashboard({
       const isInbound = status === 'Inbound' || status === 'Đã nhập kho';
       let isForecastMember = false;
 
-      // A. Rớt hôm nay: normFcDate === normActiveDate CHƯA INBOUND VÀ CHƯA OUTBOUND
-      if (normFcDate === normActiveDate && !isInbound && status !== 'Outbound') {
+      // 🎯 DỰ BÁO ĐƠN RỚT (DISPATCH SOURCE): Chưa Inbound và chưa Outbound
+      if (!isInbound && status !== 'Outbound') {
         if (isNorth) {
-          bnHubLinehaulOrdersFromInbound += vol;
+          forecastLinehaul += vol;
         } else {
-          forecastRotHomNay += vol;
-          isForecastMember = true;
+          forecastShuttle += vol;
         }
-      } 
-      // B. Rớt hôm trước: CHỈ đúng 1 ngày liền trước (prevDate) CHƯA INBOUND
-      else if (normFcDate === prevDate && !isInbound) {
-        if (!isNorth) {
-          forecastRotHomTruoc += vol;
-          isForecastMember = true;
-        }
-      }
-      // C. Tồn đọng lâu ngày: các ngày cũ hơn (< prevDate) CHƯA INBOUND
-      else if (normFcDate && normFcDate < prevDate && !isInbound) {
-        if (!isNorth) {
-          forecastTonDongLau += vol;
-        }
+        isForecastMember = true;
       }
 
       const arrOpDate = normalizeDateStr(d['op_date_arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Arrival'] || (d['Arrival Time'] ? getOperatingDateFromTimestamp(d['Arrival Time']) : ''));
@@ -509,24 +489,16 @@ export default function InboundDashboard({
   const effectiveKpiSummary = (kpiSummary && kpiSummary.op_date === normActiveDate) ? kpiSummary : null;
   const effectiveOrdersStatus = (ordersStatus && ordersStatus.op_date === normActiveDate) ? ordersStatus : null;
 
-  const finalRotHomTruoc = isFutureDate ? 0 : (
-    effectiveKpiSummary?.rot_hom_truoc ?? (
-      snapForActiveDate?.rot_hom_truoc ?? (
-        isHistoricalDate ? 0 : (lastUpdateObj?.rot_hom_truoc ?? forecastRotHomTruoc)
-      )
-    )
+  const finalShuttleForecast = isFutureDate ? 0 : (
+    effectiveKpiSummary?.shuttle ?? forecastShuttle
   );
 
-  const finalRotHomNay   = isFutureDate ? 0 : (
-    effectiveKpiSummary?.rot_hom_nay ?? (
-      snapForActiveDate?.rot_hom_nay ?? (
-        isHistoricalDate ? 0 : (lastUpdateObj?.rot_hom_nay ?? forecastRotHomNay)
-      )
-    )
+  const finalLinehaulForecast = isFutureDate ? 0 : (
+    effectiveKpiSummary?.linehaul ?? forecastLinehaul
   );
 
-  const totalForecast    = isFutureDate ? 0 : (
-    effectiveKpiSummary?.forecast_total ?? (finalRotHomTruoc + finalRotHomNay)
+  const totalForecast = isFutureDate ? 0 : (
+    effectiveKpiSummary?.forecast_total ?? (finalShuttleForecast + finalLinehaulForecast)
   );
 
   const totalInbound     = isFutureDate ? 0 : (effectiveOrdersStatus?.inbound     ?? (effectiveKpiSummary?.inbound_orders ?? stages['Inbound'].orders));
@@ -1100,16 +1072,12 @@ export default function InboundDashboard({
             <span className="kpi-value"><NumberTicker value={totalForecast} /></span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.88rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '5px', marginTop: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Rớt hôm trước:</span>
-                <strong style={{ color: '#FC6C26', fontSize: '1.05rem' }}><NumberTicker value={finalRotHomTruoc} /></strong>
+                <span>Shuttle:</span>
+                <strong style={{ color: '#a3e635', fontSize: '1.05rem' }}><NumberTicker value={finalShuttleForecast} /></strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Rớt hôm nay:</span>
-                <strong style={{ color: '#ffa066', fontSize: '1.05rem' }}><NumberTicker value={finalRotHomNay} /></strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Linehaul BN HUB (+36h):</span>
-                <strong style={{ color: '#38bdf8', fontSize: '1.05rem' }}><NumberTicker value={effectiveKpiSummary?.linehaul_bn_hub ?? bnHubLinehaulOrders} /></strong>
+                <span>Linehaul:</span>
+                <strong style={{ color: '#f97316', fontSize: '1.05rem' }}><NumberTicker value={finalLinehaulForecast} /></strong>
               </div>
             </div>
           </div>
