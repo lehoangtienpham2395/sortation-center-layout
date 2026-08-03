@@ -283,11 +283,7 @@ export default function InboundDashboard({
   };
 
   const normActiveDate = normalizeDateStr(activeDate);
-  const prevDate = getPreviousOperatingDate(normActiveDate);
-
   const isHistoricalDate = normActiveDate < todayOpDate;
-
-  let forecastTonDongLau = 0;
   let bnHubLinehaulOrdersFromInbound = 0;
 
   const getFcOpDate = (row: any) => {
@@ -479,9 +475,6 @@ export default function InboundDashboard({
     bnHubLinehaulOrders = Math.max(bnHubLinehaulOrders, bnHubObj.orders || bnHubObj.tongDon || 0);
   }
 
-
-  // 🎯 Khóa cứng Snapshot Lock tuyệt đối cho ngày lịch sử (activeDate < todayOpDate)
-  const snapForActiveDate = lastUpdateObj?.daily_snapshots?.[normActiveDate];
 
   const isFutureDate = normActiveDate > todayOpDate;
 
