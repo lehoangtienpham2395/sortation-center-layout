@@ -1329,12 +1329,20 @@ def main():
     try:
         import psycopg2
         from psycopg2.extras import execute_values
-        pg_pass = os.environ.get('PGPASSWORD', 'Tien@giang2299')
         pg_db   = os.environ.get('PGDATABASE', 'logistics_db')
-        conn = psycopg2.connect(
-            host='127.0.0.1', port=5433, dbname=pg_db, user='postgres', password=pg_pass,
-            connect_timeout=10, options='-c statement_timeout=30000'
-        )
+        passwords = ['Tien@giang0203', 'Tien@giang2299', 'postgres']
+        conn = None
+        for pwd in passwords:
+            try:
+                conn = psycopg2.connect(
+                    host='127.0.0.1', port=5433, dbname=pg_db, user='postgres', password=pwd,
+                    connect_timeout=10, options='-c statement_timeout=30000'
+                )
+                if conn: break
+            except Exception:
+                continue
+        if not conn:
+            raise Exception("Could not connect to PostgreSQL with any known password.")
         cur = conn.cursor()
         # FIX: Không dùng CASCADE để tránh rollback các bảng phụ thuộc
         try:
@@ -1615,6 +1623,12 @@ def main():
         print('   Co transported_time  : ' + pct('transported_time'))
         print('   Co Next_station      : ' + pct('Next_station'))
     print('=' * 65)
+
+    try:
+        from build_master_pipeline import run_master_pipeline
+        run_master_pipeline()
+    except Exception as e:
+        print(f"⚠️ Master Pipeline trigger error in pipeline_unified_v6: {e}")
     print('Tong thoi gian: ' + str(round(time.time() - t0, 1)) + 's')
 
 if __name__ == '__main__':

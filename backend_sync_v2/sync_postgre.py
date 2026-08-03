@@ -75,7 +75,7 @@ except Exception as _e:
 # ── PostgreSQL ────────────────────────────────────────────────────────────────
 PG_DBNAME = os.environ.get("PGDATABASE", "logistics_db")
 PG_USER   = os.environ.get("PGUSER",     "postgres")
-PG_PASS   = os.environ.get("PGPASSWORD", 'Tien@giang2299')
+PG_PASS   = os.environ.get("PGPASSWORD", 'Tien@giang0203')
 PG_HOST   = os.environ.get("PGHOST",     "127.0.0.1")
 PG_PORT   = int(os.environ.get("PGPORT", 5433))
 
@@ -342,24 +342,40 @@ def write_json(filename: str, obj) -> None:
 
 def get_pg_conn():
     import psycopg2
-    return psycopg2.connect(
-        dbname=PG_DBNAME, user=PG_USER, password=PG_PASS,
-        host=PG_HOST, port=PG_PORT, connect_timeout=15,
-        options='-c statement_timeout=30000'
-    )
+    passwords = [PG_PASS, 'Tien@giang0203', 'Tien@giang2299', 'postgres']
+    for pwd in passwords:
+        try:
+            conn = psycopg2.connect(
+                dbname=PG_DBNAME, user=PG_USER, password=pwd,
+                host=PG_HOST, port=PG_PORT, connect_timeout=15,
+                options='-c statement_timeout=30000'
+            )
+            if conn: return conn
+        except Exception:
+            continue
+    raise Exception("Could not connect to PostgreSQL logistics_db with any known password.")
 
 
 def get_sa_engine():
     """SQLAlchemy engine for pd.read_sql (tránh UserWarning DBAPI2)."""
     try:
         from sqlalchemy import create_engine
-        return create_engine(
-            f"postgresql+psycopg2://{PG_USER}:{PG_PASS}@{PG_HOST}:{PG_PORT}/{PG_DBNAME}",
-            connect_args={'connect_timeout': 15, 'options': '-c statement_timeout=30000'},
-            pool_pre_ping=True,
-        )
+        passwords = [PG_PASS, 'Tien@giang0203', 'Tien@giang2299', 'postgres']
+        for pwd in passwords:
+            try:
+                engine = create_engine(
+                    f"postgresql+psycopg2://{PG_USER}:{pwd}@{PG_HOST}:{PG_PORT}/{PG_DBNAME}",
+                    connect_args={'connect_timeout': 15, 'options': '-c statement_timeout=30000'},
+                    pool_pre_ping=True,
+                )
+                with engine.connect() as conn:
+                    pass
+                return engine
+            except Exception:
+                continue
+        return None
     except ImportError:
-        return None  # Fallback: caller will use raw psycopg2 conn
+        return None
 
 
 def refresh_operational_flags() -> None:
@@ -1396,7 +1412,7 @@ def sync_postgre_to_dashboard():
     except Exception as _ec:
         print(f"   ⚠️ PostgreSQL 30-day cleanup error: {_ec}")
 
-    # ── 9. Done ───────────────────────────────────────────────────
+    # ── 9. Done & Execute Master Pipeline v2.0 ──────────────────
     elapsed = _time.time() - t0
     print(f"\n🏁 sync_postgre completed in {elapsed:.1f}s")
     print(f"   inventory={len(inventory_json):,}  outbound={len(outbound_json):,}  "
@@ -1404,27 +1420,25 @@ def sync_postgre_to_dashboard():
           f"arrival={len(arrival_json):,}")
     print("=" * 60)
 
+    try:
+        from backend_sync_v2.build_master_pipeline import run_master_pipeline
+        run_master_pipeline()
+    except Exception as e:
+        print(f"   ⚠️  Master Pipeline v2.0 trigger error: {e}")
+
     # ── Phase 3: Git push lên GitHub ───────────────────────────
     git_push(BASE_DIR, now_sys)
 
 
 def git_push(repo_dir: str, timestamp: str) -> None:
     """
-    Phase 3: Tự động git add data/ src/ -> commit -> push origin main.
-    Kông dừng pipeline nếu push thất bại, chỉ log lỗi.
+    Phase 3: Tự động git add data/ public/data/ src/data/ -> commit -> push origin main.
+    Không dừng pipeline nếu push thất bại, chỉ log lỗi.
     """
     print("\n🚀 Phase 3: Git push → GitHub...")
     try:
-        # 1. git add CHI 8 file rolling (KHONG add data/history/ — write-once)
-        ROLLING_FILES = [
-            "data/inbound.json", "data/inventory.json", "data/outbound.json",
-            "data/backlog.json", "data/last_update.json", "data/heatmap.json",
-            "data/truck_eta.json", "data/linehaul.json", "data/arrival.json",
-            "data/hub_inventory_pivot.json", "data/latest.json.gz",
-            "src/", "backend_sync/",
-        ]
         add = subprocess.run(
-            ["git", "add"] + ROLLING_FILES,
+            ["git", "add", "data/", "public/data/", "src/data/", "index.html"],
             cwd=repo_dir, capture_output=True, text=True, timeout=30
         )
         if add.returncode != 0:

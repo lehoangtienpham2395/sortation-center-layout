@@ -75,7 +75,7 @@ except Exception as _e:
 # ── PostgreSQL ────────────────────────────────────────────────────────────────
 PG_DBNAME = os.environ.get("PGDATABASE", "logistics_db")
 PG_USER   = os.environ.get("PGUSER",     "postgres")
-PG_PASS   = os.environ.get("PGPASSWORD", 'Tien@giang2299')
+PG_PASS   = os.environ.get("PGPASSWORD", 'Tien@giang0203')
 PG_HOST   = os.environ.get("PGHOST",     "127.0.0.1")
 PG_PORT   = int(os.environ.get("PGPORT", 5433))
 
@@ -342,24 +342,40 @@ def write_json(filename: str, obj) -> None:
 
 def get_pg_conn():
     import psycopg2
-    return psycopg2.connect(
-        dbname=PG_DBNAME, user=PG_USER, password=PG_PASS,
-        host=PG_HOST, port=PG_PORT, connect_timeout=15,
-        options='-c statement_timeout=30000'
-    )
+    passwords = [PG_PASS, 'Tien@giang0203', 'Tien@giang2299', 'postgres']
+    for pwd in passwords:
+        try:
+            conn = psycopg2.connect(
+                dbname=PG_DBNAME, user=PG_USER, password=pwd,
+                host=PG_HOST, port=PG_PORT, connect_timeout=15,
+                options='-c statement_timeout=30000'
+            )
+            if conn: return conn
+        except Exception:
+            continue
+    raise Exception("Could not connect to PostgreSQL logistics_db with any known password.")
 
 
 def get_sa_engine():
     """SQLAlchemy engine for pd.read_sql (tránh UserWarning DBAPI2)."""
     try:
         from sqlalchemy import create_engine
-        return create_engine(
-            f"postgresql+psycopg2://{PG_USER}:{PG_PASS}@{PG_HOST}:{PG_PORT}/{PG_DBNAME}",
-            connect_args={'connect_timeout': 15, 'options': '-c statement_timeout=30000'},
-            pool_pre_ping=True,
-        )
+        passwords = [PG_PASS, 'Tien@giang0203', 'Tien@giang2299', 'postgres']
+        for pwd in passwords:
+            try:
+                engine = create_engine(
+                    f"postgresql+psycopg2://{PG_USER}:{pwd}@{PG_HOST}:{PG_PORT}/{PG_DBNAME}",
+                    connect_args={'connect_timeout': 15, 'options': '-c statement_timeout=30000'},
+                    pool_pre_ping=True,
+                )
+                with engine.connect() as conn:
+                    pass
+                return engine
+            except Exception:
+                continue
+        return None
     except ImportError:
-        return None  # Fallback: caller will use raw psycopg2 conn
+        return None
 
 
 def refresh_operational_flags() -> None:

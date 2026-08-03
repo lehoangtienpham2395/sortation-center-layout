@@ -268,16 +268,52 @@ def run_master_pipeline():
             "stations": origin_stations
         }
 
-        # F. 4 - inbound_hourly_trend.json
+        # F. 4 - inbound_hourly_trend.json (Dynamic 24h Hourly Trend)
+        cur.execute('''
+            SELECT SUBSTRING(created_time::text FROM 12 FOR 2) || ':00' AS hr, COUNT(*)
+            FROM enriched.dispatch_enriched
+            WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date
+              AND created_time IS NOT NULL
+            GROUP BY 1;
+        ''', (d_str,))
+        cr_hr_map = dict(cur.fetchall())
+
+        cur.execute('''
+            SELECT SUBSTRING(pickup_time::text FROM 12 FOR 2) || ':00' AS hr, COUNT(*)
+            FROM enriched.dispatch_enriched
+            WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date
+              AND pickup_time IS NOT NULL
+            GROUP BY 1;
+        ''', (d_str,))
+        pk_hr_map = dict(cur.fetchall())
+
+        cur.execute('''
+            SELECT SUBSTRING(arrival_scandate::text FROM 12 FOR 2) || ':00' AS hr, COUNT(*)
+            FROM enriched.dispatch_enriched
+            WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date
+              AND arrival_scandate IS NOT NULL
+            GROUP BY 1;
+        ''', (d_str,))
+        arr_hr_map = dict(cur.fetchall())
+
+        cur.execute('''
+            SELECT SUBSTRING(inbound_scandate::text FROM 12 FOR 2) || ':00' AS hr, COUNT(*)
+            FROM enriched.dispatch_enriched
+            WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date
+              AND inbound_scandate IS NOT NULL
+            GROUP BY 1;
+        ''', (d_str,))
+        inb_hr_map = dict(cur.fetchall())
+
         hourly_trend_payload = {
             "op_date": d_str,
             "contract_version": "2.0.0",
             "hours": hours_list,
             "series": {
-                "inbound": [0] * 24,
-                "transporting": [0] * 24,
-                "pickup_done": [0] * 24,
-                "created": [0] * 24
+                "inbound": [inb_hr_map.get(h, 0) for h in hours_list],
+                "transporting": [arr_hr_map.get(h, 0) for h in hours_list],
+                "pickup_done": [pk_hr_map.get(h, 0) for h in hours_list],
+                "created": [cr_hr_map.get(h, 0) for h in hours_list]
             }
         }
 
