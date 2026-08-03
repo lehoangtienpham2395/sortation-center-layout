@@ -596,7 +596,7 @@ export default function App() {
     if (lhRows && lhRows.length > 0) setLinehaulData(lhRows);
     if (arrivalRows && arrivalRows.length > 0) setArrivalData(arrivalRows);
 
-    // Fetch Micro-JSON payloads for Inbound Dashboard v2.0 in parallel
+    let microTrucksLoaded = false;
     try {
       const [kpiSummary, hourlyTrend, ordersStatus, truckEtaMicro, originStation] = await Promise.all([
         fetchMicroJson<any>('inbound_kpi_summary.json', selectedInboundDate),
@@ -610,10 +610,10 @@ export default function App() {
       if (ordersStatus) setMicroOrdersStatus(ordersStatus);
       if (truckEtaMicro) {
         setMicroTruckEta(truckEtaMicro);
-        // Also update truckEtaData so InboundDashboard table always gets full station list
         const trucks = truckEtaMicro?.trucks;
         if (Array.isArray(trucks) && trucks.length > 0) {
           setTruckEtaData(trucks);
+          microTrucksLoaded = true;
           console.log('[APP] truckEtaData updated from inbound_truck_eta.json:', trucks.length, 'stations');
         }
       }
@@ -622,21 +622,23 @@ export default function App() {
       console.warn('Micro-JSON fetch error:', microErr);
     }
 
-    // Đảm bảo truck_eta.json được nạp 100% với GitHub Raw fallback trực tiếp
-    let finalTruckEta = truckEtaRows;
-    if (!finalTruckEta || finalTruckEta.length === 0) {
-      try {
-        const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
-        const r = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/truck_eta.json?t=${t}`, { cache: 'no-store' });
-        if (r.ok) {
-          const json = await r.json();
-          finalTruckEta = Array.isArray(json) ? json : (json?.trucks || []);
+    // Fallback: chỉ dùng truck_eta.json nếu inbound_truck_eta.json không có trucks
+    if (!microTrucksLoaded) {
+      let finalTruckEta = truckEtaRows;
+      if (!finalTruckEta || finalTruckEta.length === 0) {
+        try {
+          const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+          const r = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/truck_eta.json?t=${t}`, { cache: 'no-store' });
+          if (r.ok) {
+            const json = await r.json();
+            finalTruckEta = Array.isArray(json) ? json : (json?.trucks || []);
+          }
+        } catch (e) {
+          console.warn('Direct GitHub Raw truck_eta fallback error:', e);
         }
-      } catch (e) {
-        console.warn('Direct GitHub Raw truck_eta fallback error:', e);
       }
+      if (finalTruckEta && finalTruckEta.length > 0) setTruckEtaData(finalTruckEta);
     }
-    if (finalTruckEta && finalTruckEta.length > 0) setTruckEtaData(finalTruckEta);
     if (heatmapData) {
       setHeatmapRows(heatmapData);
     }
