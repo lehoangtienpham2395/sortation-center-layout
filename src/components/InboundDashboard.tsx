@@ -256,8 +256,8 @@ export default function InboundDashboard({
 
   // 3. Aggregate operational statistics
 
-  let forecastShuttle = 0;
-  let forecastLinehaul = 0;
+  let forecastOrdersNow = 0;
+  let forecastOrdersLive = 0;
 
   // ordersWithWeight: chỉ đếm đơn có weight > 0 để tính avg chính xác
   const stagesWithWeight: Record<string, number> = {
@@ -294,11 +294,12 @@ export default function InboundDashboard({
       let isForecastMember = false;
 
       // 🎯 DỰ BÁO ĐƠN RỚT (DISPATCH SOURCE): Chưa Inbound và chưa Outbound
-      if (!isInbound && status !== 'Outbound') {
-        if (isNorth) {
-          forecastLinehaul += vol;
+      if (!isInbound && status !== 'Outbound' && !d['Inbound Time'] && !d['inbound_time'] && !d['Outbound Time'] && !d['outbound_time']) {
+        const normCreatedDate = normalizeDateStr(d['op_date_created'] || d['Ngày vận hành_Created'] || d['Ngy vn hnh_Created'] || (d['Created Time'] ? getOperatingDateFromTimestamp(d['Created Time']) : ''));
+        if (normCreatedDate === normActiveDate) {
+          forecastOrdersNow += vol;
         } else {
-          forecastShuttle += vol;
+          forecastOrdersLive += vol;
         }
         isForecastMember = true;
       }
@@ -471,16 +472,16 @@ export default function InboundDashboard({
   const effectiveKpiSummary = (kpiSummary && kpiSummary.op_date === normActiveDate) ? kpiSummary : null;
   const effectiveOrdersStatus = (ordersStatus && ordersStatus.op_date === normActiveDate) ? ordersStatus : null;
 
-  const finalShuttleForecast = isFutureDate ? 0 : (
-    effectiveKpiSummary?.shuttle ?? forecastShuttle
+  const finalOrdersNow = isFutureDate ? 0 : (
+    effectiveKpiSummary?.orders_now ?? forecastOrdersNow
   );
 
-  const finalLinehaulForecast = isFutureDate ? 0 : (
-    effectiveKpiSummary?.linehaul ?? forecastLinehaul
+  const finalOrdersLive = isFutureDate ? 0 : (
+    effectiveKpiSummary?.orders_live ?? forecastOrdersLive
   );
 
   const totalForecast = isFutureDate ? 0 : (
-    effectiveKpiSummary?.forecast_total ?? (finalShuttleForecast + finalLinehaulForecast)
+    effectiveKpiSummary?.forecast_total ?? (finalOrdersNow + finalOrdersLive)
   );
 
   const totalInbound     = isFutureDate ? 0 : (effectiveOrdersStatus?.inbound     ?? (effectiveKpiSummary?.inbound_orders ?? stages['Inbound'].orders));
@@ -1054,12 +1055,12 @@ export default function InboundDashboard({
             <span className="kpi-value"><NumberTicker value={totalForecast} /></span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.88rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '5px', marginTop: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Shuttle:</span>
-                <strong style={{ color: '#a3e635', fontSize: '1.05rem' }}><NumberTicker value={finalShuttleForecast} /></strong>
+                <span>Orders Now:</span>
+                <strong style={{ color: '#a3e635', fontSize: '1.05rem' }}><NumberTicker value={finalOrdersNow} /></strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Linehaul:</span>
-                <strong style={{ color: '#f97316', fontSize: '1.05rem' }}><NumberTicker value={finalLinehaulForecast} /></strong>
+                <span>Orders Live:</span>
+                <strong style={{ color: '#f97316', fontSize: '1.05rem' }}><NumberTicker value={finalOrdersLive} /></strong>
               </div>
             </div>
           </div>
