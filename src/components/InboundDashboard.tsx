@@ -339,8 +339,6 @@ export default function InboundDashboard({
 
   const filteredTruckEta = rawTrucksList
     .filter((d: any) => {
-      const st = (d.send_network || d.sendNetworkName || d.Station || d.Pickup_station || d['Bưu cục đi'] || '').toUpperCase();
-      if (st !== 'BN HUB' && isNorthRow(d)) return false;
       const opD = d.op_date || getOperatingDateFromTimestamp(d.eta || d.planned_arrival || '');
       return !opD || isDateMatch(opD, activeDate);
     })

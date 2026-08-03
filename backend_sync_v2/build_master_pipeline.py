@@ -331,6 +331,7 @@ def run_master_pipeline():
         }
 
         # G. 5 - inbound_truck_eta.json
+        # G. 5 - inbound_truck_eta.json (Arrival Scan Vehicles & Linehaul in Transit)
         cur.execute('''
             SELECT 
                 COALESCE(pickup_station, 'BƯU CỤC NỘP') as send_net,
@@ -338,21 +339,28 @@ def run_master_pipeline():
                 COALESCE(trip_code, 'TRIP_LIVE') as trip_c,
                 COUNT(*) as ord_cnt,
                 ROUND(SUM(orders_weight)::numeric, 2) as wt_kg,
-                ROUND((SUM(orders_weight)/1000.0)::numeric, 4) as wt_ton
+                ROUND((SUM(orders_weight)/1000.0)::numeric, 4) as wt_ton,
+                CASE WHEN (UPPER(COALESCE(next_station, '')) = 'BN HUB' OR UPPER(COALESCE(rank, '')) = 'BN HUB' OR UPPER(COALESCE(round, '')) LIKE '%%LINEHAUL%%') THEN 'Linehaul' ELSE 'Shuttle' END as rank_type
             FROM enriched.dispatch_enriched
-            WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date
-            GROUP BY 1, 2, 3 ORDER BY 4 DESC LIMIT 20;
+            WHERE (flag_inbound = 0 AND inbound_scandate IS NULL)
+              AND (
+                  (flag_arrival = 1 OR arrival_scandate IS NOT NULL)
+                  OR (UPPER(COALESCE(next_station, '')) = 'BN HUB' OR UPPER(COALESCE(rank, '')) = 'BN HUB' OR UPPER(COALESCE(round, '')) LIKE '%%LINEHAUL%%')
+              )
+              AND COALESCE(arrival_scandate::date, op_date_pickup::date, operation_date_created::date) = %s::date
+            GROUP BY 1, 2, 3, 7 ORDER BY 4 DESC;
         ''', (d_str,))
         truck_rows = cur.fetchall()
         trucks_list = []
-        for send_n, arr_n, tr_c, o_cnt, w_kg, w_ton in truck_rows:
+        for send_n, arr_n, tr_c, o_cnt, w_kg, w_ton, rk_t in truck_rows:
             trucks_list.append({
                 "send_network": str(send_n),
                 "arrive_network": str(arr_n),
                 "trip_code": str(tr_c),
                 "orders_count": int(o_cnt or 0),
                 "weight_kg": float(w_kg or 0.0),
-                "weight_ton": float(w_ton or 0.0)
+                "weight_ton": float(w_ton or 0.0),
+                "rank": str(rk_t)
             })
 
         truck_eta_payload = {
