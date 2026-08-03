@@ -294,7 +294,15 @@ export default function InboundDashboard({
       let isForecastMember = false;
 
       // 🎯 DỰ BÁO ĐƠN RỚT (DISPATCH SOURCE): Chưa Inbound và chưa Outbound
-      if (!isInbound && status !== 'Outbound' && !d['Inbound Time'] && !d['inbound_time'] && !d['Outbound Time'] && !d['outbound_time']) {
+      const hasInboundScan = Boolean(
+        d['inbound_scandate'] || d['Inbound Time'] || d['inbound_time'] || d['Inbound_time'] || d['inbound_date'] || d['Ngày nhập kho'] || d['Ngay nhap kho']
+      );
+      const hasOutboundScan = Boolean(
+        d['outbound_scandate'] || d['Outbound Time'] || d['outbound_time'] || d['Outbound_time'] || d['outbound_date'] || d['Ngày xuất kho'] || d['Ngay xuat kho']
+      );
+      const isDoneStatus = ['Inbound', 'Outbound', 'Canceled', 'Đã nhập kho', 'Đã xuất kho', 'Đã hủy'].includes(status);
+
+      if (!isDoneStatus && !hasInboundScan && !hasOutboundScan) {
         if (isNorth) {
           forecastLinehaul += vol;
         } else {
