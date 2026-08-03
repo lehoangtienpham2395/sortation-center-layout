@@ -1053,7 +1053,7 @@ export default function InboundDashboard({
           <div className="kpi-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
               <span className="kpi-value"><NumberTicker value={totalForecast} /></span>
-              <span style={{ fontSize: '1.08rem', color: '#E2E8F0', fontWeight: 700, letterSpacing: '0.01em' }}>(~{totalForecastWeight.toFixed(1).replace('.', ',')} Tấn)</span>
+              <span style={{ fontSize: '1.08rem', color: '#E2E8F0', fontWeight: 700, letterSpacing: '0.01em' }}>({totalForecastWeight.toFixed(1).replace('.', ',')} Tấn)</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.98rem', color: '#E2E8F0', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '6px', marginTop: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
