@@ -197,13 +197,6 @@ import {
 
 function getApiUrl(filename: string): string {
   const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
-  const isGitHubPages = typeof window !== 'undefined' && (
-    window.location.hostname.includes('github.io') ||
-    window.location.hostname.includes('githubusercontent.com')
-  );
-  if (isGitHubPages) {
-    return `https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${filename}?t=${t}`;
-  }
   return `./data/${filename}?t=${t}`;
 }
 
@@ -457,7 +450,7 @@ export default function App() {
   const [linehaulData, setLinehaulData] = useState<any[]>([]);
   const [arrivalData, setArrivalData] = useState<any[]>([]);
   const [truckEtaData, setTruckEtaData] = useState<any[]>([]);
-  const [selectedInboundDate, setSelectedInboundDate] = useState<string>('');
+  const [selectedInboundDate, setSelectedInboundDate] = useState<string>('2026-08-03');
   const [showMonitor, setShowMonitor] = useState(true);
   const [showTelemetry, setShowTelemetry] = useState(true);
   const [showControls, setShowControls] = useState(true);
