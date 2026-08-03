@@ -1320,6 +1320,11 @@ def main():
 
     df['status_sys'] = df.apply(resolve_source_status_sys, axis=1)
 
+    # 🛡️ BỘ LỌC BẢO VỆ HCM HUB: Loại bỏ hoàn toàn các đơn luân chuyển nội bộ Miền Bắc (BN HUB -> BN HUB)
+    pk_s = df['Pickup_station'].astype(str).str.upper().str.strip()
+    nx_s = df['Next_station'].astype(str).str.upper().str.strip()
+    df = df[~((pk_s == 'BN HUB') & (nx_s == 'BN HUB'))].copy()
+
 
 
 
