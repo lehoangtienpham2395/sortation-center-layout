@@ -271,17 +271,6 @@ export default function InboundDashboard({
       'Created': { orders: 0, weight: 0 }
     };
 
-  const getPreviousOperatingDate = (activeDateStr: string): string => {
-    if (!activeDateStr) return '';
-    const norm = normalizeDateStr(activeDateStr);
-    const dt = new Date(norm + 'T00:00:00');
-    dt.setDate(dt.getDate() - 1);
-    const yr = dt.getFullYear();
-    const mo = String(dt.getMonth() + 1).padStart(2, '0');
-    const dy = String(dt.getDate()).padStart(2, '0');
-    return `${yr}-${mo}-${dy}`;
-  };
-
   const normActiveDate = normalizeDateStr(activeDate);
   const isHistoricalDate = normActiveDate < todayOpDate;
   let bnHubLinehaulOrdersFromInbound = 0;
