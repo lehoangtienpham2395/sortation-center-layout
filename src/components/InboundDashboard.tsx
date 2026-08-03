@@ -338,6 +338,7 @@ export default function InboundDashboard({
     if (Array.isArray(truckEtaData) && truckEtaData.length > 0) return truckEtaData;
     return (truckEtaData as any)?.trucks || [];
   })();
+  console.log('[DEBUG TRUCK ETA] source:', truckEtaMicro?.trucks?.length ? 'microTruckEta' : 'truckEtaData', '| count:', rawTrucksList.length, '| microTruckEta trucks:', truckEtaMicro?.trucks?.length ?? 0);
 
 
 
