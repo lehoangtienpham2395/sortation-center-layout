@@ -321,7 +321,7 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
     // KHÔNG khai báo map riêng nữa để tránh lệch với Inbound dashboard.
     for (const item of data) {
       const zone       = String(item['zone'] ?? item['Zone'] ?? item['round'] ?? item['Round'] ?? '');
-      const areaId     = String(item['area_id'] ?? item['AreaID'] ?? item['rank'] ?? item['Rank'] ?? '');
+      const areaId     = String(item['areaId'] ?? item['area_id'] ?? item['AreaID'] ?? item['rank'] ?? item['Rank'] ?? '');
       const buuCuc     = String(item['station_name'] ?? item['Bu cc'] ?? item['Bưu cục'] ?? item['name'] ?? item['Next_station'] ?? item['Pickup_station'] ?? '');
       const volumeRaw  = item['volume'] ?? item['Volume'] ?? item['Orders_num'];
       const volume     = Number(volumeRaw) || 0;

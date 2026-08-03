@@ -64,6 +64,8 @@ export const KEY_MAP: Record<string, string> = {
   'total_orders':      'Tổng số đơn',
   'volume':            'Volume',
   'weight_ton':        'Weight',
+  'area_id':           'areaId',
+  'areaId':            'areaId',
 
   'Bu cc':              'Bưu cục',
   'Trng thi':          'Trạng thái',
@@ -150,7 +152,8 @@ export interface InboundOriginStationPayload {
 export function normalizeStatus(raw: unknown): string | undefined {
   if (raw === undefined || raw === null || raw === '') return undefined;
   const key = String(raw).trim();
-  return BACKEND_STATUS_MAP[key] ?? key;
+  const lowerKey = key.toLowerCase();
+  return BACKEND_STATUS_MAP[key] ?? BACKEND_STATUS_MAP[lowerKey] ?? key;
 }
 
 export function normalizeDropType(raw: unknown): string | undefined {
