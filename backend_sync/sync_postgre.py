@@ -1055,7 +1055,8 @@ def sync_postgre_to_dashboard():
         if arr_t:
             op_d   = get_op_date(arr_t)
             scan_h = arr_t[:13] + ":00" if len(arr_t) >= 13 else arr_t
-            ka     = (op_d, station, scan_h)
+            arr_st = (pk_st_raw or station).strip()
+            ka     = (op_d, arr_st, scan_h)
             if ka not in arr_group:
                 arr_group[ka] = {'total': 0, 'at_hub': 0, 'not_hub': 0, 'last_scan_time': arr_t}
             arr_group[ka]['total'] += 1
