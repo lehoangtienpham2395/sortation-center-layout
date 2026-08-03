@@ -362,7 +362,6 @@ export default function InboundDashboard({
     const st = (d['send_network'] || d['sendNetworkName'] || d['Station'] || d['Pickup_station'] || d['Bưu cục đi'] || d['send_site_name'] || '').trim();
     if (!st) return;
     const cleanKey = st.toUpperCase();
-    if (cleanKey !== 'BN HUB' && isNorthRow(d)) return;
 
     const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
     const inTransitOrders = stationTransportingMap[cleanKey] !== undefined 
@@ -413,7 +412,6 @@ export default function InboundDashboard({
       const st = (d['station_name'] || d['Pickup_station'] || d['Bưu cục'] || d['send_network'] || '').trim();
       if (!st) return;
       const cleanKey = st.toUpperCase();
-      if (cleanKey !== 'BN HUB' && isNorthRow(d)) return;
 
       const inTransitOrders = Number(d['not_hub'] ?? d['Chưa đến Hub'] ?? d['Chua dn Hub'] ?? d['Orders'] ?? d['total_orders'] ?? 0);
       const tongDon = Number(d['total_orders'] ?? d['Tổng số đơn'] ?? d['Orders'] ?? 0);
