@@ -536,8 +536,7 @@ def pull_arrival(session, arr_tmgr, ib_headers, start_str, end_str):
         try:
             df_m = pd.read_csv(master_path)
             df_f = df_m[
-                df_m['master_area'].astype(str).str.contains('HCM|SE|HN', na=False, case=False) |
-                df_m['station_name'].astype(str).str.contains('BN HUB', na=False, case=False)
+                df_m['master_area'].astype(str).str.contains('HCM|SE', na=False, case=False)
             ]
             station_names = df_f['station_name'].dropna().unique().tolist()
         except Exception:
