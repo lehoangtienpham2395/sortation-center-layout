@@ -913,7 +913,7 @@ export default function InboundDashboard({
       {/* Row 1: Header Control Block */}
       <header className="dashboard-header" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px' }}>
 
-        {/* LEFT: Sync Button + Export Button + Logo */}
+        {/* LEFT: Sync Button + Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
           <button
             className="google-sync-btn"
@@ -925,15 +925,6 @@ export default function InboundDashboard({
             {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
           </button>
 
-          <button
-            className="google-sync-btn"
-            onClick={handleExportCSV}
-            style={{ width: 'auto', padding: '10px 18px', background: '#092518' }}
-          >
-            <i className="fa-solid fa-file-excel text-[#10b981]" style={{ marginRight: '6px' }}></i>
-            Xuất Báo Cáo
-          </button>
-
           <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '80px', borderRadius: '10px', display: 'block' }} />
         </div>
 
@@ -943,15 +934,39 @@ export default function InboundDashboard({
           <p className="subtitle text-xs text-slate-400" style={{ marginTop: '4px', textAlign: 'center', display: 'block' }}>Operational overview of today's inbound activities</p>
         </div>
 
-        {/* RIGHT: Status + Date Picker */}
+        {/* RIGHT: Status + Export Button + Date Picker */}
         <div className="header-right" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              className="btn-glow"
+              onClick={handleExportCSV}
+              style={{
+                height: '26px',
+                padding: '3px 12px',
+                fontSize: '11px',
+                fontWeight: 600,
+                background: 'rgba(16, 185, 129, 0.15)',
+                border: '1px solid rgba(16, 185, 129, 0.4)',
+                color: '#10b981',
+                borderRadius: '14px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s ease-in-out'
+              }}
+              title="Xuất báo cáo Excel / CSV"
+            >
+              <i className="fa-solid fa-file-excel" style={{ fontSize: '11px' }}></i>
+              Xuất báo cáo
+            </button>
             <div style={{ 
               fontSize: '11px', 
               color: '#B8F7E4', 
               background: 'rgba(184, 247, 228, 0.05)', 
               border: '1px solid rgba(184, 247, 228, 0.2)', 
-              padding: '5px 12px', 
+              padding: '4px 12px', 
               borderRadius: '20px', 
               fontWeight: 600, 
               fontFamily: "'Inter', sans-serif",
