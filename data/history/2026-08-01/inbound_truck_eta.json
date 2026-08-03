@@ -3,15 +3,6 @@
   "contract_version": "2.0.0",
   "trucks": [
     {
-      "send_network": "LA ĐỨC HÒA",
-      "arrive_network": "HCM004H",
-      "trip_code": "",
-      "orders_count": 5,
-      "weight_kg": 41.1,
-      "weight_ton": 0.0411,
-      "rank": "Linehaul"
-    },
-    {
       "send_network": "SG BÌNH TÂN",
       "arrive_network": "HCM004H",
       "trip_code": "",
@@ -30,6 +21,15 @@
       "rank": "Linehaul"
     },
     {
+      "send_network": "SG GÒ VẤP",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 2,
+      "weight_kg": 21.5,
+      "weight_ton": 0.0215,
+      "rank": "Linehaul"
+    },
+    {
       "send_network": "SG BÌNH TÂN",
       "arrive_network": "HCM004H",
       "trip_code": "",
@@ -39,12 +39,21 @@
       "rank": "Shuttle"
     },
     {
-      "send_network": "SG GÒ VẤP",
+      "send_network": "SG AN PHÚ ĐÔNG",
       "arrive_network": "HCM004H",
       "trip_code": "",
-      "orders_count": 2,
-      "weight_kg": 21.5,
-      "weight_ton": 0.0215,
+      "orders_count": 1,
+      "weight_kg": 26.67,
+      "weight_ton": 0.0267,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG CỦ CHI",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 40.0,
+      "weight_ton": 0.04,
       "rank": "Linehaul"
     },
     {
@@ -156,21 +165,12 @@
       "rank": "Linehaul"
     },
     {
-      "send_network": "SG AN PHÚ ĐÔNG",
+      "send_network": "LA ĐỨC HÒA",
       "arrive_network": "HCM004H",
       "trip_code": "",
       "orders_count": 1,
-      "weight_kg": 26.67,
-      "weight_ton": 0.0267,
-      "rank": "Linehaul"
-    },
-    {
-      "send_network": "SG CỦ CHI",
-      "arrive_network": "HCM004H",
-      "trip_code": "",
-      "orders_count": 1,
-      "weight_kg": 40.0,
-      "weight_ton": 0.04,
+      "weight_kg": 5.5,
+      "weight_ton": 0.0055,
       "rank": "Linehaul"
     }
   ]
