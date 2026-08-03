@@ -938,28 +938,23 @@ export default function InboundDashboard({
         <div className="header-right" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
-              className="btn-glow"
+              className="google-sync-btn"
               onClick={handleExportCSV}
               style={{
-                height: '26px',
-                padding: '3px 12px',
-                fontSize: '11px',
-                fontWeight: 600,
-                background: 'rgba(16, 185, 129, 0.15)',
+                width: 'auto',
+                padding: '5px 14px',
+                fontSize: '12px',
+                background: '#092518',
                 border: '1px solid rgba(16, 185, 129, 0.4)',
-                color: '#10b981',
-                borderRadius: '14px',
-                cursor: 'pointer',
+                borderRadius: '20px',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '5px',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s ease-in-out'
+                gap: '6px'
               }}
               title="Xuất báo cáo Excel / CSV"
             >
-              <i className="fa-solid fa-file-excel" style={{ fontSize: '11px' }}></i>
-              Xuất báo cáo
+              <i className="fa-solid fa-file-excel text-[#10b981]" style={{ fontSize: '13px' }}></i>
+              Xuất Báo Cáo
             </button>
             <div style={{ 
               fontSize: '11px', 
