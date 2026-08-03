@@ -1168,16 +1168,16 @@ def sync_postgre_to_dashboard():
     # ── 5. Build Micro-JSONs (Data Architecture v2.0 - Ultra Light) ──
     print(f"\n⚡ Building Micro-JSON Payloads (Data Architecture v2.0)...")
     
-    fc_orders_now = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if status not in ('Inbound', 'Outbound') and fc_op == today)
-    fc_orders_live = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if status not in ('Inbound', 'Outbound') and fc_op < today)
+    fc_shuttle = sum(stats['volume'] for (st, pk, status, in_op, fc_op, *rest), stats in inbound_group.items() if status not in ('Inbound', 'Outbound') and not (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))))
+    fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, *rest), stats in inbound_group.items() if status not in ('Inbound', 'Outbound') and (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))))
     inbound_kpi_summary = {
         "op_date": today,
         "contract_version": "2.0.0",
         "inbound_orders": total_inbound_today,
         "inbound_weight_ton": round(sum(stats['weight_kg'] for (st, pk, status, in_op, *rest), stats in inbound_group.items() if status == 'Inbound' and in_op == today) / 1000.0, 3),
-        "forecast_total": fc_orders_now + fc_orders_live,
-        "orders_now": fc_orders_now,
-        "orders_live": fc_orders_live
+        "forecast_total": fc_shuttle + fc_linehaul,
+        "shuttle": fc_shuttle,
+        "linehaul": fc_linehaul
     }
 
     # 5.2 inbound_hourly_trend.json
