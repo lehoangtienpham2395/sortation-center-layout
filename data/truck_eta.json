@@ -1,5 +1,36 @@
 {
-  "generated_at": "2026-08-03 10:11:02",
-  "total_trucks_en_route": 0,
-  "trucks": []
+  "generated_at": "2026-08-03 10:41:06",
+  "total_trucks_en_route": 2,
+  "trucks": [
+    {
+      "send_network": "BN HUB",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DKGX26080200002",
+      "orders_count": 1401,
+      "weight_kg": 12017.13,
+      "weight_ton": 12.017,
+      "planned_departure": "2026-08-02 04:30:00",
+      "planned_arrival": "2026-08-03 16:30:42",
+      "actual_departure": "2026-08-02 02:30:42",
+      "eta": "2026-08-03 16:30:42",
+      "rank": "Linehaul",
+      "status": "in_transit",
+      "op_date": "2026-08-03"
+    },
+    {
+      "send_network": "BN HUB",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DKGX26080300002",
+      "orders_count": 1302,
+      "weight_kg": 10749.66,
+      "weight_ton": 10.75,
+      "planned_departure": "2026-08-03 04:30:00",
+      "planned_arrival": "2026-08-04 17:05:08",
+      "actual_departure": "2026-08-03 03:05:08",
+      "eta": "2026-08-04 17:05:08",
+      "rank": "Linehaul",
+      "status": "in_transit",
+      "op_date": "2026-08-04"
+    }
+  ]
 }
