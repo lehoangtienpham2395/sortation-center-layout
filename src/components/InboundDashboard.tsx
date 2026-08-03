@@ -364,8 +364,9 @@ export default function InboundDashboard({
     const cleanKey = st.toUpperCase();
 
     const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? 0);
-    const inTransitOrders = stationTransportingMap[cleanKey] !== undefined 
-      ? stationTransportingMap[cleanKey] 
+    const mappedOrders = stationTransportingMap[cleanKey];
+    const inTransitOrders = (mappedOrders !== undefined && mappedOrders > 0)
+      ? mappedOrders
       : Number(d['Chưa đến Hub'] ?? d['Chua dn Hub'] ?? d['Orders'] ?? tongDon);
     const lastTime = d['Last time'] || d['ETA'] || d['Giờ đến bãi'] || d['actualArrivalTime'] || d['predictArriveTime'] || '';
     const wtKg = Number(d['weight_kg'] ?? d['loadpackageweight'] ?? d['Tổng trọng lượng (kg)'] ?? 0);
