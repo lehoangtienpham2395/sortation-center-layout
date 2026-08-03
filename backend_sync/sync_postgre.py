@@ -75,7 +75,7 @@ except Exception as _e:
 # ── PostgreSQL ────────────────────────────────────────────────────────────────
 PG_DBNAME = os.environ.get("PGDATABASE", "logistics_db")
 PG_USER   = os.environ.get("PGUSER",     "postgres")
-PG_PASS   = os.environ.get("PGPASSWORD", "Tien@giang0203")
+PG_PASS   = os.environ.get("PGPASSWORD", 'Tien@giang2299')
 PG_HOST   = os.environ.get("PGHOST",     "127.0.0.1")
 PG_PORT   = int(os.environ.get("PGPORT", 5433))
 

@@ -51,7 +51,7 @@ DB_HOST = "127.0.0.1"
 DB_PORT = 5433
 DB_NAME = "logistics_db"
 DB_USER = "postgres"
-DB_PASSWORD = "Tien@giang0203"
+DB_PASSWORD = 'Tien@giang2299'
 
 DB_CONFIG = {
     "host": DB_HOST,

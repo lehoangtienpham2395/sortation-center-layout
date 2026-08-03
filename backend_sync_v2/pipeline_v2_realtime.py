@@ -45,7 +45,7 @@ def run_realtime_delta_sync(minutes_back=60):
     conn = psycopg2.connect(
         dbname='logistics_db',
         user='postgres',
-        password='Tien@giang0203',
+        password='Tien@giang2299',
         host='127.0.0.1',
         port=5433
     )

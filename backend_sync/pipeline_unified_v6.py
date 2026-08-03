@@ -1324,7 +1324,7 @@ def main():
     try:
         import psycopg2
         from psycopg2.extras import execute_values
-        pg_pass = os.environ.get('PGPASSWORD', 'Tien@giang0203')
+        pg_pass = os.environ.get('PGPASSWORD', 'Tien@giang2299')
         pg_db   = os.environ.get('PGDATABASE', 'logistics_db')
         conn = psycopg2.connect(
             host='127.0.0.1', port=5433, dbname=pg_db, user='postgres', password=pg_pass,
