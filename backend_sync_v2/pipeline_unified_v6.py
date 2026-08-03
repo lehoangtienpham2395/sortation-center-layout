@@ -38,14 +38,12 @@ URL_FORECAST      = 'https://gw.jtcargo.com.vn/networkmanagement/omsWaybill/ship
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _cfg_candidates = [
+    os.path.join(BASE_DIR, 'config'),
+    os.path.join(BASE_DIR, 'backend_sync', 'config'),
     r'C:\Users\lehoa\OneDrive\Desktop\testing\Exportauto\Valid',
     r'C:\Users\lehoa\OneDrive\Desktop\testing\config',
     r'C:\Users\lehoa\OneDrive\Desktop\testing',
-    os.path.join(BASE_DIR, 'config'),
-    os.path.join(BASE_DIR, 'backend_sync', 'config'),
-    os.path.join(BASE_DIR, 'sortation-center-layout', 'backend_sync', 'config'),
     os.path.abspath('.'),
-    os.path.abspath('backend_sync'),
     os.path.abspath('data')
 ]
 
@@ -287,6 +285,7 @@ def auth_post(session, url, token_mgr, base_headers,
         hdrs    = dict(base_headers)
         hdrs['authToken'] = token
         hdrs['Authtoken'] = token
+        hdrs['token'] = token
         try:
             r = session.post(url, params=params, headers=hdrs,
                              json=json_body, data=data, timeout=REQUEST_TIMEOUT)
@@ -859,6 +858,16 @@ def main():
     ip_payload = load_json(cfg('inboundpayload.json'))
     oh_headers = load_json(cfg('outboundheaders.json'))
     op_payload = load_json(cfg('outboundpayload.json'))
+    dh_headers = load_json(cfg('dispatchheaders.json'))
+    dp_payload = load_json(cfg('dispatchpayload.json'))
+    bh_headers = load_json(cfg('backlogheaders.json'))
+    bp_payload = load_json(cfg('backlogpayload.json'))
+
+    t_main = tkn_main.get_token()
+    ih_headers['token'] = t_main
+    oh_headers['token'] = t_main
+    dh_headers['token'] = t_main
+    bh_headers['token'] = t_main
 
     ip_payload['beginDate'] = start_str;  ip_payload['endDate'] = end_str
     op_payload['beginDate'] = start_str;  op_payload['endDate'] = end_str
@@ -870,15 +879,11 @@ def main():
                 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693',
                 'routeName': oh_headers.get('routeName', '')}
 
-    dh_headers = load_json(cfg('dispatchheaders.json'))
-    dp_payload = load_json(cfg('dispatchpayload.json'))
     dp_payload['startInputTime'] = start_str
     dp_payload['endInputTime']   = end_str
     dp_payload['current']        = '1'
     dp_payload['size']           = str(PAGE_SIZE)
 
-    bh_headers = load_json(cfg('backlogheaders.json'))
-    bp_payload = load_json(cfg('backlogpayload.json'))
     bp_payload['beginDate'] = start_str
 
     # ── Phase 1: Keo song song 8 nguon ──────────────────────
