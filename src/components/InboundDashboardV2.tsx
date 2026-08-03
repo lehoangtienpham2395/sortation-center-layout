@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { DatePicker } from './DatePicker';
-import { useRealtimeSyncV2 } from '../hooks/useRealtimeSyncV2';
 
 // Animated Number Ticker Component
 function NumberTicker({ value, decimals = 0 }: { value: number; decimals?: number }) {
@@ -257,8 +256,8 @@ export default function InboundDashboard({
 
   // 3. Aggregate operational statistics
 
-  let forecastRotHomTruoc = 0;
-  let forecastRotHomNay = 0;
+  let forecastShuttle = 0;
+  let forecastLinehaul = 0;
 
   // ordersWithWeight: chỉ đếm đơn có weight > 0 để tính avg chính xác
   const stagesWithWeight: Record<string, number> = {
@@ -272,32 +271,8 @@ export default function InboundDashboard({
       'Created': { orders: 0, weight: 0 }
     };
 
-  const getPreviousOperatingDate = (activeDateStr: string): string => {
-    if (!activeDateStr) return '';
-    const norm = normalizeDateStr(activeDateStr);
-    const dt = new Date(norm + 'T00:00:00');
-    dt.setDate(dt.getDate() - 1);
-    const yr = dt.getFullYear();
-    const mo = String(dt.getMonth() + 1).padStart(2, '0');
-    const dy = String(dt.getDate()).padStart(2, '0');
-    return `${yr}-${mo}-${dy}`;
-  };
-
-  const { isConnected, liveData } = useRealtimeSyncV2();
-
-  // Đã BỎ HISTORICAL_SNAPSHOTS hardcode tay từng ngày — đây chính là nguyên nhân gốc
-  // của bug "chốt rồi vẫn tăng": mỗi ngày phải tự gõ tay 1 dòng, ngày nào quên gõ thì
-  // ngày đó mãi mãi không được chốt, cứ hiển thị số live tăng dần.
-  // Giờ backend (sync_postgre.py -> save_and_get_daily_snapshots) tự động chốt MỌI
-  // ngày trong PostgreSQL, xuất sẵn trong lastUpdateObj.daily_snapshots — không cần
-  // fallback tay ở đây nữa.
-
   const normActiveDate = normalizeDateStr(activeDate);
-  const prevDate = getPreviousOperatingDate(normActiveDate);
-
   const isHistoricalDate = normActiveDate < todayOpDate;
-
-  let forecastTonDongLau = 0;
   let bnHubLinehaulOrdersFromInbound = 0;
 
   const getFcOpDate = (row: any) => {
@@ -318,27 +293,14 @@ export default function InboundDashboard({
       const isInbound = status === 'Inbound' || status === 'Đã nhập kho';
       let isForecastMember = false;
 
-      // A. Rớt hôm nay: normFcDate === normActiveDate CHƯA INBOUND VÀ CHƯA OUTBOUND
-      if (normFcDate === normActiveDate && !isInbound && status !== 'Outbound') {
+      // 🎯 DỰ BÁO ĐƠN RỚT (DISPATCH SOURCE): Chưa Inbound và chưa Outbound
+      if (!isInbound && status !== 'Outbound') {
         if (isNorth) {
-          bnHubLinehaulOrdersFromInbound += vol;
+          forecastLinehaul += vol;
         } else {
-          forecastRotHomNay += vol;
-          isForecastMember = true;
+          forecastShuttle += vol;
         }
-      } 
-      // B. Rớt hôm trước: CHỈ đúng 1 ngày liền trước (prevDate) CHƯA INBOUND
-      else if (normFcDate === prevDate && !isInbound) {
-        if (!isNorth) {
-          forecastRotHomTruoc += vol;
-          isForecastMember = true;
-        }
-      }
-      // C. Tồn đọng lâu ngày: các ngày cũ hơn (< prevDate) CHƯA INBOUND
-      else if (normFcDate && normFcDate < prevDate && !isInbound) {
-        if (!isNorth) {
-          forecastTonDongLau += vol;
-        }
+        isForecastMember = true;
       }
 
       const arrOpDate = normalizeDateStr(d['op_date_arrival'] || d['Ngày vận hành_Arrival'] || d['Ngy vn hnh_Arrival'] || (d['Arrival Time'] ? getOperatingDateFromTimestamp(d['Arrival Time']) : ''));
@@ -347,8 +309,8 @@ export default function InboundDashboard({
 
       const isOpMatch = isForecastMember || (normFcDate === normActiveDate) || (arrOpDate === normActiveDate) || (pkOpDate === normActiveDate) || (inbOpDate === normActiveDate);
 
-      // 🛑 BIỂU ĐỒ ORDERS STATUS TÍNH TẤT CẢ CÁC ĐƠN THUỘC CA VẬN HÀNH HÔM NAY (KHÔNG TÍNH ĐƠN MIỀN BẮC TRUNG CHUYỂN)
-      if (isOpMatch && !isNorth) {
+      // 🎯 BIỂU ĐỒ ORDERS STATUS TÍNH TẤT CẢ CÁC ĐƠN THUỘC CA VẬN HÀNH HÔM NAY (BAO GỒM CẢ BN HUB / MIỀN BẮC)
+      if (isOpMatch) {
         const wfStatus = getWaterfallStatus(d);
         if (stages[wfStatus]) {
           stages[wfStatus].orders += vol;
@@ -503,33 +465,22 @@ export default function InboundDashboard({
   }
 
 
-  // 🎯 Khóa cứng Snapshot Lock tuyệt đối cho ngày lịch sử (activeDate < todayOpDate)
-  const snapForActiveDate = lastUpdateObj?.daily_snapshots?.[normActiveDate];
-
   const isFutureDate = normActiveDate > todayOpDate;
 
   // 🎯 Rebuild 4 Module (Forecast, Orders Status, Update, Truck ETA) theo Micro-JSON v2.0
   const effectiveKpiSummary = (kpiSummary && kpiSummary.op_date === normActiveDate) ? kpiSummary : null;
   const effectiveOrdersStatus = (ordersStatus && ordersStatus.op_date === normActiveDate) ? ordersStatus : null;
 
-  const finalRotHomTruoc = isFutureDate ? 0 : (
-    effectiveKpiSummary?.rot_hom_truoc ?? (
-      snapForActiveDate?.rot_hom_truoc ?? (
-        isHistoricalDate ? 0 : (lastUpdateObj?.rot_hom_truoc ?? forecastRotHomTruoc)
-      )
-    )
+  const finalShuttleForecast = isFutureDate ? 0 : (
+    effectiveKpiSummary?.shuttle ?? forecastShuttle
   );
 
-  const finalRotHomNay   = isFutureDate ? 0 : (
-    effectiveKpiSummary?.rot_hom_nay ?? (
-      snapForActiveDate?.rot_hom_nay ?? (
-        isHistoricalDate ? 0 : (lastUpdateObj?.rot_hom_nay ?? forecastRotHomNay)
-      )
-    )
+  const finalLinehaulForecast = isFutureDate ? 0 : (
+    effectiveKpiSummary?.linehaul ?? forecastLinehaul
   );
 
-  const totalForecast    = isFutureDate ? 0 : (
-    effectiveKpiSummary?.forecast_total ?? (finalRotHomTruoc + finalRotHomNay)
+  const totalForecast = isFutureDate ? 0 : (
+    effectiveKpiSummary?.forecast_total ?? (finalShuttleForecast + finalLinehaulForecast)
   );
 
   const totalInbound     = isFutureDate ? 0 : (effectiveOrdersStatus?.inbound     ?? (effectiveKpiSummary?.inbound_orders ?? stages['Inbound'].orders));
@@ -537,7 +488,13 @@ export default function InboundDashboard({
   const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
   const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       ?? stages['Created'].orders);
 
-  if (isFutureDate) {
+  const totalInboundWeight = isFutureDate ? 0 : (
+    effectiveOrdersStatus?.inbound_weight ?? (
+      effectiveKpiSummary?.inbound_weight_ton ?? stages['Inbound'].weight
+    )
+  );
+
+  if (isFutureDate || isHistoricalDate) {
     incomingVehicles = [];
     totalShuttleVehicles = 0;
     totalLinehaulVehicles = 0;
@@ -675,7 +632,7 @@ export default function InboundDashboard({
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
   const totalOrders = totalInbound;
-  const totalWeight = stages['Inbound'].weight;
+  const totalWeight = totalInboundWeight;
 
   const segments = [
     { name: 'Inbound', value: totalInbound, pct: inboundPct, color: '#B8F7E4', label: 'Inbound' },
@@ -982,7 +939,7 @@ export default function InboundDashboard({
 
         {/* CENTER: Title — absolute center of header */}
         <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', textAlign: 'center', pointerEvents: 'none' }}>
-          <h1 style={{ fontSize: '36px', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', lineHeight: '1.1', textShadow: '0 2px 20px rgba(99,102,241,0.5)', margin: 0, whiteSpace: 'nowrap' }}>HCM HUB Inbound Dashboard <span style={{ fontSize: '13px', color: '#00e5ff', verticalAlign: 'middle', background: 'rgba(0,229,255,0.12)', padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(0,229,255,0.3)' }}>v2.0 REALTIME AUTO-LIVE</span></h1>
+          <h1 style={{ fontSize: '36px', fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', lineHeight: '1.1', textShadow: '0 2px 20px rgba(99,102,241,0.5)', margin: 0, whiteSpace: 'nowrap' }}>HCM HUB Inbound Dashboard <span style={{ fontSize: '13px', color: '#00e5ff', verticalAlign: 'middle', background: 'rgba(0,229,255,0.12)', padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(0,229,255,0.3)' }}>v2.2 FIXED</span></h1>
           <p className="subtitle text-xs text-slate-400" style={{ marginTop: '4px', textAlign: 'center', display: 'block' }}>Operational overview of today's inbound activities</p>
         </div>
 
@@ -991,9 +948,9 @@ export default function InboundDashboard({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ 
               fontSize: '11px', 
-              color: isConnected ? '#B8F7E4' : '#f97316', 
-              background: isConnected ? 'rgba(184, 247, 228, 0.08)' : 'rgba(249, 115, 22, 0.08)', 
-              border: isConnected ? '1px solid rgba(184, 247, 228, 0.3)' : '1px solid rgba(249, 115, 22, 0.3)', 
+              color: '#B8F7E4', 
+              background: 'rgba(184, 247, 228, 0.05)', 
+              border: '1px solid rgba(184, 247, 228, 0.2)', 
               padding: '5px 12px', 
               borderRadius: '20px', 
               fontWeight: 600, 
@@ -1001,10 +958,10 @@ export default function InboundDashboard({
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              textShadow: isConnected ? '0 0 8px rgba(184,247,228,0.3)' : 'none'
+              textShadow: '0 0 8px rgba(184,247,228,0.3)'
             }}>
-              <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-[#B8F7E4] animate-pulse' : 'bg-[#f97316]'}`} />
-              {isConnected ? '🟢 LIVE REALTIME (Auto-Sync 30s)' : '🟠 AUTO-POLLING (Offline Socket)'} | Update: {liveData?.last_update || lastUpdate || lastUpdateObj?.last_update || 'Đang kết nối...'}
+              <span className="w-1.5 h-1.5 rounded-full bg-[#B8F7E4] animate-pulse" />
+              Update: {lastUpdate || lastUpdateObj?.last_update || 'Đang cập nhật...'}
             </div>
           </div>
           <div className="date-control-wrapper flex items-center gap-2">
@@ -1097,12 +1054,12 @@ export default function InboundDashboard({
             <span className="kpi-value"><NumberTicker value={totalForecast} /></span>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.88rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '5px', marginTop: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Rớt hôm trước:</span>
-                <strong style={{ color: '#FC6C26', fontSize: '1.05rem' }}><NumberTicker value={finalRotHomTruoc} /></strong>
+                <span>Shuttle:</span>
+                <strong style={{ color: '#a3e635', fontSize: '1.05rem' }}><NumberTicker value={finalShuttleForecast} /></strong>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Rớt hôm nay:</span>
-                <strong style={{ color: '#ffa066', fontSize: '1.05rem' }}><NumberTicker value={finalRotHomNay} /></strong>
+                <span>Linehaul:</span>
+                <strong style={{ color: '#f97316', fontSize: '1.05rem' }}><NumberTicker value={finalLinehaulForecast} /></strong>
               </div>
             </div>
           </div>
