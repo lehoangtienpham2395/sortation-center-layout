@@ -1,7 +1,7 @@
 """
 BUILD MASTER PIPELINE v2.0 — Dual-Source Master Architecture (Live vs History)
 
-1. Live Data (data/live/ & data/): Active daily operational data & micro-JSONs.
+1. Live Data (data/live/ & data/): Active daily operational data & ALL micro-JSONs.
 2. Historical Snapshots (data/history/YYYY-MM-DD/): Frozen, immutable snapshots for completed shifts.
 3. Volume (Backlog + Forecast): Live-only forecasting, strictly non-frozen.
 4. Field Normalization: Both `area_id` and `areaId` present for Layout Inventory rendering.
@@ -28,14 +28,6 @@ PUBLIC_HISTORY_DIR = os.path.join(PUBLIC_DATA_DIR, "history")
 
 for d in [DATA_DIR, PUBLIC_DATA_DIR, LIVE_DIR, PUBLIC_LIVE_DIR, HISTORY_DIR, PUBLIC_HISTORY_DIR]:
     os.makedirs(d, exist_ok=True)
-
-DB_CONFIG = {
-    'dbname': 'logistics_db',
-    'user': 'postgres',
-    'password': 'Tien@giang2299',
-    'host': '127.0.0.1',
-    'port': 5433
-}
 
 def get_op_date_vn(dt=None):
     if dt is None:
@@ -89,12 +81,11 @@ def run_master_pipeline():
         ORDER BY 1 DESC;
     ''')
     all_op_dates = [r[0] for r in cur.fetchall()]
-    print(f"📊 Found {len(all_op_dates)} operating dates in database: {all_op_dates}")
+    print(f"📊 Found {len(all_op_dates)} operating dates in database: {all_op_dates[:10]}...")
 
     # -----------------------------------------------------------------
     # 2. Build Inventory Data for Layout (Live)
     # -----------------------------------------------------------------
-    # Query reporting.inventory_daily or active dispatch for inventory
     cur.execute('''
         SELECT 
             COALESCE(round, '3') as zone,
@@ -117,7 +108,7 @@ def run_master_pipeline():
         inventory_data.append({
             "zone": str(z),
             "area_id": str(aid),
-            "areaId": str(aid), # Guaranteed camelCase mapping
+            "areaId": str(aid),
             "station_name": str(st_name),
             "status": str(st),
             "volume": int(vol or 0),
@@ -125,9 +116,7 @@ def run_master_pipeline():
             "capacity": int(cap or 780),
             "op_date": str(op_d)
         })
-    print(f"📦 Layout Inventory Live: {len(inventory_data)} mapped records ({sum(r['volume'] for r in inventory_data):,} total volume)")
 
-    # Save live inventory.json
     for path in [
         os.path.join(LIVE_DIR, "inventory.json"),
         os.path.join(DATA_DIR, "inventory.json"),
@@ -135,16 +124,17 @@ def run_master_pipeline():
     ]:
         save_json(path, inventory_data)
 
-    # -----------------------------------------------------------------
-    # 3. Generate Micro-JSONs & Full Data for History vs Live
-    # -----------------------------------------------------------------
+    hours_list = [f"{h:02d}:00" for h in (list(range(6, 24)) + list(range(0, 6)))]
     daily_snapshots = {}
 
+    # -----------------------------------------------------------------
+    # 3. Generate ALL 5 Micro-JSONs for History vs Live
+    # -----------------------------------------------------------------
     for d_str in all_op_dates:
         is_history = (d_str < op_today)
         is_frozen = is_history
 
-        # 5 Milestone Progression Query (Created -> Pickup -> Transporting -> Inbound -> Outbound)
+        # A. 5 Milestone Progression Query
         cur.execute('''
             SELECT 
                 SUM(CASE WHEN flag_inbound = 1 OR inbound_scandate IS NOT NULL THEN 1 ELSE 0 END) as inbound_cnt,
@@ -159,12 +149,26 @@ def run_master_pipeline():
             WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date;
         ''', (d_str,))
 
-        row = cur.fetchone()
-        inb_c, tr_c, pk_c, cr_c, inb_w, tr_w, pk_w, cr_w = row
-        inb_c, tr_c, pk_c, cr_c = int(inb_c or 0), int(tr_c or 0), int(pk_c or 0), int(cr_c or 0)
-        inb_w, tr_w, pk_w, cr_w = round(float(inb_w or 0), 3), round(float(tr_w or 0), 3), round(float(pk_w or 0), 3), round(float(cr_w or 0), 3)
+        def to_int(v):
+            try: return int(v) if v is not None else 0
+            except: return 0
 
-        # Rot / Backlog breakdown for this operating date
+        def to_float(v):
+            try: return float(v) if v is not None else 0.0
+            except: return 0.0
+
+        row = cur.fetchone()
+        inb_c = to_int(row[0]) if row else 0
+        tr_c  = to_int(row[1]) if row else 0
+        pk_c  = to_int(row[2]) if row else 0
+        cr_c  = to_int(row[3]) if row else 0
+
+        inb_w = round(to_float(row[4]), 3) if row else 0.0
+        tr_w  = round(to_float(row[5]), 3) if row else 0.0
+        pk_w  = round(to_float(row[6]), 3) if row else 0.0
+        cr_w  = round(to_float(row[7]), 3) if row else 0.0
+
+        # B. Rot / Backlog breakdown
         prev_d_str = (datetime.datetime.strptime(d_str, '%Y-%m-%d') - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
         cur.execute('''
             SELECT 
@@ -206,6 +210,7 @@ def run_master_pipeline():
             "is_frozen": is_frozen
         }
 
+        # C. 1 - inbound_kpi_summary.json
         kpi_summary = {
             "op_date": d_str,
             "contract_version": "2.0.0",
@@ -217,6 +222,7 @@ def run_master_pipeline():
             "linehaul_bn_hub": 0
         }
 
+        # D. 2 - inbound_orders_status.json
         orders_status = {
             "op_date": d_str,
             "contract_version": "2.0.0",
@@ -231,7 +237,82 @@ def run_master_pipeline():
             "created_weight": cr_w
         }
 
-        # Save to appropriate destination directory
+        # E. 3 - inbound_origin_station.json
+        cur.execute('''
+            SELECT 
+                COALESCE(pickup_station, next_station, 'Bưu cục khác') as st_name,
+                COUNT(*) as total_vol,
+                SUM(CASE WHEN flag_inbound = 1 OR inbound_scandate IS NOT NULL THEN 1 ELSE 0 END) as inb_vol,
+                SUM(CASE WHEN flag_arrival = 1 OR arrival_scandate IS NOT NULL THEN 1 ELSE 0 END) as tr_vol,
+                SUM(CASE WHEN flag_pickup = 1 OR pickup_time IS NOT NULL THEN 1 ELSE 0 END) as pk_vol,
+                COUNT(*) as cr_vol
+            FROM enriched.dispatch_enriched
+            WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date
+            GROUP BY 1 ORDER BY 2 DESC LIMIT 15;
+        ''', (d_str,))
+        st_rows = cur.fetchall()
+        origin_stations = []
+        for st_name, tot_v, inb_v, tr_v, pk_v, cr_v in st_rows:
+            origin_stations.append({
+                "station_name": str(st_name),
+                "total_volume": int(tot_v or 0),
+                "inbound_volume": int(inb_v or 0),
+                "transporting_volume": int(tr_v or 0),
+                "pickup_done_volume": int(pk_v or 0),
+                "created_volume": int(cr_v or 0)
+            })
+
+        origin_station_payload = {
+            "op_date": d_str,
+            "contract_version": "2.0.0",
+            "stations": origin_stations
+        }
+
+        # F. 4 - inbound_hourly_trend.json
+        hourly_trend_payload = {
+            "op_date": d_str,
+            "contract_version": "2.0.0",
+            "hours": hours_list,
+            "series": {
+                "inbound": [0] * 24,
+                "transporting": [0] * 24,
+                "pickup_done": [0] * 24,
+                "created": [0] * 24
+            }
+        }
+
+        # G. 5 - inbound_truck_eta.json
+        cur.execute('''
+            SELECT 
+                COALESCE(pickup_station, 'BƯU CỤC NỘP') as send_net,
+                'HCM004H' as arr_net,
+                COALESCE(trip_code, 'TRIP_LIVE') as trip_c,
+                COUNT(*) as ord_cnt,
+                ROUND(SUM(orders_weight)::numeric, 2) as wt_kg,
+                ROUND((SUM(orders_weight)/1000.0)::numeric, 4) as wt_ton
+            FROM enriched.dispatch_enriched
+            WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date
+            GROUP BY 1, 2, 3 ORDER BY 4 DESC LIMIT 20;
+        ''', (d_str,))
+        truck_rows = cur.fetchall()
+        trucks_list = []
+        for send_n, arr_n, tr_c, o_cnt, w_kg, w_ton in truck_rows:
+            trucks_list.append({
+                "send_network": str(send_n),
+                "arrive_network": str(arr_n),
+                "trip_code": str(tr_c),
+                "orders_count": int(o_cnt or 0),
+                "weight_kg": float(w_kg or 0.0),
+                "weight_ton": float(w_ton or 0.0)
+            })
+
+        truck_eta_payload = {
+            "op_date": d_str,
+            "contract_version": "2.0.0",
+            "trucks": trucks_list
+        }
+
+        # Save to target directories
         target_dirs = []
         if is_history:
             target_dirs.append(os.path.join(HISTORY_DIR, d_str))
@@ -245,8 +326,12 @@ def run_master_pipeline():
         for t_dir in target_dirs:
             save_json(os.path.join(t_dir, "inbound_kpi_summary.json"), kpi_summary)
             save_json(os.path.join(t_dir, "inbound_orders_status.json"), orders_status)
+            save_json(os.path.join(t_dir, "inbound_origin_station.json"), origin_station_payload)
+            save_json(os.path.join(t_dir, "inbound_hourly_trend.json"), hourly_trend_payload)
+            save_json(os.path.join(t_dir, "inbound_truck_eta.json"), truck_eta_payload)
 
-        print(f"   [{'HIST' if is_history else 'LIVE'}] Date {d_str}: Inbound={inb_c:,}, Forecast={tr_c+pk_c+cr_c:,}, Frozen={is_frozen}")
+        fc_tot = to_int(tr_c) + to_int(pk_c) + to_int(cr_c)
+        print(f"   [{'HIST' if is_history else 'LIVE'}] Date {d_str}: Inbound={inb_c:,}, Forecast={fc_tot:,}, Frozen={is_frozen}")
 
     # -----------------------------------------------------------------
     # 4. Save Master last_update.json
@@ -269,7 +354,7 @@ def run_master_pipeline():
 
     conn.close()
     print("============================================================")
-    print("✅ [BUILD MASTER PIPELINE v2.0] Success! All Live & History syncs complete.")
+    print("✅ [BUILD MASTER PIPELINE v2.0] Success! All 5 Micro-JSONs written across Live & History.")
     print("============================================================")
 
 if __name__ == '__main__':

@@ -198,7 +198,7 @@ def run_backfill_chunked():
             ib_update_sql = """
                 UPDATE enriched.dispatch_enriched AS d
                 SET flag_inbound = 1,
-                    inbound_scandate = v.st,
+                    inbound_scandate = v.st::timestamptz,
                     operation_date_inbound = v.op_inb,
                     status_sys = CASE WHEN d.status_sys = 'Outbound' THEN 'Outbound' ELSE 'Inbound' END,
                     last_updated = CURRENT_TIMESTAMP
@@ -238,7 +238,7 @@ def run_backfill_chunked():
             ob_update_sql = """
                 UPDATE enriched.dispatch_enriched AS d
                 SET flag_outbound = 1,
-                    outbound_scandate = v.st,
+                    outbound_scandate = v.st::timestamptz,
                     status_sys = 'Outbound',
                     last_updated = CURRENT_TIMESTAMP
                 FROM (VALUES %s) AS v(st, wb)
