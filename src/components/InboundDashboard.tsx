@@ -172,17 +172,18 @@ export default function InboundDashboard({
   const getDateForecast = (d: any) => d['op_date_forecast'] || d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast'];
 
 
-  // Hàng xuất đi Linehaul Miền Bắc: next_station là BN HUB hoặc rank/round là Linehaul
+  // Hàng Linehaul Miền Bắc (cả chiều đi và chiều về HCM HUB): pickup_station hoặc next_station là BN HUB / Hà Nội / Hải Dương / Hưng Yên
   const isLinehaulRow = (row: any) => {
     if (!row) return false;
     if (typeof row === 'string') {
       const clean = row.trim().toUpperCase();
       return clean === 'BN HUB' || clean.includes('LINEHAUL');
     }
+    const pkSt = String(row?.pickup_station ?? row?.station_name ?? row?.send_network ?? row?.['Bưu cục'] ?? row?.['Pickup_station'] ?? '').trim().toUpperCase();
     const nextSt = String(row?.next_station ?? row?.['Bưu cục đến'] ?? row?.arrive_network ?? '').trim().toUpperCase();
     const rankVal = String(row?.rank ?? row?.Rank ?? '').trim().toUpperCase();
     const roundVal = String(row?.round ?? row?.Round ?? '').trim().toUpperCase();
-    return nextSt === 'BN HUB' || rankVal === 'BN HUB' || roundVal.includes('LINEHAUL') || nextSt.startsWith('HN ') || nextSt.startsWith('HD ') || nextSt.startsWith('HY ');
+    return pkSt === 'BN HUB' || nextSt === 'BN HUB' || rankVal === 'BN HUB' || roundVal.includes('LINEHAUL') || pkSt.startsWith('HN ') || pkSt.startsWith('HD ') || pkSt.startsWith('HY ') || nextSt.startsWith('HN ') || nextSt.startsWith('HD ') || nextSt.startsWith('HY ');
   };
 
   // Hàng phát sinh từ bưu cục Miền Bắc: dùng cho lọc rớt bưu cục HCM HUB
@@ -309,15 +310,13 @@ export default function InboundDashboard({
           if (wt > 0) stagesWithWeight[wfStatus] += vol;
         }
 
-        // 🎯 TÍNH THẺ FORECAST TRỰC TIẾP TỪ LOGIC ORDERS STATUS (TẤT CẢ CÁC ĐƠN CHƯA INBOUND HÔM NAY)
-        if (wfStatus !== 'Inbound') {
-          if (isLinehaulRow(d)) {
-            forecastLinehaul += vol;
-            forecastLinehaulWeight += wt;
-          } else {
-            forecastShuttle += vol;
-            forecastShuttleWeight += wt;
-          }
+        // 🎯 TÍNH THẺ FORECAST = TỔNG SẢN LƯỢNG CẦN XỬ LÝ TRONG NGÀY (BAO GỒM CẢ ĐƠN ĐÃ INBOUND)
+        if (isLinehaulRow(d)) {
+          forecastLinehaul += vol;
+          forecastLinehaulWeight += wt;
+        } else {
+          forecastShuttle += vol;
+          forecastShuttleWeight += wt;
         }
 
         if (wfStatus === 'Transporting') {
@@ -473,24 +472,26 @@ export default function InboundDashboard({
   const effectiveKpiSummary = (kpiSummary && kpiSummary.op_date === normActiveDate) ? kpiSummary : null;
   const effectiveOrdersStatus = (ordersStatus && ordersStatus.op_date === normActiveDate) ? ordersStatus : null;
 
-  const finalShuttleForecast = isFutureDate ? 0 : forecastShuttle;
-  const finalLinehaulForecast = isFutureDate ? 0 : forecastLinehaul;
-  const totalForecast = isFutureDate ? 0 : (finalShuttleForecast + finalLinehaulForecast);
-
-  const finalShuttleWeight = isFutureDate ? 0 : (effectiveKpiSummary?.shuttle_weight ?? forecastShuttleWeight);
-  const finalLinehaulWeight = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul_weight ?? forecastLinehaulWeight);
-  const totalForecastWeight = isFutureDate ? 0 : (effectiveKpiSummary?.forecast_weight_ton ?? (finalShuttleWeight + finalLinehaulWeight));
-
   const totalInbound     = isFutureDate ? 0 : (effectiveOrdersStatus?.inbound     ?? (effectiveKpiSummary?.inbound_orders ?? stages['Inbound'].orders));
   const totalInTransit   = isFutureDate ? 0 : (effectiveOrdersStatus?.transporting  ?? stages['Transporting'].orders);
   const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
   const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       ?? stages['Created'].orders);
 
-  const totalInboundWeight = isFutureDate ? 0 : (
-    effectiveOrdersStatus?.inbound_weight ?? (
-      effectiveKpiSummary?.inbound_weight_ton ?? stages['Inbound'].weight
-    )
+  // 🎯 FORECAST = TỔNG SẢN LƯỢNG CẦN XỬ LÝ TRONG NGÀY (backend tính sẵn, khớp 100% với Orders Status)
+  // Source of truth: inbound_kpi_summary.json → forecast_total = Shuttle + Linehaul
+  // với filter is_match = (in_op==today or ar_op==today or pk_op==today or fc_op==today)
+  const totalForecast = isFutureDate ? 0 : (
+    effectiveKpiSummary?.forecast_total ??
+    (totalInbound + totalInTransit + totalPickupDone + totalCreated)
   );
+  const finalLinehaulForecast = isFutureDate ? 0 : (
+    effectiveKpiSummary?.linehaul_bn_hub ?? Math.max(forecastLinehaul, bnHubLinehaulOrders)
+  );
+  const finalShuttleForecast = isFutureDate ? 0 : Math.max(0, totalForecast - finalLinehaulForecast);
+
+  const finalShuttleWeight = isFutureDate ? 0 : (effectiveKpiSummary?.shuttle_weight ?? forecastShuttleWeight);
+  const finalLinehaulWeight = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul_weight ?? forecastLinehaulWeight);
+  const totalForecastWeight = isFutureDate ? 0 : (effectiveKpiSummary?.forecast_weight_ton ?? (finalShuttleWeight + finalLinehaulWeight));
 
   if (isFutureDate || isHistoricalDate) {
     incomingVehicles = [];

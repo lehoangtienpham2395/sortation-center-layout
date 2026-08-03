@@ -348,7 +348,7 @@ def get_pg_conn():
             conn = psycopg2.connect(
                 dbname=PG_DBNAME, user=PG_USER, password=pwd,
                 host=PG_HOST, port=PG_PORT, connect_timeout=15,
-                options='-c statement_timeout=30000'
+                options='-c statement_timeout=180000'
             )
             if conn: return conn
         except Exception:
@@ -1182,16 +1182,21 @@ def sync_postgre_to_dashboard():
     # ── 5. Build Micro-JSONs (Data Architecture v2.0 - Ultra Light) ──
     print(f"\n⚡ Building Micro-JSON Payloads (Data Architecture v2.0)...")
     
-    fc_shuttle = sum(stats['volume'] for (st, pk, status, in_op, fc_op, *rest), stats in inbound_group.items() if status not in ('Inbound', 'Outbound') and not (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))))
-    fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, *rest), stats in inbound_group.items() if status not in ('Inbound', 'Outbound') and (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))))
+    fc_shuttle = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if status != 'Outbound' and (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))))
+    fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if status != 'Outbound' and (in_op == today or ar_op == today or pk_op == today or fc_op == today) and (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))))
+    shuttle_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if status != 'Outbound' and (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')))) / 1000.0, 3)
+    linehaul_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if status != 'Outbound' and (in_op == today or ar_op == today or pk_op == today or fc_op == today) and (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')))) / 1000.0, 3)
     inbound_kpi_summary = {
         "op_date": today,
         "contract_version": "2.0.0",
         "inbound_orders": total_inbound_today,
         "inbound_weight_ton": round(sum(stats['weight_kg'] for (st, pk, status, in_op, *rest), stats in inbound_group.items() if status == 'Inbound' and in_op == today) / 1000.0, 3),
         "forecast_total": fc_shuttle + fc_linehaul,
+        "forecast_weight_ton": round(shuttle_weight_ton + linehaul_weight_ton, 3),
         "shuttle": fc_shuttle,
-        "linehaul": fc_linehaul
+        "shuttle_weight": shuttle_weight_ton,
+        "linehaul": fc_linehaul,
+        "linehaul_weight": linehaul_weight_ton
     }
 
     # 5.2 inbound_hourly_trend.json
