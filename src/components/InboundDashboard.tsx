@@ -258,6 +258,8 @@ export default function InboundDashboard({
 
   let forecastShuttle = 0;
   let forecastLinehaul = 0;
+  let forecastShuttleWeight = 0;
+  let forecastLinehaulWeight = 0;
 
   // ordersWithWeight: chỉ đếm đơn có weight > 0 để tính avg chính xác
   const stagesWithWeight: Record<string, number> = {
@@ -312,8 +314,10 @@ export default function InboundDashboard({
         if (wfStatus !== 'Inbound') {
           if (isNorth) {
             forecastLinehaul += vol;
+            forecastLinehaulWeight += wt;
           } else {
             forecastShuttle += vol;
+            forecastShuttleWeight += wt;
           }
         }
 
@@ -474,6 +478,10 @@ export default function InboundDashboard({
   const finalShuttleForecast = isFutureDate ? 0 : forecastShuttle;
   const finalLinehaulForecast = isFutureDate ? 0 : forecastLinehaul;
   const totalForecast = isFutureDate ? 0 : (finalShuttleForecast + finalLinehaulForecast);
+
+  const finalShuttleWeight = isFutureDate ? 0 : (effectiveKpiSummary?.shuttle_weight ?? forecastShuttleWeight);
+  const finalLinehaulWeight = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul_weight ?? forecastLinehaulWeight);
+  const totalForecastWeight = isFutureDate ? 0 : (effectiveKpiSummary?.forecast_weight_ton ?? (finalShuttleWeight + finalLinehaulWeight));
 
   const totalInbound     = isFutureDate ? 0 : (effectiveOrdersStatus?.inbound     ?? (effectiveKpiSummary?.inbound_orders ?? stages['Inbound'].orders));
   const totalInTransit   = isFutureDate ? 0 : (effectiveOrdersStatus?.transporting  ?? stages['Transporting'].orders);
@@ -1043,15 +1051,22 @@ export default function InboundDashboard({
             <i className="fa-solid fa-chart-line kpi-icon"></i>
           </div>
           <div className="kpi-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span className="kpi-value"><NumberTicker value={totalForecast} /></span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <span className="kpi-value"><NumberTicker value={totalForecast} /></span>
+              <span style={{ fontSize: '0.9rem', color: '#94A3B8', fontWeight: 500 }}>(~{totalForecastWeight.toFixed(1).replace('.', ',')} Tấn)</span>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '0.88rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '5px', marginTop: '4px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>Shuttle:</span>
-                <strong style={{ color: '#a3e635', fontSize: '1.05rem' }}><NumberTicker value={finalShuttleForecast} /></strong>
+                <strong style={{ color: '#a3e635', fontSize: '1.05rem' }}>
+                  <NumberTicker value={finalShuttleForecast} /> <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 400 }}>({finalShuttleWeight.toFixed(1).replace('.', ',')} Tấn)</span>
+                </strong>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>Linehaul:</span>
-                <strong style={{ color: '#f97316', fontSize: '1.05rem' }}><NumberTicker value={finalLinehaulForecast} /></strong>
+                <strong style={{ color: '#f97316', fontSize: '1.05rem' }}>
+                  <NumberTicker value={finalLinehaulForecast} /> <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 400 }}>({finalLinehaulWeight.toFixed(1).replace('.', ',')} Tấn)</span>
+                </strong>
               </div>
             </div>
           </div>
