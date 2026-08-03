@@ -949,11 +949,16 @@ def sync_postgre_to_dashboard():
         DROP_TYPE_YESTERDAY = 'Rớt hôm trước'
         DROP_TYPE_AGED      = 'Tồn đọng lâu ngày'
 
+        stn      = str(r.get('status_sys') or '').strip()
+        is_canceled = (stn == 'Đã hủy')
+        next_st  = str(r.get('next_station') or '').upper()
+        rk_val   = str(r.get('rank') or '').upper()
+        rd_val   = str(r.get('round') or '').upper()
         is_north = (
             pk_st.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
-            stn.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
-            rank == 'BN HUB' or 
-            round == 'Linehaul'
+            next_st.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
+            rk_val == 'BN HUB' or 
+            'LINEHAUL' in rd_val
         )
         # Rớt đơn: CHƯA NHẬP KHO, CHƯA XUẤT KHO, không hủy, không rebound, KHÔNG Thuộc Miền Bắc/Linehaul BN HUB
         is_rot = (not has_in) and (not has_out) and (not is_canceled) and (not is_reb) and (not is_north)
@@ -1242,9 +1247,6 @@ def sync_postgre_to_dashboard():
     status_weights = {'Inbound': 0.0, 'Transporting': 0.0, 'Pickup Done': 0.0, 'Created': 0.0}
 
     for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items():
-        is_north = st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))
-        if is_north:
-            continue
         is_match = (in_op == today) or (ar_op == today) or (pk_op == today) or (fc_op == today)
         if is_match and status in status_counts:
             status_counts[status]  += stats['volume']
