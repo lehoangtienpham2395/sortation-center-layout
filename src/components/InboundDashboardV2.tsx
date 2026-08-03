@@ -715,31 +715,20 @@ export default function InboundDashboard({
     }
   });
 
-  // 🎯 TÍNH SỐ XE CHÍNH TỰ NỘP CHO BƯU CỤC (LỌC SẠCH CÁC MÃ XE RÁC/MÃ ĐƠN LẺ KHÔNG PHẢI XE THỰC TẾ)
+  // 🎯 TÍNH SỐ XE THỰC TẾ CHUẨN VẬN HÀNH (LOẠI BỎ RÁC BẢNG KÊ NỘI BỘ, QUY ĐỔI CHUẨN TẢI TRỌNG XE VẬN CHUYỂN)
   const allSendingFCs = Object.values(fcMetrics)
     .map(item => {
       const isBn = item.fc.toUpperCase().includes('BN HUB') || item.fc.toUpperCase().includes('NORTH');
-      let validTripsCount = 0;
       
-      const minThreshold = isBn ? 40 : 35;
-      item.tripCounts.forEach((count) => {
-        if (count >= minThreshold) {
-          validTripsCount += 1;
-        }
-      });
-
-      // Sức chứa trung bình chuẩn của 1 xe xe tải: Shuttle ~135 đơn/xe, Linehaul BN HUB ~165 đơn/xe
-      const targetCapacity = isBn ? 165 : 135;
-      const capacityBasedVehicles = Math.max(1, Math.round(item.orders / targetCapacity));
-
-      // Số xe thực tế chuẩn = Lấy số chuyến xe chính đạt ngưỡng hoặc số xe quy đổi theo tải trọng chuẩn
-      const finalVehiclesCount = (validTripsCount > 0 && validTripsCount <= capacityBasedVehicles * 2)
-        ? validTripsCount
-        : capacityBasedVehicles;
+      // Sức chứa quy đổi chuẩn 1 xe xe tải chạy tuyến:
+      // - Linehaul BN HUB: ~1,400 đơn/chuyến (ví dụ: 2,115 đơn = đúng 2 xe chuẩn)
+      // - Shuttle Bưu cục (DT Sa Đéc, SG Củ Chi...): ~450 - 500 đơn/chuyến (ví dụ: DT Sa Đéc 1,096 đơn = đúng 2 xe chuẩn)
+      const targetAvgOrdersPerTruck = isBn ? 1400 : 480;
+      const realTrucksCount = Math.max(1, Math.round(item.orders / targetAvgOrdersPerTruck));
 
       return {
         fc: item.fc,
-        vehicles: item.orders > 0 ? finalVehiclesCount : 0,
+        vehicles: item.orders > 0 ? realTrucksCount : 0,
         orders: item.orders,
         weight: item.weight
       };
