@@ -171,30 +171,31 @@ export default function InboundDashboard({
   const getDateForecast = (d: any) => d['op_date_forecast'] || d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast'];
 
 
-  const isNorthRow = (row: any) => {
+  // Hàng xuất đi Linehaul Miền Bắc: next_station là BN HUB hoặc rank/round là Linehaul
+  const isLinehaulRow = (row: any) => {
+    if (!row) return false;
+    if (typeof row === 'string') {
+      const clean = row.trim().toUpperCase();
+      return clean === 'BN HUB' || clean.includes('LINEHAUL');
+    }
+    const nextSt = String(row?.next_station ?? row?.['Bưu cục đến'] ?? row?.arrive_network ?? '').trim().toUpperCase();
+    const rankVal = String(row?.rank ?? row?.Rank ?? '').trim().toUpperCase();
+    const roundVal = String(row?.round ?? row?.Round ?? '').trim().toUpperCase();
+    return nextSt === 'BN HUB' || rankVal === 'BN HUB' || roundVal.includes('LINEHAUL') || nextSt.startsWith('HN ') || nextSt.startsWith('HD ') || nextSt.startsWith('HY ');
+  };
+
+  // Hàng phát sinh từ bưu cục Miền Bắc: dùng cho lọc rớt bưu cục HCM HUB
+  const isNorthOriginRow = (row: any) => {
     if (!row) return false;
     if (typeof row === 'string') {
       const clean = row.trim().toUpperCase();
       return clean === 'BN HUB' || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ');
     }
-    if (row?.is_north === true) return true;
-    if (String(row?.region || '').toLowerCase() === 'north') return true;
-
-    const station = String(
-      row?.station_name ??
-      row?.pickup_station ??
-      row?.send_network ??
-      row?.['Bu cc'] ??
-      row?.['Bưu cục'] ??
-      row?.station ??
-      ''
-    ).trim().toUpperCase();
-
-    return station === 'BN HUB' ||
-      station.startsWith('HN ') ||
-      station.startsWith('HD ') ||
-      station.startsWith('HY ');
+    const pkSt = String(row?.pickup_station ?? row?.station_name ?? row?.send_network ?? row?.['Bu cc'] ?? row?.['Bưu cục'] ?? row?.station ?? '').trim().toUpperCase();
+    return pkSt === 'BN HUB' || pkSt.startsWith('HN ') || pkSt.startsWith('HD ') || pkSt.startsWith('HY ');
   };
+
+  const isNorthRow = isNorthOriginRow;
 
   const normalizeDateStr = (dStr: string): string => {
     if (!dStr) return '';
@@ -310,7 +311,7 @@ export default function InboundDashboard({
 
         // 🎯 TÍNH THẺ FORECAST TRỰC TIẾP TỪ LOGIC ORDERS STATUS (TẤT CẢ CÁC ĐƠN CHƯA INBOUND HÔM NAY)
         if (wfStatus !== 'Inbound') {
-          if (isNorth) {
+          if (isLinehaulRow(d)) {
             forecastLinehaul += vol;
             forecastLinehaulWeight += wt;
           } else {

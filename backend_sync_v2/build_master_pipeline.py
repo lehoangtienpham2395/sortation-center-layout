@@ -135,16 +135,19 @@ def run_master_pipeline():
         is_frozen = is_history
 
         # A. 5 Milestone Progression Query
+        # A. 5 Milestone Progression Query (Non-overlapping Waterfall Stages)
         cur.execute('''
             SELECT 
                 SUM(CASE WHEN flag_inbound = 1 OR inbound_scandate IS NOT NULL THEN 1 ELSE 0 END) as inbound_cnt,
-                SUM(CASE WHEN flag_arrival = 1 OR arrival_scandate IS NOT NULL THEN 1 ELSE 0 END) as transp_cnt,
-                SUM(CASE WHEN flag_pickup = 1 OR pickup_time IS NOT NULL THEN 1 ELSE 0 END) as pickup_cnt,
-                COUNT(*) as created_cnt,
+                SUM(CASE WHEN (flag_inbound = 0 AND inbound_scandate IS NULL) AND (flag_arrival = 1 OR arrival_scandate IS NOT NULL) THEN 1 ELSE 0 END) as transp_cnt,
+                SUM(CASE WHEN (flag_inbound = 0 AND inbound_scandate IS NULL) AND (flag_arrival = 0 AND arrival_scandate IS NULL) AND (flag_pickup = 1 OR pickup_time IS NOT NULL) THEN 1 ELSE 0 END) as pickup_cnt,
+                SUM(CASE WHEN (flag_inbound = 0 AND inbound_scandate IS NULL) AND (flag_arrival = 0 AND arrival_scandate IS NULL) AND (flag_pickup = 0 AND pickup_time IS NULL) THEN 1 ELSE 0 END) as created_cnt,
                 SUM(CASE WHEN flag_inbound = 1 OR inbound_scandate IS NOT NULL THEN orders_weight ELSE 0 END) / 1000.0 as inb_wt,
-                SUM(CASE WHEN flag_arrival = 1 OR arrival_scandate IS NOT NULL THEN orders_weight ELSE 0 END) / 1000.0 as transp_wt,
-                SUM(CASE WHEN flag_pickup = 1 OR pickup_time IS NOT NULL THEN orders_weight ELSE 0 END) / 1000.0 as pickup_wt,
-                SUM(orders_weight) / 1000.0 as created_wt
+                SUM(CASE WHEN (flag_inbound = 0 AND inbound_scandate IS NULL) AND (flag_arrival = 1 OR arrival_scandate IS NOT NULL) THEN orders_weight ELSE 0 END) / 1000.0 as transp_wt,
+                SUM(CASE WHEN (flag_inbound = 0 AND inbound_scandate IS NULL) AND (flag_arrival = 0 AND arrival_scandate IS NULL) AND (flag_pickup = 1 OR pickup_time IS NOT NULL) THEN orders_weight ELSE 0 END) / 1000.0 as pickup_wt,
+                SUM(CASE WHEN (flag_inbound = 0 AND inbound_scandate IS NULL) AND (flag_arrival = 0 AND arrival_scandate IS NULL) AND (flag_pickup = 0 AND pickup_time IS NULL) THEN orders_weight ELSE 0 END) / 1000.0 as created_wt,
+                SUM(CASE WHEN (flag_inbound = 0 AND inbound_scandate IS NULL) AND (UPPER(COALESCE(next_station, '')) = 'BN HUB' OR UPPER(COALESCE(rank, '')) = 'BN HUB' OR UPPER(COALESCE(round, '')) LIKE '%%LINEHAUL%%') THEN 1 ELSE 0 END) as linehaul_cnt,
+                SUM(CASE WHEN (flag_inbound = 0 AND inbound_scandate IS NULL) AND (UPPER(COALESCE(next_station, '')) = 'BN HUB' OR UPPER(COALESCE(rank, '')) = 'BN HUB' OR UPPER(COALESCE(round, '')) LIKE '%%LINEHAUL%%') THEN orders_weight ELSE 0 END) / 1000.0 as linehaul_wt
             FROM enriched.dispatch_enriched
             WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date;
         ''', (d_str,))
@@ -167,6 +170,11 @@ def run_master_pipeline():
         tr_w  = round(to_float(row[5]), 3) if row else 0.0
         pk_w  = round(to_float(row[6]), 3) if row else 0.0
         cr_w  = round(to_float(row[7]), 3) if row else 0.0
+
+        lh_c  = to_int(row[8]) if row else 0
+        lh_w  = round(to_float(row[9]), 3) if row else 0.0
+        st_c  = max(0, (tr_c + pk_c + cr_c) - lh_c)
+        st_w  = max(0.0, round((tr_w + pk_w + cr_w) - lh_w, 3))
 
         # B. Rot / Backlog breakdown
         prev_d_str = (datetime.datetime.strptime(d_str, '%Y-%m-%d') - datetime.timedelta(days=1)).strftime('%Y-%m-%d')
@@ -217,9 +225,14 @@ def run_master_pipeline():
             "inbound_orders": inb_c,
             "inbound_weight_ton": inb_w,
             "forecast_total": tr_c + pk_c + cr_c,
+            "forecast_weight_ton": round(tr_w + pk_w + cr_w, 3),
+            "shuttle_orders": st_c,
+            "shuttle_weight": st_w,
+            "linehaul_orders": lh_c,
+            "linehaul_weight": lh_w,
             "rot_hom_truoc": rot_hom_truoc,
             "rot_hom_nay": rot_hom_nay,
-            "linehaul_bn_hub": 0
+            "linehaul_bn_hub": lh_c
         }
 
         # D. 2 - inbound_orders_status.json
