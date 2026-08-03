@@ -4,7 +4,7 @@ import psycopg2
 
 def init_rebound_db():
     print("Running PostgreSQL Rebound & Data Freezing Migration...")
-    pg_pass = os.environ.get('PGPASSWORD', 'Tien@giang2299')
+    pg_pass = os.environ.get('PGPASSWORD', 'Tien@giang0203')
     pg_db   = os.environ.get('PGDATABASE', 'logistics_db')
     pg_host = os.environ.get('PGHOST', '127.0.0.1')
     pg_port = int(os.environ.get('PGPORT', 5433))

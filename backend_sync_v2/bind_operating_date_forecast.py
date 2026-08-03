@@ -9,7 +9,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 print("🚀 Binding Forecast calculation strictly to selected Operating Date (activeDate & activeDate - 1)...")
 
 # 1. Connect to PostgreSQL logistics_db
-conn = psycopg2.connect(dbname='logistics_db', user='postgres', password='Tien@giang2299', host='127.0.0.1', port=5433)
+conn = psycopg2.connect(dbname='logistics_db', user='postgres', password='Tien@giang0203', host='127.0.0.1', port=5433)
 cur = conn.cursor()
 
 # Query un-inbounded and un-outbounded dispatch orders grouped by created date and route type

@@ -6,7 +6,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 print("🚀 Searching all files for account credentials & hardcoded passwords...")
 
-new_password = 'Tien@giang2299'
+new_password = 'Tien@giang0203'
 target_account = '660021'
 
 found_files = []

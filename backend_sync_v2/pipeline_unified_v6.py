@@ -24,7 +24,7 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
 # CONFIG
 # ============================================================
 ACCOUNT      = os.environ.get('SYSTEM_ACCOUNT',  '').strip() or '660021'
-PASSWORD     = os.environ.get('SYSTEM_PASSWORD', '').strip() or 'Tien@giang2299'
+PASSWORD     = os.environ.get('SYSTEM_PASSWORD', '').strip() or 'Tien@giang0203'
 ARR_ACCOUNT  = '660085'
 ARR_PASSWORD = '246@Hoang'
 COUNTRY_ID   = '1'
@@ -1330,7 +1330,7 @@ def main():
         import psycopg2
         from psycopg2.extras import execute_values
         pg_db   = os.environ.get('PGDATABASE', 'logistics_db')
-        passwords = ['Tien@giang0203', 'Tien@giang2299', 'postgres']
+        passwords = ['Tien@giang0203', 'Tien@giang0203', 'postgres']
         conn = None
         for pwd in passwords:
             try:

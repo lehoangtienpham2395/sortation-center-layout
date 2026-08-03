@@ -4,10 +4,10 @@ import re
 
 sys.stdout.reconfigure(encoding='utf-8')
 
-print("🚀 Updating SYSTEM_PASSWORD to 'Tien@giang2299' across all Python files and configs...")
+print("🚀 Updating SYSTEM_PASSWORD to 'Tien@giang0203' across all Python files and configs...")
 
 new_account = '660021'
-new_password = 'Tien@giang2299'
+new_password = 'Tien@giang0203'
 
 updated_files = []
 
@@ -26,7 +26,7 @@ for root, dirs, files in os.walk('.'):
                 # Replace pattern os.environ.get('SYSTEM_PASSWORD', ... or hardcoded passwords
                 # Replace 'Tien@giang...' password strings if matching
                 pattern_pass = r"(os\.environ\.get\(\s*['\"]SYSTEM_PASSWORD['\"],?\s*['\"][^'\"]*['\"]\s*\)\s*\.strip\(\)\s*or\s*['\"])([^'\"]*)(['\"])"
-                new_content = re.sub(pattern_pass, r"\g<1>Tien@giang2299\3", new_content)
+                new_content = re.sub(pattern_pass, r"\g<1>Tien@giang0203\3", new_content)
                 
                 pattern_acc = r"(os\.environ\.get\(\s*['\"]SYSTEM_ACCOUNT['\"],?\s*['\"][^'\"]*['\"]\s*\)\s*\.strip\(\)\s*or\s*['\"])([^'\"]*)(['\"])"
                 new_content = re.sub(pattern_acc, r"\g<1>660021\3", new_content)
@@ -36,7 +36,7 @@ for root, dirs, files in os.walk('.'):
                     # Also replace any occurrence of old password variations
                     new_content = re.sub(r"['\"]Tien@giang0203['\"]", f"'{new_password}'", new_content)
                     new_content = re.sub(r"['\"]Tien@giang2209['\"]", f"'{new_password}'", new_content)
-                    new_content = re.sub(r"['\"]Tien@giang2299['\"]", f"'{new_password}'", new_content)
+                    new_content = re.sub(r"['\"]Tien@giang0203['\"]", f"'{new_password}'", new_content)
                 
                 if new_content != content:
                     with open(path, 'w', encoding='utf-8') as f:
@@ -46,4 +46,4 @@ for root, dirs, files in os.walk('.'):
             except Exception as e:
                 print(f"Error processing {path}: {e}")
 
-print(f"\n✅ Total {len(updated_files)} files updated with password 'Tien@giang2299'!")
+print(f"\n✅ Total {len(updated_files)} files updated with password 'Tien@giang0203'!")

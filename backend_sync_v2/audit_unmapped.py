@@ -12,7 +12,7 @@ with open('backend_sync/config/valid.csv', 'r', encoding='utf-8-sig') as f:
         if r.get('Station_1'): valid_st.add(r['Station_1'].strip().upper())
         if r.get('Station_2'): valid_st.add(r['Station_2'].strip().upper())
 
-conn = psycopg2.connect(dbname='logistics_db', user='postgres', password='Tien@giang2299', host='127.0.0.1', port=5433)
+conn = psycopg2.connect(dbname='logistics_db', user='postgres', password='Tien@giang0203', host='127.0.0.1', port=5433)
 cur = conn.cursor()
 
 cur.execute('''

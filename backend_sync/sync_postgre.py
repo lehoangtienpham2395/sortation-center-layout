@@ -342,7 +342,7 @@ def write_json(filename: str, obj) -> None:
 
 def get_pg_conn():
     import psycopg2
-    passwords = [PG_PASS, 'Tien@giang0203', 'Tien@giang2299', 'postgres']
+    passwords = [PG_PASS, 'Tien@giang0203', 'Tien@giang0203', 'postgres']
     for pwd in passwords:
         try:
             conn = psycopg2.connect(
@@ -360,7 +360,7 @@ def get_sa_engine():
     """SQLAlchemy engine for pd.read_sql (tránh UserWarning DBAPI2)."""
     try:
         from sqlalchemy import create_engine
-        passwords = [PG_PASS, 'Tien@giang0203', 'Tien@giang2299', 'postgres']
+        passwords = [PG_PASS, 'Tien@giang0203', 'Tien@giang0203', 'postgres']
         for pwd in passwords:
             try:
                 engine = create_engine(

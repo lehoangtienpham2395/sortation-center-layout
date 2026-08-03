@@ -43,7 +43,7 @@ def save_json(filepath, data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 def get_db_connection():
-    passwords = ['Tien@giang0203', 'Tien@giang2299', 'postgres']
+    passwords = ['Tien@giang0203', 'Tien@giang0203', 'postgres']
     for pwd in passwords:
         try:
             conn = psycopg2.connect(

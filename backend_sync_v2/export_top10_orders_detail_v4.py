@@ -38,7 +38,7 @@ dict_station_to_area['BN HUB'] = 'A06'
 dict_area_to_station['C26'] = 'SE TN'
 dict_area_to_station['A06'] = 'BN HUB'
 
-conn = psycopg2.connect(dbname='logistics_db', user='postgres', password='Tien@giang2299', host='127.0.0.1', port=5433)
+conn = psycopg2.connect(dbname='logistics_db', user='postgres', password='Tien@giang0203', host='127.0.0.1', port=5433)
 cur = conn.cursor()
 
 # Query all detailed active non-Outbound orders for Today (2026-08-01)
