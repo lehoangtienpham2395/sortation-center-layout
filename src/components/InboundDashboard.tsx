@@ -945,7 +945,6 @@ export default function InboundDashboard({
                 padding: '5px 14px',
                 fontSize: '12px',
                 background: '#092518',
-                border: '1px solid rgba(16, 185, 129, 0.4)',
                 borderRadius: '20px',
                 display: 'inline-flex',
                 alignItems: 'center',
