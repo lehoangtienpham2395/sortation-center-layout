@@ -1016,8 +1016,10 @@ def sync_postgre_to_dashboard():
                 out_group[ko]['volume']    += 1
                 out_group[ko]['weight_kg'] += wt_kg
 
-        # 3. backlog group — đơn ĐANG TỒN KHO đã từng Inbound (Lần 1 hoặc Rebound Lần 2)
-        if is_currently_at_hub and (has_in or is_reb) and valid_area:
+        # 3. backlog group — đơn đã INBOUND chưa OUTBOUND (Backlog = has_in=True AND has_out=False)
+        # Logic chốt: INBOUND chưa OUTBOUND → còn tồn kho
+        # Rebound orders vẫn đủ điều kiện vì chúng có has_in=True từ lần inbound đầu tiên
+        if has_in and is_currently_at_hub and valid_area:
             kb = (zone, area_id, station)
             if kb not in backlog_group:
                 backlog_group[kb] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
