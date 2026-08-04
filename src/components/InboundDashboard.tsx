@@ -464,6 +464,7 @@ export default function InboundDashboard({
   const isFutureDate = normActiveDate > todayOpDate;
 
   const [localKpiSummary, setLocalKpiSummary] = useState<any | null>(null);
+  const [localOrdersStatus, setLocalOrdersStatus] = useState<any | null>(null);
 
   useEffect(() => {
     if (!normActiveDate) return;
@@ -484,6 +485,17 @@ export default function InboundDashboard({
         if (isMounted) setLocalKpiSummary(null);
       });
 
+    fetch(`./data/${subPath}/inbound_orders_status.json?t=${t}`, fetchOpts)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (isMounted && data) {
+          setLocalOrdersStatus(data);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setLocalOrdersStatus(null);
+      });
+
     return () => { isMounted = false; };
   }, [normActiveDate, todayOpDate]);
 
@@ -491,7 +503,10 @@ export default function InboundDashboard({
   const effectiveKpiSummary = (localKpiSummary && localKpiSummary.op_date === normActiveDate)
     ? localKpiSummary
     : ((kpiSummary && kpiSummary.op_date === normActiveDate) ? kpiSummary : null);
-  const effectiveOrdersStatus = (ordersStatus && ordersStatus.op_date === normActiveDate) ? ordersStatus : null;
+
+  const effectiveOrdersStatus = (localOrdersStatus && localOrdersStatus.op_date === normActiveDate)
+    ? localOrdersStatus
+    : ((ordersStatus && ordersStatus.op_date === normActiveDate) ? ordersStatus : null);
 
   const snapshotForDate = (lastUpdateObj?.daily_snapshots as Record<string, any>)?.[normActiveDate];
 
@@ -501,11 +516,12 @@ export default function InboundDashboard({
   const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       ?? stages['Created'].orders);
 
   // 🎯 FORECAST = TỔNG SẢN LƯỢNG CẦN XỬ LÝ TRONG NGÀY (CỐ ĐỊNH BAN ĐẦU - SOURCE OF TRUTH)
+  // FORECAST LÀ SỐ LIỆU CỐ ĐỊNH KHÔNG THỂ TỰ ĐỘNG GIẢM KHI QUÉT INBOUND
   const totalForecast = isFutureDate ? 0 : (
     effectiveKpiSummary?.forecast_total ??
     snapshotForDate?.forecast_total ??
     snapshotForDate?.forecast ??
-    (totalInbound + totalInTransit + totalPickupDone + totalCreated)
+    (forecastShuttle + forecastLinehaul)
   );
   const finalLinehaulForecast = isFutureDate ? 0 : (
     effectiveKpiSummary?.linehaul_bn_hub ??
