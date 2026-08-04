@@ -144,6 +144,7 @@ def compute_kpi(snap_date: str) -> dict:
         )
 
         records.append({
+            'code': str(r.get('code') or r.get('tracking') or ''),
             'op_fc': op_fc,
             'op_pick': op_pick,
             'op_inb': op_inb,
@@ -159,15 +160,15 @@ def compute_kpi(snap_date: str) -> dict:
 
     # ── Forecast: ops_today (created OR pickup on snap_date) + backlog 06AM ─
     mask_ops = (rdf['op_fc'] == snap_date) | (rdf['op_pick'] == snap_date)
-    ops_today = rdf[mask_ops].drop_duplicates()
+    ops_today = rdf[mask_ops].drop_duplicates(subset=['code'])
 
     mask_backlog = (
         ((rdf['op_fc'] < snap_date) & (rdf['op_fc'] != '')) |
         ((rdf['op_pick'] < snap_date) & (rdf['op_pick'] != ''))
     ) & (~rdf['has_in']) & (~rdf['has_out'])
-    backlog_df = rdf[mask_backlog].drop_duplicates()
+    backlog_df = rdf[mask_backlog].drop_duplicates(subset=['code'])
 
-    workload_df     = pd.concat([ops_today, backlog_df]).drop_duplicates()
+    workload_df     = pd.concat([ops_today, backlog_df]).drop_duplicates(subset=['code'])
     forecast_total  = len(workload_df)
     forecast_weight = round(workload_df['wt_kg'].sum() / 1000.0, 3)
 
