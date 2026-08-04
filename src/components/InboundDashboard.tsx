@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { DatePicker } from './DatePicker';
+import { getTodayOpDate } from '../utils/dateUtils';
 
 // Animated Number Ticker Component
 function NumberTicker({ value, decimals = 0 }: { value: number; decimals?: number }) {
@@ -139,11 +140,7 @@ export default function InboundDashboard({
   const chartInstanceRef = useRef<any | null>(null);
 
   // 1. Extract and sort available dates (excluding future dates > today)
-  const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-  const padStr = (n: number) => String(n).padStart(2, '0');
-  const todayOpDate = getOperatingDateFromTimestamp(
-    `${nowVN.getFullYear()}-${padStr(nowVN.getMonth() + 1)}-${padStr(nowVN.getDate())} ${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}`
-  );
+  const todayOpDate = getTodayOpDate();
 
   const inboundDates: string[] = [];
   const startDt = new Date('2026-07-05T00:00:00');
@@ -974,7 +971,7 @@ export default function InboundDashboard({
             <span className="control-label text-xs text-slate-400 font-semibold">Operations Date</span>
             <DatePicker
               selectedDate={activeDate}
-              onDateChange={(d) => setSelectedInboundDate(d)}
+              onDateChange={(d: string) => setSelectedInboundDate(d)}
               availableDates={inboundDates}
               align="right"
               className="w-[210px]"

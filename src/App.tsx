@@ -4,6 +4,7 @@ import InboundDashboard from './components/InboundDashboard';
 import HeatmapDashboard from './components/HeatmapDashboard';
 import KpiDashboard from './components/KpiDashboard';
 import { DatePicker } from './components/DatePicker';
+import { getTodayOpDate, getFormattedVietnamTime } from './utils/dateUtils';
 import { Menu } from 'lucide-react';
 import configData from './data/config.json';
 
@@ -200,21 +201,7 @@ function getApiUrl(filename: string): string {
   return `./data/${filename}?t=${t}`;
 }
 
-function getOperatingDateFromTimestamp(timestamp: string): string {
-  if (!timestamp) return '';
-  const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
-  if (match) {
-    const datePart = match[1];
-    const hour = parseInt(match[2], 10);
-    if (hour < 6) {
-      const d = new Date(datePart);
-      d.setDate(d.getDate() - 1);
-      return d.toISOString().split('T')[0];
-    }
-    return datePart;
-  }
-  return timestamp.split(' ')[0] || '';
-}
+// Replaced with robust implementation imported from ./utils/dateUtils
 
 async function fetchInboundSheetData(sheetType: 'Forecast' | 'Dispatch' | 'Inbound' | 'Linehaul' | 'Arrival' | 'Truck_ETA'): Promise<any[] | null> {
   try {
@@ -267,9 +254,7 @@ async function fetchMicroJson<T>(fileName: string, targetDate?: string): Promise
     const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
     
     let subPath = 'live';
-    const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-    const padStr = (n: number) => String(n).padStart(2, '0');
-    const todayStr = getOperatingDateFromTimestamp(`${nowVN.getFullYear()}-${padStr(nowVN.getMonth() + 1)}-${padStr(nowVN.getDate())} ${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}`);
+    const todayStr = getTodayOpDate();
     
     if (targetDate && targetDate < todayStr) {
       subPath = `history/${targetDate}`;
@@ -457,23 +442,7 @@ export default function App() {
     userChangedInboundDate.current = true;
     setSelectedInboundDate(d);
   };
-  const [selectedInboundDate, setSelectedInboundDate] = useState<string>(() => {
-    // 🎯 Tính ngày vận hành hôm nay theo logic J&T: trước 06h sáng = ngày hôm trước
-    const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const ts = `${nowVN.getFullYear()}-${pad(nowVN.getMonth()+1)}-${pad(nowVN.getDate())} ${pad(nowVN.getHours())}:${pad(nowVN.getMinutes())}`;
-    const m = ts.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
-    if (m) {
-      const hour = parseInt(m[2], 10);
-      if (hour < 6) {
-        const d = new Date(m[1]);
-        d.setDate(d.getDate() - 1);
-        return d.toISOString().split('T')[0];
-      }
-      return m[1];
-    }
-    return new Date().toISOString().split('T')[0];
-  });
+  const [selectedInboundDate, setSelectedInboundDate] = useState<string>(() => getTodayOpDate());
   const [showMonitor, setShowMonitor] = useState(true);
   const [showTelemetry, setShowTelemetry] = useState(true);
   const [showControls, setShowControls] = useState(true);
@@ -569,15 +538,11 @@ export default function App() {
 
   const fetchAndUpdateData = async () => {
     setLoading(true);
-    const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-    const padStr = (n: number) => String(n).padStart(2, '0');
-    const currentLoadTime = `${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}:${padStr(nowVN.getSeconds())} ${padStr(nowVN.getDate())}/${padStr(nowVN.getMonth() + 1)}/${nowVN.getFullYear()}`;
+    const currentLoadTime = getFormattedVietnamTime();
     setLastUpdate(currentLoadTime);
     lastUpdateTimestampRef.current = currentLoadTime;
 
-    const todayOpDate = getOperatingDateFromTimestamp(
-      `${nowVN.getFullYear()}-${padStr(nowVN.getMonth() + 1)}-${padStr(nowVN.getDate())} ${padStr(nowVN.getHours())}:${padStr(nowVN.getMinutes())}`
-    );
+    const todayOpDate = getTodayOpDate();
 
     // 1. Fetch last_update.json ngay lập tức để lấy daily_snapshots & metadata
     try {
