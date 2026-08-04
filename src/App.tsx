@@ -791,26 +791,31 @@ export default function App() {
       const rowStatus = row.status ? String(row.status) : '';
 
       // 🎯 BỘ LỌC 1: NGÀY VẬN HÀNH (Operating Date)
-      // Đối với Backlog: Bao gồm TỒN ĐỌNG CẢ NGÀY CŨ VÀ NGÀY MỚI
-      // Đối với Outbound & Volume: Lọc theo đúng Ngày vận hành chọn
-      const isBacklogRow = row.type === 'Backlog' || (row.type === 'Inventory' && rowStatus === 'Inbound');
-      const dateMatched = (selectedType === 'Backlog' && isBacklogRow) ? true : (!effectiveDate || isDateMatch(row.date, effectiveDate));
+      // ✅ FIX: Backend đã có op_date đúng cho tất cả loại (Outbound/Backlog/Inventory)
+      // → Luôn lọc theo ngày, KHÔNG bypass cho Backlog nữa
+      const dateMatched = !effectiveDate || isDateMatch(row.date, effectiveDate);
       if (!dateMatched) return;
 
       // 🎯 BỘ LỌC 3: TRẠNG THÁI (Inbound, Transporting, Pickup Done, Created, Outbound)
       const statusMatched = !rowStatus || selectedStatuses.includes(rowStatus);
 
       // 🎯 BỘ LỌC 2: LOẠI (Outbound / Backlog / Volume)
+      // Outbound  = đơn đã xuất kho, lấy từ outbound.json (status='Outbound'), theo ngày outbound thực tế
+      // Backlog   = đơn đã Inbound chưa Outbound, lấy từ backlog.json (status='Inbound'), theo ngày nhập kho
+      // Volume    = tất cả đơn từ Created→Inbound chưa Outbound (inventory.json), theo ngày vận hành
       let isForSelectedType = false;
       if (selectedType === 'Outbound') {
-        // Mode Outbound: Chỉ nhận các dòng có status/type là 'Outbound' VÀ nút status 'Outbound' hoặc 'Total' được chọn
-        const isOutboundStatus = row.type === 'Outbound' || rowStatus === 'Outbound';
-        const isOutboundChecked = selectedStatuses.includes('Outbound') || selectedStatuses.includes('Total') || selectedStatuses.length === 0;
-        isForSelectedType = isOutboundStatus && isOutboundChecked;
+        // Chỉ lấy dòng từ outbound.json (type='Outbound') hoặc status='Outbound'
+        const isOutboundRow = row.type === 'Outbound' || rowStatus === 'Outbound';
+        isForSelectedType = isOutboundRow;
       } else if (selectedType === 'Backlog') {
-        isForSelectedType = (row.type === 'Backlog' || (row.type === 'Inventory' && rowStatus !== 'Outbound')) && statusMatched;
+        // Backlog = đơn từ backlog.json (type='Backlog', status='Inbound' chưa Outbound)
+        // Hoặc đơn từ inventory với status Inbound (đang tồn kho)
+        isForSelectedType = (row.type === 'Backlog' || (row.type === 'Inventory' && rowStatus === 'Inbound')) && statusMatched;
       } else if (selectedType === 'Inventory' || selectedType === 'Volume') {
-        isForSelectedType = (row.type === 'Inventory' || row.type === 'Backlog') && statusMatched;
+        // Volume = tất cả đơn đang tồn (Created/Pickup Done/Transporting/Inbound chưa Outbound)
+        // = inventory.json (tất cả status ngoại trừ Outbound) + backlog.json
+        isForSelectedType = (row.type === 'Inventory' || row.type === 'Backlog') && rowStatus !== 'Outbound' && statusMatched;
       }
 
       if (isForSelectedType) {
@@ -831,8 +836,9 @@ export default function App() {
         inventoryMap[key].weight += row.weight;
       }
 
-      // Populate backlogMap (đơn tồn đọng)
-      if ((row.type === 'Backlog' || (row.type === 'Inventory' && statusMatched)) && rowStatus !== 'Outbound') {
+      // Populate backlogMap (đơn tồn đọng Inbound chưa Outbound — dùng cho tooltip/overlay)
+      // ✅ FIX: Chỉ lấy từ backlog.json (type=Backlog) hoặc inventory với status=Inbound
+      if ((row.type === 'Backlog' || (row.type === 'Inventory' && rowStatus === 'Inbound')) && rowStatus !== 'Outbound') {
         if (!backlogMap[key]) {
           backlogMap[key] = { volume: 0, weight: 0, capacity: row.capacity || 780, buuCuc: row.buuCuc };
         }
