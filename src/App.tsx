@@ -450,7 +450,23 @@ export default function App() {
   const [linehaulData, setLinehaulData] = useState<any[]>([]);
   const [arrivalData, setArrivalData] = useState<any[]>([]);
   const [truckEtaData, setTruckEtaData] = useState<any[]>([]);
-  const [selectedInboundDate, setSelectedInboundDate] = useState<string>('2026-08-03');
+  const [selectedInboundDate, setSelectedInboundDate] = useState<string>(() => {
+    // 🎯 Tính ngày vận hành hôm nay theo logic J&T: trước 06h sáng = ngày hôm trước
+    const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const ts = `${nowVN.getFullYear()}-${pad(nowVN.getMonth()+1)}-${pad(nowVN.getDate())} ${pad(nowVN.getHours())}:${pad(nowVN.getMinutes())}`;
+    const m = ts.match(/^(\d{4}-\d{2}-\d{2})\s+(\d{2}):/);
+    if (m) {
+      const hour = parseInt(m[2], 10);
+      if (hour < 6) {
+        const d = new Date(m[1]);
+        d.setDate(d.getDate() - 1);
+        return d.toISOString().split('T')[0];
+      }
+      return m[1];
+    }
+    return new Date().toISOString().split('T')[0];
+  });
   const [showMonitor, setShowMonitor] = useState(true);
   const [showTelemetry, setShowTelemetry] = useState(true);
   const [showControls, setShowControls] = useState(true);
@@ -654,7 +670,8 @@ export default function App() {
       if (ibDates.length > 0) {
         setSelectedInboundDate(prev => {
           // 1. Nếu người dùng đã chọn ngày (prev) và ngày đó vẫn hợp lệ -> GIỮ NGUYÊN
-          if (prev && ibDates.includes(prev)) return prev;
+          // 1b. Nếu prev = hôm nay nhưng chưa có đơn nào trong inbound.json -> vẫn giữ hôm nay
+          if (prev && (ibDates.includes(prev) || prev === todayOpDate)) return prev;
           // 2. Nếu là lần đầu load (prev rỗng) -> Ưu tiên ngày hôm nay (todayOpDate)
           if (ibDates.includes(todayOpDate)) return todayOpDate;
           // 3. Fallback lấy ngày mới nhất

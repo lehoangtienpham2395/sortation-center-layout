@@ -631,7 +631,7 @@ export default function InboundDashboard({
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
   const totalOrders = totalInbound;
-  const totalWeight = totalInboundWeight;
+  const totalWeight = isFutureDate ? 0 : (effectiveKpiSummary?.inbound_weight_ton ?? stages['Inbound'].weight);
 
   const segments = [
     { name: 'Inbound', value: totalInbound, pct: inboundPct, color: '#B8F7E4', label: 'Inbound' },
