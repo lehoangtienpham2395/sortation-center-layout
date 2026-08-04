@@ -532,7 +532,7 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
 
         for r in rows:
             send_st, arr_st, trip, vol, wt_kg, max_arr, max_transp = r
-            ref_t = str(max_arr or max_transp or '')[:16]
+            ref_t = str(max_transp or '')[:16]
             op_d = get_op_date(ref_t) if ref_t else today
 
             if op_d == today:
@@ -547,12 +547,13 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
                     "orders_count":     int(vol),
                     "weight_kg":        float(wt_kg),
                     "weight_ton":       calc_wt_ton,
+                    "transporting_time":ref_t,
                     "planned_departure":ref_t,
-                    "planned_arrival":  ref_t,
+                    "planned_arrival":  "",
                     "actual_departure": ref_t,
                     "eta":              ref_t,
                     "rank":             "Shuttle",
-                    "status":           "arrived" if max_arr else "in_transit",
+                    "status":           "in_transit",
                     "op_date":          op_d,
                 })
     except Exception as e:

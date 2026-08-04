@@ -354,7 +354,7 @@ export default function InboundDashboard({
       'Bưu cục đến': d.arrive_network || d.arriveNetworkName || d['Bưu cục đến'] || 'HCM HUB',
       'Tổng số đơn': d.orders_count ?? d.loadscanwaybillnum ?? d.volume ?? 0,
       'Tổng trọng lượng (kg)': d.weight_kg ?? d.loadpackageweight ?? 0,
-      'Giờ đến bãi': d.transporting_time || d.transport_time || d.transportingTime || d.planned_arrival || ''
+      'Giờ đến bãi': d.transporting_time || d.transport_time || d.transportingTime || d.actual_departure || d.planned_departure || ''
     }));
 
   // Group truck ETA by unique station (Bảo vệ ngày lịch sử: không rò xe live ngày 30/07 sang ngày lịch sử)
@@ -367,7 +367,7 @@ export default function InboundDashboard({
     const cleanKey = st.toUpperCase();
 
     const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? d['volume'] ?? 0);
-    const lastTime = d['transporting_time'] || d['transport_time'] || d['transportingTime'] || d['Last time'] || d['planned_arrival'] || '';
+    const lastTime = d['transporting_time'] || d['transport_time'] || d['transportingTime'] || d['actual_departure'] || d['planned_departure'] || '';
     const wtKg = Number(d['weight_kg'] ?? d['loadpackageweight'] ?? d['Tổng trọng lượng (kg)'] ?? 0);
     const wtTon = Number(d['weight'] ?? d['weight_ton'] ?? d['package_charge_weight'] ?? 0);
     const wt = wtKg > 0 ? wtKg / 1000.0 : (wtTon > 100 ? wtTon / 1000.0 : wtTon);
