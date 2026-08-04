@@ -1408,7 +1408,6 @@ def sync_postgre_to_dashboard():
                 src_m = os.path.join(DATA_DIR, 'live', m_fname)
                 if os.path.exists(src_m):
                     shutil.copy2(src_m, os.path.join(sub_live, m_fname))
-                    shutil.copy2(src_m, os.path.join(sub_hist, m_fname))
 
     # Gzip inbound
     raw_bytes = json.dumps(inbound_json, ensure_ascii=False).encode('utf-8')
