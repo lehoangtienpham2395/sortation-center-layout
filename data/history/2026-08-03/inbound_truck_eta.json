@@ -3,79 +3,346 @@
   "contract_version": "2.0.0",
   "trucks": [
     {
-      "send_network": "BN HUB",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DKGX26080400002",
-      "orders_count": 1942,
-      "weight_kg": 15668.57,
-      "weight_ton": 15.669,
-      "planned_departure": "2026-08-04 04:30:00",
-      "planned_arrival": "2026-08-05 16:37:38",
-      "actual_departure": "2026-08-04 02:37:38",
-      "eta": "2026-08-05 16:37:38",
-      "rank": "Linehaul",
-      "status": "in_transit",
-      "op_date": "2026-08-05"
-    },
-    {
-      "send_network": "BN HUB",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DKGX26080300002",
-      "orders_count": 1302,
-      "weight_kg": 10749.66,
-      "weight_ton": 10.75,
-      "planned_departure": "2026-08-03 04:30:00",
-      "planned_arrival": "2026-08-04 17:05:08",
-      "actual_departure": "2026-08-03 03:05:08",
-      "eta": "2026-08-04 17:05:08",
-      "rank": "Linehaul",
-      "status": "in_transit",
-      "op_date": "2026-08-04"
-    },
-    {
       "send_network": "SG BÌNH LỢI",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 284,
-      "weight_kg": 2686.08,
-      "weight_ton": 2.686,
-      "planned_departure": "2026-08-03 21:03",
-      "planned_arrival": "2026-08-03 21:03",
-      "actual_departure": "2026-08-03 21:03",
-      "eta": "2026-08-03 21:03",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-08-03"
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 119,
+      "weight_kg": 1178.28,
+      "weight_ton": 1.1783,
+      "rank": "Linehaul"
     },
     {
-      "send_network": "SG CỦ CHI",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 10,
-      "weight_kg": 78.74,
-      "weight_ton": 0.079,
-      "planned_departure": "2026-08-03 22:08",
-      "planned_arrival": "2026-08-03 22:08",
-      "actual_departure": "2026-08-03 22:08",
-      "eta": "2026-08-03 22:08",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-08-03"
+      "send_network": "SG GÒ VẤP",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 26,
+      "weight_kg": 397.58,
+      "weight_ton": 0.3976,
+      "rank": "Linehaul"
     },
     {
       "send_network": "SG BÌNH TÂN",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 10,
-      "weight_kg": 118.12,
-      "weight_ton": 0.118,
-      "planned_departure": "2026-08-03 22:21",
-      "planned_arrival": "2026-08-03 22:21",
-      "actual_departure": "2026-08-03 22:21",
-      "eta": "2026-08-03 22:21",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-08-03"
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 17,
+      "weight_kg": 183.18,
+      "weight_ton": 0.1832,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG BÌNH LỢI",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 11,
+      "weight_kg": 117.39,
+      "weight_ton": 0.1174,
+      "rank": "Shuttle"
+    },
+    {
+      "send_network": "SG THỦ ĐỨC",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 9,
+      "weight_kg": 157.29,
+      "weight_ton": 0.1573,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG PHÚ LÂM",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 8,
+      "weight_kg": 72.64,
+      "weight_ton": 0.0726,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG HIỆP BÌNH",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 7,
+      "weight_kg": 58.87,
+      "weight_ton": 0.0589,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG CHỢ LỚN",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 7,
+      "weight_kg": 64.6,
+      "weight_ton": 0.0646,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "AG AN PHÚ",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 5,
+      "weight_kg": 65.6,
+      "weight_ton": 0.0656,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG BÀ ĐIỂM",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 5,
+      "weight_kg": 139.0,
+      "weight_ton": 0.139,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "LA BẾN LỨC",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 4,
+      "weight_kg": 28.6,
+      "weight_ton": 0.0286,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "ST PHÚ LỢI",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 3,
+      "weight_kg": 21.0,
+      "weight_ton": 0.021,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG BÌNH TÂN",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 3,
+      "weight_kg": 29.26,
+      "weight_ton": 0.0293,
+      "rank": "Shuttle"
+    },
+    {
+      "send_network": "SG ĐÔNG HƯNG THUẬN",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 3,
+      "weight_kg": 24.5,
+      "weight_ton": 0.0245,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG VĨNH LỘC",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 3,
+      "weight_kg": 15.7,
+      "weight_ton": 0.0157,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG HƯNG LONG",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 2,
+      "weight_kg": 11.4,
+      "weight_ton": 0.0114,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG TÂN NHỰT",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 2,
+      "weight_kg": 42.21,
+      "weight_ton": 0.0422,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG TÂN NHỰT",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 2,
+      "weight_kg": 18.5,
+      "weight_ton": 0.0185,
+      "rank": "Shuttle"
+    },
+    {
+      "send_network": "SG TÂN SƠN NHÌ",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 2,
+      "weight_kg": 30.62,
+      "weight_ton": 0.0306,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG CỦ CHI",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 2,
+      "weight_kg": 12.71,
+      "weight_ton": 0.0127,
+      "rank": "Shuttle"
+    },
+    {
+      "send_network": "SG CỦ CHI",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 2,
+      "weight_kg": 20.71,
+      "weight_ton": 0.0207,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG NHƠN ĐỨC",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 44.0,
+      "weight_ton": 0.044,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG BẢY HIỀN",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 12.0,
+      "weight_ton": 0.012,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG PHÚ LÂM",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 0.5,
+      "weight_ton": 0.0005,
+      "rank": "Shuttle"
+    },
+    {
+      "send_network": "SG PHÚ NHUẬN",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 8.75,
+      "weight_ton": 0.0088,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG TÂN HƯNG",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 5.3,
+      "weight_ton": 0.0053,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG TÂN TẠO",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 6.0,
+      "weight_ton": 0.006,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG TÂN TẠO",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 8.0,
+      "weight_ton": 0.008,
+      "rank": "Shuttle"
+    },
+    {
+      "send_network": "SG TÂN THỚI HIỆP",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 10.5,
+      "weight_ton": 0.0105,
+      "rank": "Shuttle"
+    },
+    {
+      "send_network": "DT SA ĐÉC",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 3.33,
+      "weight_ton": 0.0033,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG THỦ ĐỨC",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 6.4,
+      "weight_ton": 0.0064,
+      "rank": "Shuttle"
+    },
+    {
+      "send_network": "SG ĐÔNG HƯNG THUẬN",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 0.5,
+      "weight_ton": 0.0005,
+      "rank": "Shuttle"
+    },
+    {
+      "send_network": "BD BÌNH HÒA",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 0.5,
+      "weight_ton": 0.0005,
+      "rank": "Shuttle"
+    },
+    {
+      "send_network": "SG BÌNH TRỊ ĐÔNG",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 13.33,
+      "weight_ton": 0.0133,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG HIỆP BÌNH",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 9.3,
+      "weight_ton": 0.0093,
+      "rank": "Shuttle"
+    },
+    {
+      "send_network": "SG HÓC MÔN",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 17.5,
+      "weight_ton": 0.0175,
+      "rank": "Linehaul"
+    },
+    {
+      "send_network": "SG HÓC MÔN",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 6.5,
+      "weight_ton": 0.0065,
+      "rank": "Shuttle"
+    },
+    {
+      "send_network": "SG HƯNG LONG",
+      "arrive_network": "HCM004H",
+      "trip_code": "",
+      "orders_count": 1,
+      "weight_kg": 5.9,
+      "weight_ton": 0.0059,
+      "rank": "Shuttle"
     }
   ]
 }
