@@ -465,32 +465,67 @@ export default function InboundDashboard({
 
   const isFutureDate = normActiveDate > todayOpDate;
 
+  const [localKpiSummary, setLocalKpiSummary] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (!normActiveDate) return;
+    let isMounted = true;
+    const t = Date.now();
+    const isHistory = normActiveDate < todayOpDate;
+    const subPath = isHistory ? `history/${normActiveDate}` : 'live';
+    const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
+
+    fetch(`./data/${subPath}/inbound_kpi_summary.json?t=${t}`, fetchOpts)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (isMounted && data) {
+          setLocalKpiSummary(data);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setLocalKpiSummary(null);
+      });
+
+    return () => { isMounted = false; };
+  }, [normActiveDate, todayOpDate]);
+
   // 🎯 Rebuild 4 Module (Forecast, Orders Status, Update, Truck ETA) theo Micro-JSON v2.0
-  const effectiveKpiSummary = (kpiSummary && kpiSummary.op_date === normActiveDate) ? kpiSummary : null;
+  const effectiveKpiSummary = (localKpiSummary && localKpiSummary.op_date === normActiveDate)
+    ? localKpiSummary
+    : ((kpiSummary && kpiSummary.op_date === normActiveDate) ? kpiSummary : null);
   const effectiveOrdersStatus = (ordersStatus && ordersStatus.op_date === normActiveDate) ? ordersStatus : null;
 
-  const totalInbound     = isFutureDate ? 0 : (effectiveOrdersStatus?.inbound     ?? (effectiveKpiSummary?.inbound_orders ?? stages['Inbound'].orders));
+  const snapshotForDate = (lastUpdateObj?.daily_snapshots as Record<string, any>)?.[normActiveDate];
+
+  const totalInbound     = isFutureDate ? 0 : (effectiveOrdersStatus?.inbound     ?? (effectiveKpiSummary?.inbound_orders ?? snapshotForDate?.inbound_orders ?? snapshotForDate?.inbound ?? stages['Inbound'].orders));
   const totalInTransit   = isFutureDate ? 0 : (effectiveOrdersStatus?.transporting  ?? stages['Transporting'].orders);
   const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
   const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       ?? stages['Created'].orders);
 
-  // 🎯 FORECAST = TỔNG SẢN LƯỢNG CẦN XỬ LÝ TRONG NGÀY (backend tính sẵn, khớp 100% với Orders Status)
-  // Source of truth: inbound_kpi_summary.json → forecast_total = Shuttle + Linehaul
-  // với filter is_match = (in_op==today or ar_op==today or pk_op==today or fc_op==today)
+  // 🎯 FORECAST = TỔNG SẢN LƯỢNG CẦN XỬ LÝ TRONG NGÀY (CỐ ĐỊNH BAN ĐẦU - SOURCE OF TRUTH)
   const totalForecast = isFutureDate ? 0 : (
     effectiveKpiSummary?.forecast_total ??
+    snapshotForDate?.forecast_total ??
+    snapshotForDate?.forecast ??
     (totalInbound + totalInTransit + totalPickupDone + totalCreated)
   );
   const finalLinehaulForecast = isFutureDate ? 0 : (
-    effectiveKpiSummary?.linehaul_bn_hub ?? effectiveKpiSummary?.linehaul ?? Math.max(forecastLinehaul, bnHubLinehaulOrders)
+    effectiveKpiSummary?.linehaul_bn_hub ??
+    effectiveKpiSummary?.linehaul ??
+    snapshotForDate?.linehaul ??
+    Math.max(forecastLinehaul, bnHubLinehaulOrders)
   );
   const finalShuttleForecast = isFutureDate ? 0 : (
-    effectiveKpiSummary?.shuttle ?? Math.max(0, totalForecast - finalLinehaulForecast)
+    effectiveKpiSummary?.shuttle ??
+    snapshotForDate?.shuttle ??
+    Math.max(0, totalForecast - finalLinehaulForecast)
   );
 
   const finalShuttleWeight = isFutureDate ? 0 : (effectiveKpiSummary?.shuttle_weight ?? forecastShuttleWeight);
   const finalLinehaulWeight = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul_weight ?? forecastLinehaulWeight);
   const totalForecastWeight = isFutureDate ? 0 : (effectiveKpiSummary?.forecast_weight_ton ?? (finalShuttleWeight + finalLinehaulWeight));
+
+  console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
 
   if (isFutureDate || isHistoricalDate) {
     incomingVehicles = [];
