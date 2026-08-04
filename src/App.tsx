@@ -499,6 +499,7 @@ export default function App() {
   const [rawSheetRows, setRawSheetRows] = useState<SheetRow[]>([]);
   const [heatmapRows, setHeatmapRows] = useState<any[]>([]);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [inboundAvailableDates, setInboundAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory' | 'Volume'>('Outbound');
   const [outboundRate, setOutboundRate] = useState<string>('0.0');
@@ -659,25 +660,47 @@ export default function App() {
       setHeatmapRows(heatmapData);
     }
 
-    if (ibRows && ibRows.length > 0) {
-      const ibDates = Array.from(
-        new Set([
-          ...(ibRows ?? []).map(r => r['Ngày vận hành_Inbound'] || r['op_date_inbound'] || r['Ngày vận hành_Forecast'] || r['op_date_forecast']).filter(Boolean)
-        ])
-      ).filter(d => d <= todayOpDate) as string[];
-      ibDates.sort((a, b) => b.localeCompare(a));
-
-      if (ibDates.length > 0) {
-        setSelectedInboundDate(prev => {
-          // 1. Nếu người dùng đã chọn ngày (prev) và ngày đó vẫn hợp lệ -> GIỮ NGUYÊN
-          // 1b. Nếu prev = hôm nay nhưng chưa có đơn nào trong inbound.json -> vẫn giữ hôm nay
-          if (prev && (ibDates.includes(prev) || prev === todayOpDate)) return prev;
-          // 2. Nếu là lần đầu load (prev rỗng) -> Ưu tiên ngày hôm nay (todayOpDate)
-          if (ibDates.includes(todayOpDate)) return todayOpDate;
-          // 3. Fallback lấy ngày mới nhất
-          return ibDates[0];
-        });
+    // 🗂️ Fetch history_index.json to discover all available historical dates
+    let historyDates: string[] = [];
+    try {
+      const t = `${Date.now()}`;
+      const historyIndexRes = await fetch(
+        `${getApiUrl('history/history_index.json')}?t=${t}`,
+        { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' } }
+      ).catch(() => fetch(
+        `https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/history/history_index.json?t=${t}`,
+        { cache: 'no-store' }
+      ));
+      if (historyIndexRes?.ok) {
+        const histIdx = await historyIndexRes.json();
+        historyDates = (histIdx?.dates ?? []).filter((d: string) => d <= todayOpDate);
       }
+    } catch (_) { /* history index optional */ }
+
+    const ibDatesFromRows = ibRows && ibRows.length > 0
+      ? Array.from(new Set(
+          (ibRows ?? []).map((r: any) => r['Ngày vận hành_Inbound'] || r['op_date_inbound'] || r['Ngày vận hành_Forecast'] || r['op_date_forecast'])
+          .filter(Boolean)
+        )).filter((d: any) => d <= todayOpDate) as string[]
+      : [];
+
+    // Merge: live ibDates rows + history index + todayOpDate
+    const ibDatesAll = Array.from(new Set([
+      todayOpDate,
+      ...ibDatesFromRows,
+      ...historyDates,
+    ])).filter(d => d <= todayOpDate);
+    ibDatesAll.sort((a, b) => b.localeCompare(a));
+
+    // 📅 Lưu danh sách ngày riêng cho Inbound DatePicker (độc lập với Layout)
+    setInboundAvailableDates(ibDatesAll);
+
+    if (ibDatesAll.length > 0) {
+      setSelectedInboundDate(prev => {
+        if (prev && (ibDatesAll.includes(prev) || prev === todayOpDate)) return prev;
+        if (ibDatesAll.includes(todayOpDate)) return todayOpDate;
+        return ibDatesAll[0];
+      });
     }
 
     const combined: SheetRow[] = [
@@ -688,13 +711,15 @@ export default function App() {
 
     setRawSheetRows(combined);
 
-    // Extract unique dates from all sources (Outbound, Backlog, Inventory, Inbound)
+    // Extract unique dates from all sources (Outbound, Backlog, Inventory, Inbound, History Index)
     const dates = Array.from(new Set([
+      todayOpDate,
       ...combined.map(r => r.date).filter(Boolean),
-      ...(ibRows ?? []).map(r => r['Ngày vận hành_Inbound'] || r['op_date_inbound'] || r['Ngày vận hành_Forecast'] || r['op_date_forecast']).filter(Boolean)
-    ])) as string[];
+      ...(ibRows ?? []).map((r: any) => r['Ngày vận hành_Inbound'] || r['op_date_inbound'] || r['Ngày vận hành_Forecast'] || r['op_date_forecast']).filter(Boolean),
+      ...historyDates,
+    ])).filter(d => d <= todayOpDate) as string[];
     dates.sort((a, b) => b.localeCompare(a));
-    const recentDates = dates.slice(0, 10);
+    const recentDates = dates.slice(0, 30); // Show up to 30 historical dates
     setAvailableDates(recentDates);
 
     if (recentDates.length > 0) {
@@ -1730,12 +1755,12 @@ export default function App() {
 
   return (
     <div className="w-full h-full relative font-sans text-white bg-[#02040a]">
-      {!isMobile && currentView === 'master' && (
+      {!isMobile && (
         <div className="absolute top-0 right-0 h-14 flex items-center justify-between px-6 z-50 transition-all duration-300 left-16 pointer-events-none"
              style={{ background: 'transparent' }}>
           <div className="flex items-center select-none" />
           <div className="flex items-center gap-4 pointer-events-auto">
-            {lastUpdate && (
+            {lastUpdate && currentView === 'master' && (
               <div style={{ 
                 fontSize: '11px', 
                 color: '#B8F7E4', 
@@ -1756,18 +1781,33 @@ export default function App() {
             )}
 
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400 font-semibold select-none">Operations Date</span>
-              <DatePicker
-                selectedDate={selectedDate || selectedInboundDate}
-                onDateChange={(d) => {
-                  setSelectedDate(d);
-                  setSelectedInboundDate(d);
-                }}
-                availableDates={availableDates}
-                align="right"
-                className="w-[210px]"
-                buttonClassName="!py-1.5 !px-4 !rounded-full text-xs font-bold"
-              />
+              {/* ── INBOUND DatePicker: full history từ history_index.json ── */}
+              {currentView === 'inbound' ? (
+                <>
+                  <span className="text-xs text-slate-400 font-semibold select-none">Operations Date</span>
+                  <DatePicker
+                    selectedDate={selectedInboundDate}
+                    onDateChange={(d) => setSelectedInboundDate(d)}
+                    availableDates={inboundAvailableDates.length > 0 ? inboundAvailableDates : [selectedInboundDate].filter(Boolean)}
+                    align="right"
+                    className="w-[210px]"
+                    buttonClassName="!py-1.5 !px-4 !rounded-full text-xs font-bold"
+                  />
+                </>
+              ) : (
+                /* ── LAYOUT / KPI / HEATMAP DatePicker: live dates ── */
+                <>
+                  <span className="text-xs text-slate-400 font-semibold select-none">Operations Date</span>
+                  <DatePicker
+                    selectedDate={selectedDate}
+                    onDateChange={(d) => setSelectedDate(d)}
+                    availableDates={availableDates}
+                    align="right"
+                    className="w-[210px]"
+                    buttonClassName="!py-1.5 !px-4 !rounded-full text-xs font-bold"
+                  />
+                </>
+              )}
             </div>
           </div>
         </div>
