@@ -675,7 +675,7 @@ export default function App() {
         // Lần đầu load (user chưa chọn tay) → luôn về todayOpDate (ngày vận hành)
         // todayOpDate tự tính: trước 06:00 = hôm qua, sau 06:00 = hôm nay
         if (!userChangedInboundDate.current) {
-          return ibDatesAll.includes(todayOpDate) ? todayOpDate : (ibDatesAll[0] ?? prev);
+          return todayOpDate;
         }
         // User đã chủ động chọn ngày → giữ nguyên nếu còn hợp lệ
         if (prev && ibDatesAll.includes(prev)) return prev;
