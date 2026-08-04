@@ -342,8 +342,6 @@ export default function InboundDashboard({
 
   const filteredTruckEta = rawTrucksList
     .filter((d: any) => {
-      const st = (d.send_network || d.sendNetworkName || d['Bưu cục đi'] || '').toUpperCase();
-      if (st.includes('BN') || st.includes('NORTH')) return true; // BN HUB Linehaul luôn hiển thị cho theo dõi đường dài
       const opD = d.op_date || getOperatingDateFromTimestamp(d.eta || d.planned_arrival || '');
       return !opD || isDateMatch(opD, activeDate);
     })
