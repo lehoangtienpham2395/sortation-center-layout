@@ -1,70 +1,63 @@
 {
-  "last_update": "13:25:03 04/08/2026",
-  "active_date": "2026-08-04",
-  "yesterday": "2026-08-03",
-  "total_records": 36312,
-  "total_inbound_today": 0,
-  "total_backlog": 3024,
-  "total_inventory": 11409,
-  "rot_hom_truoc": 1409,
-  "rot_hom_truoc_live": 813,
-  "rot_hom_nay": 6046,
+  "last_update": "13:40:04 04/08/2026",
+  "rot_hom_truoc": 810,
+  "rot_hom_nay": 6269,
+  "total_records": 181,
   "daily_snapshots": {
-    "2026-07-27": {
-      "rot_hom_truoc": 0,
-      "rot_hom_nay": 3,
+    "2026-08-04": {
+      "rot_hom_truoc": 810,
+      "rot_hom_nay": 6269,
+      "rot_ton_dong": 374,
+      "is_frozen": false
+    },
+    "2026-08-03": {
+      "rot_hom_truoc": 56,
+      "rot_hom_nay": 810,
+      "rot_ton_dong": 318,
+      "is_frozen": true
+    },
+    "2026-08-02": {
+      "rot_hom_truoc": 86,
+      "rot_hom_nay": 56,
+      "rot_ton_dong": 232,
+      "is_frozen": true
+    },
+    "2026-08-01": {
+      "rot_hom_truoc": 55,
+      "rot_hom_nay": 86,
+      "rot_ton_dong": 177,
+      "is_frozen": true
+    },
+    "2026-07-31": {
+      "rot_hom_truoc": 60,
+      "rot_hom_nay": 55,
+      "rot_ton_dong": 117,
+      "is_frozen": true
+    },
+    "2026-07-30": {
+      "rot_hom_truoc": 48,
+      "rot_hom_nay": 60,
+      "rot_ton_dong": 69,
+      "is_frozen": true
+    },
+    "2026-07-29": {
+      "rot_hom_truoc": 68,
+      "rot_hom_nay": 48,
       "rot_ton_dong": 1,
       "is_frozen": true
     },
     "2026-07-28": {
-      "rot_hom_truoc": 3,
-      "rot_hom_nay": 1,
-      "rot_ton_dong": 1,
-      "is_frozen": true
-    },
-    "2026-07-29": {
       "rot_hom_truoc": 1,
+      "rot_hom_nay": 68,
+      "rot_ton_dong": 0,
+      "is_frozen": true
+    },
+    "2026-07-27": {
+      "rot_hom_truoc": 0,
       "rot_hom_nay": 1,
-      "rot_ton_dong": 4,
+      "rot_ton_dong": 0,
       "is_frozen": true
-    },
-    "2026-07-30": {
-      "rot_hom_truoc": 1,
-      "rot_hom_nay": 17,
-      "rot_ton_dong": 5,
-      "is_frozen": true
-    },
-    "2026-07-31": {
-      "rot_hom_truoc": 17,
-      "rot_hom_nay": 31,
-      "rot_ton_dong": 6,
-      "is_frozen": true
-    },
-    "2026-08-01": {
-      "rot_hom_truoc": 119,
-      "rot_hom_nay": 1215,
-      "rot_ton_dong": 281,
-      "is_frozen": true
-    },
-    "2026-08-02": {
-      "rot_hom_truoc": 1225,
-      "rot_hom_nay": 1902,
-      "rot_ton_dong": 398,
-      "is_frozen": true
-    },
-    "2026-08-03": {
-      "rot_hom_truoc": 66,
-      "rot_hom_nay": 1167,
-      "rot_ton_dong": 319,
-      "is_frozen": true
-    },
-    "2026-08-04": {
-      "rot_hom_truoc": 813,
-      "rot_hom_nay": 6046,
-      "rot_ton_dong": 374,
-      "is_frozen": false
     }
   },
-  "contract_version": "2.0.0",
-  "sync_success": true
+  "contract_version": "2.0.0"
 }
