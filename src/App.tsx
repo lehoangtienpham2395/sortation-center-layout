@@ -1970,24 +1970,26 @@ export default function App() {
                           <div className="mono font-bold" style={{ fontSize: '18px', lineHeight: 1, color: utilColor, minWidth: '44px', textAlign: 'right', textShadow: `0 0 10px ${utilColor}99` }}>{utilTotal}%</div>
                         </div>
                       </div>
-                    <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '7px 10px' }}>
-                      <div style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '0.12em', color: '#94a3b8', fontFamily: "'Inter',sans-serif", marginBottom: '2px' }}>Ô ĐANG DÙNG</div>
-                      <div className="mono font-bold" style={{ fontSize: '16px', lineHeight: 1, color: '#f1f5f9' }}>{usedCells}<span style={{ fontSize: '11px', color: '#64748b' }}>/{CHUTE_RACKS.length}</span></div>
-                    </div>
-                    {(() => {
-                      const obNum = Number(outboundRate);
-                      const obBucket = obNum > 100 ? 'darkred' : obNum >= 95 ? 'red' : obNum >= 80 ? 'orange' : obNum >= 50 ? 'yellow' : 'green';
-                      const obColor = UTILCOL[obBucket];
-                      return (
-                        <div style={{ background: `${obColor}10`, border: `1px solid ${obColor}35`, borderRadius: '8px', padding: '7px 10px' }}>
-                          <div style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '0.12em', color: '#94a3b8', fontFamily: "'Inter',sans-serif", marginBottom: '2px' }}>TỈ LỆ OUTBOUND</div>
-                          <div className="mono font-bold" style={{ fontSize: '16px', lineHeight: 1, color: obColor, textShadow: `0 0 8px ${obColor}88` }}>{outboundRate}%</div>
-                        </div>
-                      );
-                    })()}
+                    );
+                  })()}
+                  <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '7px 10px', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '0.12em', color: '#94a3b8', fontFamily: "'Inter',sans-serif", marginBottom: '2px' }}>Ô ĐANG DÙNG</div>
+                    <div className="mono font-bold" style={{ fontSize: '16px', lineHeight: 1, color: '#f1f5f9' }}>{usedCells}<span style={{ fontSize: '11px', color: '#64748b' }}>/{CHUTE_RACKS.length}</span></div>
                   </div>
+                  {(() => {
+                    const obNum = Number(outboundRate);
+                    const obBucket = obNum > 100 ? 'darkred' : obNum >= 95 ? 'red' : obNum >= 80 ? 'orange' : obNum >= 50 ? 'yellow' : 'green';
+                    const obColor = UTILCOL[obBucket];
+                    return (
+                      <div style={{ background: `${obColor}10`, border: `1px solid ${obColor}35`, borderRadius: '8px', padding: '7px 10px', marginBottom: '10px' }}>
+                        <div style={{ fontSize: '8px', fontWeight: 700, letterSpacing: '0.12em', color: '#94a3b8', fontFamily: "'Inter',sans-serif", marginBottom: '2px' }}>TỈ LỆ OUTBOUND</div>
+                        <div className="mono font-bold" style={{ fontSize: '16px', lineHeight: 1, color: obColor, textShadow: `0 0 8px ${obColor}88` }}>{outboundRate}%</div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Zone cards 3-column grid */}
+
                   <div className="grid grid-cols-3 gap-2 mb-4">
                     {[
                       { id: 3, shortName: 'ZONE 3', sub: '', color: '#B8F7E4', colorBg: 'rgba(16,185,129,0.1)', colorBorder: 'rgba(16,185,129,0.3)' },
@@ -2072,114 +2074,93 @@ export default function App() {
 
               {/* ── LINEHAUL Forecast Table ── */}
               {showTelemetry && (() => {
-                const normalizeDate = (dStr: string): string => {
-                  if (!dStr) return '';
-                  const str = String(dStr).trim();
-                  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
-                  const dt = new Date(str);
-                  if (!isNaN(dt.getTime())) {
-                    const yyyy = dt.getFullYear();
-                    const mm = String(dt.getMonth() + 1).padStart(2, '0');
-                    const dd = String(dt.getDate()).padStart(2, '0');
-                    return `${yyyy}-${mm}-${dd}`;
-                  }
-                  return str.slice(0, 10);
-                };
-                const effectiveDate = selectedDate || (availableDates[0] || '');
-                const isOutboundMode = selectedType === 'Outbound';
-                const isBacklogMode  = selectedType === 'Backlog';
-                const isVolumeMode   = selectedType === 'Inventory' || selectedType === 'Volume';
-                const bnMap: Record<string, { orders: number; weightTon: number }> = {};
-                rawSheetRows.forEach((row: any) => {
-                  const st = String(row.buuCuc || row.station_name || '').trim();
-                  if (!st) return;
-                  const stUp = st.toUpperCase();
-                  const isNorth = stUp.startsWith('HN ') || stUp.startsWith('HD ') || stUp.startsWith('HY ') || stUp === 'BN HUB' || stUp.includes('HUB');
-                  if (!isNorth) return;
-                  const rowStatus = row.status ? String(row.status) : '';
-                  const statusMatched = !rowStatus || selectedStatuses.includes(rowStatus);
-                  if (isOutboundMode) {
-                    const normR = normalizeDate(row.date);
-                    const normS = normalizeDate(effectiveDate);
-                    if (effectiveDate && normR !== normS) return;
-                  }
-                  let isForSelectedType = false;
-                  if (isOutboundMode) {
-                    isForSelectedType = row.type === 'Outbound' || rowStatus === 'Outbound';
-                  } else if (isBacklogMode) {
-                    isForSelectedType = row.type === 'Backlog' && statusMatched;
-                  } else if (isVolumeMode) {
-                    isForSelectedType = (row.type === 'Inventory' || row.type === 'Backlog') && rowStatus !== 'Outbound' && statusMatched;
-                  }
-                  if (isForSelectedType) {
-                    const vol = Number(row.volume || 1);
-                    const wt  = Number(row.weight || 0);
-                    if (!bnMap[st]) bnMap[st] = { orders: 0, weightTon: 0 };
-                    bnMap[st].orders += vol;
-                    bnMap[st].weightTon += wt;
-                  }
-                });
-                if (Object.keys(bnMap).length === 0) {
-                  (inboundData as any[]).forEach((d: any) => {
-                    const st = String(d.station_name || d.pickup_station || d.buuCuc || '').trim();
-                    if (!st) return;
-                    const stUp = st.toUpperCase();
-                    const isNorth = stUp.startsWith('HN ') || stUp.startsWith('HD ') || stUp.startsWith('HY ') || stUp === 'BN HUB' || stUp.includes('HUB');
-                    if (!isNorth) return;
-                    const vol = Number(d.volume ?? 1);
-                    const wt  = parseFloat(String(d.weight_ton || 0)) || 0;
-                    if (!bnMap[st]) bnMap[st] = { orders: 0, weightTon: 0 };
-                    bnMap[st].orders    += vol;
-                    bnMap[st].weightTon += wt;
-                  });
-                }
-                const bnRows = Object.entries(bnMap)
-                  .map(([name, v]) => ({ name, orders: v.orders, weightTon: v.weightTon }))
-                  .sort((a, b) => b.orders - a.orders);
+                // 🎯 Đọc từ data state (cùng nguồn với bảng TOP 10) để số BN HUB khớp nhau
+                // A06 = BN HUB (rack Linehaul miền Bắc)
+                const LINEHAUL_RACKS: Array<{ areaId: string; label: string }> = [
+                  { areaId: 'A06', label: 'BN HUB' },
+                ];
+
+                const bnRows = LINEHAUL_RACKS
+                  .map(({ areaId, label }) => {
+                    const rack = data[areaId];
+                    if (!rack) return null;
+                    return {
+                      name: label,
+                      orders: rack.current ?? 0,
+                      weightTon: rack.weight ?? 0,
+                    };
+                  })
+                  .filter((r): r is { name: string; orders: number; weightTon: number } => r !== null && r.orders > 0);
+
                 const totOrders = bnRows.reduce((s, r) => s + r.orders, 0);
                 const totWeight = bnRows.reduce((s, r) => s + r.weightTon, 0);
+
+                // Denominator % VOL = Tổng Volume toàn trung tâm từ Control Center METRICS
                 const grandTotal = totalOrders > 0 ? totalOrders : 1;
                 const totalPct = ((totOrders / grandTotal) * 100).toFixed(1);
+
+                // 🔥🧊 Warm-Cool Balance Palette
+                const C_HEADER   = '#f97316'; // Orange 🔥  — header title (brand/identity)
+                const C_BADGE    = '#22d3ee'; // Cyan   🧊  — badge (contrast điểm nhấn)
+                const C_TOT_LBL  = '#fb923c'; // Warm Amber — TỔNG CỘNG label
+                const C_TOT_VAL  = '#67e8f9'; // Ice Cyan  — TỔNG CỘNG values
+                const C_ORDERS   = '#fbbf24'; // Amber  🔥  — ĐƠN (số quan trọng nhất, warm)
+                const C_WEIGHT   = '#818cf8'; // Indigo 🧊  — T.LƯỢNG (cool)
+                const C_PCT      = '#34d399'; // Emerald🧊  — % VOL (cool)
+
                 return (
                   <div className="jt-glowing-card shadow-2xl shrink-0 w-full"
-                    style={{ marginTop: '20px', padding: '12px 16px', background: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+                    style={{ marginTop: '20px', padding: '12px 16px', background: 'rgba(255,255,255,0.04)', overflow: 'hidden', borderTop: '1px solid rgba(249,115,22,0.25)', borderBottom: '1px solid rgba(34,211,238,0.2)' }}>
+                    {/* Header — warm title 🔥 + cool badge 🧊 */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid rgba(249,115,22,0.2)' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#f97316', fontFamily: "'Inter',sans-serif", textShadow: '0 0 10px rgba(249,115,22,0.4)' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: C_HEADER, fontFamily: "'Inter',sans-serif", textShadow: `0 0 10px ${C_HEADER}60` }}>
                         🔶 Dự kiến SL LINEHAUL
                       </span>
-                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#f97316', background: 'rgba(249,115,22,0.12)', border: '1px solid rgba(249,115,22,0.3)', borderRadius: '10px', padding: '2px 8px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: C_BADGE, background: `${C_BADGE}18`, border: `1px solid ${C_BADGE}45`, borderRadius: '10px', padding: '2px 8px' }}>
                         {totOrders.toLocaleString()} Đơn
                       </span>
                     </div>
+                    {/* Table */}
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead>
-                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                           {(['HUB', 'ĐƠN', 'T.LƯỢNG', '% VOL'] as const).map((h, i) => (
-                            <th key={h} style={{ padding: '3px 4px', fontSize: '8.5px', fontWeight: 700, letterSpacing: '0.1em', color: '#64748b', textAlign: i === 0 ? 'left' : 'right', fontFamily: "'Inter',sans-serif" }}>{h}</th>
+                            <th key={h} style={{ padding: '3px 4px', fontSize: '8.5px', fontWeight: 700, letterSpacing: '0.1em', color: '#94a3b8', textAlign: i === 0 ? 'left' : 'right', fontFamily: "'Inter',sans-serif" }}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
+                        {/* Total row — warm label, cool values */}
                         {totOrders > 0 && (
-                          <tr style={{ background: 'rgba(249,115,22,0.08)', borderBottom: '1px solid rgba(249,115,22,0.18)' }}>
-                            <td style={{ padding: '5px 4px', fontWeight: 800, color: '#f97316', fontSize: '10px', fontFamily: "'Inter',sans-serif" }}>TỔNG CỘNG</td>
+                          <tr style={{ background: 'rgba(103,232,249,0.07)', borderBottom: '1px solid rgba(103,232,249,0.18)' }}>
+                            <td style={{ padding: '5px 4px', fontWeight: 800, color: C_TOT_VAL, fontSize: '10px', fontFamily: "'Inter',sans-serif" }}>TỔNG CỘNG</td>
+                            <td className="mono" style={{ textAlign: 'right', padding: '5px 4px', fontWeight: 800, color: C_TOT_VAL, fontSize: '11px' }}>{totOrders.toLocaleString()}</td>
+                            <td className="mono" style={{ textAlign: 'right', padding: '5px 4px', fontWeight: 800, color: C_TOT_VAL, fontSize: '11px' }}>{totWeight.toFixed(1)}T</td>
+                            <td className="mono" style={{ textAlign: 'right', padding: '5px 4px', fontWeight: 800, color: C_TOT_VAL, fontSize: '11px' }}>{totalPct}%</td>
+                          </tr>
+                        )}
+                        {bnRows.map(row => {
+                          const pct = ((row.orders / grandTotal) * 100).toFixed(1);
                           return (
                             <tr key={row.name} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                              <td style={{ padding: '4px 4px', color: '#e2e8f0', fontSize: '10px', fontWeight: 600, fontFamily: "'Inter',sans-serif" }}>{row.name}</td>
-                              <td className="mono" style={{ textAlign: 'right', padding: '4px 4px', color: '#B8F7E4', fontWeight: 600, fontSize: '11px' }}>{row.orders.toLocaleString()}</td>
-                              <td className="mono" style={{ textAlign: 'right', padding: '4px 4px', color: '#a78bfa', fontSize: '11px' }}>{row.weightTon.toFixed(1)}T</td>
-                              <td className="mono" style={{ textAlign: 'right', padding: '4px 4px', color: '#f59e0b', fontSize: '11px' }}>{pct}%</td>
+                              <td style={{ padding: '4px 4px', color: '#cbd5e1', fontSize: '10px', fontWeight: 600, fontFamily: "'Inter',sans-serif" }}>{row.name}</td>
+                              <td className="mono" style={{ textAlign: 'right', padding: '4px 4px', color: C_ORDERS, fontWeight: 700, fontSize: '11px' }}>{row.orders.toLocaleString()}</td>
+                              <td className="mono" style={{ textAlign: 'right', padding: '4px 4px', color: C_WEIGHT, fontSize: '11px' }}>{row.weightTon.toFixed(1)}T</td>
+                              <td className="mono" style={{ textAlign: 'right', padding: '4px 4px', color: C_PCT, fontSize: '11px' }}>{pct}%</td>
                             </tr>
                           );
                         })}
                         {bnRows.length === 0 && (
-                          <tr><td colSpan={4} style={{ textAlign: 'center', padding: '14px 4px', color: '#5a6578', fontSize: '10px' }}>Không có dữ liệu Linehaul</td></tr>
+                          <tr><td colSpan={4} style={{ textAlign: 'center', padding: '14px 4px', color: '#475569', fontSize: '10px' }}>Không có dữ liệu Linehaul</td></tr>
                         )}
                       </tbody>
                     </table>
                   </div>
                 );
               })()}
+
+
+
 
 
 

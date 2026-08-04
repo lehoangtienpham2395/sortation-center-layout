@@ -762,9 +762,19 @@ def sync_postgre_to_dashboard():
 
             -- POOL 2: Các đơn thuộc Ngày vận hành Hôm nay & Hôm qua (Cửa sổ 2 ngày ca vận hành)
             OR COALESCE(op_date_pickup::date, operation_date_created::date) >= %(op_yesterday)s::date
+
+            -- POOL 3: Đơn đã OUTBOUND trong 14 ngày qua (để Layout Outbound ngày cũ có dữ liệu)
+            OR (
+                (outbound_scandate IS NOT NULL OR outbound_scandate_2 IS NOT NULL)
+                AND COALESCE(outbound_scandate_2::date, outbound_scandate::date) >= %(outb_history_start)s::date
+            )
         ORDER BY operation_date_created DESC, created_time DESC
     """
-    params = {'op_yesterday': yesterday}
+    # Lịch sử Layout Outbound: 14 ngày gần nhất để hiển thị đủ dữ liệu ngày cũ
+    import datetime as _dt_q
+    _today_dt_q = _dt_q.datetime.strptime(today, '%Y-%m-%d')
+    outb_history_start = (_today_dt_q - _dt_q.timedelta(days=14)).strftime('%Y-%m-%d')
+    params = {'op_yesterday': yesterday, 'outb_history_start': outb_history_start}
     try:
         sa_engine = get_sa_engine()
         if sa_engine:
@@ -797,9 +807,9 @@ def sync_postgre_to_dashboard():
     print(f"   📅 Ngày hôm qua ({yesterday})       : {yest_rows:,} đơn")
 
     # ── 3. Aggregate ──────────────────────────────────────────────
-    inv_group     = {}   # (zone, area_id, station_name, status) → {volume, weight_kg, capacity}
-    out_group     = {}   # (zone, area_id, station_name)         → {volume, weight_kg, capacity}
-    backlog_group = {}   # (zone, area_id, station_name)         → {volume, weight_kg, capacity}
+    inv_group     = {}   # (zone, area_id, station_name, status, op_date) → {volume, weight_kg, capacity}
+    out_group     = {}   # (zone, area_id, station_name, op_date)           → {volume, weight_kg, capacity}
+    backlog_group = {}   # (zone, area_id, station_name, op_date)           → {volume, weight_kg, capacity}
     inbound_group = {}   # 14-tuple key                          → {volume, weight_kg}
     arr_group     = {}   # (op_date, station_name, scan_hour)    → {total, at_hub, not_hub, last_scan_time}
     hourly        = {f"{h:02d}:00": 0 for h in range(24)}
@@ -999,28 +1009,32 @@ def sync_postgre_to_dashboard():
                       'Pickup Done'  if has_pk else 'Created')
 
         # 1. inventory group — Đơn hiện ĐANG TỒN TẠI KHO và có area_id hợp lệ
+        # op_date cho inventory = ngày inbound nếu đã inbound, else ngày created
+        inv_op_date = (actual_op_date_inb or op_date_fc or op_date) or today
         if is_currently_at_hub and valid_area:
-            ki = (zone, area_id, station, inv_status)
+            ki = (zone, area_id, station, inv_status, inv_op_date)
             if ki not in inv_group:
                 inv_group[ki] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
             inv_group[ki]['volume']    += 1
             inv_group[ki]['weight_kg'] += wt_kg
 
         # 2. outbound group — đơn đã xuất kho hoàn tất (Lần 1 hoặc Lần 2)
+        # ✅ FIX: Bỏ giới hạn (today, yesterday) để lưu đầy đủ tất cả ngày lịch sử
         if (has_out_2 or (has_out and not is_active_rebound)) and valid_area:
             effective_out_time = outb_t_2 if has_out_2 else outb_t
-            op_date_outb = get_op_date(effective_out_time)
-            if op_date_outb in (today, yesterday):
-                ko = (zone, area_id, station, op_date_outb)
-                if ko not in out_group:
-                    out_group[ko] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
-                out_group[ko]['volume']    += 1
-                out_group[ko]['weight_kg'] += wt_kg
+            op_date_outb = get_op_date(effective_out_time) or today
+            ko = (zone, area_id, station, op_date_outb)
+            if ko not in out_group:
+                out_group[ko] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
+            out_group[ko]['volume']    += 1
+            out_group[ko]['weight_kg'] += wt_kg
 
         # 3. backlog group — đơn đã INBOUND chưa OUTBOUND (Backlog = has_in=True AND has_out=False)
-        # Logic chốt: INBOUND chưa OUTBOUND → còn tồn kho
-        # Rebound orders vẫn đủ điều kiện vì chúng có has_in=True từ lần inbound đầu tiên
-        if has_in and is_currently_at_hub and valid_area:
+        # 🚨 POOL 3 GUARD: chỉ tính đơn is_active=1 (POOL 1 - đang hoạt động)
+        # POOL 3 (đơn có outbound lịch sử) có is_active=0 → không được lọt vào backlog live
+        # Backlog là LIVE snapshot → key không cần op_date
+        is_active_live = (int(r.get('is_active') or 0) == 1)
+        if has_in and is_currently_at_hub and valid_area and is_active_live:
             kb = (zone, area_id, station)
             if kb not in backlog_group:
                 backlog_group[kb] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
@@ -1098,23 +1112,24 @@ def sync_postgre_to_dashboard():
     inventory_json = [
         {"zone": z, "area_id": a, "station_name": s, "status": stt,
          "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000.0, 6),
-         "capacity": v['capacity'], "op_date": today}
-        for (z, a, s, stt), v in inv_group.items()
+         "capacity": v['capacity'], "op_date": op_d}
+        for (z, a, s, stt, op_d), v in inv_group.items()
     ]
 
     outbound_json = [
-        {"zone": z, "area_id": a, "station_name": s,
+        {"zone": z, "area_id": a, "station_name": s, "status": "Outbound",
          "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000.0, 6),
          "capacity": v['capacity'], "op_date": op_d}
         for (z, a, s, op_d), v in out_group.items()
     ]
 
     backlog_json = [
-        {"zone": z, "area_id": a, "station_name": s,
+        {"zone": z, "area_id": a, "station_name": s, "status": "Inbound",
          "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000.0, 6),
          "capacity": v['capacity'], "op_date": today}
         for (z, a, s), v in backlog_group.items()
     ]
+
 
     inbound_json = [
         {"station_name": st, "pickup_station": pk_st, "status": status,
