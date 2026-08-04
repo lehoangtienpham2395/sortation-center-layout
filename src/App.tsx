@@ -450,6 +450,13 @@ export default function App() {
   const [linehaulData, setLinehaulData] = useState<any[]>([]);
   const [arrivalData, setArrivalData] = useState<any[]>([]);
   const [truckEtaData, setTruckEtaData] = useState<any[]>([]);
+  // 🎯 Phân biệt lần đầu load (auto = todayOpDate) vs user chủ động chọn ngày
+  const userChangedInboundDate = useRef(false);
+  /** Gọi khi user bấm chọn ngày trên DatePicker Inbound */
+  const handleInboundDateChange = (d: string) => {
+    userChangedInboundDate.current = true;
+    setSelectedInboundDate(d);
+  };
   const [selectedInboundDate, setSelectedInboundDate] = useState<string>(() => {
     // 🎯 Tính ngày vận hành hôm nay theo logic J&T: trước 06h sáng = ngày hôm trước
     const nowVN = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
@@ -673,7 +680,9 @@ export default function App() {
       ));
       if (historyIndexRes?.ok) {
         const histIdx = await historyIndexRes.json();
-        historyDates = (histIdx?.dates ?? []).filter((d: string) => d <= todayOpDate);
+        // Hỗ trợ cả 2 field name: 'dates' (build_history_index) và 'available_dates' (legacy)
+        const allDates: string[] = histIdx?.dates ?? histIdx?.available_dates ?? [];
+        historyDates = allDates.filter((d: string) => d <= todayOpDate);
       }
     } catch (_) { /* history index optional */ }
 
@@ -697,9 +706,15 @@ export default function App() {
 
     if (ibDatesAll.length > 0) {
       setSelectedInboundDate(prev => {
-        if (prev && (ibDatesAll.includes(prev) || prev === todayOpDate)) return prev;
-        if (ibDatesAll.includes(todayOpDate)) return todayOpDate;
-        return ibDatesAll[0];
+        // Lần đầu load (user chưa chọn tay) → luôn về todayOpDate (ngày vận hành)
+        // todayOpDate tự tính: trước 06:00 = hôm qua, sau 06:00 = hôm nay
+        if (!userChangedInboundDate.current) {
+          return ibDatesAll.includes(todayOpDate) ? todayOpDate : (ibDatesAll[0] ?? prev);
+        }
+        // User đã chủ động chọn ngày → giữ nguyên nếu còn hợp lệ
+        if (prev && ibDatesAll.includes(prev)) return prev;
+        // Nếu ngày cũ không còn trong list → về todayOpDate
+        return ibDatesAll.includes(todayOpDate) ? todayOpDate : (ibDatesAll[0] ?? prev);
       });
     }
 
@@ -1787,7 +1802,7 @@ export default function App() {
                   <span className="text-xs text-slate-400 font-semibold select-none">Operations Date</span>
                   <DatePicker
                     selectedDate={selectedInboundDate}
-                    onDateChange={(d) => setSelectedInboundDate(d)}
+                    onDateChange={handleInboundDateChange}
                     availableDates={inboundAvailableDates.length > 0 ? inboundAvailableDates : [selectedInboundDate].filter(Boolean)}
                     align="right"
                     className="w-[210px]"
@@ -2178,7 +2193,7 @@ export default function App() {
                                 return (
                                   <button
                                     key={d}
-                                    onClick={() => setSelectedInboundDate(d)}
+                                    onClick={() => handleInboundDateChange(d)}
                                     className={`px-3 py-1.5 rounded-full text-[10.5px] font-bold border transition-all duration-250 shrink-0 ${
                                       isActive
                                         ? 'bg-[#2d2440]/60 border-[#8B5CF6] text-[#c084fc] shadow-[0_0_8px_rgba(139,92,246,0.15)]'
@@ -2333,7 +2348,7 @@ export default function App() {
                 arrivalData={arrivalData}
                 truckEtaData={truckEtaData}
                 selectedInboundDate={selectedInboundDate}
-                setSelectedInboundDate={setSelectedInboundDate}
+                setSelectedInboundDate={handleInboundDateChange}
                 loading={loading}
                 fetchAndUpdateData={fetchAndUpdateData}
                 lastUpdate={lastUpdate}
@@ -2345,7 +2360,7 @@ export default function App() {
                 arrivalData={arrivalData}
                 truckEtaData={truckEtaData}
                 selectedInboundDate={selectedInboundDate}
-                setSelectedInboundDate={setSelectedInboundDate}
+                setSelectedInboundDate={handleInboundDateChange}
                 loading={loading}
                 fetchAndUpdateData={fetchAndUpdateData}
                 lastUpdate={lastUpdate}
@@ -2585,7 +2600,7 @@ export default function App() {
                   arrivalData={arrivalData}
                   truckEtaData={truckEtaData}
                   selectedInboundDate={selectedInboundDate}
-                  setSelectedInboundDate={setSelectedInboundDate}
+                  setSelectedInboundDate={handleInboundDateChange}
                   loading={loading}
                   fetchAndUpdateData={fetchAndUpdateData}
                   lastUpdate={lastUpdate}
@@ -2618,7 +2633,7 @@ export default function App() {
                   arrivalData={arrivalData}
                   truckEtaData={truckEtaData}
                   selectedInboundDate={selectedInboundDate}
-                  setSelectedInboundDate={setSelectedInboundDate}
+                  setSelectedInboundDate={handleInboundDateChange}
                   loading={loading}
                   fetchAndUpdateData={fetchAndUpdateData}
                   lastUpdate={lastUpdate}
