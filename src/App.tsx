@@ -2102,7 +2102,7 @@ export default function App() {
                 // 🔥🧊 Warm-Cool Balance Palette
                 const C_HEADER   = '#f97316'; // Orange 🔥  — header title (brand/identity)
                 const C_BADGE    = '#22d3ee'; // Cyan   🧊  — badge (contrast điểm nhấn)
-                const C_TOT_LBL  = '#fb923c'; // Warm Amber — TỔNG CỘNG label
+                // C_TOT_LBL removed — TỔNG CỘNG row now uses C_TOT_VAL for all cells
                 const C_TOT_VAL  = '#67e8f9'; // Ice Cyan  — TỔNG CỘNG values
                 const C_ORDERS   = '#fbbf24'; // Amber  🔥  — ĐƠN (số quan trọng nhất, warm)
                 const C_WEIGHT   = '#818cf8'; // Indigo 🧊  — T.LƯỢNG (cool)
