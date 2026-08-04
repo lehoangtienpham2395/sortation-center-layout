@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-04 07:41:02",
-  "total_trucks_en_route": 2,
+  "generated_at": "2026-08-04 08:11:03",
+  "total_trucks_en_route": 3,
   "trucks": [
     {
       "send_network": "BN HUB",
@@ -29,6 +29,21 @@
       "actual_departure": "2026-08-03 03:05:08",
       "eta": "2026-08-04 17:05:08",
       "rank": "Linehaul",
+      "status": "in_transit",
+      "op_date": "2026-08-04"
+    },
+    {
+      "send_network": "SG BÌNH TRỊ ĐÔNG",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 28,
+      "weight_kg": 224.9,
+      "weight_ton": 0.225,
+      "planned_departure": "",
+      "planned_arrival": "",
+      "actual_departure": "",
+      "eta": "",
+      "rank": "Shuttle",
       "status": "in_transit",
       "op_date": "2026-08-04"
     }
