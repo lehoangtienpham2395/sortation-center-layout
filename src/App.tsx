@@ -253,31 +253,31 @@ async function fetchMicroJson<T>(fileName: string, targetDate?: string): Promise
     const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
     const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
     
-    let subPath = 'live';
     const todayStr = getTodayOpDate();
-    
-    if (targetDate && targetDate < todayStr) {
-      subPath = `history/${targetDate}`;
-    }
+    const isHistory = Boolean(targetDate && targetDate < todayStr);
+    const subPath = isHistory ? `history/${targetDate}` : 'live';
 
     let baseUrl = getApiUrl(`${subPath}/${fileName}`);
     let cacheBustUrl = baseUrl.includes('?') ? `${baseUrl}&t=${t}` : `${baseUrl}?t=${t}`;
     let response = await fetch(cacheBustUrl, fetchOpts);
 
     if (!response.ok) {
+      // Fallback to GitHub Raw for exact subPath
+      const rawUrl = `https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${subPath}/${fileName}?t=${t}`;
+      response = await fetch(rawUrl, fetchOpts);
+    }
+
+    if (!response.ok && !isHistory) {
+      // Fallback to root directory only for live today
       baseUrl = getApiUrl(fileName);
       cacheBustUrl = baseUrl.includes('?') ? `${baseUrl}&t=${t}` : `${baseUrl}?t=${t}`;
       response = await fetch(cacheBustUrl, fetchOpts);
     }
 
-    if (!response.ok) {
-      response = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/${subPath}/${fileName}?t=${t}`, fetchOpts);
-    }
-
     if (!response.ok) return null;
     return await response.json();
   } catch (err) {
-    console.warn(`Error fetching micro-JSON ${fileName}:`, err);
+    console.warn(`Error fetching micro-JSON ${fileName} for targetDate=${targetDate}:`, err);
     return null;
   }
 }

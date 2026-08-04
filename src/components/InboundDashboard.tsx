@@ -482,9 +482,11 @@ export default function InboundDashboard({
     (totalInbound + totalInTransit + totalPickupDone + totalCreated)
   );
   const finalLinehaulForecast = isFutureDate ? 0 : (
-    effectiveKpiSummary?.linehaul_bn_hub ?? Math.max(forecastLinehaul, bnHubLinehaulOrders)
+    effectiveKpiSummary?.linehaul_bn_hub ?? effectiveKpiSummary?.linehaul ?? Math.max(forecastLinehaul, bnHubLinehaulOrders)
   );
-  const finalShuttleForecast = isFutureDate ? 0 : Math.max(0, totalForecast - finalLinehaulForecast);
+  const finalShuttleForecast = isFutureDate ? 0 : (
+    effectiveKpiSummary?.shuttle ?? Math.max(0, totalForecast - finalLinehaulForecast)
+  );
 
   const finalShuttleWeight = isFutureDate ? 0 : (effectiveKpiSummary?.shuttle_weight ?? forecastShuttleWeight);
   const finalLinehaulWeight = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul_weight ?? forecastLinehaulWeight);
