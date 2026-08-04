@@ -8,23 +8,26 @@
 export function getTodayOpDate(): string {
   try {
     const now = new Date();
-    const fmt = new Intl.DateTimeFormat('en-CA', {
+    const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Ho_Chi_Minh',
       year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
       hourCycle: 'h23',
     });
-    const formatted = fmt.format(now); // "2026-08-04, 11:09" hoặc "2026-08-04 11:09"
-    const match = formatted.match(/(\d{4})-(\d{2})-(\d{2})[,\s]+(\d{2}):/);
-    if (match) {
-      const year  = parseInt(match[1], 10);
-      const month = parseInt(match[2], 10) - 1; // 0-indexed
-      const day   = parseInt(match[3], 10);
-      const hour  = parseInt(match[4], 10);
+    
+    const parts = formatter.formatToParts(now);
+    let year = 0, month = 0, day = 0, hour = 0;
+    
+    for (const part of parts) {
+      if (part.type === 'year') year = parseInt(part.value, 10);
+      if (part.type === 'month') month = parseInt(part.value, 10) - 1;
+      if (part.type === 'day') day = parseInt(part.value, 10);
+      if (part.type === 'hour') hour = parseInt(part.value, 10);
+    }
 
+    if (year > 0 && month >= 0 && day > 0) {
       const d = new Date(year, month, day);
       if (hour < 6) {
         d.setDate(d.getDate() - 1);
@@ -40,7 +43,8 @@ export function getTodayOpDate(): string {
 
 export function getOperatingDateFromTimestamp(timestamp: string): string {
   if (!timestamp) return getTodayOpDate();
-  const match = timestamp.match(/^(\d{4})-(\d{2})-(\d{2})[,\s]+(\d{2}):/);
+  const str = String(timestamp).trim();
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})[,\s]+(\d{2}):/);
   if (match) {
     const year  = parseInt(match[1], 10);
     const month = parseInt(match[2], 10) - 1;
@@ -54,7 +58,7 @@ export function getOperatingDateFromTimestamp(timestamp: string): string {
     const pad = (n: number) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
-  return timestamp.split(' ')[0] || getTodayOpDate();
+  return str.split(' ')[0] || getTodayOpDate();
 }
 
 export function getFormattedVietnamTime(): string {
