@@ -1265,8 +1265,9 @@ def sync_postgre_to_dashboard():
     status_weights = {'Inbound': 0.0, 'Transporting': 0.0, 'Pickup Done': 0.0, 'Created': 0.0}
 
     for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items():
-        is_match = (in_op == today) or (ar_op == today) or (pk_op == today) or (fc_op == today)
-        if is_match and status in status_counts:
+        is_today = (in_op == today) or (ar_op == today) or (pk_op == today) or (fc_op == today)
+        is_carryover = ((fc_op < today and fc_op != '') or (pk_op < today and pk_op != '')) and status != 'Inbound'
+        if (is_today or is_carryover) and status in status_counts:
             status_counts[status]  += stats['volume']
             status_weights[status] += stats['weight_kg'] / 1000.0
 
