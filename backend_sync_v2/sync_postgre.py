@@ -1205,28 +1205,33 @@ def sync_postgre_to_dashboard():
     # ── 5. Build Micro-JSONs (Data Architecture v2.0 - Ultra Light) ──
     print(f"\n⚡ Building Micro-JSON Payloads (Data Architecture v2.0)...")
     
-    fc_shuttle = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))))
-    fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))))
-
-    shuttle_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')))) / 1000.0, 3)
-    linehaul_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')))) / 1000.0, 3)
-
-    # 5.1 inbound_kpi_summary.json
-    inbound_kpi_summary = {
-        "op_date": today,
-        "contract_version": "2.0.0",
-        "inbound_orders": total_inbound_today,
-        "inbound_weight_ton": round(sum(stats['weight_kg'] for (st, pk, status, in_op, *rest), stats in inbound_group.items() if status == 'Inbound' and in_op == today) / 1000.0, 3),
-        "forecast_total": fc_shuttle + fc_linehaul,
-        "forecast_weight_ton": round(shuttle_weight_ton + linehaul_weight_ton, 3),
-        "shuttle": fc_shuttle,
-        "shuttle_weight": shuttle_weight_ton,
-        "linehaul": fc_linehaul,
-        "linehaul_weight": linehaul_weight_ton,
-        "rot_hom_truoc": rot_hom_truoc_baseline if rot_hom_truoc_baseline > 0 else rot_hom_truoc,
-        "rot_hom_nay": rot_hom_nay,
-        "linehaul_bn_hub": sum(stats['volume'] for (st, pk, status, in_op, fc_op, *rest), stats in inbound_group.items() if (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))) and (fc_op == today or in_op == today))
-    }
+    # 5.1 inbound_kpi_summary.json — dùng 2-logtime rule (đồng bộ với snapshot_daily)
+    try:
+        from snapshot_daily import compute_kpi
+        inbound_kpi_summary = compute_kpi(today)
+        if not inbound_kpi_summary:
+            raise ValueError("compute_kpi returned empty dictionary")
+    except Exception as _e_kpi:
+        print(f"   ⚠️ compute_kpi fallback error: {_e_kpi}")
+        fc_shuttle = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))))
+        fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))))
+        shuttle_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')))) / 1000.0, 3)
+        linehaul_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')))) / 1000.0, 3)
+        inbound_kpi_summary = {
+            "op_date": today,
+            "contract_version": "2.0.0",
+            "inbound_orders": total_inbound_today,
+            "inbound_weight_ton": round(sum(stats['weight_kg'] for (st, pk, status, in_op, *rest), stats in inbound_group.items() if status == 'Inbound' and in_op == today) / 1000.0, 3),
+            "forecast_total": fc_shuttle + fc_linehaul,
+            "forecast_weight_ton": round(shuttle_weight_ton + linehaul_weight_ton, 3),
+            "shuttle": fc_shuttle,
+            "shuttle_weight": shuttle_weight_ton,
+            "linehaul": fc_linehaul,
+            "linehaul_weight": linehaul_weight_ton,
+            "rot_hom_truoc": rot_hom_truoc_baseline if rot_hom_truoc_baseline > 0 else rot_hom_truoc,
+            "rot_hom_nay": rot_hom_nay,
+            "linehaul_bn_hub": sum(stats['volume'] for (st, pk, status, in_op, fc_op, *rest), stats in inbound_group.items() if (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))) and (fc_op == today or in_op == today))
+        }
 
     # 5.2 inbound_hourly_trend.json
     hours_list = [f"{h:02d}:00" for h in (list(range(6, 24)) + list(range(0, 6)))]
