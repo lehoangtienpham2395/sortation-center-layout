@@ -1125,37 +1125,38 @@ export default function App() {
 
   useEffect(() => {
     if (currentView === 'inbound') {
-      const inboundDates = Array.from(
-        new Set([
-          ...inboundData.map(d => d['Ngày vận hành_Inbound']),
-          ...inboundData.map(d => d['Ngày vận hành_Forecast']),
-          ...inboundData.map(d => d['Ngày vận hành_Pickup'])
-        ].filter(Boolean))
-      ) as string[];
-      inboundDates.sort((a, b) => b.localeCompare(a));
-      const activeDate = selectedInboundDate || inboundDates[0] || '';
-      
-      const filteredArrival = arrivalData.filter(d => 
-        (d['Ngày vận hành_Arrival'] || d['op_date_arrival'] || d['Ngày vận hành']) === activeDate
-      );
+      const rawTrucksList: any[] = (() => {
+        if (microTruckEta?.trucks && microTruckEta.trucks.length > 0) return microTruckEta.trucks;
+        if (Array.isArray(truckEtaData) && truckEtaData.length > 0) return truckEtaData;
+        return (truckEtaData as any)?.trucks || [];
+      })();
+
+      const activeDate = selectedInboundDate || getTodayOpDate();
+      const filteredTrucks = rawTrucksList.filter((d: any) => {
+        const opD = d.op_date || getOperatingDateFromTimestamp(d.eta || d.planned_arrival || '');
+        return !opD || isDateMatch(opD, activeDate);
+      });
+
       const stationMap: Record<string, number> = {};
-      filteredArrival.forEach(d => {
-        const station = (d['Pickup_station'] || '').trim().toUpperCase();
+      filteredTrucks.forEach(d => {
+        const station = (d.send_network || d.sendNetworkName || d['Bưu cục đi'] || d.Pickup_station || d.station || '').trim().toUpperCase();
         if (!station) return;
-        const chuaDen = parseInt(d['Chưa đến Hub'], 10) || 0;
-        if (chuaDen > 0) {
-          stationMap[station] = (stationMap[station] || 0) + chuaDen;
+        const orders = Number(d.orders_count ?? d.volume ?? d['Tổng số đơn'] ?? 0);
+        if (orders > 0) {
+          stationMap[station] = (stationMap[station] || 0) + orders;
         }
       });
-      
+
       const sortedStations = Object.entries(stationMap)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5);
-        
+
       if (sortedStations.length > 0) {
-        const warningItems = sortedStations.map(([st, vol]) => `${st} CÓ XE VỀ (${vol.toLocaleString()} đơn)`);
-        const warningText = `DANH SÁCH BƯU CỤC ĐANG VỀ HÀNG NHIỀU NHẤT: ` + warningItems.join(' // ');
-        setTickerText(warningText + ' // ' + warningText);
+        const totalVehicles = filteredTrucks.length;
+        const totalOrdersCount = filteredTrucks.reduce((sum, d) => sum + Number(d.orders_count ?? d.volume ?? d['Tổng số đơn'] ?? 0), 0);
+        const warningItems = sortedStations.map(([st, vol]) => `${st} (${vol.toLocaleString()} đơn)`);
+        const warningText = `DANH SÁCH ${totalVehicles} XE VÀ ${totalOrdersCount.toLocaleString()} ĐƠN ĐANG ĐẾN HUB — TOP BƯU CỤC CÓ SẢN LƯỢNG CAO NHẤT: ` + warningItems.join(' // ');
+        setTickerText(warningText);
       } else {
         setTickerText(`HỆ THỐNG INBOUND ỔN ĐỊNH — KHÔNG CÓ XE ĐANG VỀ`);
       }
