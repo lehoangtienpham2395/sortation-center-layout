@@ -560,8 +560,8 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
 
     # ── 2. JFS API: Bổ sung các chuyến Linehaul & Shuttle thực tế từ TMS (chưa nhập bãi/chưa hoàn thành) ──
     try:
-        start_2d = (datetime.datetime.now(tz_vn) - datetime.timedelta(days=2)).strftime('%Y-%m-%d 00:00:00')
-        lh_recs = pull_linehaul_consol(session, token_mgr, start_2d, end_plus1)
+        start_4d = (datetime.datetime.now(tz_vn) - datetime.timedelta(days=4)).strftime('%Y-%m-%d 00:00:00')
+        lh_recs = pull_linehaul_consol(session, token_mgr, start_4d, end_plus1)
         for row in lh_recs:
             actual_arr = str(row.get('actualArrivalTime') or row.get('unloadEndTime') or '').strip()
             state = row.get('shipmentState')
@@ -585,7 +585,17 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
                 actual_dep = str(row.get('actualDepartureTime') or row.get('trackOutTime') or '').strip()
                 predict_arr = str(row.get('predictArriveTime') or row.get('plannedArrivalTime') or '').strip()
                 ref_t = actual_dep or p_dep
-                op_d = get_op_date(predict_arr) if predict_arr else (get_op_date(ref_t) if ref_t else today)
+
+                # 🎯 THỜI GIAN DI CHUYỂN LINEHAUL BẮC - NAM = +36 TIẾNG TỪ THỜI DIỂM KHỞI HÀNH (BN HUB)
+                calc_eta = predict_arr
+                if not calc_eta and ref_t:
+                    try:
+                        dep_dt = datetime.datetime.strptime(ref_t[:19], '%Y-%m-%d %H:%M:%S')
+                        calc_eta = (dep_dt + datetime.timedelta(hours=36)).strftime('%Y-%m-%d %H:%M:%S')
+                    except Exception:
+                        calc_eta = ref_t
+
+                op_d = get_op_date(calc_eta) if calc_eta else (get_op_date(ref_t) if ref_t else today)
                 wt_kg = float(row.get('loadpackageweight') or 0)
                 trucks.append({
                     "send_network":     send_net,
@@ -595,9 +605,9 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
                     "weight_kg":        wt_kg,
                     "weight_ton":       round(wt_kg / 1000.0, 3),
                     "planned_departure":p_dep,
-                    "planned_arrival":  predict_arr,
+                    "planned_arrival":  calc_eta,
                     "actual_departure": actual_dep,
-                    "eta":              predict_arr,
+                    "eta":              calc_eta,
                     "rank":             "Linehaul",
                     "status":           "in_transit" if actual_dep else "loading",
                     "op_date":          op_d,
