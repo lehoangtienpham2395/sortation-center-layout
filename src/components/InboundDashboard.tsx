@@ -355,9 +355,7 @@ export default function InboundDashboard({
   const filteredTruckEta = rawTrucksList
     .filter((d: any) => {
       const opD = d.op_date || getOperatingDateFromTimestamp(d.eta || d.planned_arrival || '');
-      const depOpD = getOperatingDateFromTimestamp(d.actual_departure || d.planned_departure || '');
-      const isStInTransit = d.status === 'in_transit' || d.status === 'Transporting';
-      return !opD || isDateMatch(opD, activeDate) || isDateMatch(depOpD, activeDate) || (isStInTransit && !isHistoricalDate);
+      return !opD || isDateMatch(opD, activeDate);
     })
     .map((d: any) => ({
       ...d,
