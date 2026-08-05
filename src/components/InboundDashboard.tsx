@@ -169,19 +169,19 @@ export default function InboundDashboard({
   const getDateForecast = (d: any) => d['op_date_forecast'] || d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast'];
 
 
-  // 🎯 PHÂN LOẠI LINEHAUL VÀ SHUTTLE THEO CHUẨN NEXT_STATION (TRẠM ĐẾN):
-  // - Next_station là BN HUB / Miền Bắc -> Linehaul (Tuyến đường dài)
-  // - Next_station không phải BN HUB (HCM HUB / Bưu cục) -> Shuttle (Bưu cục về HCM HUB)
+  // 🎯 PHÂN LOẠI LINEHAUL VÀ SHUTTLE:
+  // - Hàng Linehaul BN HUB / Miền Bắc: pickup_station hoặc next_station là BN HUB / Hà Nội / Hải Dương / Hưng Yên...
   const isLinehaulRow = (row: any) => {
     if (!row) return false;
     if (typeof row === 'string') {
       const clean = row.trim().toUpperCase();
       return clean === 'BN HUB' || clean.includes('LINEHAUL');
     }
+    const pkSt = String(row?.pickup_station ?? row?.station_name ?? row?.send_network ?? row?.['Bưu cục'] ?? row?.['Pickup_station'] ?? '').trim().toUpperCase();
     const nextSt = String(row?.next_station ?? row?.['Bưu cục đến'] ?? row?.arrive_network ?? '').trim().toUpperCase();
     const rankVal = String(row?.rank ?? row?.Rank ?? '').trim().toUpperCase();
     const roundVal = String(row?.round ?? row?.Round ?? '').trim().toUpperCase();
-    return nextSt === 'BN HUB' || rankVal === 'BN HUB' || roundVal.includes('LINEHAUL') || nextSt.startsWith('HN ') || nextSt.startsWith('HD ') || nextSt.startsWith('HY ');
+    return pkSt === 'BN HUB' || nextSt === 'BN HUB' || rankVal === 'BN HUB' || roundVal.includes('LINEHAUL') || pkSt.startsWith('HN ') || pkSt.startsWith('HD ') || pkSt.startsWith('HY ') || nextSt.startsWith('HN ') || nextSt.startsWith('HD ') || nextSt.startsWith('HY ');
   };
 
   // Hàng phát sinh từ bưu cục Miền Bắc: dùng cho lọc rớt bưu cục HCM HUB
@@ -511,7 +511,7 @@ export default function InboundDashboard({
 
   const snapshotForDate = (lastUpdateObj?.daily_snapshots as Record<string, any>)?.[normActiveDate];
 
-  const totalInbound     = isFutureDate ? 0 : (effectiveOrdersStatus?.inbound     ?? stages['Inbound'].orders);
+  const totalInbound     = isFutureDate ? 0 : Math.max(stages['Inbound'].orders, effectiveOrdersStatus?.inbound || 0);
   const totalInTransit   = isFutureDate ? 0 : (effectiveOrdersStatus?.transporting  ?? stages['Transporting'].orders);
   const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
   const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       ?? stages['Created'].orders);
