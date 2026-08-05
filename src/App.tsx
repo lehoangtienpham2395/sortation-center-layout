@@ -1203,11 +1203,8 @@ export default function App() {
       const outDenominator = tCur + tBacklog;
       setOutboundRate((outDenominator ? (tCur / outDenominator) * 100 : 0).toFixed(1));
 
-      if (selectedType === 'Outbound') {
-        setUtilTotal((outDenominator ? (tCur / outDenominator) * 100 : 0).toFixed(1));
-      } else {
-        setUtilTotal((tCap ? (tCur/tCap)*100 : 0).toFixed(1));
-      }
+      // TỈ LỆ LẤP ĐẦY card always computes Capacity Fill Rate (tCur / tCap) * 100
+      setUtilTotal((tCap ? (tCur / tCap) * 100 : 0).toFixed(1));
       
       setFree(tRem); setUsedCells(tUsed); setTotalOrders(tCur); setTotalWeight(tWeight);
       
