@@ -531,12 +531,12 @@ export default function InboundDashboard({
     snapshotForDate?.shuttle || 0
   );
 
-  // 🎯 QUY TẮC USER: FORECAST TỔNG CHỈ TÍNH HÀNG SHUTTLE (BƯU CỤC VỀ HCM HUB BAO GỒM CẢ TỒN DỒN NGÀY CỦ)
-  const totalForecast = finalShuttleForecast;
+  // 🎯 QUY TẮC PHƯƠNG ÁN 2 (CỘNG GỘP CẢ 2): FORECAST TỔNG CỘNG CẢ SHUTTLE VÀ LINEHAUL
+  const totalForecast = finalShuttleForecast + finalLinehaulForecast;
 
   const finalShuttleWeight = isFutureDate ? 0 : Math.max(forecastShuttleWeight, effectiveKpiSummary?.shuttle_weight || 0);
   const finalLinehaulWeight = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul_weight ?? forecastLinehaulWeight);
-  const totalForecastWeight = finalShuttleWeight;
+  const totalForecastWeight = finalShuttleWeight + finalLinehaulWeight;
 
   console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
 
