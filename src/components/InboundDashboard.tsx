@@ -522,18 +522,13 @@ export default function InboundDashboard({
     snapshotForDate?.shuttle ??
     forecastShuttle
   );
-  const finalLinehaulForecast = isFutureDate ? 0 : (
-    effectiveKpiSummary?.linehaul_bn_hub ??
-    effectiveKpiSummary?.linehaul ??
-    snapshotForDate?.linehaul ??
-    Math.max(forecastLinehaul, bnHubLinehaulOrders)
-  );
 
-  // 🎯 QUY TẮC USER: FORECAST CHỈ TÍNH HÀNG SHUTTLE (BƯU CỤC VỀ), KHÔNG BAO GỒM HÀNG DỰ ĐOÁN BN HUB (LINEHAUL)
+  // 🎯 QUY TẮC KHÔNG TÍNH LINEHAUL DỰ BÁO TỪ BN HUB VỀ (SET BẰNG 0)
+  const finalLinehaulForecast = 0;
+  const finalLinehaulWeight = 0;
+
   const totalForecast = finalShuttleForecast;
-
   const finalShuttleWeight = isFutureDate ? 0 : (effectiveKpiSummary?.shuttle_weight ?? forecastShuttleWeight);
-  const finalLinehaulWeight = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul_weight ?? forecastLinehaulWeight);
   const totalForecastWeight = finalShuttleWeight;
 
   console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
