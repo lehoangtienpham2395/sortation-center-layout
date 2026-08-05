@@ -517,24 +517,15 @@ export default function InboundDashboard({
   const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   || stages['Pickup Done'].orders);
   const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       || stages['Created'].orders);
 
-  // 🎯 FORECAST = TỔNG SẢN LƯỢNG CẦN XỬ LÝ TRONG NGÀY (TRỪ ĐƠN PICKUP_STATION LÀ BN HUB / LINEHAUL)
-  const finalLinehaulForecast = isFutureDate ? 0 : (
-    effectiveKpiSummary?.linehaul_bn_hub ||
-    effectiveKpiSummary?.linehaul ||
-    snapshotForDate?.linehaul ||
-    Math.max(forecastLinehaul, bnHubLinehaulOrders)
-  );
-  const finalShuttleForecast = isFutureDate ? 0 : (
-    effectiveKpiSummary?.shuttle ||
-    snapshotForDate?.shuttle ||
-    forecastShuttle
-  );
+  // 🎯 FORECAST DỰ BÁO: TỔNG SẢN LƯỢNG SHUTTLE (NEXT_STATION KHÔNG PHẢI BN HUB)
+  const finalLinehaulForecast = isFutureDate ? 0 : forecastLinehaul;
+  const finalShuttleForecast  = isFutureDate ? 0 : forecastShuttle;
 
-  // 🎯 QUY TẮC USER: FORECAST TỔNG CHỈ TÍNH HÀNG SHUTTLE (TRỪ CÁC ĐƠN PICKUP_STATION LÀ BN HUB)
+  // 🎯 QUY TẮC USER: FORECAST TỔNG CHỈ TÍNH HÀNG SHUTTLE (BƯU CỤC VỀ HCM HUB)
   const totalForecast = finalShuttleForecast;
 
-  const finalShuttleWeight = isFutureDate ? 0 : (effectiveKpiSummary?.shuttle_weight || forecastShuttleWeight);
-  const finalLinehaulWeight = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul_weight || forecastLinehaulWeight);
+  const finalShuttleWeight  = isFutureDate ? 0 : forecastShuttleWeight;
+  const finalLinehaulWeight = isFutureDate ? 0 : forecastLinehaulWeight;
   const totalForecastWeight = finalShuttleWeight;
 
   console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
