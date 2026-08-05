@@ -158,8 +158,7 @@ export default function InboundDashboard({
   const getWaterfallStatus = (d: any) => {
     const st = (d['status'] || d['Trạng thái'] || d['Trng thi'] || '').trim();
     if (st === 'Đã hủy' || st === 'Canceled' || st === 'Cancelled') return 'Canceled';
-    const hasInbDate = Boolean(d['op_date_inbound'] || d['inbound_time'] || d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound']);
-    if (st === 'Inbound' || st === 'Đã nhập kho' || hasInbDate) return 'Inbound';
+    if (st === 'Inbound' || st === 'Đã nhập kho') return 'Inbound';
     if (st === 'Transporting' || st === 'Đang vận chuyển') return 'Transporting';
     if (st === 'Pickup Done' || st === 'Đã lấy hàng') return 'Pickup Done';
     return 'Created';
@@ -512,10 +511,10 @@ export default function InboundDashboard({
 
   const snapshotForDate = (lastUpdateObj?.daily_snapshots as Record<string, any>)?.[normActiveDate];
 
-  const totalInbound     = isFutureDate ? 0 : Math.max(stages['Inbound'].orders, effectiveOrdersStatus?.inbound || 0, effectiveKpiSummary?.inbound_orders || 0, snapshotForDate?.inbound_orders || 0);
-  const totalInTransit   = isFutureDate ? 0 : (effectiveOrdersStatus?.transporting  || stages['Transporting'].orders);
-  const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   || stages['Pickup Done'].orders);
-  const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       || stages['Created'].orders);
+  const totalInbound     = isFutureDate ? 0 : (effectiveOrdersStatus?.inbound     ?? stages['Inbound'].orders);
+  const totalInTransit   = isFutureDate ? 0 : (effectiveOrdersStatus?.transporting  ?? stages['Transporting'].orders);
+  const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
+  const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       ?? stages['Created'].orders);
 
   // 🎯 FORECAST DỰ BÁO: TỔNG SẢN LƯỢNG SHUTTLE (NEXT_STATION KHÔNG PHẢI BN HUB)
   const finalLinehaulForecast = isFutureDate ? 0 : forecastLinehaul;
