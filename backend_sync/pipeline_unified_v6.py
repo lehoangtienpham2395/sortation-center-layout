@@ -13,12 +13,11 @@ except ImportError:
 # ============================================================
 # WINDOWS UNICODE FIX
 # ============================================================
-if sys.stdout.encoding and sys.stdout.encoding.lower() != 'utf-8':
-    try:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', write_through=True)
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', write_through=True)
-    except Exception:
-        pass
+try:
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', write_through=True)
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', write_through=True)
+except Exception:
+    pass
 
 # ============================================================
 # CONFIG
@@ -71,12 +70,12 @@ if len(sys.argv) > 1:
     except ValueError:
         pass
 
-# Network tuning: 7 luồng song song (Mỗi luồng 1 ngày) x 2 page workers = 14 luồng êm ái chống đơ máy
-PAGE_WORKERS     = 2
+# Network tuning: Kéo song song trang tốc độ cao (10 page workers)
+PAGE_WORKERS     = 10
 PAGE_SIZE        = 500      # Dispatch page size
 SCAN_PAGE_SIZE   = 1000     # Inbound/Outbound page size
-POOL_SIZE        = 14       # 14 luồng nhẹ nhàng
-REQUEST_TIMEOUT  = 30
+POOL_SIZE        = 25       # 25 luồng tốc độ cao
+REQUEST_TIMEOUT  = 20
 MAX_RETRIES      = 3
 BACKOFF_BASE     = 2
 RETRYABLE_STATUS = {405, 429, 500, 502, 503, 504}
