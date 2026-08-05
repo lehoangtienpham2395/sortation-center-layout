@@ -169,19 +169,19 @@ export default function InboundDashboard({
   const getDateForecast = (d: any) => d['op_date_forecast'] || d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast'];
 
 
-  // 🎯 PHÂN LOẠI LINEHAUL VÀ SHUTTLE:
-  // - Hàng Linehaul BN HUB / Miền Bắc: pickup_station hoặc next_station là BN HUB / Hà Nội / Hải Dương / Hưng Yên...
+  // 🎯 PHÂN LOẠI LINEHAUL VÀ SHUTTLE THEO CHUẨN NEXT_STATION (TRẠM ĐẾN):
+  // - Linehaul: next_station thuộc kho Miền Bắc (BN HUB, HN ..., HD ..., HY ...)
+  // - Shuttle: các đơn có next_station thuộc HCM HUB / Bưu cục địa phương
   const isLinehaulRow = (row: any) => {
     if (!row) return false;
     if (typeof row === 'string') {
       const clean = row.trim().toUpperCase();
-      return clean === 'BN HUB' || clean.includes('LINEHAUL');
+      return clean === 'BN HUB' || clean.includes('LINEHAUL') || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ');
     }
-    const pkSt = String(row?.pickup_station ?? row?.station_name ?? row?.send_network ?? row?.['Bưu cục'] ?? row?.['Pickup_station'] ?? '').trim().toUpperCase();
     const nextSt = String(row?.next_station ?? row?.['Bưu cục đến'] ?? row?.arrive_network ?? '').trim().toUpperCase();
     const rankVal = String(row?.rank ?? row?.Rank ?? '').trim().toUpperCase();
     const roundVal = String(row?.round ?? row?.Round ?? '').trim().toUpperCase();
-    return pkSt === 'BN HUB' || nextSt === 'BN HUB' || rankVal === 'BN HUB' || roundVal.includes('LINEHAUL') || pkSt.startsWith('HN ') || pkSt.startsWith('HD ') || pkSt.startsWith('HY ') || nextSt.startsWith('HN ') || nextSt.startsWith('HD ') || nextSt.startsWith('HY ');
+    return nextSt === 'BN HUB' || rankVal === 'BN HUB' || roundVal.includes('LINEHAUL') || nextSt.startsWith('HN ') || nextSt.startsWith('HD ') || nextSt.startsWith('HY ');
   };
 
   // Hàng phát sinh từ bưu cục Miền Bắc: dùng cho lọc rớt bưu cục HCM HUB

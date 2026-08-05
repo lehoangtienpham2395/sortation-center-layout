@@ -1367,29 +1367,38 @@ def sync_postgre_to_dashboard():
         for h_d in past_dates:
             cur_h.execute("""
                 SELECT 
-                    SUM(CASE WHEN status_sys = 'Inbound' THEN 1 ELSE 0 END) as inbound_cnt,
-                    SUM(CASE WHEN status_sys = 'Transporting' THEN 1 ELSE 0 END) as transp_cnt,
-                    SUM(CASE WHEN status_sys = 'Pickup Done' THEN 1 ELSE 0 END) as pickup_cnt,
-                    SUM(CASE WHEN status_sys = 'Created' THEN 1 ELSE 0 END) as created_cnt,
-                    SUM(CASE WHEN status_sys = 'Inbound' THEN orders_weight ELSE 0 END) / 1000.0 as inb_wt,
-                    SUM(CASE WHEN status_sys = 'Transporting' THEN orders_weight ELSE 0 END) / 1000.0 as transp_wt,
-                    SUM(CASE WHEN status_sys = 'Pickup Done' THEN orders_weight ELSE 0 END) / 1000.0 as pickup_wt,
-                    SUM(CASE WHEN status_sys = 'Created' THEN orders_weight ELSE 0 END) / 1000.0 as created_wt
-                FROM enriched.dispatch_enriched
-                WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date;
-            """, (h_d,))
+                    (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE operation_date_inbound::date = %s::date AND status_sys IN ('Inbound', 'Outbound')) as inbound_cnt,
+                    (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE operation_date_created::date = %s::date AND status_sys = 'Transporting') as transp_cnt,
+                    (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE op_date_pickup::date = %s::date AND status_sys = 'Pickup Done') as pickup_cnt,
+                    (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE operation_date_created::date = %s::date AND status_sys = 'Created') as created_cnt,
+                    (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE operation_date_inbound::date = %s::date AND status_sys IN ('Inbound', 'Outbound')) as inb_wt,
+                    (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE operation_date_created::date = %s::date AND status_sys = 'Transporting') as transp_wt,
+                    (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE op_date_pickup::date = %s::date AND status_sys = 'Pickup Done') as pickup_wt,
+                    (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE operation_date_created::date = %s::date AND status_sys = 'Created') as created_wt,
+                    (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date AND (next_station NOT LIKE 'BN HUB%%' AND next_station NOT LIKE 'HN %%' AND next_station NOT LIKE 'HD %%' AND next_station NOT LIKE 'HY %%')) as shuttle_cnt,
+                    (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date AND (next_station NOT LIKE 'BN HUB%%' AND next_station NOT LIKE 'HN %%' AND next_station NOT LIKE 'HD %%' AND next_station NOT LIKE 'HY %%')) as shuttle_wt,
+                    (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date AND (next_station LIKE 'BN HUB%%' OR next_station LIKE 'HN %%' OR next_station LIKE 'HD %%' OR next_station LIKE 'HY %%')) as linehaul_cnt,
+                    (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date AND (next_station LIKE 'BN HUB%%' OR next_station LIKE 'HN %%' OR next_station LIKE 'HD %%' OR next_station LIKE 'HY %%')) as linehaul_wt;
+            """, (h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d))
             h_row = cur_h.fetchone()
             if h_row:
-                inb_c, tr_c, pk_c, cr_c, inb_w, tr_w, pk_w, cr_w = h_row
+                inb_c, tr_c, pk_c, cr_c, inb_w, tr_w, pk_w, cr_w, shut_c, shut_w, lh_c, lh_w = h_row
                 inb_c, tr_c, pk_c, cr_c = int(inb_c or 0), int(tr_c or 0), int(pk_c or 0), int(cr_c or 0)
                 inb_w, tr_w, pk_w, cr_w = round(float(inb_w or 0), 3), round(float(tr_w or 0), 3), round(float(pk_w or 0), 3), round(float(cr_w or 0), 3)
+                shut_c, lh_c = int(shut_c or 0), int(lh_c or 0)
+                shut_w, lh_w = round(float(shut_w or 0), 3), round(float(lh_w or 0), 3)
                 
                 h_kpi = {
                     "op_date": h_d,
                     "contract_version": "2.0.0",
                     "inbound_orders": inb_c,
                     "inbound_weight_ton": inb_w,
-                    "forecast_total": tr_c + pk_c + cr_c,
+                    "forecast_total": shut_c,
+                    "forecast_weight_ton": shut_w,
+                    "shuttle": shut_c,
+                    "shuttle_weight": shut_w,
+                    "linehaul": lh_c,
+                    "linehaul_weight": lh_w,
                     "orders_now": cr_c,
                     "orders_live": tr_c + pk_c
                 }
