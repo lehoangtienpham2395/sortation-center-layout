@@ -1518,7 +1518,8 @@ def git_push(repo_dir: str, timestamp: str) -> None:
             "data/inbound.json", "data/arrival.json", "data/heatmap.json",
             "data/linehaul.json", "data/truck_eta.json", "data/last_update.json",
             "data/hub_inventory_pivot.json", "data/latest.json.gz",
-            "data/live/", "public/data/live/", "src/data/live/",
+            "data/inbound_*.json", "data/live/",
+            "public/data/", "src/data/live/",
             "src/", "backend_sync/",
         ]
         add = subprocess.run(
