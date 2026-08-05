@@ -1776,35 +1776,20 @@ export default function App() {
               </div>
             )}
 
-            <div className="flex items-center gap-2">
-              {/* ── INBOUND DatePicker: full history từ history_index.json ── */}
-              {currentView === 'inbound' ? (
-                <>
-                  <span className="text-xs text-slate-400 font-semibold select-none">Operations Date</span>
-                  <DatePicker
-                    selectedDate={selectedInboundDate}
-                    onDateChange={handleInboundDateChange}
-                    availableDates={inboundAvailableDates.length > 0 ? inboundAvailableDates : [selectedInboundDate].filter(Boolean)}
-                    align="right"
-                    className="w-[210px]"
-                    buttonClassName="!py-1.5 !px-4 !rounded-full text-xs font-bold"
-                  />
-                </>
-              ) : (
-                /* ── LAYOUT / KPI / HEATMAP DatePicker: live dates ── */
-                <>
-                  <span className="text-xs text-slate-400 font-semibold select-none">Operations Date</span>
-                  <DatePicker
-                    selectedDate={selectedDate}
-                    onDateChange={(d) => setSelectedDate(d)}
-                    availableDates={availableDates}
-                    align="right"
-                    className="w-[210px]"
-                    buttonClassName="!py-1.5 !px-4 !rounded-full text-xs font-bold"
-                  />
-                </>
-              )}
-            </div>
+            {/* ── LAYOUT / KPI / HEATMAP DatePicker: (Chỉ hiển thị khi KHÔNG PHẢI view InboundDashboard, vì InboundDashboard đã có header riêng) ── */}
+            {currentView !== 'inbound' && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 font-semibold select-none">Operations Date</span>
+                <DatePicker
+                  selectedDate={selectedDate}
+                  onDateChange={(d) => setSelectedDate(d)}
+                  availableDates={availableDates}
+                  align="right"
+                  className="w-[210px]"
+                  buttonClassName="!py-1.5 !px-4 !rounded-full text-xs font-bold"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -2175,8 +2160,8 @@ export default function App() {
           {/* Right Column: Control Center & Top 10 Racks (w-90, 15px gap, 10% rounded corners) */}
           {currentView === 'master' && (
             <div className="absolute z-40 top-16 right-6 w-90 flex flex-col gap-[15px] max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-6 scrollbar-none">
-              {/* A. Control Center Panel */}
-              {showControls && (
+              {/* A. Control Center Panel (Chỉ hiển thị khi xem Sơ đồ Master, không hiển thị chồng lên Inbound Dashboard) */}
+              {currentView === 'master' && showControls && (
                 <div 
                   className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-20 rounded-lg"
                   style={{ borderRadius: '8px' }}
