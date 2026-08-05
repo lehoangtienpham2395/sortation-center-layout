@@ -716,8 +716,13 @@ export default function App() {
     setLoading(false);
   };
 
-  // 🎯 TỰ ĐỘNG RE-FETCH MICRO-JSON MỖI KHI NGƯỜI DÙNG ĐỔI NGÀY TRÊN DATEPICKER
+  // 🎯 TỰ ĐỘNG RE-FETCH MICRO-JSON MỖI KHI NGƯỜI DÙNG ĐỔI NGÀY TRÊN DATEPICKER (Bỏ qua lần mount đầu đã được fetchAndUpdateData nạp sẵn)
+  const isFirstMountRef = useRef(true);
   useEffect(() => {
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      return;
+    }
     if (!selectedInboundDate) return;
     let isMounted = true;
     (async () => {
