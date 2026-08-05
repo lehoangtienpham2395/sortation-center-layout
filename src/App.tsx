@@ -2772,7 +2772,9 @@ export default function App() {
           animation-play-state: paused !important;
         }
       `}</style>
-      <div className="absolute bottom-0 left-0 right-0 h-8 bg-[#09111c] border-t border-[#00e5ff]/30 text-white flex items-center z-30 mono font-bold text-[11.5px] tracking-[0.05em] overflow-hidden backdrop-blur-md shadow-[0_-4px_15px_rgba(0,0,0,0.5)]">
+      <div className={`absolute bottom-0 right-0 h-8 bg-[#09111c] border-t border-[#00e5ff]/30 text-white flex items-center z-30 mono font-bold text-[11.5px] tracking-[0.05em] overflow-hidden backdrop-blur-md shadow-[0_-4px_15px_rgba(0,0,0,0.5)] transition-all duration-200 ${
+        isMobile ? 'left-0' : (sidebarHovered ? 'left-40' : 'left-12')
+      }`}>
         <div className="bg-[#00e5ff] text-[#09111c] px-3.5 h-full flex items-center shrink-0 z-20 font-bold text-[11px] uppercase tracking-wider shadow-md">
           {currentView === 'inbound' ? '● INBOUND ALERT' : '● CRITICAL ALERT'}
         </div>
