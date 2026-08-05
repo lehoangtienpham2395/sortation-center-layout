@@ -70,12 +70,12 @@ if len(sys.argv) > 1:
     except ValueError:
         pass
 
-# Network tuning: Kéo song song trang tốc độ cao (10 page workers)
-PAGE_WORKERS     = 10
+# Network tuning: Kéo song song trang siêu tốc (20 page workers)
+PAGE_WORKERS     = 20
 PAGE_SIZE        = 500      # Dispatch page size
 SCAN_PAGE_SIZE   = 1000     # Inbound/Outbound page size
-POOL_SIZE        = 25       # 25 luồng tốc độ cao
-REQUEST_TIMEOUT  = 20
+POOL_SIZE        = 40       # 40 luồng siêu tốc
+REQUEST_TIMEOUT  = 15
 MAX_RETRIES      = 3
 BACKOFF_BASE     = 2
 RETRYABLE_STATUS = {405, 429, 500, 502, 503, 504}
