@@ -172,19 +172,24 @@ export default function InboundDashboard({
   const getDateForecast = (d: any) => d['op_date_forecast'] || d['Ngày vận hành_Forecast'] || d['Ngy vn hnh_Forecast'];
 
 
-  // 🎯 PHÂN LOẠI LINEHAUL VÀ SHUTTLE THEO CHUẨN NEXT_STATION (TRẠM ĐẾN):
-  // - Linehaul: next_station thuộc kho Miền Bắc (BN HUB, HN ..., HD ..., HY ...)
-  // - Shuttle: các đơn có next_station thuộc HCM HUB / Bưu cục địa phương
+  // 🎯 PHÂN LOẠI LINEHAUL VÀ SHUTTLE:
+  // - Linehaul: trạm đi (pickup_station) HOẶC trạm đến (next_station) thuộc kho Miền Bắc (BN HUB, HN ..., HD ..., HY ...) HOẶC tuyến chứa LINEHAUL
+  // - Shuttle: các đơn bưu cục địa phương về HCM HUB
   const isLinehaulRow = (row: any) => {
     if (!row) return false;
     if (typeof row === 'string') {
       const clean = row.trim().toUpperCase();
       return clean === 'BN HUB' || clean.includes('LINEHAUL') || clean.startsWith('HN ') || clean.startsWith('HD ') || clean.startsWith('HY ');
     }
+    const pkSt = String(row?.pickup_station ?? row?.station_name ?? row?.send_network ?? row?.['Bưu cục'] ?? row?.['Pickup_station'] ?? '').trim().toUpperCase();
     const nextSt = String(row?.next_station ?? row?.['Bưu cục đến'] ?? row?.arrive_network ?? '').trim().toUpperCase();
     const rankVal = String(row?.rank ?? row?.Rank ?? '').trim().toUpperCase();
     const roundVal = String(row?.round ?? row?.Round ?? '').trim().toUpperCase();
-    return nextSt === 'BN HUB' || rankVal === 'BN HUB' || roundVal.includes('LINEHAUL') || nextSt.startsWith('HN ') || nextSt.startsWith('HD ') || nextSt.startsWith('HY ');
+
+    const isNorthPk = pkSt === 'BN HUB' || pkSt.startsWith('HN ') || pkSt.startsWith('HD ') || pkSt.startsWith('HY ');
+    const isNorthNext = nextSt === 'BN HUB' || nextSt.startsWith('HN ') || nextSt.startsWith('HD ') || nextSt.startsWith('HY ');
+
+    return isNorthPk || isNorthNext || rankVal === 'BN HUB' || roundVal.includes('LINEHAUL');
   };
 
   // Hàng phát sinh từ bưu cục Miền Bắc: dùng cho lọc rớt bưu cục HCM HUB
@@ -325,7 +330,7 @@ export default function InboundDashboard({
 
         if (wfStatus === 'Transporting') {
           const pkSt = (d['pickup_station'] || d['station_name'] || '').trim().toUpperCase();
-          if (pkSt && pkSt !== 'BN HUB') {
+          if (pkSt) {
             stationTransportingMap[pkSt] = (stationTransportingMap[pkSt] || 0) + vol;
           }
         }
@@ -372,6 +377,24 @@ export default function InboundDashboard({
     const st = (d['send_network'] || d['sendNetworkName'] || d['Station'] || d['Pickup_station'] || d['Bưu cục đi'] || d['send_site_name'] || '').trim();
     if (!st) return;
     const cleanKey = st.toUpperCase();
+    const destKey = String(d['arrive_network'] || d['arriveNetworkName'] || d['Bưu cục đến'] || '').toUpperCase();
+    const rankVal = String(d['rank'] || d['Rank'] || '').toUpperCase();
+
+    const isLinehaulTruck = (
+      cleanKey.includes('BN') ||
+      cleanKey.includes('BẮC NINH') ||
+      cleanKey.includes('BAC NINH') ||
+      cleanKey.includes('LINEHAUL') ||
+      cleanKey.startsWith('HN ') ||
+      cleanKey.startsWith('HD ') ||
+      cleanKey.startsWith('HY ') ||
+      destKey.includes('BN') ||
+      destKey.includes('BẮC NINH') ||
+      destKey.startsWith('HN ') ||
+      destKey.startsWith('HD ') ||
+      destKey.startsWith('HY ') ||
+      rankVal.includes('LINEHAUL')
+    );
 
     const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? d['volume'] ?? 0);
     const lastTime = d['transporting_time'] || d['transport_time'] || d['transportingTime'] || d['actual_departure'] || d['planned_departure'] || '';
@@ -386,7 +409,7 @@ export default function InboundDashboard({
         orders: tongDon,
         weight: 0,
         eta: lastTime,
-        rank: (cleanKey.includes('BN') || cleanKey.includes('NORTH')) ? 'Linehaul' : (d['rank'] || d['Rank'] || 'Shuttle'),
+        rank: isLinehaulTruck ? 'Linehaul' : 'Shuttle',
         chuaDenHub: tongDon,
         tongDon: tongDon,
         vehicles: 0,
