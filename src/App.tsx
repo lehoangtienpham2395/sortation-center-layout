@@ -430,6 +430,32 @@ function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, isMatched, onEnt
   );
 }
 
+const normalizeDateStr = (dStr: string): string => {
+  if (!dStr) return '';
+  const str = String(dStr).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
+  const dt = new Date(str);
+  if (!isNaN(dt.getTime())) {
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  return str.slice(0, 10);
+};
+
+const isDateMatch = (rDate: string, sDate: string) => {
+  if (!sDate) return true;
+  if (!rDate) return false;
+  const normR = normalizeDateStr(rDate);
+  const normS = normalizeDateStr(sDate);
+  if (sDate.includes('..')) {
+    const [start, end] = sDate.split('..');
+    return normR >= normalizeDateStr(start) && normR <= normalizeDateStr(end);
+  }
+  return normR === normS;
+};
+
 export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [sidebarHovered, setSidebarHovered] = useState(false);
@@ -478,7 +504,7 @@ export default function App() {
   const [rawSheetRows, setRawSheetRows] = useState<SheetRow[]>([]);
   const [heatmapRows, setHeatmapRows] = useState<any[]>([]);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
-  const [inboundAvailableDates, setInboundAvailableDates] = useState<string[]>([]);
+  const [, setInboundAvailableDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory' | 'Volume'>('Outbound');
   const [outboundRate, setOutboundRate] = useState<string>('0.0');
@@ -1133,7 +1159,7 @@ export default function App() {
 
       const activeDate = selectedInboundDate || getTodayOpDate();
       const filteredTrucks = rawTrucksList.filter((d: any) => {
-        const opD = d.op_date || getOperatingDateFromTimestamp(d.eta || d.planned_arrival || '');
+        const opD = d.op_date || (d.eta || d.planned_arrival || '').slice(0, 10);
         return !opD || isDateMatch(opD, activeDate);
       });
 
