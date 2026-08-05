@@ -237,6 +237,26 @@ class TokenManager:
         self.label      = label or account
         self._token     = None
         self._lock      = threading.Lock()
+        self._cache_file = os.path.join(BASE_DIR, f'token_cache_{self.account}.json')
+
+    def _load_cached_token(self):
+        try:
+            if os.path.exists(self._cache_file):
+                with open(self._cache_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                ts = data.get('timestamp', 0)
+                if time.time() - ts < 10800 and data.get('token'):
+                    return data['token']
+        except Exception:
+            pass
+        return None
+
+    def _save_cached_token(self, token):
+        try:
+            with open(self._cache_file, 'w', encoding='utf-8') as f:
+                json.dump({'token': token, 'timestamp': time.time()}, f)
+        except Exception:
+            pass
 
     def _login(self):
         payload = {'account': self.account, 'password': md5(self.password),
@@ -262,15 +282,22 @@ class TokenManager:
     def get_token(self):
         with self._lock:
             if self._token is None:
-                self._token = self._login()
-                print('   OK [' + self.label + '] token: ' + self._token[:12] + '...')
+                cached = self._load_cached_token()
+                if cached:
+                    self._token = cached
+                    print('   OK [' + self.label + '] token (cached): ' + self._token[:12] + '...')
+                else:
+                    self._token = self._login()
+                    self._save_cached_token(self._token)
+                    print('   OK [' + self.label + '] token (new login): ' + self._token[:12] + '...')
             return self._token
 
     def refresh(self, stale):
         with self._lock:
             if self._token is None or self._token == stale:
-                print('   401/405 [' + self.label + '] -> login lai...')
+                print('   🔄 [' + self.label + '] Token het han/khong hop le -> Login lai de lay token moi...')
                 self._token = self._login()
+                self._save_cached_token(self._token)
             return self._token
 
 # ============================================================
@@ -294,11 +321,28 @@ def auth_post(session, url, token_mgr, base_headers,
             last_exc = e
             time.sleep(BACKOFF_BASE * attempt)
             continue
-        if (r.status_code == 401 or r.status_code == 405) and not refreshed:
+        # Backup Fallback 1: HTTP Status Code 401/403/405
+        if (r.status_code in (401, 403, 405)) and not refreshed:
             token_mgr.refresh(token)
             refreshed = True
             attempt  -= 1
             continue
+
+        # Backup Fallback 2: JSON response indicates token expired or unauthorized
+        try:
+            res_json = r.json()
+            if isinstance(res_json, dict):
+                code = res_json.get('code')
+                msg = str(res_json.get('msg') or '').lower()
+                is_invalid = (code in (401, 403, 1001, 1002) or 'token' in msg or 'đăng nhập' in msg or 'unauthorized' in msg)
+                if is_invalid and not refreshed and not res_json.get('succ'):
+                    print('   🔄 [' + label + '] JFS tra ve Token het han -> Dang nhap lai lay token moi...')
+                    token_mgr.refresh(token)
+                    refreshed = True
+                    attempt  -= 1
+                    continue
+        except Exception:
+            pass
         if r.status_code in RETRYABLE_STATUS:
             last_exc = requests.exceptions.HTTPError(str(r.status_code) + ' ' + url)
             time.sleep(BACKOFF_BASE * attempt)
@@ -1343,12 +1387,8 @@ def main():
         if not conn:
             raise Exception("Could not connect to PostgreSQL with any known password.")
         cur = conn.cursor()
-        # FIX: Không dùng CASCADE để tránh rollback các bảng phụ thuộc
-        try:
-            cur.execute('TRUNCATE TABLE enriched.dispatch_enriched;')
-        except Exception:
-            conn.rollback()
-            cur.execute('DELETE FROM enriched.dispatch_enriched;')
+        # BẢO VỆ DỮ LIỆU LỊCH SỬ: KHÔNG TRUNCATE / DELETE BẢNG DISPATCH_ENRICHED!
+        # Dữ liệu cũ được giữ nguyên 100%, dữ liệu mới/cập nhật sẽ thực hiện UPSERT (ON CONFLICT DO UPDATE).
 
         records = []
         for _, r in df.iterrows():
@@ -1522,9 +1562,8 @@ def main():
                 areacode                 = COALESCE(NULLIF(EXCLUDED.areacode, ''), enriched.dispatch_enriched.areacode),
                 flowtypedesc             = COALESCE(NULLIF(EXCLUDED.flowtypedesc, ''), enriched.dispatch_enriched.flowtypedesc),
                 next_station             = EXCLUDED.next_station,
-                trip_code                = EXCLUDED.trip_code,
-                transporing_time         = EXCLUDED.transporing_time,
-                transported_time         = EXCLUDED.transported_time,
+                transporing_time         = COALESCE(EXCLUDED.transporing_time, enriched.dispatch_enriched.transporing_time),
+                transported_time         = COALESCE(EXCLUDED.transported_time, enriched.dispatch_enriched.transported_time),
                 is_backlog               = EXCLUDED.is_backlog,
                 is_transit               = EXCLUDED.is_transit,
                 cycle_no                 = EXCLUDED.cycle_no,
@@ -1533,11 +1572,11 @@ def main():
                 inbound_scandate_2       = COALESCE(EXCLUDED.inbound_scandate_2, enriched.dispatch_enriched.inbound_scandate_2),
                 operation_date_inbound_2 = COALESCE(EXCLUDED.operation_date_inbound_2, enriched.dispatch_enriched.operation_date_inbound_2),
                 outbound_scandate_2      = COALESCE(EXCLUDED.outbound_scandate_2, enriched.dispatch_enriched.outbound_scandate_2),
-                flag_created             = EXCLUDED.flag_created,
-                flag_pickup              = EXCLUDED.flag_pickup,
-                flag_arrival             = EXCLUDED.flag_arrival,
-                flag_inbound             = EXCLUDED.flag_inbound,
-                flag_outbound            = EXCLUDED.flag_outbound,
+                flag_created             = GREATEST(EXCLUDED.flag_created, enriched.dispatch_enriched.flag_created),
+                flag_pickup              = GREATEST(EXCLUDED.flag_pickup, enriched.dispatch_enriched.flag_pickup),
+                flag_arrival             = GREATEST(EXCLUDED.flag_arrival, enriched.dispatch_enriched.flag_arrival),
+                flag_inbound             = GREATEST(EXCLUDED.flag_inbound, enriched.dispatch_enriched.flag_inbound),
+                flag_outbound            = GREATEST(EXCLUDED.flag_outbound, enriched.dispatch_enriched.flag_outbound),
                 op_date_pickup           = EXCLUDED.op_date_pickup,
                 op_date_inbound_effective= EXCLUDED.op_date_inbound_effective,
                 last_updated             = CURRENT_TIMESTAMP;

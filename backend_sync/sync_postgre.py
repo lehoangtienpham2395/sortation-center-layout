@@ -1409,8 +1409,24 @@ def sync_postgre_to_dashboard():
                 for h_root in [DATA_DIR, os.path.normpath(os.path.join(DATA_DIR, '..', 'public', 'data')), os.path.normpath(os.path.join(DATA_DIR, '..', 'src', 'data'))]:
                     h_path = os.path.join(h_root, "history", h_d)
                     os.makedirs(h_path, exist_ok=True)
+                    target_status_file = os.path.join(h_path, "inbound_orders_status.json")
+                    
+                    # BẢO VỆ TUYỆT ĐỐI NGÀY LỊCH SỬ: Nếu file đã có dữ liệu hợp lệ, KHÔNG GHI ĐÈ bằng 0!
+                    if os.path.exists(target_status_file):
+                        try:
+                            with open(target_status_file, 'r', encoding='utf-8') as f_exist:
+                                existing_data = json.load(f_exist)
+                            existing_tot = int(existing_data.get('total', 0) or 0)
+                            existing_inb = int(existing_data.get('inbound', 0) or 0)
+                            new_tot = int(h_status.get('total', 0) or 0)
+                            new_inb = int(h_status.get('inbound', 0) or 0)
+                            if (new_tot == 0 and existing_tot > 0) or (new_inb == 0 and existing_inb > 0):
+                                continue  # BẢO VỆ SNAPSHOT LỊCH SỬ! BỎ QUA GHI ĐÈ.
+                        except Exception:
+                            pass
+
                     write_json(os.path.join(h_path, "inbound_kpi_summary.json"), h_kpi)
-                    write_json(os.path.join(h_path, "inbound_orders_status.json"), h_status)
+                    write_json(target_status_file, h_status)
         conn_hist.close()
     except Exception as _e_h:
         print(f"   ⚠️ Historical snapshot generation error: {_e_h}")

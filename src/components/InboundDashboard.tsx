@@ -158,7 +158,8 @@ export default function InboundDashboard({
   const getWaterfallStatus = (d: any) => {
     const st = (d['status'] || d['Trạng thái'] || d['Trng thi'] || '').trim();
     if (st === 'Đã hủy' || st === 'Canceled' || st === 'Cancelled') return 'Canceled';
-    if (st === 'Inbound' || st === 'Đã nhập kho') return 'Inbound';
+    const hasInbDate = Boolean(d['op_date_inbound'] || d['inbound_time'] || d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound']);
+    if (st === 'Inbound' || st === 'Đã nhập kho' || hasInbDate) return 'Inbound';
     if (st === 'Transporting' || st === 'Đang vận chuyển') return 'Transporting';
     if (st === 'Pickup Done' || st === 'Đã lấy hàng') return 'Pickup Done';
     return 'Created';
@@ -510,10 +511,10 @@ export default function InboundDashboard({
 
   const snapshotForDate = (lastUpdateObj?.daily_snapshots as Record<string, any>)?.[normActiveDate];
 
-  const totalInbound     = isFutureDate ? 0 : (effectiveOrdersStatus?.inbound     ?? (effectiveKpiSummary?.inbound_orders ?? snapshotForDate?.inbound_orders ?? snapshotForDate?.inbound ?? stages['Inbound'].orders));
-  const totalInTransit   = isFutureDate ? 0 : (effectiveOrdersStatus?.transporting  ?? stages['Transporting'].orders);
-  const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
-  const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       ?? stages['Created'].orders);
+  const totalInbound     = isFutureDate ? 0 : (effectiveOrdersStatus?.inbound     || effectiveKpiSummary?.inbound_orders || snapshotForDate?.inbound_orders || snapshotForDate?.inbound || stages['Inbound'].orders);
+  const totalInTransit   = isFutureDate ? 0 : (effectiveOrdersStatus?.transporting  || stages['Transporting'].orders);
+  const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   || stages['Pickup Done'].orders);
+  const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       || stages['Created'].orders);
 
   // 🎯 FORECAST = TỔNG SẢN LƯỢNG CẦN XỬ LÝ TRONG NGÀY (CỐ ĐỊNH BAN ĐẦU - SOURCE OF TRUTH)
   // FORECAST LÀ SỐ LIỆU CỐ ĐỊNH KHÔNG THỂ TỰ ĐỘNG GIẢM KHI QUÉT INBOUND
