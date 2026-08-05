@@ -2736,10 +2736,17 @@ export default function App() {
           {currentView === 'inbound' ? '● INBOUND ALERT' : '● CRITICAL ALERT'}
         </div>
         <div className="ticker-wrap flex-1 overflow-hidden relative flex items-center h-full">
-          <div className="ticker-move text-emerald-400 font-bold px-4 tracking-wider flex gap-12 items-center">
-            <span>{tickerText}</span>
-            <span className="text-cyan-400">❖ HỆ THỐNG GIÁM SÁT SẢN LƯỢNG HCM HUB REALTIME</span>
-            <span className="text-yellow-400">⚡ CẬP NHẬT TỰ ĐỘNG DỮ LIỆU TỪ POSTGRESQL & JFS API</span>
+          <div className="ticker-move text-emerald-400 font-bold px-4 tracking-wider flex gap-8 items-center shrink-0">
+            <span className="flex gap-8 items-center">
+              <span>{tickerText}</span>
+              <span className="text-cyan-400">❖ HỆ THỐNG GIÁM SÁT SẢN LƯỢNG HCM HUB REALTIME</span>
+              <span className="text-yellow-400">⚡ CẬP NHẬT TỰ ĐỘNG DỮ LIỆU TỪ POSTGRESQL & JFS API</span>
+            </span>
+            <span className="flex gap-8 items-center">
+              <span>{tickerText}</span>
+              <span className="text-cyan-400">❖ HỆ THỐNG GIÁM SÁT SẢN LƯỢNG HCM HUB REALTIME</span>
+              <span className="text-yellow-400">⚡ CẬP NHẬT TỰ ĐỘNG DỮ LIỆU TỪ POSTGRESQL & JFS API</span>
+            </span>
           </div>
         </div>
       </div>

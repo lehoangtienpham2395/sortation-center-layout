@@ -43,9 +43,9 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-@keyframes tickerMove {
-  0% { transform: translateX(100%); }
-  100% { transform: translateX(-100%); }
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
 }
 
 .ticker-wrap {
@@ -55,9 +55,9 @@ body {
 }
 
 .ticker-move {
-  display: inline-block;
+  display: inline-flex;
   white-space: nowrap;
-  animation: tickerMove 30s linear infinite;
+  animation: marquee 25s linear infinite;
 }
 
 .ticker-move:hover {
