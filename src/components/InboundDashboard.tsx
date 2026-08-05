@@ -3,18 +3,21 @@ import { motion } from 'framer-motion';
 import { DatePicker } from './DatePicker';
 import { getTodayOpDate } from '../utils/dateUtils';
 
-// Animated Number Ticker Component
+// Animated Number Ticker Component (Smooth Transition Without 0 Flash)
 function NumberTicker({ value, decimals = 0 }: { value: number; decimals?: number }) {
   const ref = useRef<HTMLSpanElement>(null);
-  
+  const prevValRef = useRef<number>(value);
+
   useEffect(() => {
-    let start = 0;
+    const start = prevValRef.current;
     const end = value;
+    prevValRef.current = value;
+
     if (start === end) {
       if (ref.current) ref.current.textContent = end.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
       return;
     }
-    const duration = 0.8; // seconds
+    const duration = 0.4; // seconds
     let startTime: number | null = null;
     
     const animateCount = (timestamp: number) => {
@@ -32,7 +35,7 @@ function NumberTicker({ value, decimals = 0 }: { value: number; decimals?: numbe
     window.requestAnimationFrame(animateCount);
   }, [value, decimals]);
 
-  return <span ref={ref}>0</span>;
+  return <span ref={ref}>{value.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}</span>;
 }
 
 interface InboundDashboardProps {

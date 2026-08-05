@@ -8,18 +8,21 @@ import { getTodayOpDate, getFormattedVietnamTime } from './utils/dateUtils';
 import { Menu } from 'lucide-react';
 import configData from './data/config.json';
 
-// Animated Number Ticker Component
+// Animated Number Ticker Component (Smooth Transition Without 0 Flash)
 function NumberTicker({ value }: { value: number }) {
   const ref = useRef<HTMLSpanElement>(null);
-  
+  const prevValRef = useRef<number>(value);
+
   useEffect(() => {
-    let start = 0;
+    const start = prevValRef.current;
     const end = value;
+    prevValRef.current = value;
+
     if (start === end) {
       if (ref.current) ref.current.textContent = end.toLocaleString();
       return;
     }
-    const duration = 0.8; // seconds
+    const duration = 0.4; // seconds
     let startTime: number | null = null;
     
     const animateCount = (timestamp: number) => {
@@ -37,7 +40,7 @@ function NumberTicker({ value }: { value: number }) {
     window.requestAnimationFrame(animateCount);
   }, [value]);
 
-  return <span ref={ref}>0</span>;
+  return <span ref={ref}>{value.toLocaleString()}</span>;
 }
 
 const MASTER_CONFIG_MAP: { [key: string]: string } = {};
