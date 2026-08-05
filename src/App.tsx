@@ -567,10 +567,11 @@ export default function App() {
       console.error('Error fetching last_update:', err);
     }
 
-    // 2. Fetch toàn bộ các tab dữ liệu song song
+    // 2. Fetch toàn bộ dữ liệu song song (Bao gồm cả micro-JSONs) trong 1 lượt duy nhất để React render 1 lần duy nhất chuẩn 9.253 đơn
     const [
       outboundRows, backlogRows, inventoryRows,
-      ibRows, lhRows, arrivalRows, truckEtaRows, heatmapData
+      ibRows, lhRows, arrivalRows, truckEtaRows, heatmapData,
+      kpiSummary, hourlyTrend, ordersStatus, truckEtaMicro, originStation
     ] = await Promise.all([
       fetchSheetData('Outbound'),
       fetchSheetData('Backlog'),
@@ -580,36 +581,31 @@ export default function App() {
       fetchInboundSheetData('Arrival'),
       fetchInboundSheetData('Truck_ETA'),
       fetchSheetData('Heatmap'),
+      fetchMicroJson<any>('inbound_kpi_summary.json', selectedInboundDate),
+      fetchMicroJson<any>('inbound_hourly_trend.json', selectedInboundDate),
+      fetchMicroJson<any>('inbound_orders_status.json', selectedInboundDate),
+      fetchMicroJson<any>('inbound_truck_eta.json', selectedInboundDate),
+      fetchMicroJson<any>('inbound_origin_station.json', selectedInboundDate),
     ]);
+
+    // 🎯 Set Micro Summary trước để Forecast có sẵn giá trị 9.253 ngay từ Frame đầu tiên
+    if (kpiSummary) setMicroKpiSummary(kpiSummary);
+    if (hourlyTrend) setMicroHourlyTrend(hourlyTrend);
+    if (ordersStatus) setMicroOrdersStatus(ordersStatus);
+    if (originStation) setMicroOriginStation(originStation);
 
     if (ibRows && ibRows.length > 0) setInboundData(ibRows);
     if (lhRows && lhRows.length > 0) setLinehaulData(lhRows);
     if (arrivalRows && arrivalRows.length > 0) setArrivalData(arrivalRows);
 
     let microTrucksLoaded = false;
-    try {
-      const [kpiSummary, hourlyTrend, ordersStatus, truckEtaMicro, originStation] = await Promise.all([
-        fetchMicroJson<any>('inbound_kpi_summary.json', selectedInboundDate),
-        fetchMicroJson<any>('inbound_hourly_trend.json', selectedInboundDate),
-        fetchMicroJson<any>('inbound_orders_status.json', selectedInboundDate),
-        fetchMicroJson<any>('inbound_truck_eta.json', selectedInboundDate),
-        fetchMicroJson<any>('inbound_origin_station.json', selectedInboundDate),
-      ]);
-      if (kpiSummary) setMicroKpiSummary(kpiSummary);
-      if (hourlyTrend) setMicroHourlyTrend(hourlyTrend);
-      if (ordersStatus) setMicroOrdersStatus(ordersStatus);
-      if (truckEtaMicro) {
-        setMicroTruckEta(truckEtaMicro);
-        const trucks = truckEtaMicro?.trucks;
-        if (Array.isArray(trucks) && trucks.length > 0) {
-          setTruckEtaData(trucks);
-          microTrucksLoaded = true;
-          console.log('[APP] truckEtaData updated from inbound_truck_eta.json:', trucks.length, 'stations');
-        }
+    if (truckEtaMicro) {
+      setMicroTruckEta(truckEtaMicro);
+      const trucks = truckEtaMicro?.trucks;
+      if (Array.isArray(trucks) && trucks.length > 0) {
+        setTruckEtaData(trucks);
+        microTrucksLoaded = true;
       }
-      if (originStation) setMicroOriginStation(originStation);
-    } catch (microErr) {
-      console.warn('Micro-JSON fetch error:', microErr);
     }
 
     // Fallback: chỉ dùng truck_eta.json nếu inbound_truck_eta.json không có trucks
