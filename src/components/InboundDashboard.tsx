@@ -511,25 +511,29 @@ export default function InboundDashboard({
 
   const snapshotForDate = (lastUpdateObj?.daily_snapshots as Record<string, any>)?.[normActiveDate];
 
-  const totalInbound     = isFutureDate ? 0 : (effectiveOrdersStatus?.inbound     || effectiveKpiSummary?.inbound_orders || snapshotForDate?.inbound_orders || snapshotForDate?.inbound || stages['Inbound'].orders);
+  const totalInbound     = isFutureDate ? 0 : Math.max(stages['Inbound'].orders, effectiveOrdersStatus?.inbound || 0, effectiveKpiSummary?.inbound_orders || 0, snapshotForDate?.inbound_orders || 0);
   const totalInTransit   = isFutureDate ? 0 : (effectiveOrdersStatus?.transporting  || stages['Transporting'].orders);
   const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   || stages['Pickup Done'].orders);
   const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       || stages['Created'].orders);
 
-  // 🎯 FORECAST = TỔNG SẢN LƯỢNG CẦN XỬ LÝ TRONG NGÀY (CỐ ĐỊNH BAN ĐẦU - SOURCE OF TRUTH)
-  // FORECAST LÀ SỐ LIỆU CỐ ĐỊNH KHÔNG THỂ TỰ ĐỘNG GIẢM KHI QUÉT INBOUND
+  // 🎯 FORECAST = TỔNG SẢN LƯỢNG CẦN XỬ LÝ TRONG NGÀY (TRỪ ĐƠN PICKUP_STATION LÀ BN HUB / LINEHAUL)
+  const finalLinehaulForecast = isFutureDate ? 0 : (
+    effectiveKpiSummary?.linehaul_bn_hub ||
+    effectiveKpiSummary?.linehaul ||
+    snapshotForDate?.linehaul ||
+    Math.max(forecastLinehaul, bnHubLinehaulOrders)
+  );
   const finalShuttleForecast = isFutureDate ? 0 : (
-    effectiveKpiSummary?.shuttle ??
-    snapshotForDate?.shuttle ??
+    effectiveKpiSummary?.shuttle ||
+    snapshotForDate?.shuttle ||
     forecastShuttle
   );
 
-  // 🎯 QUY TẮC KHÔNG TÍNH LINEHAUL DỰ BÁO TỪ BN HUB VỀ (SET BẰNG 0)
-  const finalLinehaulForecast = 0;
-  const finalLinehaulWeight = 0;
-
+  // 🎯 QUY TẮC USER: FORECAST TỔNG CHỈ TÍNH HÀNG SHUTTLE (TRỪ CÁC ĐƠN PICKUP_STATION LÀ BN HUB)
   const totalForecast = finalShuttleForecast;
-  const finalShuttleWeight = isFutureDate ? 0 : (effectiveKpiSummary?.shuttle_weight ?? forecastShuttleWeight);
+
+  const finalShuttleWeight = isFutureDate ? 0 : (effectiveKpiSummary?.shuttle_weight || forecastShuttleWeight);
+  const finalLinehaulWeight = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul_weight || forecastLinehaulWeight);
   const totalForecastWeight = finalShuttleWeight;
 
   console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
@@ -672,7 +676,7 @@ export default function InboundDashboard({
   const pickupTrendData   = labels.map(l => hourlyPickup[l]);
 
   const totalOrders = totalInbound;
-  const totalWeight = isFutureDate ? 0 : (effectiveKpiSummary?.inbound_weight_ton ?? stages['Inbound'].weight);
+  const totalWeight = isFutureDate ? 0 : Math.max(stages['Inbound'].weight, effectiveKpiSummary?.inbound_weight_ton || 0);
 
   const segments = [
     { name: 'Inbound', value: totalInbound, pct: inboundPct, color: '#B8F7E4', label: 'Inbound' },
