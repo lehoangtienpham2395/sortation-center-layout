@@ -1367,11 +1367,11 @@ def sync_postgre_to_dashboard():
         for h_d in past_dates:
             cur_h.execute("""
                 SELECT 
-                    (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE operation_date_inbound::date = %s::date AND status_sys IN ('Inbound', 'Outbound')) as inbound_cnt,
+                    (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE (operation_date_inbound::date = %s::date OR (is_rebound = 1 AND operation_date_inbound_2::date = %s::date)) AND status_sys IN ('Inbound', 'Outbound')) as inbound_cnt,
                     (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE operation_date_created::date = %s::date AND status_sys = 'Transporting') as transp_cnt,
                     (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE op_date_pickup::date = %s::date AND status_sys = 'Pickup Done') as pickup_cnt,
                     (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE operation_date_created::date = %s::date AND status_sys = 'Created') as created_cnt,
-                    (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE operation_date_inbound::date = %s::date AND status_sys IN ('Inbound', 'Outbound')) as inb_wt,
+                    (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE (operation_date_inbound::date = %s::date OR (is_rebound = 1 AND operation_date_inbound_2::date = %s::date)) AND status_sys IN ('Inbound', 'Outbound')) as inb_wt,
                     (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE operation_date_created::date = %s::date AND status_sys = 'Transporting') as transp_wt,
                     (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE op_date_pickup::date = %s::date AND status_sys = 'Pickup Done') as pickup_wt,
                     (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE operation_date_created::date = %s::date AND status_sys = 'Created') as created_wt,
@@ -1379,7 +1379,7 @@ def sync_postgre_to_dashboard():
                     (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date AND (next_station NOT LIKE 'BN HUB%%' AND next_station NOT LIKE 'HN %%' AND next_station NOT LIKE 'HD %%' AND next_station NOT LIKE 'HY %%')) as shuttle_wt,
                     (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date AND (next_station LIKE 'BN HUB%%' OR next_station LIKE 'HN %%' OR next_station LIKE 'HD %%' OR next_station LIKE 'HY %%')) as linehaul_cnt,
                     (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE COALESCE(op_date_pickup::date, operation_date_created::date) = %s::date AND (next_station LIKE 'BN HUB%%' OR next_station LIKE 'HN %%' OR next_station LIKE 'HD %%' OR next_station LIKE 'HY %%')) as linehaul_wt;
-            """, (h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d))
+            """, (h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d, h_d))
             h_row = cur_h.fetchone()
             if h_row:
                 inb_c, tr_c, pk_c, cr_c, inb_w, tr_w, pk_w, cr_w, shut_c, shut_w, lh_c, lh_w = h_row

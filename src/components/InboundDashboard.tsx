@@ -157,11 +157,11 @@ export default function InboundDashboard({
 
   const activeDate = selectedInboundDate || inboundDates[0] || '';
 
-  // 2. Filter datasets by active date
   const getWaterfallStatus = (d: any) => {
     const st = (d['status'] || d['Trạng thái'] || d['Trng thi'] || '').trim();
+    const isRebound = d['is_rebound'] === 1 || d['is_rebound'] === '1' || Boolean(d['inbound_scandate_2']);
     if (st === 'Đã hủy' || st === 'Canceled' || st === 'Cancelled') return 'Canceled';
-    if (st === 'Inbound' || st === 'Đã nhập kho') return 'Inbound';
+    if (st === 'Inbound' || st === 'Đã nhập kho' || isRebound) return 'Inbound';
     if (st === 'Transporting' || st === 'Đang vận chuyển') return 'Transporting';
     if (st === 'Pickup Done' || st === 'Đã lấy hàng') return 'Pickup Done';
     return 'Created';
