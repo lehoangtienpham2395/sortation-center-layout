@@ -60,23 +60,22 @@ CONFIG_DIR  = next((p for p in _cfg_candidates if os.path.exists(os.path.join(p,
 VALID_FILE  = find_config_file('valid.csv') or os.path.join(CONFIG_DIR, 'valid.csv')
 OUTPUT_FILE = os.path.join(BASE_DIR, 'full_multi_source_7days_v6.csv')
 
-# Cấu hình kéo dữ liệu 30 phút siêu nhẹ (Mặc định 2 ngày: ca hôm nay + ca hôm qua)
-DAYS_BACK = 2
+# 🎯 CẤU HÌNH BẮT BUỘC THEO CHỈ ĐẠO CỦA USER: KÉO ĐỦ 7 NGÀY (DAYS_BACK = 7)
+# Kéo song song 7 ngày (Mỗi luồng phụ trách kéo 1 ngày độc lập trong 7 ngày)
+DAYS_BACK = 7
 if len(sys.argv) > 1:
     try:
         for arg in sys.argv[1:]:
             if arg.startswith('--days='):
                 DAYS_BACK = int(arg.replace('--days=', '').strip())
-            elif arg in ('--quick', '--live', '--fast'):
-                DAYS_BACK = 1
     except ValueError:
         pass
 
-# Network tuning siêu nhẹ chống giật đơ máy
-PAGE_WORKERS     = 4 if DAYS_BACK <= 2 else 10
+# Network tuning: 7 luồng song song (Mỗi luồng 1 ngày) x 2 page workers = 14 luồng êm ái chống đơ máy
+PAGE_WORKERS     = 2
 PAGE_SIZE        = 500      # Dispatch page size
 SCAN_PAGE_SIZE   = 1000     # Inbound/Outbound page size
-POOL_SIZE        = 8 if DAYS_BACK <= 2 else 32
+POOL_SIZE        = 14       # 14 luồng nhẹ nhàng
 REQUEST_TIMEOUT  = 30
 MAX_RETRIES      = 3
 BACKOFF_BASE     = 2
