@@ -60,22 +60,26 @@ CONFIG_DIR  = next((p for p in _cfg_candidates if os.path.exists(os.path.join(p,
 VALID_FILE  = find_config_file('valid.csv') or os.path.join(CONFIG_DIR, 'valid.csv')
 OUTPUT_FILE = os.path.join(BASE_DIR, 'full_multi_source_7days_v6.csv')
 
-# Cấu hình kéo 7 ngày song song (Dùng ThreadPool 7 ngày kéo đồng thời siêu tốc ~20s)
-DAYS_BACK = 7
+# Cấu hình kéo dữ liệu 30 phút siêu nhẹ (Mặc định 2 ngày: ca hôm nay + ca hôm qua)
+DAYS_BACK = 2
 if len(sys.argv) > 1:
     try:
-        DAYS_BACK = int(sys.argv[1].replace('--days=', '').strip())
+        for arg in sys.argv[1:]:
+            if arg.startswith('--days='):
+                DAYS_BACK = int(arg.replace('--days=', '').strip())
+            elif arg in ('--quick', '--live', '--fast'):
+                DAYS_BACK = 1
     except ValueError:
         pass
 
-# Network tuning
-PAGE_WORKERS     = 10
+# Network tuning siêu nhẹ chống giật đơ máy
+PAGE_WORKERS     = 4 if DAYS_BACK <= 2 else 10
 PAGE_SIZE        = 500      # Dispatch page size
 SCAN_PAGE_SIZE   = 1000     # Inbound/Outbound page size
-POOL_SIZE        = 64
-REQUEST_TIMEOUT  = 60
-MAX_RETRIES      = 5
-BACKOFF_BASE     = 3
+POOL_SIZE        = 8 if DAYS_BACK <= 2 else 32
+REQUEST_TIMEOUT  = 30
+MAX_RETRIES      = 3
+BACKOFF_BASE     = 2
 RETRYABLE_STATUS = {405, 429, 500, 502, 503, 504}
 
 LOGIN_HEADERS = {
