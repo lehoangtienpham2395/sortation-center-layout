@@ -527,8 +527,8 @@ export default function App() {
     }
   };
 
-  // Dynamic labels based on selectedType
-  const displayUtilizationLabel = selectedType === 'Outbound' ? 'TỈ LỆ OUTBOUND' : 'TỈ LỆ LẤP ĐẦY';
+  // Dynamic labels based on selectedType — ô lớn luôn hiển thị TỈ LỆ LẤP ĐẦY
+  const displayUtilizationLabel = 'TỈ LỆ LẤP ĐẦY';
   const displayUtilizationLabelLc = selectedType === 'Outbound' ? 'Tỉ lệ Outbound' : '% Lấp đầy';
 
     // Calculate statistics for Zone 1, 2, 3 (Zone 1 includes BN HUB A19)
