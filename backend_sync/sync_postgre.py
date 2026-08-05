@@ -1470,6 +1470,8 @@ def sync_postgre_to_dashboard():
             for m_fname in micro_payloads.keys():
                 src_m = os.path.join(DATA_DIR, 'live', m_fname)
                 if os.path.exists(src_m):
+                    shutil.copy2(src_m, os.path.join(DATA_DIR, m_fname))
+                    shutil.copy2(src_m, os.path.join(sub_dir, m_fname))
                     shutil.copy2(src_m, os.path.join(sub_live, m_fname))
                     shutil.copy2(src_m, os.path.join(sub_hist, m_fname))
 
