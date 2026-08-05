@@ -297,7 +297,10 @@ export default function InboundDashboard({
       const pkOpDate  = normalizeDateStr(d['op_date_pickup']  || d['Ngày vận hành_Pickup']  || d['Ngy vn hnh_Pickup']  || '');
       const inbOpDate = normalizeDateStr(d['op_date_inbound'] || d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound'] || '');
 
-      const isOpMatch = (normFcDate === normActiveDate) || (arrOpDate === normActiveDate) || (pkOpDate === normActiveDate) || (inbOpDate === normActiveDate);
+      // 🎯 ĐƠN RỚT TỒN DỒN TỪ NGÀY CŨ (CREATED / PICKUP DONE CHƯA INBOUND): TÍNH CẢ VÀO FORECAST CỦA HÔM NAY
+      const isUninboundedOldOrder = (status !== 'Inbound' && status !== 'Đã nhập kho') && normFcDate && normFcDate < normActiveDate;
+
+      const isOpMatch = (normFcDate === normActiveDate) || (arrOpDate === normActiveDate) || (pkOpDate === normActiveDate) || (inbOpDate === normActiveDate) || isUninboundedOldOrder;
 
       // 🎯 BIỂU ĐỒ ORDERS STATUS TÍNH TẤT CẢ CÁC ĐƠN THUỘC CA VẬN HÀNH HÔM NAY
       if (isOpMatch) {
@@ -516,15 +519,23 @@ export default function InboundDashboard({
   const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
   const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       ?? stages['Created'].orders);
 
-  // 🎯 FORECAST DỰ BÁO: TỔNG SẢN LƯỢNG SHUTTLE (NEXT_STATION KHÔNG PHẢI BN HUB)
-  const finalLinehaulForecast = isFutureDate ? 0 : forecastLinehaul;
-  const finalShuttleForecast  = isFutureDate ? 0 : forecastShuttle;
+  // 🎯 FORECAST DỰ BÁO: TỔNG SẢN LƯỢNG SHUTTLE VÀ LINEHAUL CÓ DÙNG THÊM METRICS TỪ API/SUMMARY NẾU CÓ
+  const finalLinehaulForecast = isFutureDate ? 0 : (
+    effectiveKpiSummary?.linehaul ??
+    snapshotForDate?.linehaul ??
+    forecastLinehaul
+  );
+  const finalShuttleForecast = isFutureDate ? 0 : Math.max(
+    forecastShuttle,
+    effectiveKpiSummary?.shuttle || 0,
+    snapshotForDate?.shuttle || 0
+  );
 
-  // 🎯 QUY TẮC USER: FORECAST TỔNG CHỈ TÍNH HÀNG SHUTTLE (BƯU CỤC VỀ HCM HUB)
+  // 🎯 QUY TẮC USER: FORECAST TỔNG CHỈ TÍNH HÀNG SHUTTLE (BƯU CỤC VỀ HCM HUB BAO GỒM CẢ TỒN DỒN NGÀY CỦ)
   const totalForecast = finalShuttleForecast;
 
-  const finalShuttleWeight  = isFutureDate ? 0 : forecastShuttleWeight;
-  const finalLinehaulWeight = isFutureDate ? 0 : forecastLinehaulWeight;
+  const finalShuttleWeight = isFutureDate ? 0 : Math.max(forecastShuttleWeight, effectiveKpiSummary?.shuttle_weight || 0);
+  const finalLinehaulWeight = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul_weight ?? forecastLinehaulWeight);
   const totalForecastWeight = finalShuttleWeight;
 
   console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
