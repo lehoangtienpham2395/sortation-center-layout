@@ -1471,18 +1471,18 @@ def sync_postgre_to_dashboard():
         gz.write(raw_bytes)
     print(f"   ✅ {'latest.json.gz':<42} {os.path.getsize(gz_path)//1024:>6} KB  |  {len(inbound_json):,} records")
 
-    # ── 8. PostgreSQL 30-Day Retention Cleanup ────────────────────
+    # ── 8. PostgreSQL 90-Day Retention Cleanup ────────────────────
     try:
         conn_clean = get_pg_conn()
         cur_clean  = conn_clean.cursor()
-        cur_clean.execute("DELETE FROM raw.scan_logs WHERE scan_time < CURRENT_DATE - INTERVAL '30 days';")
-        cur_clean.execute("DELETE FROM enriched.dispatch_enriched WHERE created_time < CURRENT_DATE - INTERVAL '30 days';")
+        cur_clean.execute("DELETE FROM raw.scan_logs WHERE scan_time < CURRENT_DATE - INTERVAL '90 days';")
+        cur_clean.execute("DELETE FROM enriched.dispatch_enriched WHERE created_time < CURRENT_DATE - INTERVAL '90 days';")
         conn_clean.commit()
         cur_clean.close()
         conn_clean.close()
-        print("   🧹 PostgreSQL 30-day retention cleanup completed successfully.")
+        print("   🧹 PostgreSQL 90-day retention cleanup completed successfully.")
     except Exception as _ec:
-        print(f"   ⚠️ PostgreSQL 30-day cleanup error: {_ec}")
+        print(f"   ⚠️ PostgreSQL 90-day cleanup error: {_ec}")
 
     # ── 9. Done ───────────────────────────────────────────────────
     elapsed = _time.time() - t0
