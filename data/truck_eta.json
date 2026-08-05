@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-08-05 21:41:03",
-  "total_trucks_en_route": 39,
+  "generated_at": "2026-08-05 22:11:02",
+  "total_trucks_en_route": 35,
   "trucks": [
     {
       "send_network": "BN HUB",
@@ -35,21 +35,6 @@
       "op_date": "2026-08-03"
     },
     {
-      "send_network": "SG BÌNH TÂN",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 1310,
-      "weight_kg": 13974.64,
-      "weight_ton": 13.975,
-      "planned_departure": "2026-08-05 21:35",
-      "planned_arrival": "2026-08-05 21:35",
-      "actual_departure": "2026-08-05 21:35",
-      "eta": "2026-08-05 21:35",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-08-05"
-    },
-    {
       "send_network": "BN HUB",
       "arrive_network": "HCM HUB",
       "trip_code": "DKGX26080300002",
@@ -76,6 +61,21 @@
       "planned_arrival": "2026-08-05 19:22",
       "actual_departure": "2026-08-05 19:22",
       "eta": "2026-08-05 19:22",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-08-05"
+    },
+    {
+      "send_network": "SG BÌNH TÂN",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 1149,
+      "weight_kg": 12256.27,
+      "weight_ton": 12.256,
+      "planned_departure": "2026-08-05 21:35",
+      "planned_arrival": "2026-08-05 21:35",
+      "actual_departure": "2026-08-05 21:35",
+      "eta": "2026-08-05 21:35",
       "rank": "Shuttle",
       "status": "arrived",
       "op_date": "2026-08-05"
@@ -145,21 +145,6 @@
       "op_date": "2026-08-02"
     },
     {
-      "send_network": "SG BÌNH LỢI",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 688,
-      "weight_kg": 6714.24,
-      "weight_ton": 6.714,
-      "planned_departure": "2026-08-05 20:20",
-      "planned_arrival": "2026-08-05 20:20",
-      "actual_departure": "2026-08-05 20:20",
-      "eta": "2026-08-05 20:20",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-08-05"
-    },
-    {
       "send_network": "SG TÂN TẠO",
       "arrive_network": "HCM HUB",
       "trip_code": "DIRECT",
@@ -173,6 +158,22 @@
       "rank": "Shuttle",
       "status": "arrived",
       "op_date": "2026-08-05"
+    },
+    {
+      "send_network": "BN HUB",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DKGX26080600002",
+      "orders_count": 500,
+      "weight_kg": 4172.1,
+      "weight_ton": 4.172,
+      "planned_departure": "2026-08-06 04:30:00",
+      "planned_arrival": "2026-08-07 16:30:00",
+      "actual_departure": "",
+      "actual_arrival": "",
+      "eta": "2026-08-07 16:30:00",
+      "rank": "Linehaul",
+      "status": "loading",
+      "op_date": "2026-08-07"
     },
     {
       "send_network": "BD BÌNH HÒA",
@@ -211,10 +212,25 @@
       "orders_count": 296,
       "weight_kg": 2127.35,
       "weight_ton": 2.127,
-      "planned_departure": "2026-08-05 19:59",
-      "planned_arrival": "2026-08-05 19:59",
-      "actual_departure": "2026-08-05 19:59",
-      "eta": "2026-08-05 19:59",
+      "planned_departure": "2026-08-05 21:56",
+      "planned_arrival": "2026-08-05 21:56",
+      "actual_departure": "2026-08-05 21:56",
+      "eta": "2026-08-05 21:56",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-08-05"
+    },
+    {
+      "send_network": "SG BÌNH LỢI",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 276,
+      "weight_kg": 2699.08,
+      "weight_ton": 2.699,
+      "planned_departure": "2026-08-05 20:20",
+      "planned_arrival": "2026-08-05 20:20",
+      "actual_departure": "2026-08-05 20:20",
+      "eta": "2026-08-05 20:20",
       "rank": "Shuttle",
       "status": "arrived",
       "op_date": "2026-08-05"
@@ -230,36 +246,6 @@
       "planned_arrival": "2026-08-05 18:55",
       "actual_departure": "2026-08-05 18:55",
       "eta": "2026-08-05 18:55",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-08-05"
-    },
-    {
-      "send_network": "SG TÂN HƯNG",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 237,
-      "weight_kg": 2254.67,
-      "weight_ton": 2.255,
-      "planned_departure": "2026-08-05 19:50",
-      "planned_arrival": "2026-08-05 19:50",
-      "actual_departure": "2026-08-05 19:50",
-      "eta": "2026-08-05 19:50",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-08-05"
-    },
-    {
-      "send_network": "SG HIỆP BÌNH",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 213,
-      "weight_kg": 2460.62,
-      "weight_ton": 2.461,
-      "planned_departure": "2026-08-05 19:03",
-      "planned_arrival": "2026-08-05 19:03",
-      "actual_departure": "2026-08-05 19:03",
-      "eta": "2026-08-05 19:03",
       "rank": "Shuttle",
       "status": "arrived",
       "op_date": "2026-08-05"
@@ -338,22 +324,6 @@
       "rank": "Shuttle",
       "status": "arrived",
       "op_date": "2026-08-05"
-    },
-    {
-      "send_network": "BN HUB",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DKGX26080600002",
-      "orders_count": 122,
-      "weight_kg": 967.09,
-      "weight_ton": 0.967,
-      "planned_departure": "2026-08-06 04:30:00",
-      "planned_arrival": "2026-08-07 16:30:00",
-      "actual_departure": "",
-      "actual_arrival": "",
-      "eta": "2026-08-07 16:30:00",
-      "rank": "Linehaul",
-      "status": "loading",
-      "op_date": "2026-08-07"
     },
     {
       "send_network": "SG ĐÔNG HƯNG THUẬN",
@@ -461,6 +431,21 @@
       "op_date": "2026-08-05"
     },
     {
+      "send_network": "LA BYD",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 44,
+      "weight_kg": 2037.22,
+      "weight_ton": 2.037,
+      "planned_departure": "",
+      "planned_arrival": "",
+      "actual_departure": "",
+      "eta": "",
+      "rank": "Shuttle",
+      "status": "in_transit",
+      "op_date": "2026-08-05"
+    },
+    {
       "send_network": "SG PHÚ NHUẬN",
       "arrive_network": "HCM HUB",
       "trip_code": "DIRECT",
@@ -486,21 +471,6 @@
       "planned_arrival": "2026-08-05 20:16",
       "actual_departure": "2026-08-05 20:16",
       "eta": "2026-08-05 20:16",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-08-05"
-    },
-    {
-      "send_network": "VL CHỢ LÁCH",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 34,
-      "weight_kg": 282.5,
-      "weight_ton": 0.282,
-      "planned_departure": "2026-08-05 17:36",
-      "planned_arrival": "2026-08-05 17:36",
-      "actual_departure": "2026-08-05 17:36",
-      "eta": "2026-08-05 17:36",
       "rank": "Shuttle",
       "status": "arrived",
       "op_date": "2026-08-05"
@@ -546,36 +516,6 @@
       "planned_arrival": "2026-08-05 15:33",
       "actual_departure": "2026-08-05 15:33",
       "eta": "2026-08-05 15:33",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-08-05"
-    },
-    {
-      "send_network": "TG TRUNG AN",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 9,
-      "weight_kg": 62.7,
-      "weight_ton": 0.063,
-      "planned_departure": "2026-08-05 19:24",
-      "planned_arrival": "2026-08-05 19:24",
-      "actual_departure": "2026-08-05 19:24",
-      "eta": "2026-08-05 19:24",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-08-05"
-    },
-    {
-      "send_network": "VL VĨNH LONG",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 6,
-      "weight_kg": 53.16,
-      "weight_ton": 0.053,
-      "planned_departure": "2026-08-05 17:20",
-      "planned_arrival": "2026-08-05 17:20",
-      "actual_departure": "2026-08-05 17:20",
-      "eta": "2026-08-05 17:20",
       "rank": "Shuttle",
       "status": "arrived",
       "op_date": "2026-08-05"
