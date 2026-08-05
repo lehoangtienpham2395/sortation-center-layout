@@ -2731,19 +2731,33 @@ export default function App() {
       )}
 
       {/* ── Critical Alert Ticker ── */}
-      <div className="absolute bottom-0 left-0 right-0 h-8 bg-[#09111c]/95 border-t border-[#00e5ff]/30 text-white flex items-center z-30 mono font-bold text-[11.5px] tracking-[0.05em] overflow-hidden backdrop-blur-md shadow-[0_-4px_15px_rgba(0,0,0,0.5)]">
+      <style>{`
+        @keyframes inlineMarquee {
+          0% { transform: translateX(0%); }
+          100% { transform: translateX(-50%); }
+        }
+        .animate-inline-marquee {
+          display: inline-flex !important;
+          white-space: nowrap !important;
+          animation: inlineMarquee 25s linear infinite !important;
+        }
+        .animate-inline-marquee:hover {
+          animation-play-state: paused !important;
+        }
+      `}</style>
+      <div className="absolute bottom-0 left-0 right-0 h-8 bg-[#09111c] border-t border-[#00e5ff]/30 text-white flex items-center z-30 mono font-bold text-[11.5px] tracking-[0.05em] overflow-hidden backdrop-blur-md shadow-[0_-4px_15px_rgba(0,0,0,0.5)]">
         <div className="bg-[#00e5ff] text-[#09111c] px-3.5 h-full flex items-center shrink-0 z-20 font-bold text-[11px] uppercase tracking-wider shadow-md">
           {currentView === 'inbound' ? '● INBOUND ALERT' : '● CRITICAL ALERT'}
         </div>
-        <div className="ticker-wrap flex-1 overflow-hidden relative flex items-center h-full">
-          <div className="ticker-move text-emerald-400 font-bold px-4 tracking-wider flex gap-8 items-center shrink-0">
+        <div className="w-full overflow-hidden relative flex items-center h-full">
+          <div className="animate-inline-marquee text-emerald-400 font-bold px-4 tracking-wider flex gap-8 items-center shrink-0">
             <span className="flex gap-8 items-center">
-              <span>{tickerText}</span>
+              <span className="text-emerald-400">● {tickerText || 'HỆ THỐNG ỔN ĐỊNH — SẢN LƯỢNG TRONG GIỚI HẠN AN TOÀN'}</span>
               <span className="text-cyan-400">❖ HỆ THỐNG GIÁM SÁT SẢN LƯỢNG HCM HUB REALTIME</span>
               <span className="text-yellow-400">⚡ CẬP NHẬT TỰ ĐỘNG DỮ LIỆU TỪ POSTGRESQL & JFS API</span>
             </span>
             <span className="flex gap-8 items-center">
-              <span>{tickerText}</span>
+              <span className="text-emerald-400">● {tickerText || 'HỆ THỐNG ỔN ĐỊNH — SẢN LƯỢNG TRONG GIỚI HẠN AN TOÀN'}</span>
               <span className="text-cyan-400">❖ HỆ THỐNG GIÁM SÁT SẢN LƯỢNG HCM HUB REALTIME</span>
               <span className="text-yellow-400">⚡ CẬP NHẬT TỰ ĐỘNG DỮ LIỆU TỪ POSTGRESQL & JFS API</span>
             </span>
