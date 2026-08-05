@@ -558,16 +558,11 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
     except Exception as e:
         print(f"   ⚠️ PostgreSQL truck_eta aggregation error: {e}")
 
-    # ── 2. JFS API: Bổ sung các chuyến Linehaul & Shuttle thực tế từ TMS (chưa nhập bãi/chưa hoàn thành) ──
+    # ── 2. JFS API: Bổ sung các chuyến Linehaul & Shuttle thực tế từ TMS ──
     try:
         start_4d = (datetime.datetime.now(tz_vn) - datetime.timedelta(days=4)).strftime('%Y-%m-%d 00:00:00')
         lh_recs = pull_linehaul_consol(session, token_mgr, start_4d, end_plus1)
         for row in lh_recs:
-            actual_arr = str(row.get('actualArrivalTime') or row.get('unloadEndTime') or '').strip()
-            state = row.get('shipmentState')
-            if actual_arr or state == 4:
-                continue  # Bỏ qua các chuyến Linehaul đã hoàn thành / đã nhập kho
-
             arr_net  = str(row.get('arriveNetworkName') or row.get('endName') or '').strip()
             send_net = str(row.get('sendNetworkName') or row.get('startName') or '').strip()
             trip     = str(row.get('shipmentNo') or row.get('taskNo') or '').strip().upper()
@@ -583,19 +578,22 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
                 seen_keys.add(key)
                 p_dep = str(row.get('plannedDepartureTime') or row.get('scanTime') or '').strip()
                 actual_dep = str(row.get('actualDepartureTime') or row.get('trackOutTime') or '').strip()
-                predict_arr = str(row.get('predictArriveTime') or row.get('plannedArrivalTime') or '').strip()
+                actual_arr = str(row.get('actualArrivalTime') or row.get('unloadEndTime') or '').strip()
                 ref_t = actual_dep or p_dep
 
                 # 🎯 THỜI GIAN DI CHUYỂN LINEHAUL BẮC - NAM = +36 TIẾNG TỪ THỜI DIỂM KHỞI HÀNH (BN HUB)
-                calc_eta = predict_arr
-                if not calc_eta and ref_t:
+                calc_eta = ""
+                if ref_t:
                     try:
                         dep_dt = datetime.datetime.strptime(ref_t[:19], '%Y-%m-%d %H:%M:%S')
                         calc_eta = (dep_dt + datetime.timedelta(hours=36)).strftime('%Y-%m-%d %H:%M:%S')
                     except Exception:
                         calc_eta = ref_t
 
-                op_d = get_op_date(calc_eta) if calc_eta else (get_op_date(ref_t) if ref_t else today)
+                if not calc_eta:
+                    calc_eta = str(row.get('predictArriveTime') or row.get('plannedArrivalTime') or '').strip()
+
+                op_d = get_op_date(calc_eta) if calc_eta else today
                 wt_kg = float(row.get('loadpackageweight') or 0)
                 trucks.append({
                     "send_network":     send_net,
@@ -607,9 +605,10 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
                     "planned_departure":p_dep,
                     "planned_arrival":  calc_eta,
                     "actual_departure": actual_dep,
+                    "actual_arrival":   actual_arr,
                     "eta":              calc_eta,
                     "rank":             "Linehaul",
-                    "status":           "in_transit" if actual_dep else "loading",
+                    "status":           "arrived" if actual_arr else ("in_transit" if actual_dep else "loading"),
                     "op_date":          op_d,
                 })
     except Exception as e:
