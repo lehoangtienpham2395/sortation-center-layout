@@ -2731,11 +2731,17 @@ export default function App() {
       )}
 
       {/* ── Critical Alert Ticker ── */}
-      <div className="absolute bottom-0 left-0 right-0 h-8 bg-[var(--accent)] text-[#0a0e14] flex items-center z-30 mono font-bold text-[12px] tracking-[0.05em] overflow-hidden">
-        <div className="bg-[#0a0e14] text-[var(--accent)] px-4 h-full flex items-center shrink-0 z-10 font-bold border-r border-[var(--accent)]">
+      <div className="absolute bottom-0 left-0 right-0 h-8 bg-[#09111c]/95 border-t border-[#00e5ff]/30 text-white flex items-center z-30 mono font-bold text-[11.5px] tracking-[0.05em] overflow-hidden backdrop-blur-md shadow-[0_-4px_15px_rgba(0,0,0,0.5)]">
+        <div className="bg-[#00e5ff] text-[#09111c] px-3.5 h-full flex items-center shrink-0 z-20 font-bold text-[11px] uppercase tracking-wider shadow-md">
           {currentView === 'inbound' ? '● INBOUND ALERT' : '● CRITICAL ALERT'}
         </div>
-        <div className="ticker-track">{tickerText}</div>
+        <div className="ticker-wrap flex-1 overflow-hidden relative flex items-center h-full">
+          <div className="ticker-move text-emerald-400 font-bold px-4 tracking-wider flex gap-12 items-center">
+            <span>{tickerText}</span>
+            <span className="text-cyan-400">❖ HỆ THỐNG GIÁM SÁT SẢN LƯỢNG HCM HUB REALTIME</span>
+            <span className="text-yellow-400">⚡ CẬP NHẬT TỰ ĐỘNG DỮ LIỆU TỪ POSTGRESQL & JFS API</span>
+          </div>
+        </div>
       </div>
 
       {/* ── Interactive Detail Modal Drawer ── */}

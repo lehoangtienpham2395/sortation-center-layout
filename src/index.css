@@ -43,6 +43,27 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+@keyframes tickerMove {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+.ticker-wrap {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ticker-move {
+  display: inline-block;
+  white-space: nowrap;
+  animation: tickerMove 30s linear infinite;
+}
+
+.ticker-move:hover {
+  animation-play-state: paused;
+}
+
 .disp {
   font-family: 'Orbitron', 'JetBrains Mono', monospace;
   font-variant-numeric: tabular-nums;
