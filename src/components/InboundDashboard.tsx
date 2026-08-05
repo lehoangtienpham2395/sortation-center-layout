@@ -1113,12 +1113,6 @@ export default function InboundDashboard({
                   <NumberTicker value={finalShuttleForecast} /> <span style={{ fontSize: '0.9rem', color: '#CBD5E1', fontWeight: 600 }}>({finalShuttleWeight.toFixed(1).replace('.', ',')} Tấn)</span>
                 </strong>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 700, color: '#F1F5F9', fontSize: '0.98rem' }}>Linehaul:</span>
-                <strong style={{ color: '#f97316', fontSize: '1.18rem', fontWeight: 800 }}>
-                  <NumberTicker value={finalLinehaulForecast} /> <span style={{ fontSize: '0.9rem', color: '#CBD5E1', fontWeight: 600 }}>({finalLinehaulWeight.toFixed(1).replace('.', ',')} Tấn)</span>
-                </strong>
-              </div>
             </div>
           </div>
           <div className="kpi-glow"></div>
