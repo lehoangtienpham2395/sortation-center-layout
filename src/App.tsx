@@ -482,7 +482,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedType, setSelectedType] = useState<'Outbound' | 'Backlog' | 'Backlog CAP 6AM' | 'Inventory' | 'Volume'>('Outbound');
   const [outboundRate, setOutboundRate] = useState<string>('0.0');
-  const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Created'];
+  const INVENTORY_STATUSES = ['Inbound', 'Transporting', 'Pickup Done', 'Created'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([...INVENTORY_STATUSES]);
 
   const [selectedDetailRack, setSelectedDetailRack] = useState<any | null>(null);
