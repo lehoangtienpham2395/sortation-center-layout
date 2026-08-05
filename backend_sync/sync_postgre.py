@@ -1514,7 +1514,12 @@ def git_push(repo_dir: str, timestamp: str) -> None:
     try:
         # 1. git add CHI 8 file rolling (KHONG add data/history/ — write-once)
         ROLLING_FILES = [
-            "data/", "public/data/", "src/", "backend_sync/",
+            "data/inventory.json", "data/outbound.json", "data/backlog.json",
+            "data/inbound.json", "data/arrival.json", "data/heatmap.json",
+            "data/linehaul.json", "data/truck_eta.json", "data/last_update.json",
+            "data/hub_inventory_pivot.json", "data/latest.json.gz",
+            "data/live/", "public/data/live/", "src/data/live/",
+            "src/", "backend_sync/",
         ]
         add = subprocess.run(
             ["git", "add"] + ROLLING_FILES,
