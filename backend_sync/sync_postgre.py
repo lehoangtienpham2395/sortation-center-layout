@@ -1143,6 +1143,43 @@ def sync_postgre_to_dashboard():
         for (z, a, s), v in pivot_map.items()
     ]
 
+    # 🎯 Generate heatmap_detail_json from PostgreSQL for Mon-Sun & Hourly Heatmap Dashboard
+    heatmap_detail_json = []
+    try:
+        conn_hm = get_pg_conn()
+        cur_hm = conn_hm.cursor()
+        cur_hm.execute("""
+            SELECT 
+                COALESCE(operation_date_inbound::text, operation_date_created::text, op_date_pickup::text) as op_date,
+                TO_CHAR(COALESCE(operation_date_inbound::date, operation_date_created::date, op_date_pickup::date), 'Dy') as day_name,
+                EXTRACT(HOUR FROM COALESCE(inbound_scandate, created_time, pickup_time))::int as hr,
+                COUNT(CASE WHEN status_sys = 'Created' THEN 1 END) as created_cnt,
+                COUNT(CASE WHEN status_sys = 'Pickup Done' THEN 1 END) as pickup_cnt,
+                COUNT(CASE WHEN status_sys = 'Transporting' THEN 1 END) as transp_cnt,
+                COUNT(CASE WHEN status_sys = 'Inbound' THEN 1 END) as inbound_cnt,
+                COUNT(CASE WHEN status_sys = 'Outbound' THEN 1 END) as outbound_cnt
+            FROM enriched.dispatch_enriched
+            WHERE COALESCE(operation_date_inbound, operation_date_created, op_date_pickup) IS NOT NULL
+            GROUP BY op_date, day_name, hr
+            ORDER BY op_date DESC, hr ASC;
+        """)
+        for r_hm in cur_hm.fetchall():
+            op_d, dy_n, hr_n, cr_c, pk_c, tr_c, ib_c, ob_c = r_hm
+            if hr_n is not None:
+                heatmap_detail_json.append({
+                    'date': op_d,
+                    'dayName': dy_n,
+                    'hour': int(hr_n),
+                    'created': int(cr_c or 0),
+                    'pickup': int(pk_c or 0),
+                    'transporting': int(tr_c or 0),
+                    'inbound': int(ib_c or 0),
+                    'outbound': int(ob_c or 0)
+                })
+        conn_hm.close()
+    except Exception as _e_hm:
+        print(f"   ⚠️ heatmap_detail generation error: {_e_hm}")
+
     now_display = now_vn.strftime("%H:%M:%S %d/%m/%Y")
     # Tổng Inbound thực tế trong ca hôm nay (từ heatmap hourly)
     total_inbound_today = sum(
@@ -1349,6 +1386,7 @@ def sync_postgre_to_dashboard():
     write_json("inbound.json",            inbound_json)
     write_json("arrival.json",            arrival_json)
     write_json("heatmap.json",            hourly)
+    write_json("heatmap_detail.json",     heatmap_detail_json)
     write_json("hub_inventory_pivot.json",hub_pivot_json)
     write_json("last_update.json",        last_update_obj)
     write_json("linehaul.json",           linehaul_obj)
@@ -1456,7 +1494,7 @@ def sync_postgre_to_dashboard():
         print(f"   ⚠️ Historical snapshot generation error: {_e_h}")
 
     # Sync to public/data & src/data
-    json_files_to_sync = ["inventory.json", "outbound.json", "backlog.json", "inbound.json", "arrival.json", "heatmap.json", "hub_inventory_pivot.json", "last_update.json", "linehaul.json", "truck_eta.json"] + list(micro_payloads.keys())
+    json_files_to_sync = ["inventory.json", "outbound.json", "backlog.json", "inbound.json", "arrival.json", "heatmap.json", "heatmap_detail.json", "hub_inventory_pivot.json", "last_update.json", "linehaul.json", "truck_eta.json"] + list(micro_payloads.keys())
     
     for sub in ['public/data', 'src/data']:
         sub_dir = os.path.normpath(os.path.join(DATA_DIR, '..', sub))

@@ -300,6 +300,14 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
     const rawData = await response.json();
     const data = Array.isArray(rawData) ? rawData : (rawData?.pivot_data || rawData?.data || []);
     if (sheetType.toLowerCase() === 'heatmap') {
+      try {
+        const t = `${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+        const r = await fetch(`data/heatmap_detail.json?t=${t}`, { cache: 'no-store' });
+        if (r.ok) {
+          const detailData = await r.json();
+          if (Array.isArray(detailData) && detailData.length > 0) return detailData;
+        }
+      } catch (_e) {}
       return data;
     }
 
