@@ -1,18 +1,19 @@
 @echo off
-title HO TRO CHAY DASHBOARD KHO HCM HUB - MANG NOI BO (LAN SHARE)
+title J&T CARGO HCM HUB DASHBOARD - LUONG CHAY MANG NOI BO (LAN INTRANET)
 color 0A
 cls
 echo =========================================================================
 echo       J&T CARGO HCM HUB DASHBOARD - LUONG CHAY MANG NOI BO (LAN INTRANET)
 echo =========================================================================
 echo.
-echo [1/2] Dang kiem tra dia chi IP Noi Bo cua may tinh anh...
-for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /c:"IPv4 Address" /c:"IPv4"') do (
-    set IP=%%a
-)
-set IP=%IP: =%
+echo [1/2] Dang kiem tra dia chi IP Mang Noi Bo cua may tinh anh...
+for /f "delims=" %%i in ('python -c "import socket; s=socket.socket(socket.AF_INET, socket.SOCK_DGRAM); s.connect(('8.8.8.8',80)); print(s.getsockname()[0]); s.close()" 2^>nul') do set IP=%%i
 
-echo [2/2] Dia chi IP Mang Noi Bo cua may anh la: %IP%
+if "%IP%"=="" (
+    set IP=10.40.5.3
+)
+
+echo [2/2] Dia chi IP Mang Noi Bo CHINH XAC cua may anh la: %IP%
 echo.
 echo =========================================================================
 echo  >>> LINK CHIA SE TRUY CAP NOI BO CHO TOAN BO CONG NHAN / BUU CUC: <<<
