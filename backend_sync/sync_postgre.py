@@ -671,6 +671,36 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
 
 def sync_postgre_to_dashboard():
     t0 = _time.time()
+    lock_path = os.path.join(BASE_DIR, "backend_sync", "sync.lock")
+    if os.path.exists(lock_path):
+        try:
+            mtime = os.path.getmtime(lock_path)
+            if _time.time() - mtime < 1800:
+                print(f"\n⚠️ [{now_sys}] [SYNC LOCK] Process is already running (sync.lock active). Exiting duplicate run cleanly.")
+                return
+            else:
+                print(f"⚠️ [SYNC LOCK] Stale lock file found (>30 mins). Removing stale lock...")
+                os.remove(lock_path)
+        except Exception:
+            pass
+
+    try:
+        with open(lock_path, "w") as _lf:
+            _lf.write(str(os.getpid()))
+    except Exception:
+        pass
+
+    try:
+        _do_sync_postgre_to_dashboard(t0)
+    finally:
+        if os.path.exists(lock_path):
+            try:
+                os.remove(lock_path)
+            except Exception:
+                pass
+
+
+def _do_sync_postgre_to_dashboard(t0):
     print(f"\n🚀 [{now_sys}] sync_postgre_to_dashboard()")
     print(f"   DB      : {PG_DBNAME} @ {PG_HOST}:{PG_PORT}")
     print(f"   Data    : {DATA_DIR}")
@@ -1447,6 +1477,9 @@ def sync_postgre_to_dashboard():
         """, (today,))
         past_dates = [r[0] for r in cur_h.fetchall()]
         for h_d in past_dates:
+            target_hist_kpi = os.path.join(DATA_DIR, 'history', h_d, 'inbound_kpi_summary.json')
+            if os.path.exists(target_hist_kpi) and os.path.getsize(target_hist_kpi) > 10:
+                continue  # Past frozen date already has immutable snapshot, skip heavy redundant SQL!
             cur_h.execute("""
                 SELECT 
                     (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE (operation_date_inbound::date = %s::date OR (is_rebound = 1 AND operation_date_inbound_2::date = %s::date)) AND status_sys IN ('Inbound', 'Outbound')) as inbound_cnt,

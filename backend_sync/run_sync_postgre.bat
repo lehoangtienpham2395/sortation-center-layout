@@ -8,6 +8,6 @@ set PYTHONIOENCODING=utf-8
 :: Chạy script sync_postgre.py và lưu log
 echo ========================================== >> sync_postgre.log
 echo [SYNC POSTGRE START] %date% %time% >> sync_postgre.log
-py sync_postgre.py >> sync_postgre.log 2>&1
+py -u sync_postgre.py >> sync_postgre.log 2>&1
 echo [SYNC POSTGRE END] %date% %time% >> sync_postgre.log
 echo ========================================== >> sync_postgre.log
