@@ -1191,10 +1191,16 @@ def sync_postgre_to_dashboard():
     # ── 5. Build Micro-JSONs (Data Architecture v2.0 - Ultra Light) ──
     print(f"\n⚡ Building Micro-JSON Payloads (Data Architecture v2.0)...")
     
-    fc_shuttle = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if status != 'Outbound' and (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))))
-    fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if status != 'Outbound' and (in_op == today or ar_op == today or pk_op == today or fc_op == today) and (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY '))))
-    shuttle_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if status != 'Outbound' and (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')))) / 1000.0, 3)
-    linehaul_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if status != 'Outbound' and (in_op == today or ar_op == today or pk_op == today or fc_op == today) and (st.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or pk.strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')))) / 1000.0, 3)
+    def is_linehaul_item(st, pk, status):
+        pk_u = (pk or '').strip().upper()
+        st_u = (st or '').strip().upper()
+        is_north = pk_u.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or st_u.startswith(('BN HUB', 'HN ', 'HD ', 'HY '))
+        return is_north and (status in ('Transporting', 'Arrival', 'Created'))
+
+    fc_shuttle = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not is_linehaul_item(st, pk, status))
+    fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status))
+    shuttle_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not is_linehaul_item(st, pk, status)) / 1000.0, 3)
+    linehaul_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status)) / 1000.0, 3)
     inbound_kpi_summary = {
         "op_date": today,
         "contract_version": "2.0.0",
