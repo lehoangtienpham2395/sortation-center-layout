@@ -1149,19 +1149,48 @@ def sync_postgre_to_dashboard():
         conn_hm = get_pg_conn()
         cur_hm = conn_hm.cursor()
         cur_hm.execute("""
+            WITH ib AS (
+                SELECT operation_date_inbound::text as op_date, TO_CHAR(operation_date_inbound::date, 'Dy') as day_name, EXTRACT(HOUR FROM inbound_scandate)::int as hr, COUNT(*) as cnt
+                FROM enriched.dispatch_enriched WHERE inbound_scandate IS NOT NULL
+                GROUP BY op_date, day_name, hr
+            ),
+            ob AS (
+                SELECT operation_date_inbound::text as op_date, TO_CHAR(operation_date_inbound::date, 'Dy') as day_name, EXTRACT(HOUR FROM outbound_scandate)::int as hr, COUNT(*) as cnt
+                FROM enriched.dispatch_enriched WHERE outbound_scandate IS NOT NULL
+                GROUP BY op_date, day_name, hr
+            ),
+            arr AS (
+                SELECT COALESCE(operation_date_inbound::text, arrival_scandate::date::text) as op_date, TO_CHAR(COALESCE(operation_date_inbound::date, arrival_scandate::date), 'Dy') as day_name, EXTRACT(HOUR FROM arrival_scandate)::int as hr, COUNT(*) as cnt
+                FROM enriched.dispatch_enriched WHERE arrival_scandate IS NOT NULL
+                GROUP BY op_date, day_name, hr
+            ),
+            pk AS (
+                SELECT COALESCE(operation_date_inbound::text, op_date_pickup::text) as op_date, TO_CHAR(COALESCE(operation_date_inbound::date, op_date_pickup::date), 'Dy') as day_name, EXTRACT(HOUR FROM pickup_time)::int as hr, COUNT(*) as cnt
+                FROM enriched.dispatch_enriched WHERE pickup_time IS NOT NULL
+                GROUP BY op_date, day_name, hr
+            ),
+            cr AS (
+                SELECT COALESCE(operation_date_inbound::text, operation_date_created::text) as op_date, TO_CHAR(COALESCE(operation_date_inbound::date, operation_date_created::date), 'Dy') as day_name, EXTRACT(HOUR FROM created_time)::int as hr, COUNT(*) as cnt
+                FROM enriched.dispatch_enriched WHERE created_time IS NOT NULL
+                GROUP BY op_date, day_name, hr
+            ),
+            all_keys AS (
+                SELECT op_date, day_name, hr FROM ib UNION SELECT op_date, day_name, hr FROM ob UNION SELECT op_date, day_name, hr FROM arr UNION SELECT op_date, day_name, hr FROM pk UNION SELECT op_date, day_name, hr FROM cr
+            )
             SELECT 
-                COALESCE(operation_date_inbound::text, operation_date_created::text, op_date_pickup::text) as op_date,
-                TO_CHAR(COALESCE(operation_date_inbound::date, operation_date_created::date, op_date_pickup::date), 'Dy') as day_name,
-                EXTRACT(HOUR FROM COALESCE(inbound_scandate, created_time, pickup_time))::int as hr,
-                COUNT(CASE WHEN created_time IS NOT NULL THEN 1 END) as created_cnt,
-                COUNT(CASE WHEN pickup_time IS NOT NULL THEN 1 END) as pickup_cnt,
-                COUNT(CASE WHEN arrival_scandate IS NOT NULL THEN 1 END) as transp_cnt,
-                COUNT(CASE WHEN inbound_scandate IS NOT NULL THEN 1 END) as inbound_cnt,
-                COUNT(CASE WHEN outbound_scandate IS NOT NULL THEN 1 END) as outbound_cnt
-            FROM enriched.dispatch_enriched
-            WHERE COALESCE(operation_date_inbound, operation_date_created, op_date_pickup) IS NOT NULL
-            GROUP BY op_date, day_name, hr
-            ORDER BY op_date DESC, hr ASC;
+                k.op_date, k.day_name, k.hr,
+                COALESCE(cr.cnt, 0) as created,
+                COALESCE(pk.cnt, 0) as pickup,
+                COALESCE(arr.cnt, 0) as transporting,
+                COALESCE(ib.cnt, 0) as inbound,
+                COALESCE(ob.cnt, 0) as outbound
+            FROM all_keys k
+            LEFT JOIN ib ON k.op_date = ib.op_date AND k.hr = ib.hr
+            LEFT JOIN ob ON k.op_date = ob.op_date AND k.hr = ob.hr
+            LEFT JOIN arr ON k.op_date = arr.op_date AND k.hr = arr.hr
+            LEFT JOIN pk ON k.op_date = pk.op_date AND k.hr = pk.hr
+            LEFT JOIN cr ON k.op_date = cr.op_date AND k.hr = cr.hr
+            ORDER BY k.op_date DESC, k.hr ASC;
         """)
         for r_hm in cur_hm.fetchall():
             op_d, dy_n, hr_n, cr_c, pk_c, tr_c, ib_c, ob_c = r_hm
