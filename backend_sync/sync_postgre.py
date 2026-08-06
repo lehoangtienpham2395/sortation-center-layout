@@ -670,6 +670,19 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
 # MAIN
 # ════════════════════════════════════════════════════════════════════
 
+def is_pid_alive_win(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        import ctypes
+        handle = ctypes.windll.kernel32.OpenProcess(0x0400, False, int(pid))
+        if handle:
+            ctypes.windll.kernel32.CloseHandle(handle)
+            return True
+    except Exception:
+        pass
+    return False
+
 def sync_postgre_to_dashboard():
     t0 = _time.time()
     lock_path = os.path.join(BASE_DIR, "backend_sync", "sync.lock")
@@ -683,14 +696,7 @@ def sync_postgre_to_dashboard():
             except Exception:
                 pass
 
-            # Check if PID is alive on Windows
-            pid_alive = False
-            if pid > 0:
-                try:
-                    out = subprocess.check_output(f'tasklist /FI "PID eq {pid}"', shell=True, text=True, timeout=5)
-                    pid_alive = str(pid) in out and "No tasks are running" not in out
-                except Exception:
-                    pid_alive = False
+            pid_alive = is_pid_alive_win(pid)
 
             if pid_alive and (_time.time() - mtime < 600):
                 print(f"\n⚠️ [{now_sys}] [SYNC LOCK] Process PID {pid} is actively running. Exiting duplicate run cleanly.")

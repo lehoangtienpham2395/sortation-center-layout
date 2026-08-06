@@ -38,14 +38,13 @@ URL_FORECAST      = 'https://gw.jtcargo.com.vn/networkmanagement/omsWaybill/ship
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _cfg_candidates = [
+    os.path.join(BASE_DIR, 'config'),
+    os.path.join(BASE_DIR, 'backend_sync', 'config'),
+    os.path.abspath('.'),
+    os.path.abspath('backend_sync'),
     r'C:\Users\lehoa\OneDrive\Desktop\testing\Exportauto\Valid',
     r'C:\Users\lehoa\OneDrive\Desktop\testing\config',
     r'C:\Users\lehoa\OneDrive\Desktop\testing',
-    os.path.join(BASE_DIR, 'config'),
-    os.path.join(BASE_DIR, 'backend_sync', 'config'),
-    os.path.join(BASE_DIR, 'sortation-center-layout', 'backend_sync', 'config'),
-    os.path.abspath('.'),
-    os.path.abspath('backend_sync'),
     os.path.abspath('data')
 ]
 
@@ -76,12 +75,12 @@ if len(sys.argv) > 1:
         pass
 
 # Network tuning: Kéo song song trang siêu tốc (20 page workers)
-PAGE_WORKERS     = 20
+PAGE_WORKERS     = 10
 PAGE_SIZE        = 500      # Dispatch page size
 SCAN_PAGE_SIZE   = 1000     # Inbound/Outbound page size
-POOL_SIZE        = 40       # 40 luồng siêu tốc
-REQUEST_TIMEOUT  = 15
-MAX_RETRIES      = 3
+POOL_SIZE        = 30       # 30 luồng kết nối HTTP
+REQUEST_TIMEOUT  = 10
+MAX_RETRIES      = 2
 BACKOFF_BASE     = 2
 RETRYABLE_STATUS = {405, 429, 500, 502, 503, 504}
 
@@ -365,26 +364,27 @@ def pull_pages_parallel(fetch_fn, total, page_size, label, start_page=1):
     n_pages = math.ceil(total / page_size)
     pages   = list(range(start_page, n_pages + 1))
     print('   ' + label + ': ' + str(len(pages)) + ' trang song song...')
-    results, failed = {}, []
+    results = {}
+    failed  = []
     with ThreadPoolExecutor(max_workers=PAGE_WORKERS) as ex:
         fmap = {ex.submit(fetch_fn, p): p for p in pages}
         for f in as_completed(fmap):
             p = fmap[f]
             try:
                 results[p] = f.result()
-            except Exception as e:
-                print('   ' + label + ' trang ' + str(p) + ': ' + str(e))
-                failed.append(p)
-    for p in failed:
-        for att in range(1, MAX_RETRIES + 1):
-            time.sleep(BACKOFF_BASE * att)
-            try:
-                results[p] = fetch_fn(p)
-                break
             except Exception:
-                pass
-        else:
-            results[p] = []
+                failed.append(p)
+    if failed:
+        print('   ' + label + ': retry ' + str(len(failed)) + ' trang loi song song...')
+        time.sleep(1)
+        with ThreadPoolExecutor(max_workers=min(5, len(failed))) as ex:
+            fmap = {ex.submit(fetch_fn, p): p for p in failed}
+            for f in as_completed(fmap):
+                p = fmap[f]
+                try:
+                    results[p] = f.result()
+                except Exception:
+                    results[p] = []
     out = []
     for p in pages:
         out.extend(results.get(p, []))
