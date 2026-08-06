@@ -1153,11 +1153,11 @@ def sync_postgre_to_dashboard():
                 COALESCE(operation_date_inbound::text, operation_date_created::text, op_date_pickup::text) as op_date,
                 TO_CHAR(COALESCE(operation_date_inbound::date, operation_date_created::date, op_date_pickup::date), 'Dy') as day_name,
                 EXTRACT(HOUR FROM COALESCE(inbound_scandate, created_time, pickup_time))::int as hr,
-                COUNT(CASE WHEN status_sys = 'Created' THEN 1 END) as created_cnt,
-                COUNT(CASE WHEN status_sys = 'Pickup Done' THEN 1 END) as pickup_cnt,
-                COUNT(CASE WHEN status_sys = 'Transporting' THEN 1 END) as transp_cnt,
-                COUNT(CASE WHEN status_sys = 'Inbound' THEN 1 END) as inbound_cnt,
-                COUNT(CASE WHEN status_sys = 'Outbound' THEN 1 END) as outbound_cnt
+                COUNT(CASE WHEN created_time IS NOT NULL THEN 1 END) as created_cnt,
+                COUNT(CASE WHEN pickup_time IS NOT NULL THEN 1 END) as pickup_cnt,
+                COUNT(CASE WHEN arrival_scandate IS NOT NULL THEN 1 END) as transp_cnt,
+                COUNT(CASE WHEN inbound_scandate IS NOT NULL THEN 1 END) as inbound_cnt,
+                COUNT(CASE WHEN outbound_scandate IS NOT NULL THEN 1 END) as outbound_cnt
             FROM enriched.dispatch_enriched
             WHERE COALESCE(operation_date_inbound, operation_date_created, op_date_pickup) IS NOT NULL
             GROUP BY op_date, day_name, hr
