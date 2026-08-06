@@ -60,14 +60,18 @@ CONFIG_DIR  = next((p for p in _cfg_candidates if os.path.exists(os.path.join(p,
 VALID_FILE  = find_config_file('valid.csv') or os.path.join(CONFIG_DIR, 'valid.csv')
 OUTPUT_FILE = os.path.join(BASE_DIR, 'full_multi_source_7days_v6.csv')
 
-# 🎯 CẤU HÌNH BẮT BUỘC THEO CHỈ ĐẠO CỦA USER: KÉO ĐỦ 7 NGÀY (DAYS_BACK = 7)
-# Kéo song song 7 ngày (Mỗi luồng phụ trách kéo 1 ngày độc lập trong 7 ngày)
-DAYS_BACK = 7
+# 🎯 CẤU HÌNH TÁCH BIỆT DISPATCH vs SCAN
+# - DAYS_BACK     : Số ngày kéo Dispatch (giữ 7 ngày để bắt đơn Created cũ mới Pickup hôm nay)
+# - SCAN_DAYS_BACK: Số ngày kéo Inbound/Outbound/Arrival scan (chỉ cần 2 ngày, nhẹ tải API)
+DAYS_BACK      = 7  # Dispatch: giữ 7 ngày — đơn Created 7 ngày trước vẫn được nhận
+SCAN_DAYS_BACK = 7  # Scan: mặc định 7 ngày, sync_postgre.py sẽ override xuống 2 ngày
 if len(sys.argv) > 1:
     try:
         for arg in sys.argv[1:]:
             if arg.startswith('--days='):
                 DAYS_BACK = int(arg.replace('--days=', '').strip())
+            if arg.startswith('--scan-days='):
+                SCAN_DAYS_BACK = int(arg.replace('--scan-days=', '').strip())
     except ValueError:
         pass
 
@@ -447,21 +451,25 @@ def pull_dispatch(session, token_mgr, headers, base_payload, label='Dispatch'):
 def pull_scan(session, token_mgr, headers, params, base_payload, label=''):
     page_size = int(base_payload.get('size', SCAN_PAGE_SIZE))
     total = None
-    try:
-        count_pl = dict(base_payload)
-        count_pl.update({'paginationSearchType': 'count', 'size': 1, 'current': 1})
-        r = auth_post(session, URL_SCAN, token_mgr, headers,
-                      params=params, json_body=count_pl, label=label + ' count')
-        t = r.json().get('data', {})
-        if isinstance(t, str):
-            try: t = json.loads(t)
-            except: t = {}
-        total = t.get('total', None) if isinstance(t, dict) else None
-        total = total if isinstance(total, int) else None
-    except Exception as e:
-        print('   ' + label + ' count loi: ' + str(e))
-
-    print('   ' + label + ' total: ' + (str(total) if total else '?'))
+    
+    # Retry count query up to 3 times
+    for att in range(1, 4):
+        try:
+            count_pl = dict(base_payload)
+            count_pl.update({'paginationSearchType': 'count', 'size': 1, 'current': 1})
+            r = auth_post(session, URL_SCAN, token_mgr, headers,
+                          params=params, json_body=count_pl, label=label + ' count')
+            t = r.json().get('data', {})
+            if isinstance(t, str):
+                try: t = json.loads(t)
+                except: t = {}
+            if isinstance(t, dict) and t.get('total') is not None:
+                total = int(t['total'])
+                break
+        except Exception as e:
+            if att == 3:
+                print('   ' + label + ' count loi sau 3 lan: ' + str(e))
+            time.sleep(1)
 
     def fetch_page(p):
         pl = dict(base_payload)
@@ -472,12 +480,27 @@ def pull_scan(session, token_mgr, headers, params, base_payload, label=''):
         if isinstance(dn, str):
             try: dn = json.loads(dn)
             except: dn = {}
-        return dn.get('records', []) or []
+        if isinstance(dn, dict):
+            return dn.get('records', []) or [], dn.get('total')
+        return [], None
+
+    if total is None:
+        try:
+            recs1, tot1 = fetch_page(1)
+            if tot1 and isinstance(tot1, int):
+                total = tot1
+            elif recs1:
+                # If page 1 has records, assume at least 1 page
+                total = len(recs1)
+        except Exception as e:
+            print('   ' + label + ' p1 fallback error: ' + str(e))
+
+    print('   ' + label + ' total: ' + (str(total) if total is not None else '?'))
 
     if total and total > 0:
-        all_data = pull_pages_parallel(fetch_page, total, page_size, label)
+        all_data = pull_pages_parallel(lambda p: fetch_page(p)[0], total, page_size, label)
     else:
-        all_data = pull_pages_seq(fetch_page, page_size, label)
+        all_data = pull_pages_seq(lambda p: fetch_page(p)[0], page_size, label)
 
     print('   OK ' + label + ': ' + str(len(all_data)) + ' dong')
     return all_data
@@ -879,14 +902,16 @@ def merge_in_out_chronological(df_in: pd.DataFrame, df_out: pd.DataFrame) -> pd.
 def main():
     tz_vn  = ZoneInfo('Asia/Ho_Chi_Minh')
     now    = datetime.now(tz_vn)
-    start_dt = now - timedelta(days=DAYS_BACK)
+    start_dt      = now - timedelta(days=DAYS_BACK)
+    scan_start_dt = now - timedelta(days=SCAN_DAYS_BACK)
 
-    start_str     = start_dt.strftime('%Y-%m-%d 00:00:00')
-    end_str       = now.strftime('%Y-%m-%d %H:%M:%S')
-    end_str_plus1 = (now + timedelta(days=1)).strftime('%Y-%m-%d 23:59:59')
+    start_str      = start_dt.strftime('%Y-%m-%d 00:00:00')       # Dispatch: DAYS_BACK ngày
+    scan_start_str = scan_start_dt.strftime('%Y-%m-%d 00:00:00')  # Inbound/Outbound/Arrival: SCAN_DAYS_BACK ngày
+    end_str        = now.strftime('%Y-%m-%d %H:%M:%S')
+    end_str_plus1  = (now + timedelta(days=1)).strftime('%Y-%m-%d 23:59:59')
 
     print('=' * 65)
-    print(f'PIPELINE UNIFIED V6 -- Song song 7 nguon ({DAYS_BACK} ngay), khong file trung gian')
+    print(f'PIPELINE UNIFIED V6 -- Song song 7 nguon ({DAYS_BACK} ngay Dispatch / {SCAN_DAYS_BACK} ngay Scan), khong file trung gian')
     print(start_str + '  ->  ' + end_str)
     print('=' * 65)
 
@@ -906,8 +931,9 @@ def main():
     oh_headers = load_json(cfg('outboundheaders.json'))
     op_payload = load_json(cfg('outboundpayload.json'))
 
-    ip_payload['beginDate'] = start_str;  ip_payload['endDate'] = end_str
-    op_payload['beginDate'] = start_str;  op_payload['endDate'] = end_str
+    # Scan dùng scan_start_str (SCAN_DAYS_BACK ngày) — nhẹ hơn Dispatch 3-5x
+    ip_payload['beginDate'] = scan_start_str;  ip_payload['endDate'] = end_str
+    op_payload['beginDate'] = scan_start_str;  op_payload['endDate'] = end_str
 
     i_params = {'sqlCode': ip_payload.get('sqlCode', ''),
                 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693',
@@ -934,15 +960,17 @@ def main():
 
     with ThreadPoolExecutor(max_workers=8) as ex:
         futures = {
+            # Dispatch giữ 7 ngày (DAYS_BACK) — bắt đơn Created cũ mới Pickup hôm nay
             ex.submit(pull_dispatch,       session_main, tkn_main, dh_headers, dp_payload):        'dispatch',
+            # Inbound/Outbound/Arrival scan dùng SCAN_DAYS_BACK ngày — nhẹ tải 3-5x
             ex.submit(pull_scan,           session_main, tkn_main, ih_headers, i_params, ip_payload, 'Inbound'):  'inbound',
             ex.submit(pull_scan,           session_main, tkn_main, oh_headers, o_params, op_payload, 'Outbound'): 'outbound',
+            ex.submit(pull_arrival,        session_arr,  tkn_arr,  ih_headers, scan_start_str, end_str):  'arrival',
+            # Linehaul/Shuttle/Backlog: realtime hoặc dựa theo chuyến xe — dùng start_str gốc
             ex.submit(pull_linehaul_ops,   session_main, tkn_main, start_str, end_str):              'lh_ops',
             ex.submit(pull_linehaul_consol,session_main, tkn_main, start_str, end_str_plus1):        'lh_consol',
-            ex.submit(pull_arrival,        session_arr,  tkn_arr,  ih_headers, start_str, end_str):  'arrival',
             ex.submit(pull_shuttle,        session_arr,  tkn_arr,  start_str, end_str):              'shuttle',
             ex.submit(pull_backlog,        session_main, tkn_main, bh_headers, bp_payload, start_str, end_str): 'backlog',
-
         }
 
         for f in as_completed(futures):

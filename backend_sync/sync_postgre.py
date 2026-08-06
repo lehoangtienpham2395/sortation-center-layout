@@ -24,7 +24,7 @@ from zoneinfo import ZoneInfo
 # ── UTF-8 stdout ─────────────────────────────────────────────────────────────
 if hasattr(sys.stdout, 'reconfigure'):
     try:
-        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
     except Exception:
         pass
 
@@ -780,8 +780,11 @@ def _do_sync_postgre_to_dashboard(t0):
         sys.path.insert(0, _etl_dir)
     try:
         import pipeline_unified_v6 as _pipe6
-        _pipe6.DAYS_BACK = 2  # 🚀 Tối ưu 30 phút: Chỉ kéo 2 ngày (hôm nay + hôm qua) trực tiếp từ JFS API
-        print("\n🌐 Phase 1: JFS API → PostgreSQL (pipeline_unified_v6.main(), DAYS_BACK=2)...")
+        # 🚀 Tối ưu 30 phút: Dispatch giữ 7 ngày (bắt đơn Created cũ mới Pickup hôm nay)
+        #                     Scan chỉ kéo 2 ngày (Inbound/Outbound/Arrival nhẹ hơn 3-5x)
+        _pipe6.DAYS_BACK      = 7  # Dispatch: LUÔN giữ 7 ngày
+        _pipe6.SCAN_DAYS_BACK = 2  # Scan: chỉ 2 ngày đủ (scan theo ngày scan, không phải ngày tạo đơn)
+        print("\n🌐 Phase 1: JFS API → PostgreSQL (pipeline_unified_v6.main(), Dispatch=7d / Scan=2d)...")
         t1 = _time.time()
         _pipe6.main()
         print(f"   ✅ Phase 1 xong ({_time.time()-t1:.0f}s) — PostgreSQL đã cập nhật")

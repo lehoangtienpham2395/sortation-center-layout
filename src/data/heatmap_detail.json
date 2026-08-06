@@ -132,6 +132,16 @@
   {
     "date": null,
     "dayName": null,
+    "hour": 17,
+    "created": 0,
+    "pickup": 0,
+    "transporting": 0,
+    "inbound": 0,
+    "outbound": 0
+  },
+  {
+    "date": null,
+    "dayName": null,
     "hour": 19,
     "created": 0,
     "pickup": 0,
@@ -283,9 +293,29 @@
     "date": "2026-08-06",
     "dayName": "Thu",
     "hour": 16,
-    "created": 281,
-    "pickup": 626,
-    "transporting": 168,
+    "created": 337,
+    "pickup": 1134,
+    "transporting": 443,
+    "inbound": 0,
+    "outbound": 0
+  },
+  {
+    "date": "2026-08-06",
+    "dayName": "Thu",
+    "hour": 17,
+    "created": 213,
+    "pickup": 1359,
+    "transporting": 1196,
+    "inbound": 0,
+    "outbound": 0
+  },
+  {
+    "date": "2026-08-06",
+    "dayName": "Thu",
+    "hour": 18,
+    "created": 27,
+    "pickup": 20,
+    "transporting": 0,
     "inbound": 0,
     "outbound": 0
   },
@@ -457,7 +487,7 @@
     "pickup": 1427,
     "transporting": 887,
     "inbound": 0,
-    "outbound": 37
+    "outbound": 94
   },
   {
     "date": "2026-08-05",
@@ -695,7 +725,7 @@
     "hour": 16,
     "created": 540,
     "pickup": 1709,
-    "transporting": 1612,
+    "transporting": 1613,
     "inbound": 347,
     "outbound": 418
   },
@@ -715,7 +745,7 @@
     "hour": 18,
     "created": 163,
     "pickup": 1445,
-    "transporting": 2874,
+    "transporting": 2873,
     "inbound": 1,
     "outbound": 0
   },
@@ -773,17 +803,17 @@
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 0,
-    "created": 902,
+    "created": 900,
     "pickup": 5,
     "transporting": 0,
-    "inbound": 3494,
+    "inbound": 3495,
     "outbound": 2219
   },
   {
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 1,
-    "created": 73,
+    "created": 72,
     "pickup": 0,
     "transporting": 0,
     "inbound": 1485,
@@ -793,7 +823,7 @@
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 2,
-    "created": 517,
+    "created": 516,
     "pickup": 0,
     "transporting": 0,
     "inbound": 983,
@@ -803,7 +833,7 @@
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 3,
-    "created": 144,
+    "created": 143,
     "pickup": 0,
     "transporting": 0,
     "inbound": 132,
@@ -843,7 +873,7 @@
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 7,
-    "created": 1678,
+    "created": 1679,
     "pickup": 8,
     "transporting": 0,
     "inbound": 0,
@@ -853,7 +883,7 @@
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 8,
-    "created": 2356,
+    "created": 2358,
     "pickup": 113,
     "transporting": 0,
     "inbound": 0,
@@ -863,7 +893,7 @@
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 9,
-    "created": 1581,
+    "created": 1584,
     "pickup": 741,
     "transporting": 6,
     "inbound": 0,
@@ -873,9 +903,9 @@
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 10,
-    "created": 1295,
+    "created": 1296,
     "pickup": 1526,
-    "transporting": 166,
+    "transporting": 165,
     "inbound": 0,
     "outbound": 88
   },
@@ -885,7 +915,7 @@
     "hour": 11,
     "created": 811,
     "pickup": 2926,
-    "transporting": 580,
+    "transporting": 579,
     "inbound": 0,
     "outbound": 70
   },
@@ -893,7 +923,7 @@
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 12,
-    "created": 795,
+    "created": 797,
     "pickup": 226,
     "transporting": 143,
     "inbound": 0,
@@ -913,10 +943,10 @@
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 14,
-    "created": 2066,
+    "created": 2067,
     "pickup": 2049,
-    "transporting": 677,
-    "inbound": 774,
+    "transporting": 676,
+    "inbound": 771,
     "outbound": 0
   },
   {
@@ -933,7 +963,7 @@
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 16,
-    "created": 1515,
+    "created": 1514,
     "pickup": 1342,
     "transporting": 1596,
     "inbound": 763,
@@ -953,9 +983,9 @@
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 18,
-    "created": 145,
+    "created": 144,
     "pickup": 1325,
-    "transporting": 2810,
+    "transporting": 2813,
     "inbound": 106,
     "outbound": 0
   },
@@ -965,8 +995,8 @@
     "hour": 19,
     "created": 97,
     "pickup": 868,
-    "transporting": 1990,
-    "inbound": 1380,
+    "transporting": 1991,
+    "inbound": 1379,
     "outbound": 0
   },
   {
@@ -975,7 +1005,7 @@
     "hour": 20,
     "created": 83,
     "pickup": 943,
-    "transporting": 1484,
+    "transporting": 1483,
     "inbound": 1592,
     "outbound": 18
   },
@@ -983,30 +1013,30 @@
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 21,
-    "created": 154,
+    "created": 156,
     "pickup": 618,
-    "transporting": 1706,
-    "inbound": 1836,
+    "transporting": 1699,
+    "inbound": 1839,
     "outbound": 1235
   },
   {
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 22,
-    "created": 285,
+    "created": 287,
     "pickup": 226,
-    "transporting": 1018,
-    "inbound": 2346,
+    "transporting": 1015,
+    "inbound": 2348,
     "outbound": 2559
   },
   {
     "date": "2026-08-03",
     "dayName": "Mon",
     "hour": 23,
-    "created": 275,
+    "created": 268,
     "pickup": 1,
     "transporting": 0,
-    "inbound": 2680,
+    "inbound": 2674,
     "outbound": 1781
   },
   {
@@ -1016,7 +1046,7 @@
     "created": 94,
     "pickup": 1,
     "transporting": 0,
-    "inbound": 1547,
+    "inbound": 1546,
     "outbound": 601
   },
   {
@@ -1165,7 +1195,7 @@
     "hour": 15,
     "created": 145,
     "pickup": 1296,
-    "transporting": 1294,
+    "transporting": 1293,
     "inbound": 64,
     "outbound": 3
   },
@@ -1195,7 +1225,7 @@
     "hour": 18,
     "created": 44,
     "pickup": 607,
-    "transporting": 981,
+    "transporting": 980,
     "inbound": 49,
     "outbound": 0
   },
@@ -1246,7 +1276,7 @@
     "created": 113,
     "pickup": 14,
     "transporting": 0,
-    "inbound": 1435,
+    "inbound": 1434,
     "outbound": 465
   },
   {
@@ -1353,7 +1383,7 @@
     "date": "2026-08-01",
     "dayName": "Sat",
     "hour": 10,
-    "created": 686,
+    "created": 687,
     "pickup": 715,
     "transporting": 0,
     "inbound": 0,
@@ -1385,7 +1415,7 @@
     "hour": 13,
     "created": 1813,
     "pickup": 474,
-    "transporting": 255,
+    "transporting": 254,
     "inbound": 0,
     "outbound": 427
   },
@@ -1403,9 +1433,9 @@
     "date": "2026-08-01",
     "dayName": "Sat",
     "hour": 15,
-    "created": 1387,
+    "created": 1386,
     "pickup": 1382,
-    "transporting": 1261,
+    "transporting": 1258,
     "inbound": 600,
     "outbound": 0
   },
@@ -1415,7 +1445,7 @@
     "hour": 16,
     "created": 1388,
     "pickup": 1339,
-    "transporting": 1502,
+    "transporting": 1498,
     "inbound": 533,
     "outbound": 3
   },
@@ -1425,7 +1455,7 @@
     "hour": 17,
     "created": 690,
     "pickup": 1562,
-    "transporting": 1327,
+    "transporting": 1325,
     "inbound": 813,
     "outbound": 1
   },
@@ -1435,7 +1465,7 @@
     "hour": 18,
     "created": 207,
     "pickup": 1409,
-    "transporting": 1992,
+    "transporting": 1991,
     "inbound": 159,
     "outbound": 0
   },
@@ -1466,7 +1496,7 @@
     "created": 172,
     "pickup": 34,
     "transporting": 615,
-    "inbound": 2514,
+    "inbound": 2512,
     "outbound": 1627
   },
   {
@@ -1486,7 +1516,7 @@
     "created": 73,
     "pickup": 7,
     "transporting": 0,
-    "inbound": 2222,
+    "inbound": 2220,
     "outbound": 759
   },
   {
@@ -1635,7 +1665,7 @@
     "hour": 14,
     "created": 968,
     "pickup": 960,
-    "transporting": 451,
+    "transporting": 450,
     "inbound": 0,
     "outbound": 0
   },
@@ -1675,7 +1705,7 @@
     "hour": 18,
     "created": 183,
     "pickup": 1386,
-    "transporting": 2505,
+    "transporting": 2502,
     "inbound": 0,
     "outbound": 0
   },
@@ -1685,7 +1715,7 @@
     "hour": 19,
     "created": 568,
     "pickup": 1175,
-    "transporting": 2128,
+    "transporting": 2127,
     "inbound": 1400,
     "outbound": 0
   },
@@ -1695,7 +1725,7 @@
     "hour": 20,
     "created": 863,
     "pickup": 708,
-    "transporting": 1919,
+    "transporting": 1917,
     "inbound": 1607,
     "outbound": 50
   },
@@ -1706,7 +1736,7 @@
     "created": 280,
     "pickup": 79,
     "transporting": 702,
-    "inbound": 2497,
+    "inbound": 2496,
     "outbound": 2357
   },
   {
@@ -1736,7 +1766,7 @@
     "created": 800,
     "pickup": 5,
     "transporting": 0,
-    "inbound": 2462,
+    "inbound": 2458,
     "outbound": 2005
   },
   {
@@ -1746,7 +1776,7 @@
     "created": 47,
     "pickup": 0,
     "transporting": 0,
-    "inbound": 413,
+    "inbound": 408,
     "outbound": 2347
   },
   {
@@ -1756,7 +1786,7 @@
     "created": 246,
     "pickup": 0,
     "transporting": 0,
-    "inbound": 1540,
+    "inbound": 1522,
     "outbound": 2908
   },
   {
@@ -1855,7 +1885,7 @@
     "hour": 12,
     "created": 648,
     "pickup": 233,
-    "transporting": 339,
+    "transporting": 338,
     "inbound": 0,
     "outbound": 0
   },
@@ -1876,7 +1906,7 @@
     "created": 1338,
     "pickup": 772,
     "transporting": 279,
-    "inbound": 384,
+    "inbound": 383,
     "outbound": 407
   },
   {
@@ -1885,7 +1915,7 @@
     "hour": 15,
     "created": 807,
     "pickup": 1288,
-    "transporting": 419,
+    "transporting": 418,
     "inbound": 428,
     "outbound": 0
   },
@@ -1895,7 +1925,7 @@
     "hour": 16,
     "created": 1614,
     "pickup": 1367,
-    "transporting": 1170,
+    "transporting": 1158,
     "inbound": 659,
     "outbound": 0
   },
@@ -1905,7 +1935,7 @@
     "hour": 17,
     "created": 908,
     "pickup": 1275,
-    "transporting": 2662,
+    "transporting": 2651,
     "inbound": 492,
     "outbound": 0
   },
@@ -1915,7 +1945,7 @@
     "hour": 18,
     "created": 252,
     "pickup": 970,
-    "transporting": 1814,
+    "transporting": 1813,
     "inbound": 0,
     "outbound": 0
   },
@@ -1925,8 +1955,8 @@
     "hour": 19,
     "created": 338,
     "pickup": 1465,
-    "transporting": 2410,
-    "inbound": 952,
+    "transporting": 2409,
+    "inbound": 951,
     "outbound": 0
   },
   {
@@ -1935,8 +1965,8 @@
     "hour": 20,
     "created": 180,
     "pickup": 481,
-    "transporting": 2292,
-    "inbound": 709,
+    "transporting": 2286,
+    "inbound": 708,
     "outbound": 226
   },
   {
@@ -1946,7 +1976,7 @@
     "created": 676,
     "pickup": 65,
     "transporting": 532,
-    "inbound": 2209,
+    "inbound": 2208,
     "outbound": 2073
   },
   {
@@ -1955,8 +1985,8 @@
     "hour": 22,
     "created": 247,
     "pickup": 23,
-    "transporting": 278,
-    "inbound": 2173,
+    "transporting": 277,
+    "inbound": 2171,
     "outbound": 1469
   },
   {
@@ -1966,7 +1996,7 @@
     "created": 406,
     "pickup": 0,
     "transporting": 46,
-    "inbound": 2168,
+    "inbound": 2166,
     "outbound": 443
   },
   {

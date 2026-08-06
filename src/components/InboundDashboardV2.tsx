@@ -226,6 +226,10 @@ export default function InboundDashboard({
 
 
   const getRowOpDate = (d: any) => {
+    const st = (d['status'] || d['Trạng thái'] || d['Trng thi'] || '').trim();
+    if (st === 'Inbound' || st === 'Đã nhập kho') {
+      return getDateInbound(d) || d['op_date'] || d['Ngày vận hành'] || getDateForecast(d) || d['op_date_forecast'];
+    }
     return d['Ngày vận hành'] || d['op_date'] || d['op_date_forecast'] || d['Ngày vận hành_Forecast'] || getDateForecast(d) || getDateInbound(d);
   };
 
