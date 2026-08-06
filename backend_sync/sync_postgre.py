@@ -780,7 +780,8 @@ def _do_sync_postgre_to_dashboard(t0):
         sys.path.insert(0, _etl_dir)
     try:
         import pipeline_unified_v6 as _pipe6
-        print("\n🌐 Phase 1: JFS API → PostgreSQL (pipeline_unified_v6.main())...")
+        _pipe6.DAYS_BACK = 2  # 🚀 Tối ưu 30 phút: Chỉ kéo 2 ngày (hôm nay + hôm qua) trực tiếp từ JFS API
+        print("\n🌐 Phase 1: JFS API → PostgreSQL (pipeline_unified_v6.main(), DAYS_BACK=2)...")
         t1 = _time.time()
         _pipe6.main()
         print(f"   ✅ Phase 1 xong ({_time.time()-t1:.0f}s) — PostgreSQL đã cập nhật")
