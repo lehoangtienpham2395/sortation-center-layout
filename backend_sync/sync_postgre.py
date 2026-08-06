@@ -675,12 +675,31 @@ def sync_postgre_to_dashboard():
     if os.path.exists(lock_path):
         try:
             mtime = os.path.getmtime(lock_path)
-            if _time.time() - mtime < 1800:
-                print(f"\n⚠️ [{now_sys}] [SYNC LOCK] Process is already running (sync.lock active). Exiting duplicate run cleanly.")
+            pid = 0
+            try:
+                with open(lock_path, "r") as _rf:
+                    pid = int(_rf.read().strip())
+            except Exception:
+                pass
+
+            # Check if PID is alive on Windows
+            pid_alive = False
+            if pid > 0:
+                try:
+                    out = subprocess.check_output(f'tasklist /FI "PID eq {pid}"', shell=True, text=True, timeout=5)
+                    pid_alive = str(pid) in out and "No tasks are running" not in out
+                except Exception:
+                    pid_alive = False
+
+            if pid_alive and (_time.time() - mtime < 600):
+                print(f"\n⚠️ [{now_sys}] [SYNC LOCK] Process PID {pid} is actively running. Exiting duplicate run cleanly.")
                 return
             else:
-                print(f"⚠️ [SYNC LOCK] Stale lock file found (>30 mins). Removing stale lock...")
-                os.remove(lock_path)
+                print(f"⚠️ [SYNC LOCK] Dead or stale lock file found (PID {pid}, age: {int(_time.time() - mtime)}s). Auto-clearing lock...")
+                try:
+                    os.remove(lock_path)
+                except Exception:
+                    pass
         except Exception:
             pass
 
