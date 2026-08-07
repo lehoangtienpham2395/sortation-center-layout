@@ -1331,10 +1331,10 @@ def sync_postgre_to_dashboard():
                 origin_map[pk_clean] = {'total_volume': 0, 'inbound_volume': 0, 'transporting_volume': 0, 'pickup_done_volume': 0, 'created_volume': 0}
             vol = stats['volume']
             origin_map[pk_clean]['total_volume'] += vol
-            if status == 'Inbound': origin_map[pk_clean]['inbound_volume'] += vol
-            elif status == 'Transporting': origin_map[pk_clean]['transporting_volume'] += vol
-            elif status == 'Pickup Done': origin_map[pk_clean]['pickup_done_volume'] += vol
-            elif status == 'Created': origin_map[pk_clean]['created_volume'] += vol
+            if status in ('Inbound', 'Đã nhập kho'): origin_map[pk_clean]['inbound_volume'] += vol
+            elif status in ('Transporting', 'Đang vận chuyển'): origin_map[pk_clean]['transporting_volume'] += vol
+            elif status in ('Pickup Done', 'Đã lấy hàng'): origin_map[pk_clean]['pickup_done_volume'] += vol
+            elif status in ('Created', 'Đơn mới tạo'): origin_map[pk_clean]['created_volume'] += vol
 
     stations_list = [
         {"station_name": k, "total_volume": v['total_volume'], "inbound_volume": v['inbound_volume'], "transporting_volume": v['transporting_volume'], "pickup_done_volume": v['pickup_done_volume'], "created_volume": v['created_volume']}
