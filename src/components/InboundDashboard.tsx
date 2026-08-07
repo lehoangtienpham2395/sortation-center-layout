@@ -696,8 +696,13 @@ export default function InboundDashboard({
   // 🎯 QUY TẮC PHƯƠNG ÁN 2 (CỘNG GỘP CẢ 2): FORECAST TỔNG CỘNG CẢ SHUTTLE VÀ LINEHAUL
   const totalForecast = finalShuttleForecast + finalLinehaulForecast;
 
-  const finalShuttleWeight = isFutureDate ? 0 : Math.max(forecastShuttleWeight, effectiveKpiSummary?.shuttle_weight || 0);
-  const finalLinehaulWeight = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul_weight ?? forecastLinehaulWeight);
+  const rawShutWt = effectiveKpiSummary?.shuttle_weight || 0;
+  const normShutWt = rawShutWt > 1000 ? rawShutWt / 1000.0 : rawShutWt;
+  const rawLhWt = effectiveKpiSummary?.linehaul_weight || 0;
+  const normLhWt = rawLhWt > 1000 ? rawLhWt / 1000.0 : rawLhWt;
+
+  const finalShuttleWeight = isFutureDate ? 0 : Math.max(forecastShuttleWeight, normShutWt);
+  const finalLinehaulWeight = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul_weight ? normLhWt : forecastLinehaulWeight);
   const totalForecastWeight = finalShuttleWeight + finalLinehaulWeight;
 
   console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
@@ -840,7 +845,9 @@ export default function InboundDashboard({
   const pickupTrendData   = (localHourlyTrend?.series?.pickup_done && localHourlyTrend.series.pickup_done.length > 0) ? localHourlyTrend.series.pickup_done : labels.map(l => hourlyPickup[l]);
 
   const totalOrders = totalInbound;
-  const totalWeight = (isFutureDate || totalOrders === 0) ? 0 : Math.max(stages['Inbound'].weight, effectiveKpiSummary?.inbound_weight_ton || 0);
+  const rawKpiInbWt = effectiveKpiSummary?.inbound_weight_ton || 0;
+  const normKpiInbWt = rawKpiInbWt > 1000 ? rawKpiInbWt / 1000.0 : rawKpiInbWt;
+  const totalWeight = (isFutureDate || totalOrders === 0) ? 0 : Math.max(stages['Inbound'].weight, normKpiInbWt);
 
   const segments = [
     { name: 'Inbound', value: totalInbound, pct: inboundPct, color: '#B8F7E4', label: 'Inbound' },
