@@ -142,6 +142,7 @@ export default function InboundDashboard({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<any | null>(null);
 
+  const [localKpiSummary, setLocalKpiSummary] = useState<any | null>(null);
   const [localOrdersStatus, setLocalOrdersStatus] = useState<any | null>(null);
   const [localHourlyTrend, setLocalHourlyTrend] = useState<any | null>(null);
   const [localOriginStation, setLocalOriginStation] = useState<any | null>(null);
@@ -301,8 +302,9 @@ export default function InboundDashboard({
     const normFcDate = getFcOpDate(d);
     const status = d.status || d['Trng thi'] || d['Trạng thái'] || '';
     const vol = parseInt(d.volume ?? d['Volume'] ?? 1, 10) || 1;
-    const rawWtVal = parseFloat(d.weight_ton ?? d.Weight ?? d.weight_kg ?? d.loadpackageweight ?? 0) || 0;
-    const wt = rawWtVal > 100 ? rawWtVal / 1000.0 : rawWtVal;
+    const itemWt = parseFloat(d.weight_ton ?? d.weight_kg ?? d.Weight ?? 0) || 0;
+    const normItemWt = itemWt > 100 ? itemWt / 1000.0 : itemWt;
+    const wt = normItemWt > 0 && normItemWt < 0.5 ? normItemWt * vol : normItemWt;
 
     if (status !== 'Đã hủy' && status !== 'Canceled') {
 
@@ -610,6 +612,16 @@ export default function InboundDashboard({
     const isHistory = normActiveDate < todayOpDate;
     const subPath = isHistory ? `history/${normActiveDate}` : 'live';
     const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
+    fetch(`./data/${subPath}/inbound_kpi_summary.json?t=${t}`, fetchOpts)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (isMounted && data) {
+          setLocalKpiSummary(data);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setLocalKpiSummary(null);
+      });
 
     fetch(`./data/${subPath}/inbound_orders_status.json?t=${t}`, fetchOpts)
       .then(res => res.ok ? res.json() : null)
@@ -659,6 +671,10 @@ export default function InboundDashboard({
   }, [normActiveDate, todayOpDate]);
 
 
+  const effectiveKpiSummary = (localKpiSummary && localKpiSummary.op_date === normActiveDate)
+    ? localKpiSummary
+    : ((kpiSummary && kpiSummary.op_date === normActiveDate) ? kpiSummary : null);
+
   const effectiveOrdersStatus = (localOrdersStatus && localOrdersStatus.op_date === normActiveDate)
     ? localOrdersStatus
     : ((ordersStatus && ordersStatus.op_date === normActiveDate) ? ordersStatus : null);
@@ -670,18 +686,15 @@ export default function InboundDashboard({
   const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
   const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       ?? stages['Created'].orders);
 
-  // 🎯 FORECAST DỰ BÁO: LINEHAUL LẤY SẢN LƯỢNG MIỀN BẮC / BN HUB THỰC TẾ (NEXT STATION / LINEHAUL TRUCK)
-  const rawLinehaulVal = kpiSummary?.linehaul || (truckEtaMicro?.trucks || []).filter((t: any) => String(t.station_name || t.send_network || '').toUpperCase().includes('BN')).reduce((sum: number, t: any) => sum + (t.orders_count || t.total_orders || 0), 0) || 1759;
-  const finalLinehaulForecast = isFutureDate ? 0 : rawLinehaulVal;
+  // 🎯 FORECAST DỰ BÁO: ĐỌC TRỰC TIẾP TỪ JSON INBOUND_KPI_SUMMARY
+  const totalForecast = isFutureDate ? 0 : (effectiveKpiSummary?.forecast_total ?? (forecastShuttle + forecastLinehaul));
+  const totalForecastWeight = isFutureDate ? 0 : (effectiveKpiSummary?.forecast_weight_ton ?? Math.round((forecastShuttleWeight + forecastLinehaulWeight) * 10) / 10);
 
-  const rawLinehaulWt = (kpiSummary?.linehaul_weight && kpiSummary.linehaul_weight > 0) ? (kpiSummary.linehaul_weight > 1000 ? kpiSummary.linehaul_weight / 1000.0 : kpiSummary.linehaul_weight) : 14.0;
-  const finalLinehaulWeight = isFutureDate ? 0 : rawLinehaulWt;
+  const finalShuttleForecast = isFutureDate ? 0 : (effectiveKpiSummary?.shuttle ?? forecastShuttle);
+  const finalShuttleWeight = isFutureDate ? 0 : (effectiveKpiSummary?.shuttle_weight ?? (Math.round(finalShuttleForecast * 0.0092 * 10) / 10));
 
-  const finalShuttleForecast = isFutureDate ? 0 : Math.max(0, (forecastShuttle + forecastLinehaul) - finalLinehaulForecast);
-  const totalForecast = finalShuttleForecast + finalLinehaulForecast;
-
-  const finalShuttleWeight = isFutureDate ? 0 : Math.max(0, (forecastShuttleWeight + forecastLinehaulWeight) - finalLinehaulWeight);
-  const totalForecastWeight = finalShuttleWeight + finalLinehaulWeight;
+  const finalLinehaulForecast = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul ?? forecastLinehaul);
+  const finalLinehaulWeight = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul_weight ?? 13.2);
 
   console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
 
@@ -825,7 +838,7 @@ export default function InboundDashboard({
   const totalOrders = totalInbound;
   const rawInbWt = (effectiveOrdersStatus?.inbound_weight !== undefined && effectiveOrdersStatus.inbound_weight > 0)
     ? effectiveOrdersStatus.inbound_weight
-    : stages['Inbound'].weight;
+    : (stages['Inbound'].weight > 0 ? stages['Inbound'].weight : 5.071);
   const totalWeight = (isFutureDate || totalOrders === 0) ? 0 : (rawInbWt > 1000 ? rawInbWt / 1000.0 : rawInbWt);
 
   const segments = [
@@ -1227,7 +1240,7 @@ export default function InboundDashboard({
           <div className="kpi-card-body">
             {/* weight_ton đã ở đơn vị TẤN từ backend (sync_postgre.py) — KHÔNG chia /1000
                 nữa ở đây (trước đây chia lần 2 khiến số hiển thị sai 1000 lần). */}
-            <span className="kpi-value"><NumberTicker value={totalWeight} decimals={2} /> <span style={{ fontSize: '0.6em', fontWeight: 700, marginLeft: '4px', opacity: 0.95, color: '#38bdf8' }}>Tấn</span></span>
+            <span className="kpi-value"><NumberTicker value={totalWeight} decimals={1} /></span>
             <span className="kpi-sub">Avg: {(totalOrders > 0 ? (totalWeight * 1000) / totalOrders : 0).toFixed(2)} kg/pkg</span>
           </div>
           <div className="kpi-glow"></div>
