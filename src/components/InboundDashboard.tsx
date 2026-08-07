@@ -303,7 +303,7 @@ export default function InboundDashboard({
     const status = d.status || d['Trng thi'] || d['Trạng thái'] || '';
     const vol = parseInt(d.volume ?? d['Volume'] ?? 1, 10) || 1;
     const rawWtVal = parseFloat(d.weight_ton ?? d.Weight ?? d.weight_kg ?? d.loadpackageweight ?? 0) || 0;
-    const wt = rawWtVal > 100 ? rawWtVal / 1000.0 : rawWtVal;
+    const wt = rawWtVal / 1000.0;
 
     if (status !== 'Đã hủy' && status !== 'Canceled') {
 
@@ -697,16 +697,11 @@ export default function InboundDashboard({
   // 🎯 QUY TẮC PHƯƠNG ÁN 2 (CỘNG GỘP CẢ 2): FORECAST TỔNG CỘNG CẢ SHUTTLE VÀ LINEHAUL
   const totalForecast = finalShuttleForecast + finalLinehaulForecast;
 
-  const rawShutWt = effectiveKpiSummary?.shuttle_weight || 0;
-  const normShutWt = rawShutWt > 1000 ? rawShutWt / 1000.0 : rawShutWt;
-  const rawLhWt = effectiveKpiSummary?.linehaul_weight || 0;
-  const normLhWt = rawLhWt > 1000 ? rawLhWt / 1000.0 : rawLhWt;
+  const normShutWt = (effectiveKpiSummary?.shuttle_weight && effectiveKpiSummary.shuttle_weight > 1000) ? effectiveKpiSummary.shuttle_weight / 1000.0 : (effectiveKpiSummary?.shuttle_weight || 0);
+  const normLhWt = (effectiveKpiSummary?.linehaul_weight && effectiveKpiSummary.linehaul_weight > 1000) ? effectiveKpiSummary.linehaul_weight / 1000.0 : (effectiveKpiSummary?.linehaul_weight || 0);
 
-  const shutWtAcc = forecastShuttleWeight > 1000 ? forecastShuttleWeight / 1000.0 : forecastShuttleWeight;
-  const lhWtAcc = forecastLinehaulWeight > 1000 ? forecastLinehaulWeight / 1000.0 : forecastLinehaulWeight;
-
-  const finalShuttleWeight = isFutureDate ? 0 : Math.max(shutWtAcc, normShutWt);
-  const finalLinehaulWeight = isFutureDate ? 0 : (effectiveKpiSummary?.linehaul_weight ? normLhWt : lhWtAcc);
+  const finalShuttleWeight = isFutureDate ? 0 : Math.max(forecastShuttleWeight, normShutWt);
+  const finalLinehaulWeight = isFutureDate ? 0 : (normLhWt > 0 ? normLhWt : forecastLinehaulWeight);
   const totalForecastWeight = finalShuttleWeight + finalLinehaulWeight;
 
   console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
