@@ -1227,7 +1227,7 @@ export default function InboundDashboard({
           <div className="kpi-card-body">
             {/* weight_ton đã ở đơn vị TẤN từ backend (sync_postgre.py) — KHÔNG chia /1000
                 nữa ở đây (trước đây chia lần 2 khiến số hiển thị sai 1000 lần). */}
-            <span className="kpi-value"><NumberTicker value={totalWeight} decimals={2} /> Tấn</span>
+            <span className="kpi-value"><NumberTicker value={totalWeight} decimals={2} /> <span style={{ fontSize: '0.6em', fontWeight: 700, marginLeft: '4px', opacity: 0.95, color: '#38bdf8' }}>Tấn</span></span>
             <span className="kpi-sub">Avg: {(totalOrders > 0 ? (totalWeight * 1000) / totalOrders : 0).toFixed(2)} kg/pkg</span>
           </div>
           <div className="kpi-glow"></div>
