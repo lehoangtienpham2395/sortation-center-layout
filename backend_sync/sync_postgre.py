@@ -584,7 +584,7 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
             send_st, arr_st, trip, vol, wt_kg, max_arr, max_transp = r
             ref_dep = str(max_transp or '')[:16]
             calc_eta = compute_truck_eta(send_st, max_transp, max_arr)[:16]
-            op_d = get_op_date(calc_eta or ref_dep) if (calc_eta or ref_dep) else today
+            op_d = get_op_date(ref_dep or calc_eta) if (ref_dep or calc_eta) else today
 
             if op_d in (today, yesterday):
                 key = (send_st, trip)
@@ -693,6 +693,7 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
                 op_d = get_op_date(ref_t) if ref_t else today
                 if op_d == today:
                     wt_kg = float(row.get('loadpackageweight') or 0)
+                    shuttle_eta = compute_truck_eta(send_net, actual_dep or p_dep) or str(row.get('estimateArrivalTime') or '').strip()
                     trucks.append({
                         "send_network":     send_net,
                         "arrive_network":   arr_net,
@@ -703,7 +704,7 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
                         "planned_departure":p_dep,
                         "planned_arrival":  str(row.get('plannedArrivalTime') or '').strip(),
                         "actual_departure": actual_dep,
-                        "eta":              str(row.get('estimateArrivalTime') or '').strip(),
+                        "eta":              shuttle_eta,
                         "rank":             "Shuttle",
                         "status":           "in_transit" if actual_dep else "loading",
                         "op_date":          op_d,
