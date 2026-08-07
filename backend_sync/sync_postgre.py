@@ -1219,11 +1219,14 @@ def sync_postgre_to_dashboard():
     fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status))
     shuttle_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not is_linehaul_item(st, pk, status)) / 1000.0, 3)
     linehaul_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status)) / 1000.0, 3)
+    total_inb_wt_kg = sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if in_op == today or (status == 'Inbound' and (in_op == today or not in_op)))
+    inbound_weight_ton = round(total_inb_wt_kg / 1000.0, 1)
+
     inbound_kpi_summary = {
         "op_date": today,
         "contract_version": "2.0.0",
         "inbound_orders": total_inbound_today,
-        "inbound_weight_ton": round(sum(stats['weight_kg'] for (st, pk, status, in_op, *rest), stats in inbound_group.items() if status == 'Inbound' and in_op == today) / 1000.0, 3),
+        "inbound_weight_ton": inbound_weight_ton,
         "forecast_total": fc_shuttle + fc_linehaul,
         "forecast_weight_ton": round(shuttle_weight_ton + linehaul_weight_ton, 3),
         "shuttle": fc_shuttle,
@@ -1240,9 +1243,10 @@ def sync_postgre_to_dashboard():
     hourly_series_created = []
 
     for h in hours_list:
-        tr_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if status == 'Transporting' and ar_hr.startswith(h[:2]) and (ar_op == today or pk_op == today or fc_op == today))
-        pk_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if status == 'Pickup Done' and pk_hr.startswith(h[:2]) and (pk_op == today or fc_op == today))
-        cr_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if status == 'Created' and fc_hr.startswith(h[:2]) and fc_op == today)
+        h_prefix = h[:2]
+        tr_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if ar_hr and ar_hr.startswith(h_prefix) and (ar_op == today or (not ar_op and (in_op == today or pk_op == today or fc_op == today))))
+        pk_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if pk_hr and pk_hr.startswith(h_prefix) and (pk_op == today or (not pk_op and (in_op == today or ar_op == today or fc_op == today))))
+        cr_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if fc_hr and fc_hr.startswith(h_prefix) and (fc_op == today or (not fc_op and (in_op == today or ar_op == today or pk_op == today))))
         hourly_series_transporting.append(tr_vol)
         hourly_series_pickup_done.append(pk_vol)
         hourly_series_created.append(cr_vol)
@@ -1277,7 +1281,7 @@ def sync_postgre_to_dashboard():
         "pickup_done": status_counts['Pickup Done'],
         "created": status_counts['Created'],
         "total": sum(status_counts.values()),
-        "inbound_weight": round(status_weights['Inbound'], 3),
+        "inbound_weight": round(total_inb_wt_kg / 1000.0, 1),
         "transporting_weight": round(status_weights['Transporting'], 3),
         "pickup_done_weight": round(status_weights['Pickup Done'], 3),
         "created_weight": round(status_weights['Created'], 3)
@@ -1295,7 +1299,8 @@ def sync_postgre_to_dashboard():
                 origin_map[pk_clean] = {'total_volume': 0, 'inbound_volume': 0, 'transporting_volume': 0, 'pickup_done_volume': 0, 'created_volume': 0}
             vol = stats['volume']
             origin_map[pk_clean]['total_volume'] += vol
-            if status == 'Inbound': origin_map[pk_clean]['inbound_volume'] += vol
+            origin_map[pk_clean]['inbound_volume'] += vol
+            if status == 'Inbound': pass
             elif status == 'Transporting': origin_map[pk_clean]['transporting_volume'] += vol
             elif status == 'Pickup Done': origin_map[pk_clean]['pickup_done_volume'] += vol
             elif status == 'Created': origin_map[pk_clean]['created_volume'] += vol

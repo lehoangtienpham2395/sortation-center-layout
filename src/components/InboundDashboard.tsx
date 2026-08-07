@@ -397,10 +397,37 @@ export default function InboundDashboard({
     );
 
     const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? d['volume'] ?? 0);
-    const lastTime = d['transporting_time'] || d['transport_time'] || d['transportingTime'] || d['actual_departure'] || d['planned_departure'] || '';
+    const rawEtaVal = d['eta'] || d['planned_arrival'] || d['predictArriveTime'] || d['plannedArrivalTime'] || '';
+    const depTime = d['transporting_time'] || d['transport_time'] || d['transportingTime'] || d['actual_departure'] || d['planned_departure'] || '';
+
+    const computeFrontendEta = (stationName: string, departureStr: string, rawEta: string) => {
+      if (rawEta && rawEta !== departureStr && rawEta.length >= 10) return rawEta;
+      if (!departureStr || departureStr.length < 10) return rawEta || '--:--';
+      try {
+        const dt = new Date(departureStr.replace(' ', 'T'));
+        if (isNaN(dt.getTime())) return rawEta || departureStr;
+        const stUpper = (stationName || '').toUpperCase();
+        let hoursAdd = 1.5;
+        if (stUpper.includes('BN HUB') || stUpper.startsWith('HN ') || stUpper.startsWith('HD ') || stUpper.startsWith('HY ')) {
+          hoursAdd = 36.0;
+        } else if (['CT ', 'KG ', 'AG ', 'BL ', 'CM ', 'ST ', 'TV ', 'VL ', 'TG ', 'DT ', 'LA '].some(p => stUpper.startsWith(p))) {
+          hoursAdd = 4.0;
+        } else if (['BD ', 'DN ', 'TN ', 'VT '].some(p => stUpper.startsWith(p))) {
+          hoursAdd = 2.0;
+        }
+        dt.setTime(dt.getTime() + hoursAdd * 3600 * 1000);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+      } catch (e) {
+        return rawEta || departureStr;
+      }
+    };
+
     const wtKg = Number(d['weight_kg'] ?? d['loadpackageweight'] ?? d['Tổng trọng lượng (kg)'] ?? 0);
     const wtTon = Number(d['weight'] ?? d['weight_ton'] ?? d['package_charge_weight'] ?? 0);
     const wt = wtKg > 0 ? wtKg / 1000.0 : (wtTon > 100 ? wtTon / 1000.0 : wtTon);
+
+    const calculatedEta = computeFrontendEta(st, depTime, rawEtaVal);
 
     if (!groupedStationVehicles[st]) {
       groupedStationVehicles[st] = {
@@ -408,13 +435,13 @@ export default function InboundDashboard({
         trucking: 0,
         orders: tongDon,
         weight: 0,
-        eta: lastTime,
+        eta: calculatedEta,
         rank: isLinehaulTruck ? 'Linehaul' : 'Shuttle',
         chuaDenHub: tongDon,
         tongDon: tongDon,
         vehicles: 0,
         vehicleSet: new Set(),
-        lastTime: lastTime
+        lastTime: depTime
       };
     } else {
       groupedStationVehicles[st].orders += tongDon;
@@ -427,9 +454,9 @@ export default function InboundDashboard({
     groupedStationVehicles[st].vehicles = groupedStationVehicles[st].vehicleSet.size;
     groupedStationVehicles[st].trucking = groupedStationVehicles[st].vehicles;
     groupedStationVehicles[st].weight += wt;
-    if (lastTime && lastTime > groupedStationVehicles[st].lastTime) {
-      groupedStationVehicles[st].lastTime = lastTime;
-      groupedStationVehicles[st].eta = lastTime;
+    if (calculatedEta && calculatedEta !== '--:--') {
+      groupedStationVehicles[st].eta = calculatedEta;
+      groupedStationVehicles[st].lastTime = depTime;
     }
   });
 
@@ -495,6 +522,8 @@ export default function InboundDashboard({
 
   const [localKpiSummary, setLocalKpiSummary] = useState<any | null>(null);
   const [localOrdersStatus, setLocalOrdersStatus] = useState<any | null>(null);
+  const [localHourlyTrend, setLocalHourlyTrend] = useState<any | null>(null);
+  const [localOriginStation, setLocalOriginStation] = useState<any | null>(null);
 
   useEffect(() => {
     if (!normActiveDate) return;
@@ -524,6 +553,28 @@ export default function InboundDashboard({
       })
       .catch(() => {
         if (isMounted) setLocalOrdersStatus(null);
+      });
+
+    fetch(`./data/${subPath}/inbound_hourly_trend.json?t=${t}`, fetchOpts)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (isMounted && data) {
+          setLocalHourlyTrend(data);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setLocalHourlyTrend(null);
+      });
+
+    fetch(`./data/${subPath}/inbound_origin_station.json?t=${t}`, fetchOpts)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (isMounted && data) {
+          setLocalOriginStation(data);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setLocalOriginStation(null);
       });
 
     return () => { isMounted = false; };
@@ -698,10 +749,10 @@ export default function InboundDashboard({
   let pickupDonePct = totalBase > 0 ? Math.round((totalPickupDone / totalBase) * 100) : 0;
   let createdPct = totalBase > 0 ? Math.max(0, 100 - (inboundPct + inTransitPct + pickupDonePct)) : 0;
 
-  const inboundTrendData  = labels.map(l => hourlyInbound[l]);
-  const arrivedTrendData  = labels.map(l => hourlyArrived[l]);
-  const forecastTrendData = labels.map(l => hourlyForecast[l]);
-  const pickupTrendData   = labels.map(l => hourlyPickup[l]);
+  const inboundTrendData  = (localHourlyTrend?.series?.inbound && localHourlyTrend.series.inbound.length > 0) ? localHourlyTrend.series.inbound : labels.map(l => hourlyInbound[l]);
+  const arrivedTrendData  = (localHourlyTrend?.series?.transporting && localHourlyTrend.series.transporting.length > 0) ? localHourlyTrend.series.transporting : labels.map(l => hourlyArrived[l]);
+  const forecastTrendData = (localHourlyTrend?.series?.created && localHourlyTrend.series.created.length > 0) ? localHourlyTrend.series.created : labels.map(l => hourlyForecast[l]);
+  const pickupTrendData   = (localHourlyTrend?.series?.pickup_done && localHourlyTrend.series.pickup_done.length > 0) ? localHourlyTrend.series.pickup_done : labels.map(l => hourlyPickup[l]);
 
   const totalOrders = totalInbound;
   const totalWeight = isFutureDate ? 0 : Math.max(stages['Inbound'].weight, effectiveKpiSummary?.inbound_weight_ton || 0);
@@ -712,8 +763,6 @@ export default function InboundDashboard({
     { name: 'Pickup Done', value: totalPickupDone, pct: pickupDonePct, color: '#38BDF8', label: 'Pickup Done' },
     { name: 'Created', value: totalCreated, pct: createdPct, color: '#FC6C26', label: 'Created' }
   ];
-
-
 
   const activeSegments = segments.filter(s => s.pct > 0);
   const sortedSegments = [...activeSegments].sort((a, b) => b.pct - a.pct);
@@ -790,30 +839,41 @@ export default function InboundDashboard({
   });
 
   // 🎯 TÍNH SỐ XE THỰC TẾ CHUẨN VẬN HÀNH (LOẠI BỎ RÁC BẢNG KÊ NỘI BỘ, QUY ĐỔI CHUẨN TẢI TRỌNG XE VẬN CHUYỂN)
-  const allSendingFCs = Object.values(fcMetrics)
-    .map(item => {
-      const isBn = item.fc.toUpperCase().includes('BN HUB') || item.fc.toUpperCase().includes('NORTH');
-      
-      // Sức chứa quy đổi chuẩn 1 xe xe tải chạy tuyến:
-      // - Linehaul BN HUB: ~1,400 đơn/chuyến (ví dụ: 2,115 đơn = đúng 2 xe chuẩn)
-      // - Shuttle Bưu cục (DT Sa Đéc, SG Củ Chi...): ~450 - 500 đơn/chuyến (ví dụ: DT Sa Đéc 1,096 đơn = đúng 2 xe chuẩn)
-      const targetAvgOrdersPerTruck = isBn ? 1400 : 480;
-      const realTrucksCount = Math.max(1, Math.round(item.orders / targetAvgOrdersPerTruck));
+  const allSendingFCs = (() => {
+    if (localOriginStation?.stations && localOriginStation.stations.length > 0) {
+      return localOriginStation.stations.map((s: any) => {
+        const isBn = String(s.station_name || '').toUpperCase().includes('BN HUB') || String(s.station_name || '').toUpperCase().includes('NORTH');
+        const targetAvgOrdersPerTruck = isBn ? 1400 : 480;
+        const vol = Number(s.inbound_volume ?? s.total_volume ?? 0);
+        return {
+          fc: s.station_name,
+          vehicles: vol > 0 ? Math.max(1, Math.round(vol / targetAvgOrdersPerTruck)) : 0,
+          orders: vol,
+          weight: Math.round((vol * 9.2 / 1000.0) * 10) / 10
+        };
+      }).filter((s: any) => s.orders > 0).sort((a: any, b: any) => b.orders - a.orders);
+    }
+    return Object.values(fcMetrics)
+      .map(item => {
+        const isBn = item.fc.toUpperCase().includes('BN HUB') || item.fc.toUpperCase().includes('NORTH');
+        const targetAvgOrdersPerTruck = isBn ? 1400 : 480;
+        const realTrucksCount = Math.max(1, Math.round(item.orders / targetAvgOrdersPerTruck));
 
-      return {
-        fc: item.fc,
-        vehicles: item.orders > 0 ? realTrucksCount : 0,
-        orders: item.orders,
-        weight: item.weight
-      };
-    })
-    .filter(item => item.orders > 0 || item.vehicles > 0)
-    .sort((a, b) => b.orders - a.orders || b.weight - a.weight);
+        return {
+          fc: item.fc,
+          vehicles: item.orders > 0 ? realTrucksCount : 0,
+          orders: item.orders,
+          weight: item.weight
+        };
+      })
+      .filter(item => item.orders > 0 || item.vehicles > 0)
+      .sort((a, b) => b.orders - a.orders || b.weight - a.weight);
+  })();
 
   // Tính tổng số lượng để tính tỉ lệ % của từng bưu cục
-  const totalSendingVehicles = allSendingFCs.reduce((sum, item) => sum + item.vehicles, 0);
-  const totalSendingOrders = allSendingFCs.reduce((sum, item) => sum + item.orders, 0);
-  const totalSendingWeight = allSendingFCs.reduce((sum, item) => sum + item.weight, 0);
+  const totalSendingVehicles = allSendingFCs.reduce((sum: number, item: any) => sum + item.vehicles, 0);
+  const totalSendingOrders = allSendingFCs.reduce((sum: number, item: any) => sum + item.orders, 0);
+  const totalSendingWeight = allSendingFCs.reduce((sum: number, item: any) => sum + item.weight, 0);
 
 
   useEffect(() => {
@@ -1340,7 +1400,7 @@ export default function InboundDashboard({
                     <td className="num-tabular" style={{ textAlign: 'right', color: '#38bdf8' }}>100%</td>
                   </tr>
                 )}
-                {allSendingFCs.map((fc, idx) => (
+                {allSendingFCs.map((fc: any, idx: number) => (
                   <tr key={fc.fc}>
                     <td className="table-index">{idx + 1}</td>
                     <td className="table-buucuc">{fc.fc}</td>
