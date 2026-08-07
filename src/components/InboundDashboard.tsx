@@ -771,7 +771,7 @@ export default function InboundDashboard({
   const pickupTrendData   = (localHourlyTrend?.series?.pickup_done && localHourlyTrend.series.pickup_done.length > 0) ? localHourlyTrend.series.pickup_done : labels.map(l => hourlyPickup[l]);
 
   const totalOrders = totalInbound;
-  const totalWeight = isFutureDate ? 0 : Math.max(stages['Inbound'].weight, effectiveKpiSummary?.inbound_weight_ton || 0);
+  const totalWeight = (isFutureDate || totalOrders === 0) ? 0 : Math.max(stages['Inbound'].weight, effectiveKpiSummary?.inbound_weight_ton || 0);
 
   const segments = [
     { name: 'Inbound', value: totalInbound, pct: inboundPct, color: '#B8F7E4', label: 'Inbound' },
