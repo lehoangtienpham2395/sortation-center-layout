@@ -401,26 +401,42 @@ export default function InboundDashboard({
     const depTime = d['transporting_time'] || d['transport_time'] || d['transportingTime'] || d['actual_departure'] || d['planned_departure'] || '';
 
     const computeFrontendEta = (stationName: string, departureStr: string, rawEta: string) => {
-      if (rawEta && rawEta !== departureStr && rawEta.length >= 10) return rawEta;
+      const stUpper = (stationName || '').toUpperCase();
+      let hoursAdd = 1.5;
+      if (stUpper.includes('BN HUB') || stUpper.startsWith('HN ') || stUpper.startsWith('HD ') || stUpper.startsWith('HY ')) {
+        hoursAdd = 36.0;
+      } else if (['CT ', 'KG ', 'AG ', 'BL ', 'CM ', 'ST ', 'TV ', 'VL ', 'TG ', 'DT ', 'LA '].some(p => stUpper.startsWith(p))) {
+        hoursAdd = 4.0;
+      } else if (['BD ', 'DN ', 'TN ', 'VT '].some(p => stUpper.startsWith(p))) {
+        hoursAdd = 2.0;
+      }
+
+      if (rawEta && rawEta !== departureStr && rawEta.length >= 10) {
+        return rawEta;
+      }
+
       if (!departureStr || departureStr.length < 10) return rawEta || '--:--';
       try {
-        const dt = new Date(departureStr.replace(' ', 'T'));
-        if (isNaN(dt.getTime())) return rawEta || departureStr;
-        const stUpper = (stationName || '').toUpperCase();
-        let hoursAdd = 1.5;
-        if (stUpper.includes('BN HUB') || stUpper.startsWith('HN ') || stUpper.startsWith('HD ') || stUpper.startsWith('HY ')) {
-          hoursAdd = 36.0;
-        } else if (['CT ', 'KG ', 'AG ', 'BL ', 'CM ', 'ST ', 'TV ', 'VL ', 'TG ', 'DT ', 'LA '].some(p => stUpper.startsWith(p))) {
-          hoursAdd = 4.0;
-        } else if (['BD ', 'DN ', 'TN ', 'VT '].some(p => stUpper.startsWith(p))) {
-          hoursAdd = 2.0;
+        const cleanStr = departureStr.trim();
+        const parts = cleanStr.split(/[- :]/);
+        if (parts.length >= 5) {
+          const yyyy = parseInt(parts[0], 10);
+          const mm = parseInt(parts[1], 10) - 1;
+          const dd = parseInt(parts[2], 10);
+          const hh = parseInt(parts[3], 10);
+          const min = parseInt(parts[4], 10);
+          const ss = parts[5] ? parseInt(parts[5], 10) : 0;
+          const dt = new Date(yyyy, mm, dd, hh, min, ss);
+          if (!isNaN(dt.getTime())) {
+            dt.setTime(dt.getTime() + hoursAdd * 3600 * 1000);
+            const pad = (n: number) => String(n).padStart(2, '0');
+            return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+          }
         }
-        dt.setTime(dt.getTime() + hoursAdd * 3600 * 1000);
-        const pad = (n: number) => String(n).padStart(2, '0');
-        return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
       } catch (e) {
-        return rawEta || departureStr;
+        // fallback
       }
+      return rawEta || departureStr;
     };
 
     const wtKg = Number(d['weight_kg'] ?? d['loadpackageweight'] ?? d['Tổng trọng lượng (kg)'] ?? 0);

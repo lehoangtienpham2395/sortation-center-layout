@@ -748,17 +748,20 @@ def sync_postgre_to_dashboard():
 
 
     # ── Phase 1: JFS API → PostgreSQL (import trực tiếp pipeline_unified_v6.py) ──
-    _etl_dir = os.path.dirname(os.path.abspath(__file__))  # backend_sync/
-    if _etl_dir not in sys.path:
-        sys.path.insert(0, _etl_dir)
-    try:
-        import pipeline_unified_v6 as _pipe6
-        print("\n🌐 Phase 1: JFS API → PostgreSQL (pipeline_unified_v6.main())...")
-        t1 = _time.time()
-        _pipe6.main()
-        print(f"   ✅ Phase 1 xong ({_time.time()-t1:.0f}s) — PostgreSQL đã cập nhật")
-    except Exception as _e1:
-        print(f"   ⚠️  Phase 1 error: {_e1} — tiếp tục Phase 2 từ DB hiện tại")
+    if '--skip-jfs' in sys.argv or '--fast' in sys.argv or '-f' in sys.argv:
+        print("\n⏩ Skipping Phase 1 (JFS API fetch) — Running Fast Phase 2 & JSON export directly from PostgreSQL...")
+    else:
+        _etl_dir = os.path.dirname(os.path.abspath(__file__))  # backend_sync/
+        if _etl_dir not in sys.path:
+            sys.path.insert(0, _etl_dir)
+        try:
+            import pipeline_unified_v6 as _pipe6
+            print("\n🌐 Phase 1: JFS API → PostgreSQL (pipeline_unified_v6.main())...")
+            t1 = _time.time()
+            _pipe6.main()
+            print(f"   ✅ Phase 1 xong ({_time.time()-t1:.0f}s) — PostgreSQL đã cập nhật")
+        except Exception as _e1:
+            print(f"   ⚠️  Phase 1 error: {_e1} — tiếp tục Phase 2 từ DB hiện tại")
 
     # ── Phase 1.5: Atomic flag refresh (sau upsert, trước export JSON) ────────────
     # Bảo đảm flag_inbound/outbound/pickup/arrival luôn nhất quán với timestamp gốc
@@ -1219,8 +1222,8 @@ def sync_postgre_to_dashboard():
     fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status))
     shuttle_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not is_linehaul_item(st, pk, status)) / 1000.0, 3)
     linehaul_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status)) / 1000.0, 3)
-    total_inb_wt_kg = sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if in_op == today or (status == 'Inbound' and (in_op == today or not in_op)))
-    inbound_weight_ton = round(total_inb_wt_kg / 1000.0, 1)
+    total_inb_wt_kg = sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if in_op == today)
+    inbound_weight_ton = round(total_inb_wt_kg / 1000.0, 1) if total_inbound_today > 0 else 0.0
 
     inbound_kpi_summary = {
         "op_date": today,
