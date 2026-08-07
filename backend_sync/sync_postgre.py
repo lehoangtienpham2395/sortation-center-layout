@@ -530,31 +530,59 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
         rows = cur.fetchall()
         conn.close()
 
-        def compute_truck_eta(send_st: str, transp_t: str, arr_t: str) -> str:
-            if arr_t and len(str(arr_t)) >= 10:
-                return str(arr_t)
-            if not transp_t or len(str(transp_t)) < 10:
+        # Lấy bảng mapping Station_2 -> ETA từ valid.csv
+        VALID_ETA_MAP = {}
+        try:
+            v_paths = [
+                r'C:\Users\lehoa\OneDrive\Desktop\testing\Exportauto\Valid\valid.csv',
+                r'C:\Users\lehoa\OneDrive\Desktop\testing\Exportauto\Valid.csv',
+                os.path.join(BASE_DIR, 'valid.csv')
+            ]
+            for vp in v_paths:
+                if os.path.exists(vp):
+                    _dfv = pd.read_csv(vp, encoding='utf-8-sig')
+                    if 'Station_2' in _dfv.columns and 'ETA' in _dfv.columns:
+                        for _, _r in _dfv.iterrows():
+                            _s2 = str(_r.get('Station_2', '')).strip().upper()
+                            _ev = _r.get('ETA')
+                            if _s2 and pd.notna(_ev):
+                                try:
+                                    VALID_ETA_MAP[_s2] = float(_ev)
+                                except Exception:
+                                    pass
+                        break
+        except Exception:
+            pass
+
+        def compute_truck_eta(send_st: str, transp_t: str, arr_t: str = '') -> str:
+            # Rule 1: Các chuyến xe chưa có transporting -> bỏ qua hiển thị, trả về ""
+            if not transp_t or len(str(transp_t).strip()) < 10:
                 return ""
             try:
-                ts_str = str(transp_t)[:19]
+                ts_str = str(transp_t).strip()[:19]
                 fmt = '%Y-%m-%d %H:%M:%S' if len(ts_str) >= 19 else ('%Y-%m-%d %H:%M' if len(ts_str) >= 16 else '%Y-%m-%d')
                 dep_dt = datetime.datetime.strptime(ts_str, fmt)
                 st_u = (send_st or '').strip().upper()
-                if st_u.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')):
-                    hours_add = 36.0
-                elif st_u.startswith(('CT ', 'KG ', 'AG ', 'BL ', 'CM ', 'ST ', 'TV ', 'VL ', 'TG ', 'DT ', 'LA ')):
-                    hours_add = 4.0
-                elif st_u.startswith(('BD ', 'DN ', 'TN ', 'VT ')):
-                    hours_add = 2.0
-                else:
-                    hours_add = 1.5
+
+                # Rule 2 & 3: Mapping Station_2 -> Cột ETA từ valid.csv
+                hours_add = VALID_ETA_MAP.get(st_u)
+                if hours_add is None:
+                    if st_u.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')):
+                        hours_add = 36.0
+                    elif st_u.startswith(('CT ', 'KG ', 'AG ', 'BL ', 'CM ', 'ST ', 'TV ', 'VL ', 'TG ', 'DT ', 'LA ')):
+                        hours_add = 4.0
+                    elif st_u.startswith(('BD ', 'DN ', 'TN ', 'VT ')):
+                        hours_add = 2.0
+                    else:
+                        hours_add = 1.5
+
                 return (dep_dt + datetime.timedelta(hours=hours_add)).strftime('%Y-%m-%d %H:%M:%S')
             except Exception:
                 return str(transp_t)
 
         for r in rows:
             send_st, arr_st, trip, vol, wt_kg, max_arr, max_transp = r
-            ref_dep = str(max_transp or max_arr or '')[:16]
+            ref_dep = str(max_transp or '')[:16]
             calc_eta = compute_truck_eta(send_st, max_transp, max_arr)[:16]
             op_d = get_op_date(calc_eta or ref_dep) if (calc_eta or ref_dep) else today
 
@@ -570,10 +598,10 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
                     "weight_kg":        float(wt_kg),
                     "weight_ton":       calc_wt_ton,
                     "planned_departure":ref_dep,
-                    "planned_arrival":  calc_eta or ref_dep,
+                    "planned_arrival":  calc_eta,
                     "actual_departure": str(max_transp or '')[:16],
                     "actual_arrival":   str(max_arr or '')[:16],
-                    "eta":              calc_eta or ref_dep,
+                    "eta":              calc_eta,
                     "rank":             "Linehaul" if (send_st or '').strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) else "Shuttle",
                     "status":           "arrived" if max_arr else "in_transit",
                     "op_date":          op_d,

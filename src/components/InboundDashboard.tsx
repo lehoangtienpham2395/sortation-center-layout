@@ -400,52 +400,66 @@ export default function InboundDashboard({
     const rawEtaVal = d['eta'] || d['planned_arrival'] || d['predictArriveTime'] || d['plannedArrivalTime'] || '';
     const depTime = d['transporting_time'] || d['transport_time'] || d['transportingTime'] || d['actual_departure'] || d['planned_departure'] || '';
 
+    const STATION_ETA_MAP: Record<string, number> = {
+      "VT XUYÊN MỘC": 7.3, "VT VŨNG TÀU": 7.3, "VT LONG ĐẤT": 7.3, "VT CHÂU ĐỨC": 7.3,
+      "VL VĨNH LONG": 4.8, "VL CHỢ LÁCH": 3.3, "TG TRUNG AN": 3.3, "TG HÒA KHÁNH": 4.8,
+      "TG AN HỮU": 4.8, "ST VĨNH CHÂU": 6.7, "ST PHÚ LỢI": 6.7, "SG XUÂN HÒA": 1.4,
+      "SG VĨNH LỘC": 0.7, "SG THỦ ĐỨC": 1.3, "SG TÂN THỚI HIỆP": 1.0, "SG TÂN TẠO": 1.0,
+      "SG TÂN SƠN NHÌ": 0.8, "SG TÂN NHỰT": 0.8, "SG TÂN HƯNG": 1.2, "SG PHÚ NHUẬN": 3.5,
+      "SG PHÚ LÂM": 1.3, "SG NHƠN ĐỨC": 0.1, "SG KHÁNH HỘI": 4.1, "SG HƯNG LONG": 2.1,
+      "SG HÓC MÔN": 0.8, "SG HIỆP BÌNH": 1.6, "SG GÒ VẤP": 1.1, "SG ĐÔNG HƯNG THUẬN": 0.8,
+      "SG CỦ CHI": 0.7, "SG CHỢ LỚN": 0.6, "SG BÌNH TRỊ ĐÔNG": 1.1, "SG BÌNH TÂN": 0.7,
+      "SG BÌNH LỢI TRUNG": 2.0, "SG BÌNH LỢI": 0.5, "SG BẢY HIỀN": 1.6, "SG AN PHÚ ĐÔNG": 1.1,
+      "SG AN LẠC": 0.7, "LA TÂN AN": 2.7, "LA ĐỨC HÒA": 0.5, "LA BYD": 0.1, "LA BẾN LỨC": 2.7,
+      "DT SA ĐÉC": 6.3, "DT CAO LÃNH": 7.2, "CT Ô MÔN": 6.9, "CT NINH KIỀU": 5.9,
+      "CT LONG MỸ": 5.9, "CT BÌNH THỦY": 6.9, "BN HUB": 36.0, "BD DĨ AN": 3.4,
+      "BD BÌNH HÒA": 2.4, "AG TỊNH BIÊN": 5.9, "AG THOẠI SƠN": 5.9, "AG TÂN CHÂU": 7.0,
+      "AG LONG XUYÊN": 6.2, "AG CẦN ĐĂNG": 6.2, "AG AN PHÚ": 7.0, "TG GÒ CÔNG": 2.3,
+      "SG BÀ ĐIỂM": 0.3, "LA CẦN ĐƯỚC": 0.5
+    };
+
     const computeFrontendEta = (stationName: string, departureStr: string, rawEta: string) => {
-      const stUpper = (stationName || '').toUpperCase();
-      let hoursAdd = 1.5;
-      if (stUpper.includes('BN HUB') || stUpper.startsWith('HN ') || stUpper.startsWith('HD ') || stUpper.startsWith('HY ')) {
-        hoursAdd = 36.0;
-      } else if (['CT ', 'KG ', 'AG ', 'BL ', 'CM ', 'ST ', 'TV ', 'VL ', 'TG ', 'DT ', 'LA '].some(p => stUpper.startsWith(p))) {
-        hoursAdd = 4.0;
-      } else if (['BD ', 'DN ', 'TN ', 'VT '].some(p => stUpper.startsWith(p))) {
-        hoursAdd = 2.0;
+      // RULE 1: Các chuyến xe chưa có transporting (departureStr rỗng), BỎ QUA hiển thị -> trả về '--:--'
+      if (!departureStr || departureStr.trim().length < 10) {
+        return '--:--';
       }
 
-      if (rawEta && rawEta !== departureStr && rawEta.length >= 10) {
-        return rawEta;
-      }
-
-      if (departureStr && departureStr.length >= 10) {
-        try {
-          const cleanStr = departureStr.trim();
-          const parts = cleanStr.split(/[- :]/);
-          if (parts.length >= 5) {
-            const yyyy = parseInt(parts[0], 10);
-            const mm = parseInt(parts[1], 10) - 1;
-            const dd = parseInt(parts[2], 10);
-            const hh = parseInt(parts[3], 10);
-            const min = parseInt(parts[4], 10);
-            const ss = parts[5] ? parseInt(parts[5], 10) : 0;
-            const dt = new Date(yyyy, mm, dd, hh, min, ss);
-            if (!isNaN(dt.getTime())) {
-              dt.setTime(dt.getTime() + hoursAdd * 3600 * 1000);
-              const pad = (n: number) => String(n).padStart(2, '0');
-              return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
-            }
+      try {
+        const stUpper = (stationName || '').trim().toUpperCase();
+        let hoursAdd = STATION_ETA_MAP[stUpper];
+        if (hoursAdd === undefined) {
+          if (stUpper.includes('BN HUB') || stUpper.startsWith('HN ') || stUpper.startsWith('HD ') || stUpper.startsWith('HY ')) {
+            hoursAdd = 36.0;
+          } else if (['CT ', 'KG ', 'AG ', 'BL ', 'CM ', 'ST ', 'TV ', 'VL ', 'TG ', 'DT ', 'LA '].some(p => stUpper.startsWith(p))) {
+            hoursAdd = 4.0;
+          } else if (['BD ', 'DN ', 'TN ', 'VT '].some(p => stUpper.startsWith(p))) {
+            hoursAdd = 2.0;
+          } else {
+            hoursAdd = 1.5;
           }
-        } catch (e) {
-          // fallback
         }
+
+        const cleanStr = departureStr.trim();
+        const parts = cleanStr.split(/[- :]/);
+        if (parts.length >= 5) {
+          const yyyy = parseInt(parts[0], 10);
+          const mm = parseInt(parts[1], 10) - 1;
+          const dd = parseInt(parts[2], 10);
+          const hh = parseInt(parts[3], 10);
+          const min = parseInt(parts[4], 10);
+          const ss = parts[5] ? parseInt(parts[5], 10) : 0;
+          const dt = new Date(yyyy, mm, dd, hh, min, ss);
+          if (!isNaN(dt.getTime())) {
+            dt.setTime(dt.getTime() + hoursAdd * 3600 * 1000);
+            const pad = (n: number) => String(n).padStart(2, '0');
+            return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+          }
+        }
+      } catch (e) {
+        // fallback
       }
 
-      if (!isHistoricalDate) {
-        const now = new Date();
-        now.setTime(now.getTime() + hoursAdd * 3600 * 1000);
-        const pad = (n: number) => String(n).padStart(2, '0');
-        return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:00`;
-      }
-
-      return rawEta || departureStr || '--:--';
+      return '--:--';
     };
 
     const wtKg = Number(d['weight_kg'] ?? d['loadpackageweight'] ?? d['Tổng trọng lượng (kg)'] ?? 0);
