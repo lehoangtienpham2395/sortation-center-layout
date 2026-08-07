@@ -291,6 +291,8 @@ export default function InboundDashboard({
   const normActiveDate = normalizeDateStr(activeDate);
   const isHistoricalDate = normActiveDate < todayOpDate;
   let bnHubLinehaulOrdersFromInbound = 0;
+  let nonBnHubInboundCount = 0;
+  let nonBnHubInboundWeight = 0;
 
   const getFcOpDate = (row: any) => {
     return normalizeDateStr(row['op_date_forecast'] || row['Ngy vn hnh_Forecast'] || row['Ngày vận hành_Forecast'] || '');
@@ -313,14 +315,19 @@ export default function InboundDashboard({
       const pkOpDate  = normalizeDateStr(d['op_date_pickup']  || d['Ngày vận hành_Pickup']  || d['Ngy vn hnh_Pickup']  || '');
       const inbOpDate = normalizeDateStr(d['op_date_inbound'] || d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound'] || '');
 
-      // 🎯 INBOUND CHUẨN: KHÔNG TÍNH PICKUP_STATION == 'BN HUB' -> CHỈ LẤY PICKUP_STATION <> 'BN HUB' TODAY
+      // 🎯 THẺ INBOUND KPI GIỮ NGUYÊN TẤT CẢ ĐƠN INBOUND HÔM NAY (inbOpDate === normActiveDate)
       const pkStRaw = String(d.pickup_station || d['Pickup_station'] || d['pickup_station_name'] || '').trim().toUpperCase();
       const wfStatus = getWaterfallStatus(d);
       
-      const isInboundMatch = (wfStatus === 'Inbound') && (inbOpDate === normActiveDate) && (pkStRaw !== 'BN HUB');
+      const isInboundMatch = (wfStatus === 'Inbound') && (inbOpDate === normActiveDate);
       const isOtherMatch   = (wfStatus !== 'Inbound') && ((normFcDate === normActiveDate) || (arrOpDate === normActiveDate) || (pkOpDate === normActiveDate) || (normFcDate && normFcDate < normActiveDate));
 
       const isOpMatch = isInboundMatch || isOtherMatch;
+
+      if (isInboundMatch && pkStRaw !== 'BN HUB') {
+        nonBnHubInboundCount += vol;
+        nonBnHubInboundWeight += wt;
+      }
 
       // 🎯 BIỂU ĐỒ ORDERS STATUS TÍNH TẤT CẢ CÁC ĐƠN THUỘC CA VẬN HÀNH HÔM NAY
       if (isOpMatch) {
@@ -690,14 +697,17 @@ export default function InboundDashboard({
   const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
   const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       ?? stages['Created'].orders);
 
-  // 🎯 FORECAST DỰ BÁO: CHUẨN KHÓA THEO CHỈ ĐỊNH USER = TỔNG CỘNG TOÀN BỘ 4 CÔNG ĐOẠN (INBOUND + TRANSPORTING + PICKUP DONE + CREATED)
-  const totalForecast = isFutureDate ? 0 : (totalInbound + totalInTransit + totalPickupDone + totalCreated);
+  // 🎯 FORECAST KPI: TRỪ SỐ INBOUND CỦA BƯU CỤC NỘI VÙNG (PICKUP_STATION <> 'BN HUB') RA KHỎI THẺ FORECAST
+  const forecastInboundOrders = Math.max(0, totalInbound - nonBnHubInboundCount);
+  const forecastInboundWeight = Math.max(0, (effectiveOrdersStatus?.inbound_weight || stages['Inbound'].weight || 0) - nonBnHubInboundWeight);
+
+  const totalForecast = isFutureDate ? 0 : (forecastInboundOrders + totalInTransit + totalPickupDone + totalCreated);
   const totalForecastWeight = isFutureDate ? 0 : (
     (effectiveKpiSummary?.forecast_weight_ton && effectiveKpiSummary.forecast_weight_ton > 0)
       ? Math.round(effectiveKpiSummary.forecast_weight_ton * 10) / 10
       : (
         Math.round((
-          (effectiveOrdersStatus?.inbound_weight || 0) +
+          forecastInboundWeight +
           (effectiveOrdersStatus?.transporting_weight || 0) +
           (effectiveOrdersStatus?.pickup_done_weight || 0) +
           (effectiveOrdersStatus?.created_weight || 0)

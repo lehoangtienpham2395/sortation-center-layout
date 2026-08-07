@@ -1244,12 +1244,13 @@ def sync_postgre_to_dashboard():
     print(f"\n⚡ Building Micro-JSON Payloads (Data Architecture v2.0)...")
     
     def is_linehaul_item(st, pk, status):
-        st_u = (st or '').strip().upper()
-        return st_u.startswith(('BN HUB', 'HN ', 'HD ', 'HY '))
+        st_u = str(pk or st or '').strip().upper()
+        return st_u.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 'BN' in st_u
 
-    fc_shuttle = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not is_linehaul_item(st, pk, status))
+    # 🎯 FORECAST EXACT RAW FILTER: Exclude Pickup_station == 'BN HUB' when Inbound, or un-outbounded active orders
+    fc_shuttle = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not is_linehaul_item(st, pk, status) and (status not in ('Inbound', 'Đã nhập kho') or str(pk or '').strip().upper() != 'BN HUB'))
     fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status))
-    shuttle_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not is_linehaul_item(st, pk, status)) / 1000.0, 3)
+    shuttle_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and not is_linehaul_item(st, pk, status) and (status not in ('Inbound', 'Đã nhập kho') or str(pk or '').strip().upper() != 'BN HUB')) / 1000.0, 3)
     linehaul_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status)) / 1000.0, 3)
     total_inb_wt_kg = sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if in_op == today)
     inbound_weight_ton = round(total_inb_wt_kg / 1000.0, 1) if total_inbound_today > 0 else 0.0
@@ -1309,9 +1310,7 @@ def sync_postgre_to_dashboard():
             continue
 
         if std_status == 'Inbound':
-            pk_clean = str(pk or '').strip().upper()
-            # 🎯 KHÔNG TÍNH PICKUP_STATION == 'BN HUB' -> CHỈ LẤY PICKUP_STATION <> 'BN HUB' TODAY
-            if in_op == today and pk_clean != 'BN HUB':
+            if in_op == today:
                 status_counts['Inbound'] += stats['volume']
                 status_weights['Inbound'] += stats['weight_kg'] / 1000.0
         else:
@@ -1677,15 +1676,4 @@ def git_push(repo_dir: str, timestamp: str) -> None:
         else:
             print(f"   ✅ git push origin main — Dashboard đã cập nhật!")
             if push.stdout.strip():
-                print(f"      {push.stdout.strip()}")
-
-    except subprocess.TimeoutExpired:
-        print("   ❌ Git operation timeout (>60s)")
-    except FileNotFoundError:
-        print("   ❌ `git` không tìm thấy trong PATH")
-    except Exception as e:
-        print(f"   ❌ Git push error: {e}")
-
-
-if __name__ == '__main__':
-    sync_postgre_to_dashboard()
+                print(f"      {push.stdout.st
