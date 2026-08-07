@@ -1276,9 +1276,9 @@ def sync_postgre_to_dashboard():
 
     for h in hours_list:
         h_prefix = h[:2]
-        tr_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if ar_hr and ar_hr.startswith(h_prefix) and (ar_op == today or (not ar_op and (in_op == today or pk_op == today or fc_op == today))))
-        pk_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if pk_hr and pk_hr.startswith(h_prefix) and (pk_op == today or (not pk_op and (in_op == today or ar_op == today or fc_op == today))))
-        cr_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if fc_hr and fc_hr.startswith(h_prefix) and (fc_op == today or (not fc_op and (in_op == today or ar_op == today or pk_op == today))))
+        tr_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if len(ar_hr) >= 13 and ar_hr[11:13] == h_prefix and ar_op == today)
+        pk_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if len(pk_hr) >= 13 and pk_hr[11:13] == h_prefix and pk_op == today)
+        cr_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if len(fc_hr) >= 13 and fc_hr[11:13] == h_prefix and fc_op == today)
         hourly_series_transporting.append(tr_vol)
         hourly_series_pickup_done.append(pk_vol)
         hourly_series_created.append(cr_vol)
