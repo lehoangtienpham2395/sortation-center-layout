@@ -303,7 +303,7 @@ export default function InboundDashboard({
     const status = d.status || d['Trng thi'] || d['Trạng thái'] || '';
     const vol = parseInt(d.volume ?? d['Volume'] ?? 1, 10) || 1;
     const rawWtVal = parseFloat(d.weight_ton ?? d.Weight ?? d.weight_kg ?? d.loadpackageweight ?? 0) || 0;
-    const wt = rawWtVal / 1000.0;
+    const wt = rawWtVal > 100 ? rawWtVal / 1000.0 : rawWtVal;
 
     if (status !== 'Đã hủy' && status !== 'Canceled') {
 
@@ -934,11 +934,12 @@ export default function InboundDashboard({
         const isBn = String(s.station_name || '').toUpperCase().includes('BN HUB') || String(s.station_name || '').toUpperCase().includes('NORTH');
         const targetAvgOrdersPerTruck = isBn ? 1400 : 480;
         const vol = Number(s.inbound_volume ?? s.total_volume ?? 0);
+        const realWt = s.inbound_weight_ton !== undefined ? Number(s.inbound_weight_ton) : (s.weight_ton !== undefined ? Number(s.weight_ton) : (vol * 9.2 / 1000.0));
         return {
           fc: s.station_name,
           vehicles: vol > 0 ? Math.max(1, Math.round(vol / targetAvgOrdersPerTruck)) : 0,
           orders: vol,
-          weight: Math.round((vol * 9.2 / 1000.0) * 10) / 10
+          weight: Math.round(realWt * 10) / 10
         };
       }).filter((s: any) => s.orders > 0).sort((a: any, b: any) => b.orders - a.orders);
     }

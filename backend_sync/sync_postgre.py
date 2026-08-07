@@ -1328,16 +1328,32 @@ def sync_postgre_to_dashboard():
         is_match = (in_op == today) or (ar_op == today) or (pk_op == today) or (fc_op == today)
         if is_match:
             if pk_clean not in origin_map:
-                origin_map[pk_clean] = {'total_volume': 0, 'inbound_volume': 0, 'transporting_volume': 0, 'pickup_done_volume': 0, 'created_volume': 0}
+                origin_map[pk_clean] = {'total_volume': 0, 'inbound_volume': 0, 'transporting_volume': 0, 'pickup_done_volume': 0, 'created_volume': 0, 'total_weight': 0.0, 'inbound_weight': 0.0}
             vol = stats['volume']
+            wt_ton = stats['weight_kg'] / 1000.0
             origin_map[pk_clean]['total_volume'] += vol
-            if status in ('Inbound', 'Đã nhập kho'): origin_map[pk_clean]['inbound_volume'] += vol
-            elif status in ('Transporting', 'Đang vận chuyển'): origin_map[pk_clean]['transporting_volume'] += vol
-            elif status in ('Pickup Done', 'Đã lấy hàng'): origin_map[pk_clean]['pickup_done_volume'] += vol
-            elif status in ('Created', 'Đơn mới tạo'): origin_map[pk_clean]['created_volume'] += vol
+            origin_map[pk_clean]['total_weight'] += wt_ton
+            if status in ('Inbound', 'Đã nhập kho'):
+                origin_map[pk_clean]['inbound_volume'] += vol
+                origin_map[pk_clean]['inbound_weight'] += wt_ton
+            elif status in ('Transporting', 'Đang vận chuyển'):
+                origin_map[pk_clean]['transporting_volume'] += vol
+            elif status in ('Pickup Done', 'Đã lấy hàng'):
+                origin_map[pk_clean]['pickup_done_volume'] += vol
+            elif status in ('Created', 'Đơn mới tạo'):
+                origin_map[pk_clean]['created_volume'] += vol
 
     stations_list = [
-        {"station_name": k, "total_volume": v['total_volume'], "inbound_volume": v['inbound_volume'], "transporting_volume": v['transporting_volume'], "pickup_done_volume": v['pickup_done_volume'], "created_volume": v['created_volume']}
+        {
+            "station_name": k,
+            "total_volume": v['total_volume'],
+            "inbound_volume": v['inbound_volume'],
+            "transporting_volume": v['transporting_volume'],
+            "pickup_done_volume": v['pickup_done_volume'],
+            "created_volume": v['created_volume'],
+            "inbound_weight_ton": round(v['inbound_weight'], 2),
+            "total_weight_ton": round(v['total_weight'], 2)
+        }
         for k, v in origin_map.items()
     ]
     stations_list.sort(key=lambda x: x['total_volume'], reverse=True)
