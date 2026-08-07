@@ -313,11 +313,10 @@ export default function InboundDashboard({
       const pkOpDate  = normalizeDateStr(d['op_date_pickup']  || d['Ngày vận hành_Pickup']  || d['Ngy vn hnh_Pickup']  || '');
       const inbOpDate = normalizeDateStr(d['op_date_inbound'] || d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound'] || '');
 
-      // 🎯 USER FORMULA: Inbound OR(Pickup_station <> 'BN HUB', inbound_scanDate = today) + Transporting + Pickup Done + Created
-      const pkStRaw = String(d.pickup_station || d['Pickup_station'] || d['pickup_station_name'] || '').trim().toUpperCase();
+      // 🎯 INBOUND CHUẨN: CHỈ TÍNH CÁC ĐƠN NHẬP KHO TRONG NGÀY VẬN HÀNH HÔM NAY (inbOpDate === normActiveDate)
       const wfStatus = getWaterfallStatus(d);
       
-      const isInboundMatch = (wfStatus === 'Inbound') && (pkStRaw !== 'BN HUB' || inbOpDate === normActiveDate);
+      const isInboundMatch = (wfStatus === 'Inbound') && (inbOpDate === normActiveDate);
       const isOtherMatch   = (wfStatus !== 'Inbound') && ((normFcDate === normActiveDate) || (arrOpDate === normActiveDate) || (pkOpDate === normActiveDate) || (normFcDate && normFcDate < normActiveDate));
 
       const isOpMatch = isInboundMatch || isOtherMatch;

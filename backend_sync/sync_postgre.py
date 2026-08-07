@@ -1309,9 +1309,7 @@ def sync_postgre_to_dashboard():
             continue
 
         if std_status == 'Inbound':
-            pk_clean = str(pk or '').strip().upper()
-            # 🎯 USER FORMULA: Inbound OR(Pickup_station <> 'BN HUB', inbound_scanDate = today)
-            if pk_clean != 'BN HUB' or in_op == today:
+            if in_op == today:
                 status_counts['Inbound'] += stats['volume']
                 status_weights['Inbound'] += stats['weight_kg'] / 1000.0
         else:
