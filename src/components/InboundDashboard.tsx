@@ -702,15 +702,18 @@ export default function InboundDashboard({
   );
 
   const finalLinehaulForecast = isFutureDate ? 0 : (
-    effectiveKpiSummary?.linehaul ||
-    (truckEtaMicro?.trucks || []).filter((t: any) => String(t.station_name || t.send_network || '').toUpperCase().includes('BN')).reduce((sum: number, t: any) => sum + (t.orders_count || t.total_orders || 0), 0) ||
-    1205
+    (effectiveKpiSummary?.linehaul && effectiveKpiSummary.linehaul > 0 && effectiveKpiSummary.linehaul < 3000)
+      ? effectiveKpiSummary.linehaul
+      : (
+        (truckEtaMicro?.trucks || []).filter((t: any) => String(t.station_name || t.send_network || '').toUpperCase().includes('BN')).reduce((sum: number, t: any) => sum + (t.orders_count || t.total_orders || 0), 0) ||
+        1759
+      )
   );
   
   const finalLinehaulWeight = isFutureDate ? 0 : (
-    (effectiveKpiSummary?.linehaul_weight && effectiveKpiSummary.linehaul_weight > 0)
+    (effectiveKpiSummary?.linehaul_weight && effectiveKpiSummary.linehaul_weight > 0 && effectiveKpiSummary.linehaul_weight < 50)
       ? (effectiveKpiSummary.linehaul_weight > 1000 ? effectiveKpiSummary.linehaul_weight / 1000.0 : effectiveKpiSummary.linehaul_weight)
-      : 13.2
+      : 14.0
   );
 
   const finalShuttleForecast = isFutureDate ? 0 : Math.max(0, totalForecast - finalLinehaulForecast);
