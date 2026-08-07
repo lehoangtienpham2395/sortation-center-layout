@@ -302,7 +302,7 @@ export default function InboundDashboard({
     const normFcDate = getFcOpDate(d);
     const status = d.status || d['Trng thi'] || d['Trạng thái'] || '';
     const vol = parseInt(d.volume ?? d['Volume'] ?? 1, 10) || 1;
-    const wt = parseFloat(d['Weight'] || d['weight_ton'] || 0) || 0;
+    const wt = parseFloat(d.weight_ton ?? 0) || (parseFloat(d.Weight ?? d.weight_kg ?? d.loadpackageweight ?? 0) / 1000.0);
 
     if (status !== 'Đã hủy' && status !== 'Canceled') {
 
@@ -911,7 +911,7 @@ export default function InboundDashboard({
       const fc = getFC(rawFcName);
       if (fc) {
         const vol = parseInt(d.volume ?? d['Volume'] ?? 1, 10) || 1;
-        const wt = parseFloat(d.weight_ton ?? d['Weight'] ?? 0) || 0;
+        const wt = parseFloat(d.weight_ton ?? 0) || (parseFloat(d.Weight ?? d.weight_kg ?? 0) / 1000.0);
         fc.orders += vol;
         fc.weight += wt;
         const tripId = d.trip_code || d.trip_id || d.plate_number || d.vehicle_number || d['Phiếu nhiệm vụ'] || d['Mã chuyến xe'];

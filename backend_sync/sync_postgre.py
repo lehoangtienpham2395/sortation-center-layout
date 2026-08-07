@@ -1331,8 +1331,7 @@ def sync_postgre_to_dashboard():
                 origin_map[pk_clean] = {'total_volume': 0, 'inbound_volume': 0, 'transporting_volume': 0, 'pickup_done_volume': 0, 'created_volume': 0}
             vol = stats['volume']
             origin_map[pk_clean]['total_volume'] += vol
-            origin_map[pk_clean]['inbound_volume'] += vol
-            if status == 'Inbound': pass
+            if status == 'Inbound': origin_map[pk_clean]['inbound_volume'] += vol
             elif status == 'Transporting': origin_map[pk_clean]['transporting_volume'] += vol
             elif status == 'Pickup Done': origin_map[pk_clean]['pickup_done_volume'] += vol
             elif status == 'Created': origin_map[pk_clean]['created_volume'] += vol
