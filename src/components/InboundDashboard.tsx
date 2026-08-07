@@ -676,7 +676,7 @@ export default function InboundDashboard({
 
   console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
 
-  if (isFutureDate || isHistoricalDate) {
+  if (isFutureDate || (isHistoricalDate && (!filteredTruckEta || filteredTruckEta.length === 0))) {
     incomingVehicles = [];
     totalShuttleVehicles = 0;
     totalLinehaulVehicles = 0;
