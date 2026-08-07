@@ -488,7 +488,10 @@ export default function InboundDashboard({
     const wtTon = Number(d['weight'] ?? d['weight_ton'] ?? d['package_charge_weight'] ?? 0);
     const wt = wtKg > 0 ? wtKg / 1000.0 : (wtTon > 100 ? wtTon / 1000.0 : wtTon);
 
-    const calculatedEta = computeFrontendEta(st, depTime, rawEtaVal);
+    // Tính ETA trực tiếp: backend đã tính sẵn eta=dep+hours, ưu tiên dùng
+    const calculatedEta: string = (depTime && depTime.length >= 10)
+      ? (rawEtaVal && rawEtaVal.trim().length >= 10 ? rawEtaVal.trim() : computeFrontendEta(st, depTime))
+      : '--:--';
 
     if (!groupedStationVehicles[st]) {
       groupedStationVehicles[st] = {
@@ -509,7 +512,11 @@ export default function InboundDashboard({
       groupedStationVehicles[st].tongDon += tongDon;
       groupedStationVehicles[st].chuaDenHub += tongDon;
       if (calculatedEta && calculatedEta !== '--:--' && (!groupedStationVehicles[st].lastTime || depTime > groupedStationVehicles[st].lastTime)) {
-        groupedStationVehicles[st].eta = calculatedEta;
+        // Update eta only if this is a more recent departure
+        const newEta = (depTime && depTime.length >= 10)
+          ? (rawEtaVal && rawEtaVal.trim().length >= 10 ? rawEtaVal.trim() : computeFrontendEta(st, depTime))
+          : '--:--';
+        groupedStationVehicles[st].eta = newEta;
         groupedStationVehicles[st].lastTime = depTime;
       }
     }
