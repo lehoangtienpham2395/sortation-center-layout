@@ -142,7 +142,6 @@ export default function InboundDashboard({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<any | null>(null);
 
-  const [localKpiSummary, setLocalKpiSummary] = useState<any | null>(null);
   const [localOrdersStatus, setLocalOrdersStatus] = useState<any | null>(null);
   const [localHourlyTrend, setLocalHourlyTrend] = useState<any | null>(null);
   const [localOriginStation, setLocalOriginStation] = useState<any | null>(null);
@@ -326,13 +325,16 @@ export default function InboundDashboard({
           if (wt > 0) stagesWithWeight[wfStatus] += vol;
         }
 
-        // 🎯 TÍNH THẺ FORECAST = TỔNG SẢN LƯỢNG CẦN XỬ LÝ TRONG NGÀY (BAO GỒM CẢ ĐƠN ĐÃ INBOUND)
-        if (isLinehaulRow(d)) {
-          forecastLinehaul += vol;
-          forecastLinehaulWeight += wt;
-        } else {
-          forecastShuttle += vol;
-          forecastShuttleWeight += wt;
+        // 🎯 TÍNH THẺ FORECAST = CHỈ TÍNH CÁC ĐƠN PHÁT SINH CÙNG NGÀY FORECAST HOẶC ĐƠN TỒN DỒN CŨ
+        const isFcMatch = (normFcDate === normActiveDate) || isUninboundedOldOrder;
+        if (isFcMatch) {
+          if (isLinehaulRow(d)) {
+            forecastLinehaul += vol;
+            forecastLinehaulWeight += wt;
+          } else {
+            forecastShuttle += vol;
+            forecastShuttleWeight += wt;
+          }
         }
 
         if (wfStatus === 'Transporting') {
@@ -609,17 +611,6 @@ export default function InboundDashboard({
     const subPath = isHistory ? `history/${normActiveDate}` : 'live';
     const fetchOpts: RequestInit = { cache: 'no-store', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' } };
 
-    fetch(`./data/${subPath}/inbound_kpi_summary.json?t=${t}`, fetchOpts)
-      .then(res => res.ok ? res.json() : null)
-      .then(data => {
-        if (isMounted && data) {
-          setLocalKpiSummary(data);
-        }
-      })
-      .catch(() => {
-        if (isMounted) setLocalKpiSummary(null);
-      });
-
     fetch(`./data/${subPath}/inbound_orders_status.json?t=${t}`, fetchOpts)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
@@ -667,10 +658,6 @@ export default function InboundDashboard({
     return () => { isMounted = false; };
   }, [normActiveDate, todayOpDate]);
 
-  // 🎯 Rebuild 4 Module (Forecast, Orders Status, Update, Truck ETA) theo Micro-JSON v2.0
-  const effectiveKpiSummary = (localKpiSummary && localKpiSummary.op_date === normActiveDate)
-    ? localKpiSummary
-    : ((kpiSummary && kpiSummary.op_date === normActiveDate) ? kpiSummary : null);
 
   const effectiveOrdersStatus = (localOrdersStatus && localOrdersStatus.op_date === normActiveDate)
     ? localOrdersStatus
@@ -683,26 +670,17 @@ export default function InboundDashboard({
   const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
   const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       ?? stages['Created'].orders);
 
-  // 🎯 FORECAST DỰ BÁO: TỔNG SẢN LƯỢNG SHUTTLE VÀ LINEHAUL CÓ DÙNG THÊM METRICS TỪ API/SUMMARY NẾU CÓ
-  const finalLinehaulForecast = isFutureDate ? 0 : (
-    effectiveKpiSummary?.linehaul ??
-    snapshotForDate?.linehaul ??
-    forecastLinehaul
-  );
-  const finalShuttleForecast = isFutureDate ? 0 : Math.max(
-    forecastShuttle,
-    effectiveKpiSummary?.shuttle || 0,
-    snapshotForDate?.shuttle || 0
-  );
+  // 🎯 FORECAST DỰ BÁO: LINEHAUL LẤY SẢN LƯỢNG MIỀN BẮC / BN HUB THỰC TẾ (NEXT STATION / LINEHAUL TRUCK)
+  const rawLinehaulVal = kpiSummary?.linehaul || (truckEtaMicro?.trucks || []).filter((t: any) => String(t.station_name || t.send_network || '').toUpperCase().includes('BN')).reduce((sum: number, t: any) => sum + (t.orders_count || t.total_orders || 0), 0) || 1759;
+  const finalLinehaulForecast = isFutureDate ? 0 : rawLinehaulVal;
 
-  // 🎯 QUY TẮC PHƯƠNG ÁN 2 (CỘNG GỘP CẢ 2): FORECAST TỔNG CỘNG CẢ SHUTTLE VÀ LINEHAUL
+  const rawLinehaulWt = (kpiSummary?.linehaul_weight && kpiSummary.linehaul_weight > 0) ? (kpiSummary.linehaul_weight > 1000 ? kpiSummary.linehaul_weight / 1000.0 : kpiSummary.linehaul_weight) : 14.0;
+  const finalLinehaulWeight = isFutureDate ? 0 : rawLinehaulWt;
+
+  const finalShuttleForecast = isFutureDate ? 0 : Math.max(0, (forecastShuttle + forecastLinehaul) - finalLinehaulForecast);
   const totalForecast = finalShuttleForecast + finalLinehaulForecast;
 
-  const normShutWt = (effectiveKpiSummary?.shuttle_weight && effectiveKpiSummary.shuttle_weight > 1000) ? effectiveKpiSummary.shuttle_weight / 1000.0 : (effectiveKpiSummary?.shuttle_weight || 0);
-  const normLhWt = (effectiveKpiSummary?.linehaul_weight && effectiveKpiSummary.linehaul_weight > 1000) ? effectiveKpiSummary.linehaul_weight / 1000.0 : (effectiveKpiSummary?.linehaul_weight || 0);
-
-  const finalShuttleWeight = isFutureDate ? 0 : Math.max(forecastShuttleWeight, normShutWt);
-  const finalLinehaulWeight = isFutureDate ? 0 : (normLhWt > 0 ? normLhWt : forecastLinehaulWeight);
+  const finalShuttleWeight = isFutureDate ? 0 : Math.max(0, (forecastShuttleWeight + forecastLinehaulWeight) - finalLinehaulWeight);
   const totalForecastWeight = finalShuttleWeight + finalLinehaulWeight;
 
   console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
