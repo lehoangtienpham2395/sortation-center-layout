@@ -485,7 +485,8 @@ export default function InboundDashboard({
       rankVal.includes('LINEHAUL')
     );
 
-    const tongDon = Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? d['volume'] ?? 0);
+    const realTransportingVal = Number(d['in_transit_orders'] ?? d['not_hub_orders'] ?? d['not_hub'] ?? d['Chưa đến Hub'] ?? 0);
+    const tongDon = realTransportingVal > 0 ? realTransportingVal : Number(d['Tổng số đơn'] ?? d['orders_count'] ?? d['loadscanwaybillnum'] ?? d['volume'] ?? 0);
     const rawEtaVal = d['eta'] || d['planned_arrival'] || d['predictArriveTime'] || d['plannedArrivalTime'] || '';
     const depTime = d['transporting_time'] || d['transport_time'] || d['transportingTime'] || d['actual_departure'] || d['planned_departure'] || '';
 
