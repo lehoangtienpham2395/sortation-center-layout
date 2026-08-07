@@ -49,9 +49,9 @@ echo [%date% %time%] Mang OK sau %RETRY% lan thu >> "%LOG_FILE%"
 
 REM ── BUOC 2: CHAY SNAPSHOT ────────────────────────────────────────────────
 cd /d "%PROJECT_DIR%"
-echo [%date% %time%] Dang chay: python backend_sync_v2\snapshot_daily.py >> "%LOG_FILE%"
+echo [%date% %time%] Dang chay: python backend_sync\sync_postgre.py >> "%LOG_FILE%"
 
-%PYTHON% backend_sync_v2\snapshot_daily.py >> "%LOG_FILE%" 2>&1
+%PYTHON% backend_sync\sync_postgre.py >> "%LOG_FILE%" 2>&1
 
 echo [%date% %time%] Ket thuc voi exit code: %ERRORLEVEL% >> "%LOG_FILE%"
 

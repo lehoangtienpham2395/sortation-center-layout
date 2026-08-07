@@ -45,7 +45,7 @@ echo [%date% %time%] Mang OK >> "%LOG_FILE%"
 
 REM Chay voi --force (bypass time guard, Write-Once guard van bao ve)
 cd /d "%PROJECT_DIR%"
-%PYTHON% backend_sync_v2\snapshot_daily.py --force >> "%LOG_FILE%" 2>&1
+%PYTHON% backend_sync\sync_postgre.py >> "%LOG_FILE%" 2>&1
 
 echo [%date% %time%] OnStart fallback ket thuc: %ERRORLEVEL% >> "%LOG_FILE%"
 exit /b 0
