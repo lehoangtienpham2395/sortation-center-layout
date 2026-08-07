@@ -1,14 +1,10 @@
-# Stage 1: Build Production SPA bundle
-FROM node:24-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --prefer-offline --no-audit
-COPY . .
-RUN npm run build
-
-# Stage 2: Lightweight High-Performance Nginx Web Server
+# Lightweight High-Performance Nginx Web Server for HCM HUB Dashboard
 FROM nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy pre-compiled production build dist/
+COPY dist /usr/share/nginx/html
+
+# Copy custom Nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80

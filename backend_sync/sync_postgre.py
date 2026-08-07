@@ -1400,7 +1400,7 @@ def sync_postgre_to_dashboard():
         for h_d in past_dates:
             cur_h.execute("""
                 SELECT 
-                    (SELECT COUNT(DISTINCT tracking) FROM raw.scan_logs WHERE scan_time >= (%s::text || ' 06:00:00')::timestamp AND scan_time < ((%s::date + INTERVAL '1 day')::text || ' 06:00:00')::timestamp AND scan_type = 'INBOUND') as inbound_cnt,
+                    (SELECT COUNT(DISTINCT tracking) FROM raw.scan_logs WHERE scan_time >= (%s::date + INTERVAL '6 hours') AND scan_time < (%s::date + INTERVAL '30 hours') AND scan_type = 'INBOUND') as inbound_cnt,
                     (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE operation_date_created::date = %s::date AND status_sys = 'Transporting') as transp_cnt,
                     (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE op_date_pickup::date = %s::date AND status_sys = 'Pickup Done') as pickup_cnt,
                     (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE operation_date_created::date = %s::date AND status_sys = 'Created') as created_cnt,
