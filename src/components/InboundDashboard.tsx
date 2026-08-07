@@ -313,10 +313,14 @@ export default function InboundDashboard({
       const pkOpDate  = normalizeDateStr(d['op_date_pickup']  || d['Ngày vận hành_Pickup']  || d['Ngy vn hnh_Pickup']  || '');
       const inbOpDate = normalizeDateStr(d['op_date_inbound'] || d['Ngày vận hành_Inbound'] || d['Ngy vn hnh_Inbound'] || '');
 
-      // 🎯 ĐƠN RỚT TỒN DỒN TỪ NGÀY CŨ (CREATED / PICKUP DONE CHƯA INBOUND): TÍNH CẢ VÀO FORECAST CỦA HÔM NAY
-      const isUninboundedOldOrder = (status !== 'Inbound' && status !== 'Đã nhập kho') && normFcDate && normFcDate < normActiveDate;
+      // 🎯 USER FORMULA: Inbound OR(Pickup_station <> 'BN HUB', inbound_scanDate = today) + Transporting + Pickup Done + Created
+      const pkStRaw = String(d.pickup_station || d['Pickup_station'] || d['pickup_station_name'] || '').trim().toUpperCase();
+      const wfStatus = getWaterfallStatus(d);
+      
+      const isInboundMatch = (wfStatus === 'Inbound') && (pkStRaw !== 'BN HUB' || inbOpDate === normActiveDate);
+      const isOtherMatch   = (wfStatus !== 'Inbound') && ((normFcDate === normActiveDate) || (arrOpDate === normActiveDate) || (pkOpDate === normActiveDate) || (normFcDate && normFcDate < normActiveDate));
 
-      const isOpMatch = (normFcDate === normActiveDate) || (arrOpDate === normActiveDate) || (pkOpDate === normActiveDate) || (inbOpDate === normActiveDate) || isUninboundedOldOrder;
+      const isOpMatch = isInboundMatch || isOtherMatch;
 
       // 🎯 BIỂU ĐỒ ORDERS STATUS TÍNH TẤT CẢ CÁC ĐƠN THUỘC CA VẬN HÀNH HÔM NAY
       if (isOpMatch) {
@@ -328,7 +332,7 @@ export default function InboundDashboard({
         }
 
         // 🎯 TÍNH THẺ FORECAST = CHỈ TÍNH CÁC ĐƠN PHÁT SINH CÙNG NGÀY FORECAST HOẶC ĐƠN TỒN DỒN CŨ
-        const isFcMatch = (normFcDate === normActiveDate) || isUninboundedOldOrder;
+        const isFcMatch = isOpMatch;
         if (isFcMatch) {
           if (isLinehaulRow(d)) {
             forecastLinehaul += vol;
