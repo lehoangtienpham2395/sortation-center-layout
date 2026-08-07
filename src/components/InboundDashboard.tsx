@@ -142,6 +142,12 @@ export default function InboundDashboard({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<any | null>(null);
 
+  const [localKpiSummary, setLocalKpiSummary] = useState<any | null>(null);
+  const [localOrdersStatus, setLocalOrdersStatus] = useState<any | null>(null);
+  const [localHourlyTrend, setLocalHourlyTrend] = useState<any | null>(null);
+  const [localOriginStation, setLocalOriginStation] = useState<any | null>(null);
+  const [localTruckEta, setLocalTruckEta] = useState<any | null>(null);
+
   // 1. Extract and sort available dates (excluding future dates > today)
   const todayOpDate = getTodayOpDate();
 
@@ -340,8 +346,9 @@ export default function InboundDashboard({
 
   console.log('[DEBUG BROWSER STAGES]', activeDate, JSON.stringify(stages));
 
-  // Priority: truckEtaMicro (inbound_truck_eta.json) > truckEtaData (truck_eta.json)
+  // Priority: localTruckEta (dynamic micro-json) > truckEtaMicro (inbound_truck_eta.json) > truckEtaData (truck_eta.json)
   const rawTrucksList: any[] = (() => {
+    if (localTruckEta?.trucks && localTruckEta.trucks.length > 0) return localTruckEta.trucks;
     if (truckEtaMicro?.trucks && truckEtaMicro.trucks.length > 0) return truckEtaMicro.trucks;
     if (Array.isArray(truckEtaData) && truckEtaData.length > 0) return truckEtaData;
     return (truckEtaData as any)?.trucks || [];
@@ -418,7 +425,12 @@ export default function InboundDashboard({
       "SG BÀ ĐIỂM": 0.3, "LA CẦN ĐƯỚC": 0.5
     };
 
-    const computeFrontendEta = (stationName: string, departureStr: string, rawEta: string) => {
+    const computeFrontendEta = (stationName: string, departureStr: string, rawEta?: string) => {
+      // If rawEta is already precomputed (+36h / +0.7h) and different from departure, return rawEta!
+      if (rawEta && rawEta.trim().length >= 10 && rawEta.trim() !== departureStr.trim()) {
+        return rawEta.trim();
+      }
+
       // RULE 1: Các chuyến xe chưa có transporting (departureStr rỗng), BỎ QUA hiển thị -> trả về '--:--'
       if (!departureStr || departureStr.trim().length < 10) {
         return '--:--';
@@ -559,11 +571,6 @@ export default function InboundDashboard({
 
   const isFutureDate = normActiveDate > todayOpDate;
 
-  const [localKpiSummary, setLocalKpiSummary] = useState<any | null>(null);
-  const [localOrdersStatus, setLocalOrdersStatus] = useState<any | null>(null);
-  const [localHourlyTrend, setLocalHourlyTrend] = useState<any | null>(null);
-  const [localOriginStation, setLocalOriginStation] = useState<any | null>(null);
-
   useEffect(() => {
     if (!normActiveDate) return;
     let isMounted = true;
@@ -614,6 +621,17 @@ export default function InboundDashboard({
       })
       .catch(() => {
         if (isMounted) setLocalOriginStation(null);
+      });
+
+    fetch(`./data/${subPath}/inbound_truck_eta.json?t=${t}`, fetchOpts)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (isMounted && data) {
+          setLocalTruckEta(data);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setLocalTruckEta(null);
       });
 
     return () => { isMounted = false; };
