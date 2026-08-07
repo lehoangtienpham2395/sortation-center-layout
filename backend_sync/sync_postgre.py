@@ -23,10 +23,9 @@ from zoneinfo import ZoneInfo
 
 # ── UTF-8 stdout ─────────────────────────────────────────────────────────────
 if hasattr(sys.stdout, 'reconfigure'):
-    try:
-        sys.stdout.reconfigure(encoding='utf-8', line_buffering=True)
-    except Exception:
-        pass
+    sys.stdout.reconfigure(encoding='utf-8')
+else:
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', write_through=True)
 
 # ── Resolve paths ─────────────────────────────────────────────────────────────
 BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -670,63 +669,8 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
 # MAIN
 # ════════════════════════════════════════════════════════════════════
 
-def is_pid_alive_win(pid: int) -> bool:
-    if pid <= 0:
-        return False
-    try:
-        import ctypes
-        handle = ctypes.windll.kernel32.OpenProcess(0x0400, False, int(pid))
-        if handle:
-            ctypes.windll.kernel32.CloseHandle(handle)
-            return True
-    except Exception:
-        pass
-    return False
-
 def sync_postgre_to_dashboard():
     t0 = _time.time()
-    lock_path = os.path.join(BASE_DIR, "backend_sync", "sync.lock")
-    if os.path.exists(lock_path):
-        try:
-            mtime = os.path.getmtime(lock_path)
-            pid = 0
-            try:
-                with open(lock_path, "r") as _rf:
-                    pid = int(_rf.read().strip())
-            except Exception:
-                pass
-
-            pid_alive = is_pid_alive_win(pid)
-
-            if pid_alive and (_time.time() - mtime < 600):
-                print(f"\n⚠️ [{now_sys}] [SYNC LOCK] Process PID {pid} is actively running. Exiting duplicate run cleanly.")
-                return
-            else:
-                print(f"⚠️ [SYNC LOCK] Dead or stale lock file found (PID {pid}, age: {int(_time.time() - mtime)}s). Auto-clearing lock...")
-                try:
-                    os.remove(lock_path)
-                except Exception:
-                    pass
-        except Exception:
-            pass
-
-    try:
-        with open(lock_path, "w") as _lf:
-            _lf.write(str(os.getpid()))
-    except Exception:
-        pass
-
-    try:
-        _do_sync_postgre_to_dashboard(t0)
-    finally:
-        if os.path.exists(lock_path):
-            try:
-                os.remove(lock_path)
-            except Exception:
-                pass
-
-
-def _do_sync_postgre_to_dashboard(t0):
     print(f"\n🚀 [{now_sys}] sync_postgre_to_dashboard()")
     print(f"   DB      : {PG_DBNAME} @ {PG_HOST}:{PG_PORT}")
     print(f"   Data    : {DATA_DIR}")
@@ -786,11 +730,7 @@ def _do_sync_postgre_to_dashboard(t0):
         sys.path.insert(0, _etl_dir)
     try:
         import pipeline_unified_v6 as _pipe6
-        # 🚀 Tối ưu 30 phút: Dispatch giữ 7 ngày (bắt đơn Created cũ mới Pickup hôm nay)
-        #                     Scan chỉ kéo 2 ngày (Inbound/Outbound/Arrival nhẹ hơn 3-5x)
-        _pipe6.DAYS_BACK      = 7  # Dispatch: LUÔN giữ 7 ngày
-        _pipe6.SCAN_DAYS_BACK = 2  # Scan: chỉ 2 ngày đủ (scan theo ngày scan, không phải ngày tạo đơn)
-        print("\n🌐 Phase 1: JFS API → PostgreSQL (pipeline_unified_v6.main(), Dispatch=7d / Scan=2d)...")
+        print("\n🌐 Phase 1: JFS API → PostgreSQL (pipeline_unified_v6.main())...")
         t1 = _time.time()
         _pipe6.main()
         print(f"   ✅ Phase 1 xong ({_time.time()-t1:.0f}s) — PostgreSQL đã cập nhật")
@@ -1203,72 +1143,6 @@ def _do_sync_postgre_to_dashboard(t0):
         for (z, a, s), v in pivot_map.items()
     ]
 
-    # 🎯 Generate heatmap_detail_json from PostgreSQL for Mon-Sun & Hourly Heatmap Dashboard
-    heatmap_detail_json = []
-    try:
-        conn_hm = get_pg_conn()
-        cur_hm = conn_hm.cursor()
-        cur_hm.execute("""
-            WITH ib AS (
-                SELECT operation_date_inbound::text as op_date, TO_CHAR(operation_date_inbound::date, 'Dy') as day_name, EXTRACT(HOUR FROM inbound_scandate)::int as hr, COUNT(*) as cnt
-                FROM enriched.dispatch_enriched WHERE inbound_scandate IS NOT NULL
-                GROUP BY op_date, day_name, hr
-            ),
-            ob AS (
-                SELECT operation_date_inbound::text as op_date, TO_CHAR(operation_date_inbound::date, 'Dy') as day_name, EXTRACT(HOUR FROM outbound_scandate)::int as hr, COUNT(*) as cnt
-                FROM enriched.dispatch_enriched WHERE outbound_scandate IS NOT NULL
-                GROUP BY op_date, day_name, hr
-            ),
-            arr AS (
-                SELECT COALESCE(operation_date_inbound::text, arrival_scandate::date::text) as op_date, TO_CHAR(COALESCE(operation_date_inbound::date, arrival_scandate::date), 'Dy') as day_name, EXTRACT(HOUR FROM arrival_scandate)::int as hr, COUNT(*) as cnt
-                FROM enriched.dispatch_enriched WHERE arrival_scandate IS NOT NULL
-                GROUP BY op_date, day_name, hr
-            ),
-            pk AS (
-                SELECT COALESCE(operation_date_inbound::text, op_date_pickup::text) as op_date, TO_CHAR(COALESCE(operation_date_inbound::date, op_date_pickup::date), 'Dy') as day_name, EXTRACT(HOUR FROM pickup_time)::int as hr, COUNT(*) as cnt
-                FROM enriched.dispatch_enriched WHERE pickup_time IS NOT NULL
-                GROUP BY op_date, day_name, hr
-            ),
-            cr AS (
-                SELECT COALESCE(operation_date_inbound::text, operation_date_created::text) as op_date, TO_CHAR(COALESCE(operation_date_inbound::date, operation_date_created::date), 'Dy') as day_name, EXTRACT(HOUR FROM created_time)::int as hr, COUNT(*) as cnt
-                FROM enriched.dispatch_enriched WHERE created_time IS NOT NULL
-                GROUP BY op_date, day_name, hr
-            ),
-            all_keys AS (
-                SELECT op_date, day_name, hr FROM ib UNION SELECT op_date, day_name, hr FROM ob UNION SELECT op_date, day_name, hr FROM arr UNION SELECT op_date, day_name, hr FROM pk UNION SELECT op_date, day_name, hr FROM cr
-            )
-            SELECT 
-                k.op_date, k.day_name, k.hr,
-                COALESCE(cr.cnt, 0) as created,
-                COALESCE(pk.cnt, 0) as pickup,
-                COALESCE(arr.cnt, 0) as transporting,
-                COALESCE(ib.cnt, 0) as inbound,
-                COALESCE(ob.cnt, 0) as outbound
-            FROM all_keys k
-            LEFT JOIN ib ON k.op_date = ib.op_date AND k.hr = ib.hr
-            LEFT JOIN ob ON k.op_date = ob.op_date AND k.hr = ob.hr
-            LEFT JOIN arr ON k.op_date = arr.op_date AND k.hr = arr.hr
-            LEFT JOIN pk ON k.op_date = pk.op_date AND k.hr = pk.hr
-            LEFT JOIN cr ON k.op_date = cr.op_date AND k.hr = cr.hr
-            ORDER BY k.op_date DESC, k.hr ASC;
-        """)
-        for r_hm in cur_hm.fetchall():
-            op_d, dy_n, hr_n, cr_c, pk_c, tr_c, ib_c, ob_c = r_hm
-            if hr_n is not None:
-                heatmap_detail_json.append({
-                    'date': op_d,
-                    'dayName': dy_n,
-                    'hour': int(hr_n),
-                    'created': int(cr_c or 0),
-                    'pickup': int(pk_c or 0),
-                    'transporting': int(tr_c or 0),
-                    'inbound': int(ib_c or 0),
-                    'outbound': int(ob_c or 0)
-                })
-        conn_hm.close()
-    except Exception as _e_hm:
-        print(f"   ⚠️ heatmap_detail generation error: {_e_hm}")
-
     now_display = now_vn.strftime("%H:%M:%S %d/%m/%Y")
     # Tổng Inbound thực tế trong ca hôm nay (từ heatmap hourly)
     total_inbound_today = sum(
@@ -1475,7 +1349,6 @@ def _do_sync_postgre_to_dashboard(t0):
     write_json("inbound.json",            inbound_json)
     write_json("arrival.json",            arrival_json)
     write_json("heatmap.json",            hourly)
-    write_json("heatmap_detail.json",     heatmap_detail_json)
     write_json("hub_inventory_pivot.json",hub_pivot_json)
     write_json("last_update.json",        last_update_obj)
     write_json("linehaul.json",           linehaul_obj)
@@ -1507,9 +1380,6 @@ def _do_sync_postgre_to_dashboard(t0):
         """, (today,))
         past_dates = [r[0] for r in cur_h.fetchall()]
         for h_d in past_dates:
-            target_hist_kpi = os.path.join(DATA_DIR, 'history', h_d, 'inbound_kpi_summary.json')
-            if os.path.exists(target_hist_kpi) and os.path.getsize(target_hist_kpi) > 10:
-                continue  # Past frozen date already has immutable snapshot, skip heavy redundant SQL!
             cur_h.execute("""
                 SELECT 
                     (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE (operation_date_inbound::date = %s::date OR (is_rebound = 1 AND operation_date_inbound_2::date = %s::date)) AND status_sys IN ('Inbound', 'Outbound')) as inbound_cnt,
@@ -1586,7 +1456,7 @@ def _do_sync_postgre_to_dashboard(t0):
         print(f"   ⚠️ Historical snapshot generation error: {_e_h}")
 
     # Sync to public/data & src/data
-    json_files_to_sync = ["inventory.json", "outbound.json", "backlog.json", "inbound.json", "arrival.json", "heatmap.json", "heatmap_detail.json", "hub_inventory_pivot.json", "last_update.json", "linehaul.json", "truck_eta.json"] + list(micro_payloads.keys())
+    json_files_to_sync = ["inventory.json", "outbound.json", "backlog.json", "inbound.json", "arrival.json", "heatmap.json", "hub_inventory_pivot.json", "last_update.json", "linehaul.json", "truck_eta.json"] + list(micro_payloads.keys())
     
     for sub in ['public/data', 'src/data']:
         sub_dir = os.path.normpath(os.path.join(DATA_DIR, '..', sub))

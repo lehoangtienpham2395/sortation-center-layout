@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import staticHeatmapData from '../data/heatmap.json';
-import { Layers, Sparkles, Package, Truck, Inbox, ExternalLink, Calendar } from 'lucide-react';
+import { Filter, Layers, Sparkles, Package, Truck, Inbox, ExternalLink } from 'lucide-react';
 
 interface HeatCell {
   date: string;
@@ -20,79 +20,10 @@ interface HeatmapDashboardProps {
   heatmapData?: any[];
 }
 
-interface WeekOption {
-  weekNum: number;
-  label: string;
-  startDate: string;
-  endDate: string;
-}
-
-// Generate 54 ISO Weeks for 2026 with explicit date range labels
-const GENERATE_WEEKS_2026 = (): WeekOption[] => {
-  const weeks: WeekOption[] = [];
-  const startJan1 = new Date(2026, 0, 1);
-  const dayOfWeek = startJan1.getDay(); // 4 (Thu)
-  // Monday of W1 (Dec 29, 2025)
-  const startW1 = new Date(2026, 0, 1 - ((dayOfWeek + 6) % 7));
-
-  for (let w = 1; w <= 54; w++) {
-    const wStart = new Date(startW1.getTime() + (w - 1) * 7 * 86400000);
-    const wEnd = new Date(wStart.getTime() + 6 * 86400000);
-    
-    const formatDate = (dt: Date) => {
-      const yyyy = dt.getFullYear();
-      const mm = String(dt.getMonth() + 1).padStart(2, '0');
-      const dd = String(dt.getDate()).padStart(2, '0');
-      return `${yyyy}-${mm}-${dd}`;
-    };
-
-    const formatShort = (dt: Date) => {
-      const mm = String(dt.getMonth() + 1).padStart(2, '0');
-      const dd = String(dt.getDate()).padStart(2, '0');
-      return `${dd}/${mm}`;
-    };
-
-    weeks.push({
-      weekNum: w,
-      label: `W${w} (${formatShort(wStart)} - ${formatShort(wEnd)})`,
-      startDate: formatDate(wStart),
-      endDate: formatDate(wEnd)
-    });
-  }
-  return weeks;
-};
-
-const ALL_WEEKS = GENERATE_WEEKS_2026();
-
-const DAYS_OF_WEEK = [
-  { key: 'Mon', label: 'Thứ 2', code: 'Mon', dayIdx: 0 },
-  { key: 'Tue', label: 'Thứ 3', code: 'Tue', dayIdx: 1 },
-  { key: 'Wed', label: 'Thứ 4', code: 'Wed', dayIdx: 2 },
-  { key: 'Thu', label: 'Thứ 5', code: 'Thu', dayIdx: 3 },
-  { key: 'Fri', label: 'Thứ 6', code: 'Fri', dayIdx: 4 },
-  { key: 'Sat', label: 'Thứ 7', code: 'Sat', dayIdx: 5 },
-  { key: 'Sun', label: 'Chủ nhật', code: 'Sun', dayIdx: 6 }
-];
-
-const HOURS = [
-  '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
-  '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00', '05:00'
-];
-
 export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpdate, heatmapData: dynamicHeatmapData }: HeatmapDashboardProps) {
   const heatmapData = useMemo(() => {
-    return Array.isArray(dynamicHeatmapData) && dynamicHeatmapData.length > 0 
-      ? dynamicHeatmapData 
-      : (Array.isArray(staticHeatmapData) ? staticHeatmapData : []);
+    return Array.isArray(dynamicHeatmapData) && dynamicHeatmapData.length > 0 ? dynamicHeatmapData : (Array.isArray(staticHeatmapData) ? staticHeatmapData : []);
   }, [dynamicHeatmapData]);
-
-  // Default week: W32 (03/08 - 09/08/2026)
-  const [selectedWeekNum, setSelectedWeekNum] = useState<number>(32);
-
-  const currentWeek = useMemo(() => {
-    return ALL_WEEKS.find(w => w.weekNum === selectedWeekNum) || ALL_WEEKS[31];
-  }, [selectedWeekNum]);
-
   // Checkbox state: active selected statuses
   const allOptions = ['created', 'pickup', 'transporting', 'inbound', 'outbound'];
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(allOptions);
@@ -110,10 +41,26 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
     y: number;
   } | null>(null);
 
+  const HOURS = [
+    '06:00', '07:00', '08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00',
+    '18:00', '19:00', '20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00', '05:00'
+  ];
+
+  const MAP_DAY_VN: Record<string, string> = {
+    Mon: 'Thứ 2',
+    Tue: 'Thứ 3',
+    Wed: 'Thứ 4',
+    Thu: 'Thứ 5',
+    Fri: 'Thứ 6',
+    Sat: 'Thứ 7',
+    Sun: 'Chủ nhật'
+  };
+
   const isAllSelected = selectedStatuses.length === allOptions.length;
 
   const handleToggleAll = () => {
     if (isAllSelected) {
+      // Clear all except created to avoid blank view
       setSelectedStatuses(['created']);
     } else {
       setSelectedStatuses(allOptions);
@@ -140,73 +87,77 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
     return null;
   };
 
-  // Map dates in the selected week to day of week
-  const weekDatesMap = useMemo(() => {
-    const map: Record<string, string> = {}; // dayKey (Mon..Sun) -> YYYY-MM-DD
-    const wStart = new Date(currentWeek.startDate);
-    DAYS_OF_WEEK.forEach((d, idx) => {
-      const dt = new Date(wStart.getTime() + idx * 86400000);
-      const yyyy = dt.getFullYear();
-      const mm = String(dt.getMonth() + 1).padStart(2, '0');
-      const dd = String(dt.getDate()).padStart(2, '0');
-      map[d.key] = `${yyyy}-${mm}-${dd}`;
+  // 1. Get unique operating dates in descending order (newest first)
+  const uniqueDates = useMemo(() => {
+    const dates = new Set<string>();
+    heatmapData.forEach((d: any) => {
+      if (d.date) dates.add(d.date);
     });
-    return map;
-  }, [currentWeek]);
+    return Array.from(dates);
+  }, []);
 
-  // Index heatmap data by `${date}-${hour}` AND `${dayName}-${hour}` for fallback
+  // 2. Map date to day name
+  const dateToDayName = useMemo(() => {
+    const mapping: Record<string, string> = {};
+    heatmapData.forEach((d: any) => {
+      if (d.date) mapping[d.date] = d.dayName;
+    });
+    return mapping;
+  }, []);
+
+  // 3. Helper to format date Y-axis label: "12/07-Sun"
+  const formatDateLabel = (dateStr: string) => {
+    const parts = dateStr.split('-');
+    if (parts.length < 3) return dateStr;
+    const dayName = dateToDayName[dateStr] || '';
+    return `${parts[2]}/${parts[1]}-${dayName}`;
+  };
+
+  // 4. Pre-index heatmap data for O(1) cell lookup
   const cellMap = useMemo(() => {
     const map: Record<string, HeatCell> = {};
     heatmapData.forEach((d: any) => {
-      if (d.date && d.hour !== undefined) {
-        map[`${d.date}-${d.hour}`] = d;
-      }
-      if (d.dayName && d.hour !== undefined) {
-        map[`${d.dayName}-${d.hour}`] = d;
-      }
+      map[`${d.date}-${d.hour}`] = d;
     });
     return map;
-  }, [heatmapData]);
+  }, []);
 
-  // Get cell value dynamically based on selected checkboxes
+  // Calculate cell value dynamically based on checked checkboxes
   const getCellValue = (cell: HeatCell) => {
     let sum = 0;
-    if (selectedStatuses.includes('created')) sum += cell.created || 0;
-    if (selectedStatuses.includes('pickup')) sum += cell.pickup || 0;
-    if (selectedStatuses.includes('transporting')) sum += cell.transporting || 0;
-    if (selectedStatuses.includes('inbound')) sum += cell.inbound || 0;
+    if (selectedStatuses.includes('created')) sum += cell.created;
+    if (selectedStatuses.includes('pickup')) sum += cell.pickup;
+    if (selectedStatuses.includes('transporting')) sum += cell.transporting;
+    if (selectedStatuses.includes('inbound')) sum += cell.inbound;
     if (selectedStatuses.includes('outbound')) sum += cell.outbound || 0;
     return sum;
   };
 
-  // Calculate maximum cell volume in current week view for normalisation
+  // Max value dynamically recalculated for normalization
   const maxVal = useMemo(() => {
     let currentMax = 1;
-    DAYS_OF_WEEK.forEach(d => {
-      const dateStr = weekDatesMap[d.key];
-      HOURS.forEach(hr => {
-        const hourNum = parseInt(hr.split(':')[0], 10);
-        const cell = cellMap[`${dateStr}-${hourNum}`] || cellMap[`${d.key}-${hourNum}`];
-        if (cell) {
-          const val = getCellValue(cell);
-          if (val > currentMax) currentMax = val;
-        }
-      });
+    heatmapData.forEach((d: any) => {
+      let sum = 0;
+      if (selectedStatuses.includes('created')) sum += d.created;
+      if (selectedStatuses.includes('pickup')) sum += d.pickup;
+      if (selectedStatuses.includes('transporting')) sum += d.transporting;
+      if (selectedStatuses.includes('inbound')) sum += d.inbound;
+      if (selectedStatuses.includes('outbound')) sum += d.outbound || 0;
+      if (sum > currentMax) currentMax = sum;
     });
     return currentMax;
-  }, [cellMap, weekDatesMap, selectedStatuses]);
+  }, [selectedStatuses]);
 
-  // Design Color Palette Scale: #FF6115 (Large / Highest Volume) -> White / Neutral (Smallest / 0)
   const getCellColor = (cell: HeatCell) => {
     const val = getCellValue(cell);
-    if (val === 0) return 'rgba(255, 255, 255, 0.04)';
+    if (val === 0) return 'rgba(255, 255, 255, 0.02)';
+    
+    // Scale opacity between 0.08 and 0.95
+    const ratio = val / maxVal;
+    const finalOpacity = Math.max(0.08, Math.min(0.95, ratio));
 
-    const ratio = Math.min(1, val / (maxVal || 1));
-    // Color interpolation from White / Light Amber tint to #FF6115 (RGB: 255, 97, 21)
-    const opacity = Math.max(0.15, Math.min(0.95, 0.2 + ratio * 0.75));
-    const green = Math.round(255 - ratio * (255 - 97));   // 255 -> 97
-    const blue = Math.round(255 - ratio * (255 - 21));    // 255 -> 21
-    return `rgba(255, ${green}, ${blue}, ${opacity})`;
+    // Lấy 1 màu chủ đạo (Emerald Green matching J&T accent #10b981)
+    return `rgba(16, 185, 129, ${finalOpacity})`;
   };
 
   const handleMouseEnter = (cell: HeatCell, e: React.MouseEvent<HTMLDivElement>) => {
@@ -219,8 +170,8 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
   };
 
   return (
-    <div className="w-full h-full overflow-y-auto px-4 pt-2 pb-12 font-sans select-none text-white animate-fade-in max-w-7xl mx-auto flex flex-col" style={{ gap: '12px' }}>
-      {/* 1. Header Control Block */}
+    <div className="w-full h-full overflow-y-auto px-4 pt-2 pb-12 font-sans select-none text-white animate-fade-in max-w-7xl mx-auto flex flex-col" style={{ gap: '10px' }}>
+      {/* 1. Header Control Block - Responsive layout matching Inbound Dashboard */}
       <header className="dashboard-header flex flex-col md:flex-row items-center justify-between gap-4 relative" style={{ padding: '14px 24px', minHeight: '100px' }}>
         
         {/* LEFT: Sync Button + Logo */}
@@ -239,13 +190,13 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
           <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '80px', borderRadius: '10px', display: 'block' }} />
         </div>
 
-        {/* CENTER: Title */}
+        {/* CENTER: Title — absolute center of header on desktop, stacked on mobile */}
         <div className="text-center md:absolute md:left-1/2 md:-translate-x-1/2 pointer-events-none my-2 md:my-0 w-full md:w-auto">
-          <h1 className="text-xl md:text-3xl lg:text-[36px] font-black tracking-tight leading-tight text-white" style={{ textShadow: '0 2px 20px rgba(255, 97, 21, 0.5)' }}>
-            HCM HUB Operational Heatmap
+          <h1 className="text-xl md:text-3xl lg:text-[36px] font-black tracking-tight leading-tight text-white" style={{ textShadow: '0 2px 20px rgba(16, 185, 129, 0.5)' }}>
+            HCM HUB Status Heatmap
           </h1>
           <p className="subtitle text-[10px] md:text-xs text-slate-400 mt-1">
-            Weekly operational volume heatmap by Day of Week (Mon - Sun) & Operating Hour
+            Hourly operational volume heatmap by operating date
           </p>
         </div>
 
@@ -254,9 +205,9 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ 
               fontSize: '11px', 
-              color: '#FF6115', 
-              background: 'rgba(255, 97, 21, 0.08)', 
-              border: '1px solid rgba(255, 97, 21, 0.3)', 
+              color: '#B8F7E4', 
+              background: 'rgba(184, 247, 228, 0.05)', 
+              border: '1px solid rgba(184, 247, 228, 0.2)', 
               padding: '5px 12px', 
               borderRadius: '20px', 
               fontWeight: 600, 
@@ -264,62 +215,45 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              textShadow: '0 0 8px rgba(255, 97, 21, 0.4)'
+              textShadow: '0 0 8px rgba(184,247,228,0.3)'
             }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#FF6115] animate-pulse" />
-              Update: {lastUpdate || 'Live System'}
+              <span className="w-1.5 h-1.5 rounded-full bg-[#B8F7E4] animate-pulse" />
+              Update: {lastUpdate || '20:04:02 29/07/2026'}
             </div>
           </div>
         </div>
       </header>
 
-      {/* 2. Control Bar: Isolated Week Picker (W1 -> W54) & Status Checkboxes */}
-      <div className="jt-glowing-card p-4 flex flex-col lg:flex-row justify-between items-center gap-4" style={{ borderRadius: '12px' }}>
-        
-        {/* LEFT: Isolated Week Picker Dropdown (W1 -> W54) */}
-        <div className="flex items-center gap-3 w-full lg:w-auto">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center bg-[#FF6115]/10 border border-[#FF6115]/40 shadow-[0_0_12px_rgba(255,97,21,0.3)] shrink-0">
-            <Calendar size={16} className="text-[#FF6115] animate-pulse" />
+      {/* 2. Filter Bar - Inline checkboxes styled with 12px border radius */}
+      <div className="jt-glowing-card p-4 flex flex-col md:flex-row justify-between items-center gap-4" style={{ borderRadius: '12px' }}>
+        {/* Left Side: Glowing Filter Icon + Title Status */}
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full flex items-center justify-center bg-teal-500/10 border border-teal-500/35 shadow-[0_0_10px_rgba(20,184,166,0.25)] shrink-0">
+            <Filter size={16} className="text-teal-400 animate-pulse" />
           </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">
-              BỘ LỌC TUẦN (ISOLATED HEATMAP)
-            </span>
-            <div className="relative mt-1">
-              <select
-                value={selectedWeekNum}
-                onChange={(e) => setSelectedWeekNum(Number(e.target.value))}
-                className="bg-[#0f1117] text-white text-xs font-bold px-3 py-1.5 rounded-lg border border-[#FF6115]/40 focus:outline-none focus:border-[#FF6115] cursor-pointer shadow-[0_0_10px_rgba(255,97,21,0.15)] hover:border-[#FF6115]"
-                style={{ appearance: 'auto' }}
-              >
-                {ALL_WEEKS.map((w) => (
-                  <option key={w.weekNum} value={w.weekNum} className="bg-[#0f1117] text-white py-1">
-                    {w.label} {w.weekNum === 32 ? '★ Tuần Hiện Tại' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <span className="text-[13px] text-slate-100 font-extrabold tracking-widest uppercase">
+            STATUS
+          </span>
         </div>
 
-        {/* RIGHT: Inline Status Checkbox Toggles */}
-        <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-start lg:justify-end">
-          {/* Toggle All Option */}
+        {/* Right Side: Inline Checkbox Toggles (No Vietnamese) */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Toggle All (Total) Option */}
           <div
             onClick={handleToggleAll}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer select-none transition-all ${
               isAllSelected 
-                ? 'border-[#FF6115]/50 text-white shadow-[0_0_12px_rgba(255,97,21,0.3)]'
+                ? 'border-teal-500/30 text-white shadow-[0_0_10px_rgba(20,184,166,0.2)]'
                 : 'border-white/[0.04] text-slate-400 hover:text-slate-200 hover:border-white/20 hover:bg-white/[0.02]'
             }`}
             style={isAllSelected ? {
-              background: 'linear-gradient(90deg, rgba(255, 97, 21, 0.85) 0%, rgba(225, 77, 10, 0.85) 100%)'
+              background: 'linear-gradient(90deg, rgba(20, 184, 166, 0.75) 0%, rgba(13, 148, 136, 0.75) 100%)'
             } : {
               background: 'rgba(255, 255, 255, 0.02)'
             }}
           >
             <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${
-              isAllSelected ? 'border-amber-200 bg-amber-200 text-slate-900' : 'border-white/20 bg-black/30'
+              isAllSelected ? 'border-teal-300 bg-teal-300 text-slate-900' : 'border-white/20 bg-black/30'
             }`}>
               {isAllSelected && (
                 <svg className="w-2.5 h-2.5 text-slate-900 stroke-[3.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -346,17 +280,17 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
                 onClick={() => handleToggleStatus(opt.value)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer select-none transition-all ${
                   isActive 
-                    ? 'border-[#FF6115]/50 text-white shadow-[0_0_12px_rgba(255,97,21,0.3)]'
+                    ? 'border-teal-500/30 text-white shadow-[0_0_10px_rgba(20,184,166,0.2)]'
                     : 'border-white/[0.04] text-slate-400 hover:text-slate-200 hover:border-white/20 hover:bg-white/[0.02]'
                 }`}
                 style={isActive ? {
-                  background: 'linear-gradient(90deg, rgba(255, 97, 21, 0.85) 0%, rgba(225, 77, 10, 0.85) 100%)'
+                  background: 'linear-gradient(90deg, rgba(20, 184, 166, 0.75) 0%, rgba(13, 148, 136, 0.75) 100%)'
                 } : {
                   background: 'rgba(255, 255, 255, 0.02)'
                 }}
               >
                 <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-all ${
-                  isActive ? 'border-amber-200 bg-amber-200 text-slate-900' : 'border-white/20 bg-black/30'
+                  isActive ? 'border-teal-300 bg-teal-300 text-slate-900' : 'border-white/20 bg-black/30'
                 }`}>
                   {isActive && (
                     <svg className="w-2.5 h-2.5 text-slate-900 stroke-[3.5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -372,15 +306,17 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
         </div>
       </div>
 
-      {/* 3. Main Heatmap Grid: Y-Axis = Mon -> Sun (Thứ 2 -> Chủ Nhật), X-Axis = 24 Operating Hours */}
+      {/* 3. Main Heatmap block - Styled like Layout Master tables inside jt-glowing-card */}
       <div className="jt-glowing-card p-6 relative">
+
+
+        {/* Heatmap Grid Wrapper with horizontal scroll */}
         <div className="overflow-x-auto min-w-full scrollbar-thin">
           <div className="min-w-[960px] pb-4 relative">
-            
-            {/* Hours Header Row */}
-            <div className="grid grid-cols-[100px_repeat(24,_1fr)] gap-1 sticky top-0 z-30 bg-[#16181e]/95 backdrop-blur-md py-3 mb-3 border-b border-white/[0.08]">
-              <div className="text-xs text-slate-400 font-extrabold uppercase select-none flex items-center justify-end pr-3">
-                Thứ \ Giờ
+            {/* Hours Header Row - STICKY AT THE TOP with premium background matching card */}
+            <div className="grid grid-cols-[80px_repeat(24,_1fr)] gap-1 sticky top-0 z-30 bg-[#16181e]/95 backdrop-blur-md py-3 mb-3 border-b border-white/[0.06]">
+              <div className="text-xs text-slate-500 font-extrabold uppercase select-none flex items-center justify-end pr-3">
+                Giờ
               </div>
               {HOURS.map((hr, idx) => (
                 <div 
@@ -392,28 +328,23 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
               ))}
             </div>
 
-            {/* 7 Fixed Rows for Monday -> Sunday */}
-            <div className="space-y-1.5">
-              {DAYS_OF_WEEK.map((d) => {
-                const dateStr = weekDatesMap[d.key];
-                const dateParts = dateStr ? dateStr.split('-') : [];
-                const formattedDateStr = dateParts.length === 3 ? `${dateParts[2]}/${dateParts[1]}` : '';
-
+            {/* Grid Rows for Days (Newest first) */}
+            <div className="space-y-1">
+              {uniqueDates.map((dateStr) => {
+                const formattedLabel = formatDateLabel(dateStr);
                 return (
-                  <div key={d.key} className="grid grid-cols-[100px_repeat(24,_1fr)] gap-1 items-center">
-                    
-                    {/* Y-Axis Label: Mon->Sun (Thứ 2 -> Chủ Nhật) */}
-                    <div className="text-xs font-bold select-none text-right pr-3 h-9 flex flex-col justify-center items-end leading-tight">
-                      <span className="text-[#FF6115] font-extrabold">{d.label}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">{formattedDateStr}</span>
+                  <div key={dateStr} className="grid grid-cols-[80px_repeat(24,_1fr)] gap-1 items-center">
+                    {/* Y Axis Label */}
+                    <div className="text-[11px] text-slate-400 font-bold select-none text-right pr-3 h-8 flex items-center justify-end">
+                      {formattedLabel}
                     </div>
 
-                    {/* 24 Cells for Operating Hours (06:00 -> 05:00) */}
+                    {/* 24 Cells */}
                     {HOURS.map((hr, hIdx) => {
                       const hourNum = parseInt(hr.split(':')[0], 10);
-                      const cell = cellMap[`${dateStr}-${hourNum}`] || cellMap[`${d.key}-${hourNum}`] || {
+                      const cell = cellMap[`${dateStr}-${hourNum}`] || {
                         date: dateStr,
-                        dayName: d.key,
+                        dayName: dateToDayName[dateStr] || '',
                         hour: hourNum,
                         created: 0,
                         pickup: 0,
@@ -429,7 +360,7 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
                           key={hIdx}
                           onMouseEnter={(e) => handleMouseEnter(cell, e)}
                           onMouseLeave={() => setHoveredCell(null)}
-                          className="h-9 rounded-md transition-all duration-150 cursor-crosshair border border-white/[0.02] hover:scale-[1.12] hover:border-[#FF6115] hover:shadow-[0_0_14px_rgba(255,97,21,0.6)] relative z-10"
+                          className="h-8 rounded-md transition-all duration-150 cursor-crosshair border border-white/[0.01] hover:scale-[1.08] hover:border-white/20 hover:shadow-[0_0_8px_rgba(16,185,129,0.45)] relative"
                           style={{
                             backgroundColor: color,
                           }}
@@ -441,28 +372,18 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
               })}
             </div>
             
-            {/* Color Palette Legend Bar (#FF6115 -> White) */}
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-white/[0.06] text-xs text-slate-400">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-slate-300">Chuỗi Giờ Ca Vận Hành:</span>
-                <span>06:00 sáng ➔ 05:00 sáng hôm sau</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[11px] font-bold text-slate-400">0 (Nhỏ)</span>
-                <div className="w-32 h-3.5 rounded-full border border-white/10" style={{
-                  background: 'linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 210, 185, 0.4) 40%, rgba(255, 97, 21, 0.95) 100%)'
-                }} />
-                <span className="text-[11px] font-extrabold text-[#FF6115]">Cao Nhất (#FF6115)</span>
-              </div>
+            {/* Bottom Hour-Axis title */}
+            <div className="text-center text-xs text-slate-500 font-bold mt-4 tracking-wider uppercase">
+              Chuỗi giờ ca vận hành (06:00 - 05:00)
             </div>
           </div>
         </div>
       </div>
 
-      {/* Floating Tooltip Component */}
+      {/* Floating Tooltip Component - Dynamically synced with selectedStatuses */}
       {hoveredCell && (
         <div
-          className="absolute z-50 pointer-events-none bg-[#090D16]/95 border border-[#FF6115]/40 rounded-xl p-3.5 shadow-[0_8px_32px_rgba(0,0,0,0.7)] backdrop-blur-md min-w-[230px]"
+          className="absolute z-50 pointer-events-none bg-[#090D16]/95 border border-emerald-500/20 rounded-xl p-3 shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-md min-w-[220px]"
           style={{
             left: `${hoveredCell.x}px`,
             top: `${hoveredCell.y}px`,
@@ -471,35 +392,35 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
           }}
         >
           {/* Tooltip Title */}
-          <div className="text-[11px] text-[#FF6115] font-extrabold uppercase tracking-wider mb-2 border-b border-white/[0.08] pb-1.5 flex justify-between items-center">
-            <span>{DAYS_OF_WEEK.find(d => d.key === hoveredCell.dayName)?.label || hoveredCell.dayName}</span>
-            <span>{hoveredCell.date ? `${hoveredCell.date.split('-')[2]}/${hoveredCell.date.split('-')[1]}` : ''} - {String(hoveredCell.hour).padStart(2, '0')}:00</span>
+          <div className="text-[10px] text-emerald-400 font-extrabold uppercase tracking-wider mb-2 border-b border-white/[0.08] pb-1.5 flex justify-between items-center">
+            <span>{MAP_DAY_VN[hoveredCell.dayName] || hoveredCell.dayName}</span>
+            <span>{hoveredCell.date.split('-')[2]}/{hoveredCell.date.split('-')[1]} - {String(hoveredCell.hour).padStart(2, '0')}:00</span>
           </div>
           
-          {/* Tooltip Active Status Breakdown */}
+          {/* Tooltip Content - Aligned key-value structure of selected active options */}
           <div className="space-y-1">
             {selectedStatuses.includes('created') && (
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-[11px] text-slate-400 font-bold">Created:</span>
-                <span className="text-[11px] text-slate-200 font-extrabold font-mono">{(hoveredCell.created || 0).toLocaleString()} đơn</span>
+                <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.created.toLocaleString()} đơn</span>
               </div>
             )}
             {selectedStatuses.includes('pickup') && (
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-[11px] text-slate-400 font-bold">Pickup Done:</span>
-                <span className="text-[11px] text-slate-200 font-extrabold font-mono">{(hoveredCell.pickup || 0).toLocaleString()} đơn</span>
+                <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.pickup.toLocaleString()} đơn</span>
               </div>
             )}
             {selectedStatuses.includes('transporting') && (
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-[11px] text-slate-400 font-bold">Transporting:</span>
-                <span className="text-[11px] text-slate-200 font-extrabold font-mono">{(hoveredCell.transporting || 0).toLocaleString()} đơn</span>
+                <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.transporting.toLocaleString()} đơn</span>
               </div>
             )}
             {selectedStatuses.includes('inbound') && (
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-[11px] text-slate-400 font-bold">Inbound:</span>
-                <span className="text-[11px] text-slate-200 font-extrabold font-mono">{(hoveredCell.inbound || 0).toLocaleString()} đơn</span>
+                <span className="text-[11px] text-slate-200 font-extrabold font-mono">{hoveredCell.inbound.toLocaleString()} đơn</span>
               </div>
             )}
             {selectedStatuses.includes('outbound') && (
@@ -509,15 +430,15 @@ export default function HeatmapDashboard({ loading, fetchAndUpdateData, lastUpda
               </div>
             )}
             
-            {/* Total Sum of Checked Statuses */}
+            {/* Divider and Total Sum of checked items */}
             <div className="border-t border-white/[0.08] pt-1.5 mt-1.5 flex justify-between items-center font-bold">
-              <span className="text-[11px] text-slate-200">Tổng Sản Lượng Trọng Yếu:</span>
-              <span className="text-[12px] text-[#FF6115] font-extrabold font-mono">
+              <span className="text-[11px] text-slate-200">Total Selected:</span>
+              <span className="text-[12px] text-emerald-400 font-extrabold font-mono">
                 {Math.round(
-                  (selectedStatuses.includes('created') ? (hoveredCell.created || 0) : 0) +
-                  (selectedStatuses.includes('pickup') ? (hoveredCell.pickup || 0) : 0) +
-                  (selectedStatuses.includes('transporting') ? (hoveredCell.transporting || 0) : 0) +
-                  (selectedStatuses.includes('inbound') ? (hoveredCell.inbound || 0) : 0) +
+                  (selectedStatuses.includes('created') ? hoveredCell.created : 0) +
+                  (selectedStatuses.includes('pickup') ? hoveredCell.pickup : 0) +
+                  (selectedStatuses.includes('transporting') ? hoveredCell.transporting : 0) +
+                  (selectedStatuses.includes('inbound') ? hoveredCell.inbound : 0) +
                   (selectedStatuses.includes('outbound') ? (hoveredCell.outbound || 0) : 0)
                 ).toLocaleString()} đơn
               </span>
