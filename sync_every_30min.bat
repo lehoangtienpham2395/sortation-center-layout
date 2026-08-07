@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM snapshot_onstart.bat — Fallback: chay KICH HOAT NGAY KHONG CHO
+REM sync_every_30min.bat — Chay KICH HOAT NGAY DONG BO 30 PHUT/LAN
 REM ============================================================
 
 SET PROJECT_DIR=C:\Users\lehoa\.gemini\antigravity\scratch\sortation-center-layout
@@ -14,13 +14,13 @@ for /f "tokens=1-3 delims=/" %%a in ("%date%") do (
     set DD=%%b
     set YYYY=%%c
 )
-SET LOG_FILE=%LOG_DIR%\snapshot_onstart_%YYYY%%MM%%DD%.log
+SET LOG_FILE=%LOG_DIR%\sync_30min_%YYYY%%MM%%DD%.log
 
 echo. >> "%LOG_FILE%"
-echo [%date% %time%] === ONSTART FALLBACK TRIGGER (IMMEDIATE EXECUTION) === >> "%LOG_FILE%"
+echo [%date% %time%] === SYNC 30 MIN TRIGGER (IMMEDIATE EXECUTION) === >> "%LOG_FILE%"
 
 cd /d "%PROJECT_DIR%"
 %PYTHON% backend_sync\sync_postgre.py >> "%LOG_FILE%" 2>&1
 
-echo [%date% %time%] OnStart fallback ket thuc: %ERRORLEVEL% >> "%LOG_FILE%"
+echo [%date% %time%] SYNC 30 MIN END exit code: %ERRORLEVEL% >> "%LOG_FILE%"
 exit /b 0
