@@ -1300,10 +1300,23 @@ def sync_postgre_to_dashboard():
     status_weights = {'Inbound': 0.0, 'Transporting': 0.0, 'Pickup Done': 0.0, 'Created': 0.0}
 
     for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items():
-        is_match = (in_op == today) or (ar_op == today) or (pk_op == today) or (fc_op == today)
-        if is_match and status in status_counts:
-            status_counts[status]  += stats['volume']
-            status_weights[status] += stats['weight_kg'] / 1000.0
+        std_status = ('Inbound' if status in ('Inbound', 'Đã nhập kho') else
+                      'Transporting' if status in ('Transporting', 'Đang vận chuyển') else
+                      'Pickup Done' if status in ('Pickup Done', 'Đã lấy hàng') else
+                      'Created' if status in ('Created', 'Đơn mới tạo') else '')
+        
+        if not std_status:
+            continue
+
+        if std_status == 'Inbound':
+            if in_op == today:
+                status_counts['Inbound'] += stats['volume']
+                status_weights['Inbound'] += stats['weight_kg'] / 1000.0
+        else:
+            is_match = (in_op == today) or (ar_op == today) or (pk_op == today) or (fc_op == today) or (fc_op and fc_op < today)
+            if is_match:
+                status_counts[std_status] += stats['volume']
+                status_weights[std_status] += stats['weight_kg'] / 1000.0
 
     inbound_orders_status = {
         "op_date": today,
@@ -1313,7 +1326,7 @@ def sync_postgre_to_dashboard():
         "pickup_done": status_counts['Pickup Done'],
         "created": status_counts['Created'],
         "total": sum(status_counts.values()),
-        "inbound_weight": round(total_inb_wt_kg / 1000.0, 1),
+        "inbound_weight": round(status_weights['Inbound'], 3),
         "transporting_weight": round(status_weights['Transporting'], 3),
         "pickup_done_weight": round(status_weights['Pickup Done'], 3),
         "created_weight": round(status_weights['Created'], 3)
@@ -1333,7 +1346,7 @@ def sync_postgre_to_dashboard():
             wt_ton = stats['weight_kg'] / 1000.0
             origin_map[pk_clean]['total_volume'] += vol
             origin_map[pk_clean]['total_weight'] += wt_ton
-            if status in ('Inbound', 'Đã nhập kho'):
+            if status in ('Inbound', 'Đã nhập kho') and in_op == today:
                 origin_map[pk_clean]['inbound_volume'] += vol
                 origin_map[pk_clean]['inbound_weight'] += wt_ton
             elif status in ('Transporting', 'Đang vận chuyển'):
