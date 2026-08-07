@@ -1676,4 +1676,15 @@ def git_push(repo_dir: str, timestamp: str) -> None:
         else:
             print(f"   ✅ git push origin main — Dashboard đã cập nhật!")
             if push.stdout.strip():
-                print(f"      {push.stdout.st
+                print(f"      {push.stdout.strip()}")
+
+    except subprocess.TimeoutExpired:
+        print("   ❌ Git operation timeout (>60s)")
+    except FileNotFoundError:
+        print("   ❌ `git` không tìm thấy trong PATH")
+    except Exception as e:
+        print(f"   ❌ Git push error: {e}")
+
+
+if __name__ == '__main__':
+    sync_postgre_to_dashboard()
