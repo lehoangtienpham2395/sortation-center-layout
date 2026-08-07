@@ -407,12 +407,18 @@ export default function InboundDashboard({
     "SG BÀ ĐIỂM": 0.3, "LA CẦN ĐƯỚC": 0.5
   };
 
-  const computeFrontendEta = (stationName: string, departureStr: string, _rawEta?: string) => {
-    // RULE 1: Các chuyến xe chưa có transporting (departureStr rỗng), BỎ QUA hiển thị -> trả về '--:--'
+  const computeFrontendEta = (stationName: string, departureStr: string, rawEtaStr?: string) => {
+    // RULE 1: Chưa xuất bãi (không có giờ xuất) → hiển thị '--:--'
     if (!departureStr || departureStr.trim().length < 10) {
       return '--:--';
     }
 
+    // RULE 2: Backend đã tính ETA = actual_departure + station_hours → dùng trực tiếp
+    if (rawEtaStr && rawEtaStr.trim().length >= 10) {
+      return rawEtaStr.trim();
+    }
+
+    // RULE 3: Fallback nếu chưa có eta từ backend → tính từ departure + STATION_ETA_MAP
     try {
       const stUpper = (stationName || '').trim().toUpperCase();
       let hoursAdd = STATION_ETA_MAP[stUpper];
@@ -441,7 +447,7 @@ export default function InboundDashboard({
         if (!isNaN(dt.getTime())) {
           dt.setTime(dt.getTime() + hoursAdd * 3600 * 1000);
           const pad = (n: number) => String(n).padStart(2, '0');
-          return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+          return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
         }
       }
     } catch (e) {
