@@ -530,15 +530,37 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
         rows = cur.fetchall()
         conn.close()
 
+        def compute_truck_eta(send_st: str, transp_t: str, arr_t: str) -> str:
+            if arr_t and len(str(arr_t)) >= 10:
+                return str(arr_t)
+            if not transp_t or len(str(transp_t)) < 10:
+                return ""
+            try:
+                ts_str = str(transp_t)[:19]
+                fmt = '%Y-%m-%d %H:%M:%S' if len(ts_str) >= 19 else ('%Y-%m-%d %H:%M' if len(ts_str) >= 16 else '%Y-%m-%d')
+                dep_dt = datetime.datetime.strptime(ts_str, fmt)
+                st_u = (send_st or '').strip().upper()
+                if st_u.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')):
+                    hours_add = 36.0
+                elif st_u.startswith(('CT ', 'KG ', 'AG ', 'BL ', 'CM ', 'ST ', 'TV ', 'VL ', 'TG ', 'DT ', 'LA ')):
+                    hours_add = 4.0
+                elif st_u.startswith(('BD ', 'DN ', 'TN ', 'VT ')):
+                    hours_add = 2.0
+                else:
+                    hours_add = 1.5
+                return (dep_dt + datetime.timedelta(hours=hours_add)).strftime('%Y-%m-%d %H:%M:%S')
+            except Exception:
+                return str(transp_t)
+
         for r in rows:
             send_st, arr_st, trip, vol, wt_kg, max_arr, max_transp = r
-            ref_t = str(max_arr or max_transp or '')[:16]
-            op_d = get_op_date(ref_t) if ref_t else today
+            ref_dep = str(max_transp or max_arr or '')[:16]
+            calc_eta = compute_truck_eta(send_st, max_transp, max_arr)[:16]
+            op_d = get_op_date(calc_eta or ref_dep) if (calc_eta or ref_dep) else today
 
-            if op_d == today:
+            if op_d in (today, yesterday):
                 key = (send_st, trip)
                 seen_keys.add(key)
-                avg_pkg_wt = (float(wt_kg) / float(vol)) if vol else 0
                 calc_wt_ton = round(float(wt_kg) / 1000.0, 3)
                 trucks.append({
                     "send_network":     send_st,
@@ -547,11 +569,12 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
                     "orders_count":     int(vol),
                     "weight_kg":        float(wt_kg),
                     "weight_ton":       calc_wt_ton,
-                    "planned_departure":ref_t,
-                    "planned_arrival":  ref_t,
-                    "actual_departure": ref_t,
-                    "eta":              ref_t,
-                    "rank":             "Shuttle",
+                    "planned_departure":ref_dep,
+                    "planned_arrival":  calc_eta or ref_dep,
+                    "actual_departure": str(max_transp or '')[:16],
+                    "actual_arrival":   str(max_arr or '')[:16],
+                    "eta":              calc_eta or ref_dep,
+                    "rank":             "Linehaul" if (send_st or '').strip().upper().startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) else "Shuttle",
                     "status":           "arrived" if max_arr else "in_transit",
                     "op_date":          op_d,
                 })
@@ -1144,11 +1167,8 @@ def sync_postgre_to_dashboard():
     ]
 
     now_display = now_vn.strftime("%H:%M:%S %d/%m/%Y")
-    # Tổng Inbound thực tế trong ca hôm nay (từ heatmap hourly)
-    total_inbound_today = sum(
-        v for h, v in hourly.items()
-        if h >= '06:00'  # từ 06:00 sáng (đầu ca vận hành)
-    )
+    # Tổng Inbound thực tế trong ca hôm nay (từ heatmap 24 giờ ca vận hành 06:00 -> 05:00)
+    total_inbound_today = sum(hourly.values())
     # 🎯 TỰ ĐỘNG chốt + đọc snapshot cho MỌI ngày — không hardcode bất kỳ ngày nào.
     # Đây chính là điểm sửa cho bug "chốt rồi vẫn tăng": trước đây dict này bị gõ
     # tay từng ngày, ngày nào quên gõ thì mãi mãi không được chốt.
@@ -1380,11 +1400,11 @@ def sync_postgre_to_dashboard():
         for h_d in past_dates:
             cur_h.execute("""
                 SELECT 
-                    (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE (operation_date_inbound::date = %s::date OR (is_rebound = 1 AND operation_date_inbound_2::date = %s::date)) AND status_sys IN ('Inbound', 'Outbound')) as inbound_cnt,
+                    (SELECT COUNT(DISTINCT tracking) FROM raw.scan_logs WHERE scan_time >= (%s::text || ' 06:00:00')::timestamp AND scan_time < ((%s::date + INTERVAL '1 day')::text || ' 06:00:00')::timestamp AND scan_type = 'INBOUND') as inbound_cnt,
                     (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE operation_date_created::date = %s::date AND status_sys = 'Transporting') as transp_cnt,
                     (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE op_date_pickup::date = %s::date AND status_sys = 'Pickup Done') as pickup_cnt,
                     (SELECT COUNT(*) FROM enriched.dispatch_enriched WHERE operation_date_created::date = %s::date AND status_sys = 'Created') as created_cnt,
-                    (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE (operation_date_inbound::date = %s::date OR (is_rebound = 1 AND operation_date_inbound_2::date = %s::date)) AND status_sys IN ('Inbound', 'Outbound')) as inb_wt,
+                    (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE (operation_date_inbound::date = %s::date OR (is_rebound = 1 AND operation_date_inbound_2::date = %s::date))) as inb_wt,
                     (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE operation_date_created::date = %s::date AND status_sys = 'Transporting') as transp_wt,
                     (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE op_date_pickup::date = %s::date AND status_sys = 'Pickup Done') as pickup_wt,
                     (SELECT COALESCE(SUM(orders_weight), 0) / 1000.0 FROM enriched.dispatch_enriched WHERE operation_date_created::date = %s::date AND status_sys = 'Created') as created_wt,
@@ -1526,8 +1546,8 @@ def git_push(repo_dir: str, timestamp: str) -> None:
             "data/hub_inventory_pivot.json", "data/latest.json.gz",
             "data/inbound_kpi_summary.json", "data/inbound_hourly_trend.json",
             "data/inbound_orders_status.json", "data/inbound_truck_eta.json",
-            "data/inbound_origin_station.json", "data/live/",
-            "public/data/", "src/data/live/",
+            "data/inbound_origin_station.json", "data/live/", "data/history/",
+            "public/data/", "src/data/live/", "src/data/history/",
             "src/", "backend_sync/",
         ]
         add = subprocess.run(
