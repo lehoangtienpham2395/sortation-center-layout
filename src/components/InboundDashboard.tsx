@@ -380,7 +380,14 @@ export default function InboundDashboard({
   const effectiveTruckEta = (filteredTruckEta && filteredTruckEta.length > 0) ? filteredTruckEta : (isHistoricalDate ? [] : rawTrucksList);
   const groupedStationVehicles: Record<string, any> = {};
 
-  (effectiveTruckEta || []).forEach((d: any, idx: number) => {
+  // Sort effectiveTruckEta by departure time descending so the latest active trip is processed first
+  const sortedTruckEta = [...(effectiveTruckEta || [])].sort((a: any, b: any) => {
+    const timeA = a.transporting_time || a.transport_time || a.transportingTime || a.actual_departure || a.planned_departure || '';
+    const timeB = b.transporting_time || b.transport_time || b.transportingTime || b.actual_departure || b.planned_departure || '';
+    return timeB.localeCompare(timeA);
+  });
+
+  (sortedTruckEta || []).forEach((d: any, idx: number) => {
     const st = (d['send_network'] || d['sendNetworkName'] || d['Station'] || d['Pickup_station'] || d['Bưu cục đi'] || d['send_site_name'] || '').trim();
     if (!st) return;
     const cleanKey = st.toUpperCase();
@@ -425,12 +432,7 @@ export default function InboundDashboard({
       "SG BÀ ĐIỂM": 0.3, "LA CẦN ĐƯỚC": 0.5
     };
 
-    const computeFrontendEta = (stationName: string, departureStr: string, rawEta?: string) => {
-      // If rawEta is already precomputed (+36h / +0.7h) and different from departure, return rawEta!
-      if (rawEta && rawEta.trim().length >= 10 && rawEta.trim() !== departureStr.trim()) {
-        return rawEta.trim();
-      }
-
+    const computeFrontendEta = (stationName: string, departureStr: string, _rawEta?: string) => {
       // RULE 1: Các chuyến xe chưa có transporting (departureStr rỗng), BỎ QUA hiển thị -> trả về '--:--'
       if (!departureStr || departureStr.trim().length < 10) {
         return '--:--';
@@ -498,6 +500,10 @@ export default function InboundDashboard({
       groupedStationVehicles[st].orders += tongDon;
       groupedStationVehicles[st].tongDon += tongDon;
       groupedStationVehicles[st].chuaDenHub += tongDon;
+      if (calculatedEta && calculatedEta !== '--:--' && (!groupedStationVehicles[st].lastTime || depTime > groupedStationVehicles[st].lastTime)) {
+        groupedStationVehicles[st].eta = calculatedEta;
+        groupedStationVehicles[st].lastTime = depTime;
+      }
     }
 
     const tripId = d.trip_code || d.shipmentName || d.plateNumber || d.plate_number || `${st}_${idx}`;
@@ -505,10 +511,6 @@ export default function InboundDashboard({
     groupedStationVehicles[st].vehicles = groupedStationVehicles[st].vehicleSet.size;
     groupedStationVehicles[st].trucking = groupedStationVehicles[st].vehicles;
     groupedStationVehicles[st].weight += wt;
-    if (calculatedEta && calculatedEta !== '--:--') {
-      groupedStationVehicles[st].eta = calculatedEta;
-      groupedStationVehicles[st].lastTime = depTime;
-    }
   });
 
 
