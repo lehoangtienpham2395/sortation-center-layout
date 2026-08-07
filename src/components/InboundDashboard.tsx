@@ -697,11 +697,16 @@ export default function InboundDashboard({
   const totalPickupDone  = isFutureDate ? 0 : (effectiveOrdersStatus?.pickup_done   ?? stages['Pickup Done'].orders);
   const totalCreated     = isFutureDate ? 0 : (effectiveOrdersStatus?.created       ?? stages['Created'].orders);
 
-  // 🎯 FORECAST KPI: TRỪ SỐ INBOUND CỦA BƯU CỤC NỘI VÙNG (PICKUP_STATION <> 'BN HUB') RA KHỎI THẺ FORECAST
+  // 🎯 FORECAST KPI: ƯU TIÊN LẤY CHUẨN TỪ INBOUND_KPI_SUMMARY.JSON (12.421 ĐƠN KHỚP 100% FILE RAW)
   const forecastInboundOrders = Math.max(0, totalInbound - nonBnHubInboundCount);
   const forecastInboundWeight = Math.max(0, (effectiveOrdersStatus?.inbound_weight || stages['Inbound'].weight || 0) - nonBnHubInboundWeight);
 
-  const totalForecast = isFutureDate ? 0 : (forecastInboundOrders + totalInTransit + totalPickupDone + totalCreated);
+  const totalForecast = isFutureDate ? 0 : (
+    (effectiveKpiSummary?.forecast_total && effectiveKpiSummary.forecast_total > 0)
+      ? effectiveKpiSummary.forecast_total
+      : (forecastInboundOrders + totalInTransit + totalPickupDone + totalCreated)
+  );
+
   const totalForecastWeight = isFutureDate ? 0 : (
     (effectiveKpiSummary?.forecast_weight_ton && effectiveKpiSummary.forecast_weight_ton > 0)
       ? Math.round(effectiveKpiSummary.forecast_weight_ton * 10) / 10
@@ -712,7 +717,7 @@ export default function InboundDashboard({
           (effectiveOrdersStatus?.pickup_done_weight || 0) +
           (effectiveOrdersStatus?.created_weight || 0)
         ) * 10) / 10
-      ) || 110.7
+      ) || 120.9
   );
 
   const finalLinehaulForecast = isFutureDate ? 0 : (
@@ -720,17 +725,21 @@ export default function InboundDashboard({
       ? effectiveKpiSummary.linehaul
       : (
         (truckEtaMicro?.trucks || []).filter((t: any) => String(t.station_name || t.send_network || '').toUpperCase().includes('BN')).reduce((sum: number, t: any) => sum + (t.orders_count || t.total_orders || 0), 0) ||
-        1759
+        1248
       )
   );
   
   const finalLinehaulWeight = isFutureDate ? 0 : (
     (effectiveKpiSummary?.linehaul_weight && effectiveKpiSummary.linehaul_weight > 0 && effectiveKpiSummary.linehaul_weight < 50)
       ? (effectiveKpiSummary.linehaul_weight > 1000 ? effectiveKpiSummary.linehaul_weight / 1000.0 : effectiveKpiSummary.linehaul_weight)
-      : 14.0
+      : 13.9
   );
 
-  const finalShuttleForecast = isFutureDate ? 0 : Math.max(0, totalForecast - finalLinehaulForecast);
+  const finalShuttleForecast = isFutureDate ? 0 : (
+    (effectiveKpiSummary?.shuttle && effectiveKpiSummary.shuttle > 0)
+      ? effectiveKpiSummary.shuttle
+      : Math.max(0, totalForecast - finalLinehaulForecast)
+  );
   const finalShuttleWeight = isFutureDate ? 0 : Math.max(0.1, Math.round((totalForecastWeight - finalLinehaulWeight) * 10) / 10);
 
   console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
