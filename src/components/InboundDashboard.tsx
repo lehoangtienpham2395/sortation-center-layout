@@ -823,7 +823,10 @@ export default function InboundDashboard({
   const pickupTrendData   = (localHourlyTrend?.series?.pickup_done && localHourlyTrend.series.pickup_done.length > 0) ? localHourlyTrend.series.pickup_done : labels.map(l => hourlyPickup[l]);
 
   const totalOrders = totalInbound;
-  const totalWeight = (isFutureDate || totalOrders === 0) ? 0 : stages['Inbound'].weight;
+  const rawInbWt = (effectiveOrdersStatus?.inbound_weight !== undefined && effectiveOrdersStatus.inbound_weight > 0)
+    ? effectiveOrdersStatus.inbound_weight
+    : stages['Inbound'].weight;
+  const totalWeight = (isFutureDate || totalOrders === 0) ? 0 : (rawInbWt > 1000 ? rawInbWt / 1000.0 : rawInbWt);
 
   const segments = [
     { name: 'Inbound', value: totalInbound, pct: inboundPct, color: '#B8F7E4', label: 'Inbound' },
@@ -1224,7 +1227,7 @@ export default function InboundDashboard({
           <div className="kpi-card-body">
             {/* weight_ton đã ở đơn vị TẤN từ backend (sync_postgre.py) — KHÔNG chia /1000
                 nữa ở đây (trước đây chia lần 2 khiến số hiển thị sai 1000 lần). */}
-            <span className="kpi-value"><NumberTicker value={totalWeight} decimals={1} /> Tấn</span>
+            <span className="kpi-value"><NumberTicker value={totalWeight} decimals={2} /> Tấn</span>
             <span className="kpi-sub">Avg: {(totalOrders > 0 ? (totalWeight * 1000) / totalOrders : 0).toFixed(2)} kg/pkg</span>
           </div>
           <div className="kpi-glow"></div>
