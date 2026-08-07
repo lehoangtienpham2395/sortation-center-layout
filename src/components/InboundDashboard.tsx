@@ -389,6 +389,10 @@ export default function InboundDashboard({
     return timeB.localeCompare(timeA);
   });
 
+
+
+
+
   const STATION_ETA_MAP: Record<string, number> = {
     "VT XUYÊN MỘC": 7.3, "VT VŨNG TÀU": 7.3, "VT LONG ĐẤT": 7.3, "VT CHÂU ĐỨC": 7.3,
     "VL VĨNH LONG": 4.8, "VL CHỢ LÁCH": 3.3, "TG TRUNG AN": 3.3, "TG HÒA KHÁNH": 4.8,
@@ -493,6 +497,8 @@ export default function InboundDashboard({
       ? (rawEtaVal && rawEtaVal.trim().length >= 10 ? rawEtaVal.trim() : computeFrontendEta(st, depTime))
       : '--:--';
 
+
+
     if (!groupedStationVehicles[st]) {
       groupedStationVehicles[st] = {
         station: st,
@@ -568,11 +574,12 @@ export default function InboundDashboard({
     });
   }
 
+
+
+
   let incomingVehicles = Object.values(groupedStationVehicles)
     .filter(v => v.orders > 0 || v.tongDon > 0)
     .sort((a, b) => b.orders - a.orders);
-
-
   // Split by Shuttle and Linehaul ranks
   const shuttleVehicles = incomingVehicles.filter(v => v.rank === 'Shuttle');
   const linehaulVehicles = incomingVehicles.filter(v => v.rank === 'Linehaul');
