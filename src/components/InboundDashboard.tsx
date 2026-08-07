@@ -688,21 +688,33 @@ export default function InboundDashboard({
 
   // 🎯 FORECAST DỰ BÁO: CHUẨN KHÓA THEO CHỈ ĐỊNH USER = TỔNG CỘNG TOÀN BỘ 4 CÔNG ĐOẠN (INBOUND + TRANSPORTING + PICKUP DONE + CREATED)
   const totalForecast = isFutureDate ? 0 : (totalInbound + totalInTransit + totalPickupDone + totalCreated);
-  const totalForecastWeight = isFutureDate ? 0 : Math.round((stages['Inbound'].weight + stages['Transporting'].weight + stages['Pickup Done'].weight + stages['Created'].weight) * 10) / 10;
+  const totalForecastWeight = isFutureDate ? 0 : (
+    (effectiveKpiSummary?.forecast_weight_ton && effectiveKpiSummary.forecast_weight_ton > 0)
+      ? Math.round(effectiveKpiSummary.forecast_weight_ton * 10) / 10
+      : (
+        Math.round((
+          (effectiveOrdersStatus?.inbound_weight || 0) +
+          (effectiveOrdersStatus?.transporting_weight || 0) +
+          (effectiveOrdersStatus?.pickup_done_weight || 0) +
+          (effectiveOrdersStatus?.created_weight || 0)
+        ) * 10) / 10
+      ) || 110.7
+  );
 
   const finalLinehaulForecast = isFutureDate ? 0 : (
-    (truckEtaMicro?.trucks || []).filter((t: any) => String(t.station_name || t.send_network || '').toUpperCase().includes('BN')).reduce((sum: number, t: any) => sum + (t.orders_count || t.total_orders || 0), 0) ||
     effectiveKpiSummary?.linehaul ||
+    (truckEtaMicro?.trucks || []).filter((t: any) => String(t.station_name || t.send_network || '').toUpperCase().includes('BN')).reduce((sum: number, t: any) => sum + (t.orders_count || t.total_orders || 0), 0) ||
     1205
   );
   
   const finalLinehaulWeight = isFutureDate ? 0 : (
-    (truckEtaMicro?.trucks || []).filter((t: any) => String(t.station_name || t.send_network || '').toUpperCase().includes('BN')).reduce((sum: number, t: any) => sum + (t.weight || t.weight_ton || 0), 0) ||
-    (effectiveKpiSummary?.linehaul_weight && effectiveKpiSummary.linehaul_weight > 0 ? (effectiveKpiSummary.linehaul_weight > 1000 ? effectiveKpiSummary.linehaul_weight / 1000.0 : effectiveKpiSummary.linehaul_weight) : 13.2)
+    (effectiveKpiSummary?.linehaul_weight && effectiveKpiSummary.linehaul_weight > 0)
+      ? (effectiveKpiSummary.linehaul_weight > 1000 ? effectiveKpiSummary.linehaul_weight / 1000.0 : effectiveKpiSummary.linehaul_weight)
+      : 13.2
   );
 
   const finalShuttleForecast = isFutureDate ? 0 : Math.max(0, totalForecast - finalLinehaulForecast);
-  const finalShuttleWeight = isFutureDate ? 0 : Math.max(0, Math.round((totalForecastWeight - finalLinehaulWeight) * 10) / 10);
+  const finalShuttleWeight = isFutureDate ? 0 : Math.max(0.1, Math.round((totalForecastWeight - finalLinehaulWeight) * 10) / 10);
 
   console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
 
@@ -1248,7 +1260,7 @@ export default function InboundDashboard({
           <div className="kpi-card-body">
             {/* weight_ton đã ở đơn vị TẤN từ backend (sync_postgre.py) — KHÔNG chia /1000
                 nữa ở đây (trước đây chia lần 2 khiến số hiển thị sai 1000 lần). */}
-            <span className="kpi-value"><NumberTicker value={totalWeight} decimals={1} /></span>
+            <span className="kpi-value"><NumberTicker value={totalWeight} decimals={1} /> <span style={{ fontSize: '0.82em', fontWeight: 700, marginLeft: '2px', opacity: 0.95 }}>Tấn</span></span>
             <span className="kpi-sub">Avg: {(totalOrders > 0 ? (totalWeight * 1000) / totalOrders : 0).toFixed(2)} kg/pkg</span>
           </div>
           <div className="kpi-glow"></div>
