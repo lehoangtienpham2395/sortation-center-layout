@@ -250,6 +250,82 @@ def save_and_get_daily_snapshots(conn, today_date_str: str, rot_hom_truoc_val: i
         return {}
 
 
+def build_hourly_trend_for_date(conn, target_date: str) -> dict:
+    """Tạo 4-series hourly trend chính xác 100% từ PostgreSQL cho bất kỳ ngày vận hành nào (shift boundary 06:00 AM -> 05:00 AM)."""
+    hours_list = [f"{h:02d}:00" for h in (list(range(6, 24)) + list(range(0, 6)))]
+    try:
+        cur = conn.cursor()
+        
+        # 1. Inbound series
+        cur.execute("""
+            SELECT TO_CHAR(inbound_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:00') as hr, COUNT(*) 
+            FROM enriched.dispatch_enriched
+            WHERE inbound_scandate IS NOT NULL
+              AND (CASE WHEN EXTRACT(HOUR FROM inbound_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh') < 6 
+                        THEN (inbound_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 1
+                        ELSE (inbound_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh')::date END)::text = %s
+            GROUP BY hr;
+        """, (target_date,))
+        inb_map = dict(cur.fetchall())
+
+        # 2. Transporting series
+        cur.execute("""
+            SELECT TO_CHAR(transporing_time AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:00') as hr, COUNT(*) 
+            FROM enriched.dispatch_enriched
+            WHERE transporing_time IS NOT NULL
+              AND (CASE WHEN EXTRACT(HOUR FROM transporing_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < 6 
+                        THEN (transporing_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 1
+                        ELSE (transporing_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::date END)::text = %s
+            GROUP BY hr;
+        """, (target_date,))
+        tr_map = dict(cur.fetchall())
+
+        # 3. Pickup Done series
+        cur.execute("""
+            SELECT TO_CHAR(pickup_time AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:00') as hr, COUNT(*) 
+            FROM enriched.dispatch_enriched
+            WHERE pickup_time IS NOT NULL
+              AND (CASE WHEN EXTRACT(HOUR FROM pickup_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < 6 
+                        THEN (pickup_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 1
+                        ELSE (pickup_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::date END)::text = %s
+            GROUP BY hr;
+        """, (target_date,))
+        pk_map = dict(cur.fetchall())
+
+        # 4. Created series
+        cur.execute("""
+            SELECT TO_CHAR(created_time AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:00') as hr, COUNT(*) 
+            FROM enriched.dispatch_enriched
+            WHERE created_time IS NOT NULL
+              AND (CASE WHEN EXTRACT(HOUR FROM created_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < 6 
+                        THEN (created_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 1
+                        ELSE (created_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::date END)::text = %s
+            GROUP BY hr;
+        """, (target_date,))
+        cr_map = dict(cur.fetchall())
+        cur.close()
+
+        return {
+            "op_date": target_date,
+            "contract_version": "2.0.0",
+            "hours": hours_list,
+            "series": {
+                "inbound": [inb_map.get(h, 0) for h in hours_list],
+                "transporting": [tr_map.get(h, 0) for h in hours_list],
+                "pickup_done": [pk_map.get(h, 0) for h in hours_list],
+                "created": [cr_map.get(h, 0) for h in hours_list]
+            }
+        }
+    except Exception as e:
+        print(f"   ⚠️ Error building hourly trend for {target_date}: {e}")
+        return {
+            "op_date": target_date,
+            "contract_version": "2.0.0",
+            "hours": hours_list,
+            "series": {"inbound": [0]*24, "transporting": [0]*24, "pickup_done": [0]*24, "created": [0]*24}
+        }
+
+
 def get_or_create_daily_baseline(conn, today_date_str: str) -> int:
     """
     Tạo và đọc baseline rot_hom_truoc tại 06:00 AM mỗi ngày trong PostgreSQL.
@@ -1338,33 +1414,20 @@ def sync_postgre_to_dashboard():
         "linehaul_weight": linehaul_weight_ton
     }
 
-    # 5.2 inbound_hourly_trend.json
-    hours_list = [f"{h:02d}:00" for h in (list(range(6, 24)) + list(range(0, 6)))]
-    hourly_series_inbound = [hourly.get(h, 0) for h in hours_list]
-    hourly_series_transporting = []
-    hourly_series_pickup_done = []
-    hourly_series_created = []
-
-    for h in hours_list:
-        h_prefix = h[:2]
-        tr_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if len(ar_hr) >= 13 and ar_hr[11:13] == h_prefix and ar_op == today)
-        pk_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if len(pk_hr) >= 13 and pk_hr[11:13] == h_prefix and pk_op == today)
-        cr_vol = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, in_hr, fc_hr, pk_hr, ar_hr, *rest), stats in inbound_group.items() if len(fc_hr) >= 13 and fc_hr[11:13] == h_prefix and fc_op == today)
-        hourly_series_transporting.append(tr_vol)
-        hourly_series_pickup_done.append(pk_vol)
-        hourly_series_created.append(cr_vol)
-
-    inbound_hourly_trend = {
-        "op_date": today,
-        "contract_version": "2.0.0",
-        "hours": hours_list,
-        "series": {
-            "inbound": hourly_series_inbound,
-            "transporting": hourly_series_transporting,
-            "pickup_done": hourly_series_pickup_done,
-            "created": hourly_series_created
+    # 5.2 inbound_hourly_trend.json (Tạo trực tiếp từ PostgreSQL cho 100% độ chính xác 24 giờ)
+    try:
+        conn_ht = get_pg_conn()
+        inbound_hourly_trend = build_hourly_trend_for_date(conn_ht, today)
+        conn_ht.close()
+    except Exception as _eht:
+        print(f"   ⚠️ Error building live hourly trend: {_eht}")
+        hours_list = [f"{h:02d}:00" for h in (list(range(6, 24)) + list(range(0, 6)))]
+        inbound_hourly_trend = {
+            "op_date": today,
+            "contract_version": "2.0.0",
+            "hours": hours_list,
+            "series": {"inbound": [0]*24, "transporting": [0]*24, "pickup_done": [0]*24, "created": [0]*24}
         }
-    }
 
     # 5.3 inbound_orders_status.json
     status_counts  = {'Inbound': 0, 'Transporting': 0, 'Pickup Done': 0, 'Created': 0}
@@ -1608,6 +1671,8 @@ def sync_postgre_to_dashboard():
 
                     write_json(os.path.join(h_path, "inbound_kpi_summary.json"), h_kpi)
                     write_json(target_status_file, h_status)
+                    h_hourly = build_hourly_trend_for_date(conn_hist, h_d)
+                    write_json(os.path.join(h_path, "inbound_hourly_trend.json"), h_hourly)
         conn_hist.close()
     except Exception as _e_h:
         print(f"   ⚠️ Historical snapshot generation error: {_e_h}")
