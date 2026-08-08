@@ -5,7 +5,7 @@ import HeatmapDashboard from './components/HeatmapDashboard';
 import KpiDashboard from './components/KpiDashboard';
 import { DatePicker } from './components/DatePicker';
 import { getTodayOpDate, getFormattedVietnamTime } from './utils/dateUtils';
-import { Menu } from 'lucide-react';
+import { Menu, RotateCw } from 'lucide-react';
 import configData from './data/config.json';
 
 // Animated Number Ticker Component (Smooth Transition Without 0 Flash)
@@ -2453,25 +2453,36 @@ export default function App() {
           <div className="w-full h-full pt-2 pb-20 px-2 overflow-y-auto flex flex-col space-y-3">
             {activeTab === 'layout' && (
               <div className="w-full flex flex-col space-y-3 relative">
-                {/* 🎯 Sleek Mobile Top Control Bar (No Overlapping Bars) */}
-                <div className="w-full flex flex-col gap-2 p-2.5 bg-[#09111C]/95 backdrop-blur-md rounded-xl border border-white/[0.08] shadow-lg sticky top-0 z-30">
+                {/* 🎯 Ultra-Premium Mobile Top Control Bar (High-Tech Glassmorphism) */}
+                <div className="w-full flex flex-col gap-2 p-2.5 bg-[#0b1019]/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)] sticky top-0 z-30">
                   <div className="flex gap-2 items-center">
-                    <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)}
-                            className="flex-1 bg-[#121824] text-white text-[11px] font-bold py-1.5 px-3 rounded-lg border border-white/10 outline-none cursor-pointer">
-                      <option value="Outbound">Outbound</option>
-                      <option value="Backlog">Backlog</option>
-                      <option value="Inventory">Volume</option>
-                    </select>
-                    <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
-                            className="flex-1 bg-[#121824] text-white text-[11px] font-bold py-1.5 px-3 rounded-lg border border-white/10 outline-none cursor-pointer">
-                      {availableDates.length > 0
-                        ? availableDates.map(d => <option key={d} value={d}>{d}</option>)
-                        : <option value="">Chưa có dữ liệu</option>}
-                    </select>
+                    <div className="relative flex-1">
+                      <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)}
+                              className="w-full bg-[#131b2a] text-white text-[11px] font-extrabold py-2 px-3 pr-6 rounded-xl border border-white/10 outline-none appearance-none cursor-pointer focus:border-[#06b6d4] transition-all shadow-inner">
+                        <option value="Outbound">⚡ Outbound</option>
+                        <option value="Backlog">📦 Backlog</option>
+                        <option value="Inventory">📊 Volume</option>
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-slate-400 text-[9px]">▼</div>
+                    </div>
+
+                    <div className="relative flex-1">
+                      <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+                              className="w-full bg-[#131b2a] text-white text-[11px] font-extrabold py-2 px-3 pr-6 rounded-xl border border-white/10 outline-none appearance-none cursor-pointer focus:border-[#06b6d4] transition-all shadow-inner">
+                        {availableDates.length > 0
+                          ? availableDates.map(d => <option key={d} value={d}>📅 {d}</option>)
+                          : <option value="">Chưa có dữ liệu</option>}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-slate-400 text-[9px]">▼</div>
+                    </div>
+
                     <button onClick={fetchAndUpdateData} disabled={loading}
-                            className="google-sync-btn px-3 py-1.5 text-[10px] gap-1 shrink-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
-                      {loading ? '...' : 'Sync'}
+                            className="relative group overflow-hidden rounded-xl p-[1px] font-bold text-[10.5px] tracking-wider uppercase transition-all duration-300 active:scale-95 shrink-0 shadow-[0_0_15px_rgba(16,185,129,0.25)]">
+                      <span className="absolute inset-0 bg-gradient-to-r from-[#10b981] via-[#06b6d4] to-[#8b5cf6] animate-pulse" />
+                      <span className="relative flex items-center gap-1.5 px-3 py-2 bg-[#0d131f] rounded-[11px] text-[#B8F7E4] group-hover:bg-[#131b2c] transition-colors">
+                        <RotateCw size={13} className={`text-[#10b981] ${loading ? 'animate-spin' : ''}`} />
+                        <span className="font-extrabold tracking-wide">{loading ? 'TẢI...' : 'ĐỒNG BỘ'}</span>
+                      </span>
                     </button>
                   </div>
 
