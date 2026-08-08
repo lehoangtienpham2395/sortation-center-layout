@@ -1288,13 +1288,17 @@ def sync_postgre_to_dashboard():
     fc_total_4stages = status_counts['Inbound'] + status_counts['Transporting'] + status_counts['Pickup Done'] + status_counts['Created']
     fc_total_weight  = round(status_weights['Inbound'] + status_weights['Transporting'] + status_weights['Pickup Done'] + status_weights['Created'], 3)
     
-    fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status))
-    linehaul_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status)) / 1000.0, 3)
-
-    # 🎯 LINEHAUL FALLBACK: EXACT MATCH RAW FILE (598 ORDERS / 6.8 TON)
-    if fc_linehaul <= 0:
-        fc_linehaul = 598
-        linehaul_weight_ton = 6.8
+    # 🎯 100% DYNAMIC LINEHAUL CALCULATION (No hardcoded static numbers)
+    fc_linehaul = sum(
+        stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items()
+        if (in_op == today or ar_op == today or pk_op == today or fc_op == today or (fc_op and fc_op < today))
+        and is_linehaul_item(st, pk, status)
+    )
+    linehaul_weight_ton = round(sum(
+        stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items()
+        if (in_op == today or ar_op == today or pk_op == today or fc_op == today or (fc_op and fc_op < today))
+        and is_linehaul_item(st, pk, status)
+    ) / 1000.0, 3)
 
     if fc_linehaul > fc_total_4stages:
         fc_linehaul = min(fc_linehaul, int(fc_total_4stages * 0.35))
