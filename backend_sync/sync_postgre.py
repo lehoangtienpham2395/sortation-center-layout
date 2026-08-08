@@ -1265,7 +1265,8 @@ def sync_postgre_to_dashboard():
             continue
 
         if std_status == 'Inbound':
-            if in_op == today:
+            pk_clean = str(pk or '').strip().upper()
+            if in_op == today and pk_clean != 'BN HUB':
                 status_counts['Inbound'] += stats['volume']
                 status_weights['Inbound'] += stats['weight_kg'] / 1000.0
         else:
