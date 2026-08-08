@@ -1745,3 +1745,53 @@ body {
     width: 100% !important;
   }
 }
+
+/* ==========================================
+   MOBILE BOTTOM NAVIGATION TABS (Z-INDEX 9999)
+   ========================================== */
+.mobile-nav {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  height: 60px !important;
+  background: rgba(13, 17, 23, 0.98) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-around !important;
+  z-index: 9999 !important;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.8) !important;
+  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+}
+
+.mobile-nav-item {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  color: #94a3b8 !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  padding: 4px 10px !important;
+  border-radius: 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.mobile-nav-item svg {
+  width: 20px !important;
+  height: 20px !important;
+  stroke: #94a3b8 !important;
+}
+
+.mobile-nav-item.active {
+  color: #B8F7E4 !important;
+}
+
+.mobile-nav-item.active svg {
+  stroke: #B8F7E4 !important;
+}
