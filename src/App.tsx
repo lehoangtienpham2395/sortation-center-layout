@@ -2660,36 +2660,36 @@ export default function App() {
             )}
 
             {activeTab === 'stats' && (
-              <div className="w-full h-full overflow-y-auto space-y-4 px-1 pt-2">
+              <div className="w-full max-w-full overflow-x-hidden space-y-3 px-2 pt-2 pb-24">
                 {/* Telemetry Block */}
-                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg p-4 shadow-xl">
-                  <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">TÌNH TRẠNG VẬN HÀNH</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 text-center bg-[#101622]/30 rounded-md">
-                      <div className="mono text-[9px] text-[var(--muted)] mb-1">TỔNG ĐƠN HÀNG</div>
-                      <div className="disp font-extrabold text-xl text-[var(--cyan)]">{totalOrders.toLocaleString()}</div>
+                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-xl p-3.5 shadow-xl w-full max-w-full overflow-hidden">
+                  <h3 className="disp text-[11px] tracking-[0.14em] pb-2.5 mb-2.5 border-b border-[var(--line)] text-[var(--accent)] font-bold uppercase truncate">TÌNH TRẠNG VẬN HÀNH</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2.5 text-center bg-[#101622]/40 rounded-lg border border-white/5 overflow-hidden">
+                      <div className="mono text-[9px] text-[var(--muted)] mb-1 font-semibold truncate">TỔNG ĐƠN HÀNG</div>
+                      <div className="disp font-extrabold text-lg sm:text-xl text-[var(--cyan)] truncate">{totalOrders.toLocaleString()}</div>
                     </div>
-                    <div className="p-3 text-center bg-[#101622]/30 rounded-md">
-                      <div className="mono text-[9px] text-[var(--muted)] mb-1">TỔNG TRỌNG LƯỢNG</div>
-                      <div className="disp font-extrabold text-xl text-[var(--green)]">
-                        {Math.ceil(totalWeight).toLocaleString()} kg
+                    <div className="p-2.5 text-center bg-[#101622]/40 rounded-lg border border-white/5 overflow-hidden">
+                      <div className="mono text-[9px] text-[var(--muted)] mb-1 font-semibold truncate">TỔNG TRỌNG LƯỢNG</div>
+                      <div className="disp font-extrabold text-lg sm:text-xl text-[var(--green)] truncate">
+                        {Math.ceil(totalWeight).toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">kg</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Operational Stats */}
-                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-lg p-4 shadow-xl">
-                  <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--accent)]">THỐNG KÊ CHI TIẾT</h3>
-                  <div className="space-y-3">
+                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-xl p-3.5 shadow-xl w-full max-w-full overflow-hidden">
+                  <h3 className="disp text-[11px] tracking-[0.14em] pb-2.5 mb-2.5 border-b border-[var(--line)] text-[var(--accent)] font-bold uppercase truncate">THỐNG KÊ CHI TIẾT</h3>
+                  <div className="space-y-2.5">
                     {[
                       [displayUtilizationLabel, `${utilTotal}%`, 'var(--cyan)'],
                       ['CÒN TRỐNG', `${free}`, 'var(--green)'],
                       ['Ô ĐANG DÙNG', `${usedCells}/${CHUTE_RACKS.length}`, '#fff']
                     ].map(([label, val, col]) => (
-                      <div key={label} className="flex justify-between items-center text-xs text-[var(--muted)] border-b border-[#1e2942]/50 pb-2">
-                        <span>{label}</span>
-                        <span className="mono font-bold text-sm" style={{color: col}}>{val}</span>
+                      <div key={label} className="flex justify-between items-center text-xs text-[var(--muted)] border-b border-[#1e2942]/50 pb-2 gap-2">
+                        <span className="truncate">{label}</span>
+                        <span className="mono font-bold text-sm shrink-0" style={{color: col}}>{val}</span>
                       </div>
                     ))}
                     <div className="h-1.5 rounded bg-[var(--line)] overflow-hidden">
@@ -2700,9 +2700,9 @@ export default function App() {
                 </div>
 
                 {/* Zone Metrics Blocks */}
-                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--cyan)] rounded-lg p-4 shadow-xl">
-                  <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-3 border-b border-[var(--line)] text-[var(--cyan)]">THỐNG KÊ PHÂN KHU (ZONES)</h3>
-                  <div className="space-y-4">
+                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--cyan)] rounded-xl p-3.5 shadow-xl w-full max-w-full overflow-hidden">
+                  <h3 className="disp text-[11px] tracking-[0.14em] pb-2.5 mb-2.5 border-b border-[var(--line)] text-[var(--cyan)] font-bold uppercase truncate">THỐNG KÊ PHÂN KHU (ZONES)</h3>
+                  <div className="space-y-3">
                     {[3, 2, 1].map(zoneNum => {
                       const zInfo = getZoneInfo(zoneNum);
                       const colors: Record<number, string> = {
@@ -2712,16 +2712,16 @@ export default function App() {
                       };
                       const zColor = colors[zoneNum] || 'var(--cyan)';
                       return (
-                        <div key={zoneNum} className="p-3 bg-[#101622]/40 rounded-md border border-white/5"
-                             style={{ borderColor: `${zColor}22` }}>
-                          <div className="flex justify-between items-center border-b border-[#1e2942]/50 pb-2 mb-2">
-                            <span className="disp font-extrabold text-[11px]" style={{ color: zColor }}>ZONE {zoneNum}</span>
-                            <span className="mono text-[11px] font-bold" style={{ color: zColor }}>{zInfo.ratio}% sản lượng</span>
+                        <div key={zoneNum} className="p-3 bg-[#101622]/40 rounded-lg border border-white/5 overflow-hidden"
+                             style={{ borderColor: `${zColor}33` }}>
+                          <div className="flex justify-between items-center border-b border-[#1e2942]/50 pb-2 mb-2 gap-2">
+                            <span className="disp font-extrabold text-[11px] shrink-0" style={{ color: zColor }}>ZONE {zoneNum}</span>
+                            <span className="mono text-[11px] font-bold shrink-0" style={{ color: zColor }}>{zInfo.ratio}% sản lượng</span>
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-[10px] text-[var(--muted)]">
-                            <div>Bưu cục có hàng: <b className="text-white mono">{zInfo.activeChutesCount}/{zInfo.totalChutes}</b></div>
-                            <div>Tổng lượng đơn: <b className="text-white mono">{zInfo.zoneOrders.toLocaleString()}</b></div>
-                            <div className="col-span-2 mt-1 border-t border-white/5 pt-1">Tổng trọng lượng: <b className="text-white mono">{zInfo.zoneWeight.toFixed(1).replace('.', ',')} Tấn</b></div>
+                            <div className="truncate">Bưu cục có hàng: <b className="text-white mono">{zInfo.activeChutesCount}/{zInfo.totalChutes}</b></div>
+                            <div className="truncate">Tổng lượng đơn: <b className="text-white mono">{zInfo.zoneOrders.toLocaleString()}</b></div>
+                            <div className="col-span-2 mt-1 border-t border-white/5 pt-1.5 truncate">Tổng trọng lượng: <b className="text-white mono">{zInfo.zoneWeight.toFixed(1).replace('.', ',')} Tấn</b></div>
                           </div>
                         </div>
                       );
