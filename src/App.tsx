@@ -2097,8 +2097,12 @@ export default function App() {
                 const totOrders = bnRows.reduce((s, r) => s + r.orders, 0);
                 const totWeight = bnRows.reduce((s, r) => s + r.weightTon, 0);
 
-                // Denominator % VOL = Tổng Volume toàn trung tâm từ Control Center METRICS
-                const grandTotal = totalOrders > 0 ? totalOrders : 1;
+                // 🎯 Denominator % VOL = Forecast Total (microKpiSummary?.forecast_total)
+                const fcTotal = microKpiSummary?.forecast_total && microKpiSummary.forecast_total > 0
+                  ? microKpiSummary.forecast_total
+                  : (totalOrders > 0 ? totalOrders : 1);
+
+                const grandTotal = fcTotal;
                 const totalPct = ((totOrders / grandTotal) * 100).toFixed(1);
 
                 // 🔥🧊 Warm-Cool Balance Palette
