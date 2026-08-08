@@ -268,14 +268,14 @@ def build_hourly_trend_for_date(conn, target_date: str) -> dict:
         """, (target_date,))
         inb_map = dict(cur.fetchall())
 
-        # 2. Transporting series
+        # 2. Transporting series (Dùng arrival_scandate — Mốc thời gian bưu kiện đến cổng HUB/Chờ Inbound, loại bỏ mốc xe xuất kho Outbound lúc 03:00)
         cur.execute("""
-            SELECT TO_CHAR(transporing_time AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:00') as hr, COUNT(*) 
+            SELECT TO_CHAR(arrival_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:00') as hr, COUNT(*) 
             FROM enriched.dispatch_enriched
-            WHERE transporing_time IS NOT NULL
-              AND (CASE WHEN EXTRACT(HOUR FROM transporing_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < 6 
-                        THEN (transporing_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 1
-                        ELSE (transporing_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::date END)::text = %s
+            WHERE arrival_scandate IS NOT NULL
+              AND (CASE WHEN EXTRACT(HOUR FROM arrival_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh') < 6 
+                        THEN (arrival_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 1
+                        ELSE (arrival_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh')::date END)::text = %s
             GROUP BY hr;
         """, (target_date,))
         tr_map = dict(cur.fetchall())
