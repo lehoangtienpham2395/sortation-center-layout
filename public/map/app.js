@@ -1,6 +1,12 @@
 // Master Database of Post Offices from Mapping_Configured_Routes.xlsx (Inbound Dashboard Style)
 // 🚫 DANH SÁCH BƯU CỤC ĐÓNG CỬA (Điền mã id hoặc tên Bưu cục vào đây để ẩn khỏi Bản đồ)
-const CLOSED_STATIONS = [];
+const CLOSED_STATIONS = [
+  "SG_XUAN_THOI_SON",
+  "SG XUÂN THỚI SƠN",
+  "BD_BINH_HOA",
+  "BD BÌNH HÒA",
+  "BD BÌNH HOÀ"
+];
 
 const POST_OFFICES = {
   "SG_BINH_LOI": {
@@ -43,7 +49,9 @@ const POST_OFFICES = {
     "distToHub": 11.9,
     "mapMins": 15,
     "timeToHubMins": 20,
-    "factorPercent": 130
+    "factorPercent": 130,
+    "status": "Inactive",
+    "isClosed": true
   },
   "SG_BINH_TAN": {
     "id": "SG_BINH_TAN",
@@ -855,7 +863,9 @@ const POST_OFFICES = {
     "distToHub": 50.2,
     "mapMins": 51,
     "timeToHubMins": 66,
-    "factorPercent": 130
+    "factorPercent": 130,
+    "status": "Inactive",
+    "isClosed": true
   },
   "HCM_HUB": {
     "id": "HCM_HUB",
