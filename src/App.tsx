@@ -831,9 +831,9 @@ export default function App() {
       const isVolumeMode    = selectedType === 'Inventory' || selectedType === 'Volume';
 
       // 🎯 BỘ LỌC NGÀY VẬN HÀNH:
-      // Outbound = lọc theo ngày xuất kho thực tế
-      // Volume & Backlog = LIVE toàn bộ các đơn đang có mặt trong sơ đồ Layout (Inventory + Backlog)
-      if (isOutboundMode) {
+      // Outbound & Inventory: Lọc theo ngày vận hành được chọn (effectiveDate)
+      // Giúp ngăn ngừa lặp đúp dữ liệu lịch sử các ngày cũ trong inventory.json
+      if (isOutboundMode || row.type === 'Inventory') {
         const dateMatched = !effectiveDate || isDateMatch(row.date, effectiveDate);
         if (!dateMatched) return;
       }
