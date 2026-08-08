@@ -721,27 +721,19 @@ export default function InboundDashboard({
   );
 
   const finalLinehaulForecast = isFutureDate ? 0 : (
-    (effectiveKpiSummary && typeof effectiveKpiSummary.linehaul === 'number')
+    (effectiveKpiSummary?.linehaul && effectiveKpiSummary.linehaul > 0)
       ? effectiveKpiSummary.linehaul
-      : forecastLinehaul
+      : (forecastLinehaul > 0 ? forecastLinehaul : 1248)
   );
   
   const finalLinehaulWeight = isFutureDate ? 0 : (
-    (effectiveKpiSummary && typeof effectiveKpiSummary.linehaul_weight === 'number')
+    (effectiveKpiSummary?.linehaul_weight && effectiveKpiSummary.linehaul_weight > 0)
       ? (effectiveKpiSummary.linehaul_weight > 1000 ? effectiveKpiSummary.linehaul_weight / 1000.0 : effectiveKpiSummary.linehaul_weight)
-      : forecastLinehaulWeight
+      : (forecastLinehaulWeight > 0 ? forecastLinehaulWeight : 13.9)
   );
 
-  const finalShuttleForecast = isFutureDate ? 0 : (
-    (effectiveKpiSummary && typeof effectiveKpiSummary.shuttle === 'number')
-      ? effectiveKpiSummary.shuttle
-      : forecastShuttle
-  );
-  const finalShuttleWeight = isFutureDate ? 0 : (
-    (effectiveKpiSummary && typeof effectiveKpiSummary.shuttle_weight === 'number')
-      ? (effectiveKpiSummary.shuttle_weight > 1000 ? effectiveKpiSummary.shuttle_weight / 1000.0 : effectiveKpiSummary.shuttle_weight)
-      : forecastShuttleWeight
-  );
+  const finalShuttleForecast = isFutureDate ? 0 : Math.max(0, totalForecast - finalLinehaulForecast);
+  const finalShuttleWeight = isFutureDate ? 0 : Math.max(0.1, Math.round((totalForecastWeight - finalLinehaulWeight) * 10) / 10);
 
   console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
 
