@@ -2082,23 +2082,17 @@ export default function App() {
 
               {/* ── LINEHAUL Forecast Table ── */}
               {showTelemetry && (() => {
-                // 🎯 Đọc từ data state (cùng nguồn với bảng TOP 10) để số BN HUB khớp nhau
-                // A06 = BN HUB (rack Linehaul miền Bắc)
-                const LINEHAUL_RACKS: Array<{ areaId: string; label: string }> = [
-                  { areaId: 'A06', label: 'BN HUB' },
-                ];
+                // 🎯 Đọc trực tiếp từ microKpiSummary để Dự kiến SL LINEHAUL đồng bộ 100% với Inbound Dashboard
+                const linehaulOrders = microKpiSummary?.linehaul ?? (data['A06']?.current ?? 0);
+                const linehaulWeight = microKpiSummary?.linehaul_weight ?? (data['A06']?.weight ?? 0);
 
-                const bnRows = LINEHAUL_RACKS
-                  .map(({ areaId, label }) => {
-                    const rack = data[areaId];
-                    if (!rack) return null;
-                    return {
-                      name: label,
-                      orders: rack.current ?? 0,
-                      weightTon: rack.weight ?? 0,
-                    };
-                  })
-                  .filter((r): r is { name: string; orders: number; weightTon: number } => r !== null && r.orders > 0);
+                const bnRows = [
+                  {
+                    name: 'BN HUB',
+                    orders: linehaulOrders,
+                    weightTon: linehaulWeight,
+                  }
+                ].filter(r => r.orders > 0);
 
                 const totOrders = bnRows.reduce((s, r) => s + r.orders, 0);
                 const totWeight = bnRows.reduce((s, r) => s + r.weightTon, 0);
