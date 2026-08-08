@@ -592,3 +592,37 @@ html, body {
   color: var(--jt-green);
   display: block;
 }
+
+/* ==========================================
+   ANIMATED MOVING TRUCK ON MAP
+   ========================================== */
+.moving-truck-marker {
+  width: 30px;
+  height: 30px;
+  background: rgba(13, 17, 23, 0.92);
+  border: 1.5px solid #22d3ee;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #22d3ee;
+  font-size: 13px;
+  box-shadow: 0 0 12px rgba(34, 211, 238, 0.7), inset 0 0 6px rgba(34, 211, 238, 0.3);
+  transition: transform 0.15s ease;
+  z-index: 400;
+}
+
+.moving-truck-marker.linehaul {
+  border-color: #f97316;
+  color: #f97316;
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.7), inset 0 0 6px rgba(249, 115, 22, 0.3);
+}
+
+.moving-truck-marker i {
+  animation: pulseTruckIcon 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes pulseTruckIcon {
+  0% { transform: scale(0.9); opacity: 0.85; }
+  100% { transform: scale(1.15); opacity: 1; }
+}

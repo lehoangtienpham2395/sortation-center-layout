@@ -248350,6 +248350,153 @@ function formatDuration(mins) {
   return `${m} phút`;
 }
 
+// ==========================================
+// REALTIME LIVE DATA MAPPING & MOVING TRUCKS
+// ==========================================
+var liveArrivalDataMap = {};
+var liveTruckEtaMap = {};
+var truckAnimationGroup = null;
+var activeTruckAnimFrame = null;
+var activeMovingTrucks = [];
+
+function getStationLiveData(po) {
+  if (!po) return { volStr: '<span class="val empty" style="color: #64748b;">(Chưa có dữ liệu)</span>', depStr: '<span class="val empty" style="color: #64748b;">(Chưa có dữ liệu)</span>', etaStr: '<span class="val empty" style="color: #64748b;">(Chưa có dữ liệu)</span>', vol: 0 };
+
+  const normName = (po.name || po.id || '').trim().toUpperCase();
+  const arrItem = liveArrivalDataMap[normName] || {};
+  const etaItem = liveTruckEtaMap[normName] || {};
+
+  // Volume: total_orders / chua_den_hub / orders_count / volume
+  const vol = Number(arrItem.total_orders ?? arrItem.chua_den_hub ?? etaItem.orders_count ?? arrItem.Volume ?? 0);
+  const volStr = vol > 0 
+    ? `<span class="val amber" style="color: #f59e0b; font-weight: 800;">${vol.toLocaleString()} đơn</span>` 
+    : '<span class="val empty" style="color: #64748b;">(Chưa có dữ liệu)</span>';
+
+  // Departure Time (Transporting)
+  const depTime = etaItem.transporting_time || etaItem.transport_time || arrItem.last_scan_time || arrItem.scan_hour || '';
+  let depStr = '<span class="val empty" style="color: #64748b;">(Chưa có dữ liệu)</span>';
+  if (depTime) {
+    const timeOnly = depTime.length >= 16 ? depTime.substring(11, 16) : depTime;
+    depStr = `<span class="val cyan" style="color: #22d3ee; font-weight: 800;"><i class="fa-solid fa-truck-arrow-right"></i> ${timeOnly}</span>`;
+  }
+
+  // Estimated Arrival (ETA)
+  const rawEta = etaItem.eta || etaItem.planned_arrival || arrItem.ETA || '';
+  let etaStr = '<span class="val empty" style="color: #64748b;">(Chưa có dữ liệu)</span>';
+  
+  if (rawEta && rawEta !== '--:--') {
+    const timeOnly = rawEta.length >= 16 ? rawEta.substring(11, 16) : rawEta;
+    etaStr = `<span class="val emerald" style="color: #34d399; font-weight: 800;"><i class="fa-solid fa-clock"></i> ${timeOnly}</span>`;
+  } else if (depTime && po.timeToHubMins) {
+    try {
+      const depDate = new Date(depTime.replace(/-/g, '/'));
+      if (!isNaN(depDate.getTime())) {
+        const arrDate = new Date(depDate.getTime() + po.timeToHubMins * 60000);
+        const h = String(arrDate.getHours()).padStart(2, '0');
+        const m = String(arrDate.getMinutes()).padStart(2, '0');
+        etaStr = `<span class="val emerald" style="color: #34d399; font-weight: 800;"><i class="fa-solid fa-clock"></i> ${h}:${m}</span>`;
+      }
+    } catch (e) {}
+  }
+
+  return { vol, volStr, depStr, etaStr, depTime, rawEta, etaItem };
+}
+
+// 🚚 STATIC TRUCK MARKER PLACED AT THE MIDPOINT OF ACTIVE ROUTES
+function animateMovingTrucksOnMap() {
+  if (typeof map === 'undefined' || !map) return;
+  if (!truckAnimationGroup) {
+    truckAnimationGroup = L.layerGroup().addTo(map);
+  }
+  truckAnimationGroup.clearLayers();
+
+  const filteredRoutes = typeof getFilteredRoutes === 'function' ? getFilteredRoutes() : [];
+
+  filteredRoutes.forEach(route => {
+    if (!route || !route.stops || route.stops.length < 2) return;
+    const startPoId = route.stops[0];
+    const startPo = POST_OFFICES[startPoId];
+    if (!startPo) return;
+
+    const liveData = getStationLiveData(startPo);
+    if (liveData.vol > 0 || liveData.depTime) {
+      let pathCoords = route.roadGeometry;
+      if (!pathCoords || pathCoords.length < 2) {
+        pathCoords = route.stops
+          .map(id => POST_OFFICES[id])
+          .filter(po => po && po.lat && po.lng)
+          .map(po => [po.lat, po.lng]);
+      }
+      if (!pathCoords || pathCoords.length < 2) return;
+
+      // Calculate exact midpoint coordinate along the route polyline
+      const midIdx = Math.floor((pathCoords.length - 1) / 2);
+      const midCoord = pathCoords[midIdx];
+      if (!midCoord) return;
+
+      const isLinehaul = route.mode === 'Linehaul' || (startPo.poType === 'Linehaul');
+      const truckClass = isLinehaul ? 'moving-truck-marker linehaul' : 'moving-truck-marker';
+
+      const iconHtml = `<div class="${truckClass}" title="Đang vận chuyển: ${startPo.name} ➔ HCM HUB (${liveData.vol.toLocaleString()} đơn)"><i class="fa-solid fa-truck-fast"></i></div>`;
+      const truckIcon = L.divIcon({
+        className: 'custom-leaflet-moving-truck',
+        html: iconHtml,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+
+      const marker = L.marker(midCoord, { icon: truckIcon, zIndexOffset: 1000 });
+      marker.bindPopup(`
+        <div style="font-family:'Inter',sans-serif; padding:4px;">
+          <div style="font-weight:800; color:#38bdf8; font-size:12px; margin-bottom:4px;">🚚 Xe Đang Vận Chuyển Giữa Tuyến</div>
+          <div style="color:#fff; font-size:11px;">Tuyến: <b>${route.code}</b></div>
+          <div style="color:#cbd5e1; font-size:11px;">Xuất phát: <b>${startPo.name}</b></div>
+          <div style="color:#f59e0b; font-size:11px;">Sản lượng: <b>${liveData.vol.toLocaleString()} đơn</b></div>
+        </div>
+      `);
+      truckAnimationGroup.addLayer(marker);
+    }
+  });
+}
+
+async function fetchLiveMapData() {
+  try {
+    const t = Date.now();
+    const [resArr, resEta] = await Promise.all([
+      fetch(`../data/arrival.json?t=${t}`).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(`../data/inbound_truck_eta.json?t=${t}`).then(r => r.ok ? r.json() : []).catch(() => [])
+    ]);
+
+    const arrMap = {};
+    if (Array.isArray(resArr)) {
+      resArr.forEach(d => {
+        const stName = (d.station_name || d.Pickup_station || d.send_network || '').trim().toUpperCase();
+        if (stName) arrMap[stName] = d;
+      });
+    }
+    liveArrivalDataMap = arrMap;
+
+    const etaMap = {};
+    const trucksList = resEta.trucks || (Array.isArray(resEta) ? resEta : []);
+    trucksList.forEach(tr => {
+      const stName = (tr.send_network || tr.sendNetworkName || '').trim().toUpperCase();
+      if (stName) {
+        if (!etaMap[stName] || (tr.transporting_time || '') > (etaMap[stName].transporting_time || '')) {
+          etaMap[stName] = tr;
+        }
+      }
+    });
+    liveTruckEtaMap = etaMap;
+
+    if (typeof renderMapMarkersAndRoutes === 'function') {
+      renderMapMarkersAndRoutes();
+    }
+    animateMovingTrucksOnMap();
+  } catch (e) {
+    console.warn('[LIVE MAP FETCH ERROR]', e);
+  }
+}
+
 // Display Post Office Popup & Locked Detail Panel when Clicked
 function showPostOfficeDetail(po) {
   const panel = document.getElementById("inbound-detail-panel");
@@ -248369,6 +248516,8 @@ function showPostOfficeDetail(po) {
   const timeStr = formatDuration(po.timeToHubMins);
   const factorNote = po.id === 'BN_HUB' ? '150%' : '30%';
 
+  const liveData = getStationLiveData(po);
+
   body.innerHTML = `
     <div class="info-grid">
       <div class="grid-box" style="grid-column: span 2;">
@@ -248381,15 +248530,15 @@ function showPostOfficeDetail(po) {
       </div>
       <div class="grid-box">
         <div class="lbl"><i class="fa-solid fa-cubes-stacked"></i> Volume</div>
-        <div class="val empty">(Giữ trống)</div>
+        <div class="val">${liveData.volStr}</div>
       </div>
       <div class="grid-box">
-        <div class="lbl"><i class="fa-solid fa-truck-arrow-right"></i> Giờ Xuất Phát</div>
-        <div class="val empty">(Giữ trống)</div>
+        <div class="lbl"><i class="fa-solid fa-truck-arrow-right"></i> Thời gian xuất phát</div>
+        <div class="val">${liveData.depStr}</div>
       </div>
       <div class="grid-box" style="grid-column: span 2;">
-        <div class="lbl"><i class="fa-solid fa-clock"></i> Thời Gian Dự Kiến Đến (ETA)</div>
-        <div class="val empty">(Giữ trống)</div>
+        <div class="lbl"><i class="fa-solid fa-clock"></i> Thời gian dự kiến đến (ETA)</div>
+        <div class="val">${liveData.etaStr}</div>
       </div>
     </div>
   `;
@@ -248480,6 +248629,8 @@ function renderMapMarkersAndRoutes() {
     const badgeText = isHcmHub ? 'HUB CENTER' : (po.poType || 'Shuttle');
     const badgeClass = isHcmHub ? 'hub-center' : (po.poType === 'Shuttle' ? 'shuttle' : 'linehaul');
 
+    const liveData = getStationLiveData(po);
+
     const popupHtml = `
       <div class="po-popup-card">
         <h3>
@@ -248496,15 +248647,15 @@ function renderMapMarkersAndRoutes() {
         </div>
         <div class="po-popup-row">
           <span class="lbl">Volume:</span>
-          <span class="val empty">(Chưa có dữ liệu)</span>
+          ${liveData.volStr}
         </div>
         <div class="po-popup-row">
           <span class="lbl">Thời gian xuất phát:</span>
-          <span class="val empty">(Chưa có dữ liệu)</span>
+          ${liveData.depStr}
         </div>
         <div class="po-popup-row">
           <span class="lbl">Thời gian dự kiến đến:</span>
-          <span class="val empty">(Chưa có dữ liệu)</span>
+          ${liveData.etaStr}
         </div>
       </div>
     `;
@@ -248816,4 +248967,14 @@ function exportRoutesToCSV() {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+// Auto-start live map sync & truck animations
+document.addEventListener('DOMContentLoaded', () => {
+  fetchLiveMapData();
+  setInterval(fetchLiveMapData, 30000);
+});
+
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  fetchLiveMapData();
 }
