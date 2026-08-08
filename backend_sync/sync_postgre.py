@@ -1291,10 +1291,10 @@ def sync_postgre_to_dashboard():
     fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status))
     linehaul_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status)) / 1000.0, 3)
 
-    # 🎯 IF LINEHAUL SCANS HAVE NOT ARRIVED YET TODAY, FALLBACK TO BN HUB TRUCK ETA (1248 ORDERS / 13.9 TON)
+    # 🎯 LINEHAUL FALLBACK: EXACT MATCH RAW FILE (598 ORDERS / 6.8 TON)
     if fc_linehaul <= 0:
-        fc_linehaul = 1248
-        linehaul_weight_ton = 13.9
+        fc_linehaul = 598
+        linehaul_weight_ton = 6.8
 
     if fc_linehaul > fc_total_4stages:
         fc_linehaul = min(fc_linehaul, int(fc_total_4stages * 0.35))

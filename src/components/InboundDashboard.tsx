@@ -723,13 +723,13 @@ export default function InboundDashboard({
   const finalLinehaulForecast = isFutureDate ? 0 : (
     (effectiveKpiSummary?.linehaul && effectiveKpiSummary.linehaul > 0)
       ? effectiveKpiSummary.linehaul
-      : (forecastLinehaul > 0 ? forecastLinehaul : 1248)
+      : (forecastLinehaul > 0 ? forecastLinehaul : 598)
   );
   
   const finalLinehaulWeight = isFutureDate ? 0 : (
     (effectiveKpiSummary?.linehaul_weight && effectiveKpiSummary.linehaul_weight > 0)
       ? (effectiveKpiSummary.linehaul_weight > 1000 ? effectiveKpiSummary.linehaul_weight / 1000.0 : effectiveKpiSummary.linehaul_weight)
-      : (forecastLinehaulWeight > 0 ? forecastLinehaulWeight : 13.9)
+      : (forecastLinehaulWeight > 0 ? forecastLinehaulWeight : 6.8)
   );
 
   const finalShuttleForecast = isFutureDate ? 0 : Math.max(0, totalForecast - finalLinehaulForecast);
