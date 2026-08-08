@@ -1662,3 +1662,86 @@ body {
 .chart-header h2 {
   color: #B8F7E4 !important;
 }
+
+/* ==========================================
+   MOBILE & TABLET RESPONSIVE OPTIMIZATIONS
+   ========================================== */
+@media (max-width: 768px) {
+  body {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+  
+  .dashboard-container {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    padding-bottom: 90px !important;
+  }
+
+  .dashboard-header {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+    padding: 12px 10px !important;
+    text-align: center !important;
+  }
+
+  .dashboard-header > div:nth-child(2) {
+    position: static !important;
+    transform: none !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+
+  .dashboard-header h1 {
+    font-size: 20px !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    line-height: 1.2 !important;
+  }
+
+  .jt-logo {
+    height: 44px !important;
+  }
+
+  .header-right {
+    align-items: center !important;
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .google-sync-btn {
+    padding: 8px 14px !important;
+    font-size: 10px !important;
+  }
+
+  /* Touch responsive table wrappers */
+  .table-wrapper, .responsive-table-container, .jt-grid-table-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-width: 100% !important;
+  }
+
+  /* Responsive grid adjustments */
+  .kpi-cards-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  @media (min-width: 480px) and (max-width: 768px) {
+    .kpi-cards-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+  }
+
+  .charts-row {
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+
+  .mobile-full-width {
+    width: 100% !important;
+  }
+}
