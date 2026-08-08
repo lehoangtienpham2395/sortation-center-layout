@@ -5,7 +5,7 @@ import HeatmapDashboard from './components/HeatmapDashboard';
 import KpiDashboard from './components/KpiDashboard';
 import { DatePicker } from './components/DatePicker';
 import { getTodayOpDate, getFormattedVietnamTime } from './utils/dateUtils';
-import { Menu, RotateCw } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import configData from './data/config.json';
 
 // Animated Number Ticker Component (Smooth Transition Without 0 Flash)
@@ -2477,12 +2477,9 @@ export default function App() {
                     </div>
 
                     <button onClick={fetchAndUpdateData} disabled={loading}
-                            className="relative group overflow-hidden rounded-xl p-[1px] font-bold text-[10.5px] tracking-wider uppercase transition-all duration-300 active:scale-95 shrink-0 shadow-[0_0_15px_rgba(16,185,129,0.25)]">
-                      <span className="absolute inset-0 bg-gradient-to-r from-[#10b981] via-[#06b6d4] to-[#8b5cf6] animate-pulse" />
-                      <span className="relative flex items-center gap-1.5 px-3 py-2 bg-[#0d131f] rounded-[11px] text-[#B8F7E4] group-hover:bg-[#131b2c] transition-colors">
-                        <RotateCw size={13} className={`text-[#10b981] ${loading ? 'animate-spin' : ''}`} />
-                        <span className="font-extrabold tracking-wide">{loading ? 'TẢI...' : 'ĐỒNG BỘ'}</span>
-                      </span>
+                            className="google-sync-btn px-3 py-1.5 text-[10px] gap-1 shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
+                      {loading ? '...' : 'Sync'}
                     </button>
                   </div>
 
