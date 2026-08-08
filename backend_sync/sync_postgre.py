@@ -1003,8 +1003,10 @@ def sync_postgre_to_dashboard():
         DROP_TYPE_YESTERDAY = 'Rớt hôm trước'
         DROP_TYPE_AGED      = 'Tồn đọng lâu ngày'
 
-        st_sys_val = str(r.get('status_sys') or r.get('status') or '').strip()
-        is_canceled = (st_sys_val == 'Đã hủy')
+        st_sys_val = str(r.get('status_sys') or r.get('status') or r.get('orderStatusName') or '').strip().lower()
+        is_canceled = any(kw in st_sys_val for kw in ['hủy', 'cancel', 'da huy'])
+        if is_canceled:
+            continue
         pk_st = str(r.get('pickup_station') or '').strip().upper()
         next_st = str(r.get('next_station') or '').strip().upper()
         st_name = str(station or '').strip().upper()

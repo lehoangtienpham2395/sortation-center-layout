@@ -1101,7 +1101,9 @@ def main():
         dr  = str(rec.get('terminalDispatchCode') or '').strip().upper()
         if not wb or not ct or wb in seen_wb: continue
         seen_wb.add(wb)
-        if str(rec.get('orderStatusName') or '').strip() == 'Da huy': continue
+        st_name_raw = str(rec.get('orderStatusName') or rec.get('orderStatus') or '').strip().lower()
+        if any(kw in st_name_raw for kw in ['hủy', 'cancel', 'da huy']):
+            continue
 
         dc   = extract_ma10(dr) or dr
         stn  = clean_status_sys(str(rec.get('orderStatusName') or '').strip())
