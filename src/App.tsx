@@ -830,26 +830,24 @@ export default function App() {
       const isBacklogMode   = selectedType === 'Backlog';
       const isVolumeMode    = selectedType === 'Inventory' || selectedType === 'Volume';
 
-      // Chỉ Outbound mới cần lọc theo ngày vận hành được chọn
+      // 🎯 BỘ LỌC NGÀY VẬN HÀNH:
+      // Outbound = lọc theo ngày outbound
+      // Volume = chỉ tính đơn thuộc ngày vận hành hiện tại (Forecast) + Backlog live (Tồn đọng rớt)
       if (isOutboundMode) {
+        const dateMatched = !effectiveDate || isDateMatch(row.date, effectiveDate);
+        if (!dateMatched) return;
+      } else if (isVolumeMode && row.type !== 'Backlog') {
         const dateMatched = !effectiveDate || isDateMatch(row.date, effectiveDate);
         if (!dateMatched) return;
       }
 
       // 🎯 BỘ LỌC LOẠI (Outbound / Backlog / Volume)
-      // Outbound = đơn đã xuất kho thực tế, lọc theo ngày outbound
-      // Backlog  = Inbound chưa Outbound, LIVE (tất cả ngày)
-      // Volume   = tất cả đơn từ Created→Inbound chưa Outbound, LIVE (tất cả ngày)
       let isForSelectedType = false;
       if (isOutboundMode) {
         isForSelectedType = row.type === 'Outbound' || rowStatus === 'Outbound';
       } else if (isBacklogMode) {
-        // Backlog LIVE = chỉ từ backlog.json (has_in=True AND has_out=False)
-        // Không dùng inventory vì backlog.json đã đủ chính xác
         isForSelectedType = row.type === 'Backlog' && statusMatched;
       } else if (isVolumeMode) {
-        // Volume LIVE = inventory.json (tất cả trạng thái ≠ Outbound) + backlog.json
-        // = Created + Pickup Done + Transporting + Inbound tất cả ngày, chưa Outbound
         isForSelectedType = (row.type === 'Inventory' || row.type === 'Backlog') && rowStatus !== 'Outbound' && statusMatched;
       }
 
