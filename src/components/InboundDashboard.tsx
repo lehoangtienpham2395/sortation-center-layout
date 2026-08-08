@@ -1188,7 +1188,7 @@ export default function InboundDashboard({
             {loading ? 'Đang đồng bộ...' : 'Đồng bộ'}
           </button>
 
-          <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '80px', borderRadius: '10px', display: 'block' }} />
+          <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '60px', display: 'block' }} />
         </div>
 
         {/* CENTER: Title — absolute center of header */}

@@ -1937,13 +1937,13 @@ export default function App() {
             </div>
           </div>
 
-          {/* Logo J&T Cargo - absolute top-left, above left panels */}
+          {/* Logo J&T Cargo - 100% giống bên Inbound */}
           {currentView === 'master' && (
             <div
               className="absolute z-30 select-none transition-all duration-200"
               style={{ top: '14px', left: sidebarHovered ? '176px' : '64px' }}
             >
-              <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '72px', display: 'block' }} />
+              <img src="logo.png" alt="J&T Cargo Logo" className="jt-logo" style={{ height: '60px', borderRadius: '10px', display: 'block' }} />
             </div>
           )}
 
