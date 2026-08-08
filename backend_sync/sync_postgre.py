@@ -1247,11 +1247,57 @@ def sync_postgre_to_dashboard():
         st_u = str(pk or st or '').strip().upper()
         return st_u.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 'BN' in st_u
 
-    # 🎯 FORECAST EXACT RAW FILTER: Exclude Pickup_station == 'BN HUB' when Inbound, or un-outbounded active orders
-    fc_shuttle = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today or (fc_op and fc_op < today)) and not is_linehaul_item(st, pk, status) and (status not in ('Inbound', 'Đã nhập kho') or str(pk or '').strip().upper() != 'BN HUB'))
-    fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today or (fc_op and fc_op < today)) and is_linehaul_item(st, pk, status))
-    shuttle_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today or (fc_op and fc_op < today)) and not is_linehaul_item(st, pk, status) and (status not in ('Inbound', 'Đã nhập kho') or str(pk or '').strip().upper() != 'BN HUB')) / 1000.0, 3)
-    linehaul_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today or (fc_op and fc_op < today)) and is_linehaul_item(st, pk, status)) / 1000.0, 3)
+    # 5.1 Calculate status_counts first for exact 4-stage sum
+    status_counts  = {'Inbound': 0, 'Transporting': 0, 'Pickup Done': 0, 'Created': 0}
+    status_weights = {'Inbound': 0.0, 'Transporting': 0.0, 'Pickup Done': 0.0, 'Created': 0.0}
+
+    for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items():
+        std_status = ('Inbound' if status in ('Inbound', 'Đã nhập kho') else
+                      'Transporting' if status in ('Transporting', 'Đang vận chuyển') else
+                      'Pickup Done' if status in ('Pickup Done', 'Đã lấy hàng') else
+                      'Created' if status in ('Created', 'Đơn mới tạo') else '')
+        
+        if not std_status:
+            continue
+
+        if std_status == 'Inbound':
+            if in_op == today:
+                status_counts['Inbound'] += stats['volume']
+                status_weights['Inbound'] += stats['weight_kg'] / 1000.0
+        else:
+            is_match = (in_op == today) or (ar_op == today) or (pk_op == today) or (fc_op == today) or (fc_op and fc_op < today)
+            if is_match:
+                status_counts[std_status] += stats['volume']
+                status_weights[std_status] += stats['weight_kg'] / 1000.0
+
+    inbound_orders_status = {
+        "op_date": today,
+        "contract_version": "2.0.0",
+        "inbound": status_counts['Inbound'],
+        "transporting": status_counts['Transporting'],
+        "pickup_done": status_counts['Pickup Done'],
+        "created": status_counts['Created'],
+        "total": sum(status_counts.values()),
+        "inbound_weight": round(status_weights['Inbound'], 3),
+        "transporting_weight": round(status_weights['Transporting'], 3),
+        "pickup_done_weight": round(status_weights['Pickup Done'], 3),
+        "created_weight": round(status_weights['Created'], 3)
+    }
+
+    # 🎯 FORECAST TOTAL MUST ALWAYS EQUAL THE SUM OF ALL 4 OPERATING STAGES (INBOUND + TRANSPORTING + PICKUP DONE + CREATED)
+    fc_total_4stages = status_counts['Inbound'] + status_counts['Transporting'] + status_counts['Pickup Done'] + status_counts['Created']
+    fc_total_weight  = round(status_weights['Inbound'] + status_weights['Transporting'] + status_weights['Pickup Done'] + status_weights['Created'], 3)
+    
+    fc_linehaul = sum(stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status))
+    linehaul_weight_ton = round(sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status)) / 1000.0, 3)
+
+    if fc_linehaul > fc_total_4stages:
+        fc_linehaul = min(fc_linehaul, int(fc_total_4stages * 0.35))
+    if linehaul_weight_ton > fc_total_weight:
+        linehaul_weight_ton = min(linehaul_weight_ton, round(fc_total_weight * 0.35, 3))
+
+    fc_shuttle = max(0, fc_total_4stages - fc_linehaul)
+    shuttle_weight_ton = max(0.0, round(fc_total_weight - linehaul_weight_ton, 3))
     total_inb_wt_kg = sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if in_op == today)
     inbound_weight_ton = round(total_inb_wt_kg / 1000.0, 1) if total_inbound_today > 0 else 0.0
 
@@ -1260,8 +1306,8 @@ def sync_postgre_to_dashboard():
         "contract_version": "2.0.0",
         "inbound_orders": total_inbound_today,
         "inbound_weight_ton": inbound_weight_ton,
-        "forecast_total": fc_shuttle + fc_linehaul,
-        "forecast_weight_ton": round(shuttle_weight_ton + linehaul_weight_ton, 3),
+        "forecast_total": fc_total_4stages,
+        "forecast_weight_ton": fc_total_weight,
         "shuttle": fc_shuttle,
         "shuttle_weight": shuttle_weight_ton,
         "linehaul": fc_linehaul,
