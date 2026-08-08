@@ -1245,9 +1245,11 @@ def sync_postgre_to_dashboard():
     # ── 5. Build Micro-JSONs (Data Architecture v2.0 - Ultra Light) ──
     print(f"\n⚡ Building Micro-JSON Payloads (Data Architecture v2.0)...")
     
+    # 🎯 LINEHAUL USER BUSINESS RULE: Pickup_station != 'BN HUB' AND Next_station == 'BN HUB' (Hàng từ HCM HUB đi BN HUB / Miền Bắc)
     def is_linehaul_item(st, pk, status):
-        st_u = str(pk or st or '').strip().upper()
-        return st_u.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 'BN' in st_u
+        pk_u = str(pk or '').strip().upper()
+        next_u = str(st or '').strip().upper()
+        return pk_u != 'BN HUB' and ('BN HUB' in next_u or next_u.startswith(('BN', 'HN', 'HD', 'HY')))
 
     # 5.1 Calculate status_counts first for exact 4-stage sum
     status_counts  = {'Inbound': 0, 'Transporting': 0, 'Pickup Done': 0, 'Created': 0}
