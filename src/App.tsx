@@ -2511,20 +2511,20 @@ export default function App() {
                   )}
                 </div>
 
-                {/* 🎯 Mobile Telemetry Cards: METRICS & DỰ KIẾN SL LINEHAUL */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {/* 🎯 Mobile Telemetry Cards: METRICS & DỰ KIẾN SL LINEHAUL (Zero Overflow) */}
+                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-full overflow-hidden">
                   {/* Card 1: METRICS */}
-                  <div className="jt-glowing-card p-3 shadow-lg rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                    <div className="font-bold text-[11px] tracking-[0.15em] text-center mb-2" style={{ color: '#FFF4D6', fontFamily: "'Inter', sans-serif" }}>
+                  <div className="jt-glowing-card p-2.5 shadow-lg rounded-xl w-full max-w-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    <div className="font-extrabold text-[10px] tracking-[0.14em] text-center mb-1.5 uppercase text-[#FFF4D6]" style={{ fontFamily: "'Inter', sans-serif" }}>
                       METRICS
                     </div>
-                    <div className="flex justify-between items-center text-xs border-b border-white/5 pb-1.5 mb-1.5">
-                      <span className="text-slate-300 font-medium">Tổng đơn hàng</span>
-                      <span className="mono font-bold text-sm text-[#B8F7E4]">{totalOrders.toLocaleString()} <span className="text-[10px] text-slate-400">Đơn</span></span>
+                    <div className="flex justify-between items-center text-[11px] border-b border-white/5 pb-1 mb-1">
+                      <span className="text-slate-300 font-semibold truncate">Tổng đơn hàng</span>
+                      <span className="mono font-bold text-xs text-[#B8F7E4] shrink-0 ml-2">{totalOrders.toLocaleString()} <span className="text-[9px] text-slate-400 font-normal">Đơn</span></span>
                     </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-slate-300 font-medium">Tổng trọng lượng</span>
-                      <span className="mono font-bold text-sm text-[#B8F7E4]">{totalWeight.toFixed(1).replace('.', ',')} <span className="text-[10px] text-slate-400">Tấn</span></span>
+                    <div className="flex justify-between items-center text-[11px]">
+                      <span className="text-slate-300 font-semibold truncate">Tổng trọng lượng</span>
+                      <span className="mono font-bold text-xs text-[#B8F7E4] shrink-0 ml-2">{totalWeight.toFixed(1).replace('.', ',')} <span className="text-[9px] text-slate-400 font-normal">Tấn</span></span>
                     </div>
                   </div>
 
@@ -2538,25 +2538,25 @@ export default function App() {
                     const pct = ((linehaulOrders / fcTotal) * 100).toFixed(1);
 
                     return (
-                      <div className="jt-glowing-card p-3 shadow-lg rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', borderTop: '1px solid rgba(249,115,22,0.25)' }}>
-                        <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-white/5">
-                          <span className="text-[11px] font-extrabold uppercase text-[#f97316]">🔶 Dự kiến SL LINEHAUL</span>
-                          <span className="text-[10px] font-bold text-[#22d3ee] bg-[#22d3ee]/10 px-2 py-0.5 rounded-full border border-[#22d3ee]/30">
+                      <div className="jt-glowing-card p-2.5 shadow-lg rounded-xl w-full max-w-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', borderTop: '1px solid rgba(249,115,22,0.3)' }}>
+                        <div className="flex justify-between items-center mb-1.5 pb-1 border-b border-white/5 gap-1">
+                          <span className="text-[10px] font-extrabold uppercase text-[#f97316] truncate">🔸 Dự kiến SL LINEHAUL</span>
+                          <span className="text-[9.5px] font-extrabold text-[#22d3ee] bg-[#22d3ee]/10 px-1.5 py-0.5 rounded-md border border-[#22d3ee]/30 shrink-0">
                             {linehaulOrders.toLocaleString()} Đơn
                           </span>
                         </div>
-                        <div className="grid grid-cols-3 gap-1 text-[10px] text-center">
-                          <div className="bg-white/5 p-1.5 rounded">
-                            <div className="text-slate-400 text-[9px]">HUB</div>
-                            <div className="font-bold text-white text-[11px]">BN HUB</div>
+                        <div className="grid grid-cols-3 gap-1 text-center">
+                          <div className="bg-white/5 p-1 rounded-md overflow-hidden">
+                            <div className="text-slate-400 text-[8.5px] font-bold">HUB</div>
+                            <div className="font-extrabold text-white text-[10px] truncate">BN HUB</div>
                           </div>
-                          <div className="bg-white/5 p-1.5 rounded">
-                            <div className="text-slate-400 text-[9px]">T.LƯỢNG</div>
-                            <div className="font-bold text-[#818cf8] text-[11px]">{linehaulWeight.toFixed(1)}T</div>
+                          <div className="bg-white/5 p-1 rounded-md overflow-hidden">
+                            <div className="text-slate-400 text-[8.5px] font-bold">T.LƯỢNG</div>
+                            <div className="font-extrabold text-[#818cf8] text-[10px] truncate">{linehaulWeight.toFixed(1)}T</div>
                           </div>
-                          <div className="bg-white/5 p-1.5 rounded">
-                            <div className="text-slate-400 text-[9px]">% VOL</div>
-                            <div className="font-bold text-[#34d399] text-[11px]">{pct}%</div>
+                          <div className="bg-white/5 p-1 rounded-md overflow-hidden">
+                            <div className="text-slate-400 text-[8.5px] font-bold">% VOL</div>
+                            <div className="font-extrabold text-[#34d399] text-[10px] truncate">{pct}%</div>
                           </div>
                         </div>
                       </div>
