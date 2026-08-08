@@ -1,4 +1,7 @@
 // Master Database of Post Offices from Mapping_Configured_Routes.xlsx (Inbound Dashboard Style)
+// 🚫 DANH SÁCH BƯU CỤC ĐÓNG CỬA (Điền mã id hoặc tên Bưu cục vào đây để ẩn khỏi Bản đồ)
+const CLOSED_STATIONS = [];
+
 const POST_OFFICES = {
   "SG_BINH_LOI": {
     "id": "SG_BINH_LOI",
@@ -248621,7 +248624,13 @@ function renderMapMarkersAndRoutes() {
 
   Object.keys(POST_OFFICES).forEach(id => {
     const po = POST_OFFICES[id];
+    if (!po) return;
     const isHub = id.includes('HUB');
+
+    // 🚫 Bỏ qua nếu Bưu cục đã đóng cửa
+    if (po.isClosed || po.status === 'closed' || CLOSED_STATIONS.includes(id) || CLOSED_STATIONS.includes(po.name)) {
+      return;
+    }
 
     if (!isHub && activePostOfficeIds.size > 0 && !activePostOfficeIds.has(id)) {
       return;
