@@ -2450,65 +2450,120 @@ export default function App() {
       ) : ( 
         /* ── MOBILE LAYOUT ── */
         <>
-          {/* Compact mobile filter bar - chỉ hiện khi xem Sơ đồ */}
-          {activeTab === 'layout' && (
-          <div className="absolute top-12 left-0 right-0 z-30 flex gap-1.5 items-center px-3 py-1.5 bg-[#09111C]/90 backdrop-blur-sm border-b border-white/[0.06]">
-            <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)}
-                    className="flex-1 bg-[#121824] text-white text-[10px] font-bold py-1 px-2 rounded border border-white/5 outline-none cursor-pointer">
-              <option value="Outbound">Outbound</option>
-              <option value="Backlog">Backlog</option>
-              <option value="Inventory">Volume</option>
-            </select>
-            <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
-                    className="flex-1 bg-[#121824] text-white text-[10px] font-bold py-1 px-2 rounded border border-white/5 outline-none cursor-pointer">
-              {availableDates.length > 0
-                ? availableDates.map(d => <option key={d} value={d}>{d}</option>)
-                : <option value="">Chưa có dữ liệu</option>}
-            </select>
-            <button onClick={fetchAndUpdateData} disabled={loading}
-                    className="google-sync-btn px-2.5 py-1 text-[10px] gap-1 shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
-              {loading ? '...' : 'Sync'}
-            </button>
-          </div>
-          )}
-
-          <div className="w-full h-full pt-20 pb-24 px-4 overflow-hidden flex flex-col justify-between">
+          <div className="w-full h-full pt-2 pb-20 px-2 overflow-y-auto flex flex-col space-y-3">
             {activeTab === 'layout' && (
-              <div className="w-full h-full flex flex-col justify-between relative">
-                {/* Inventory Status Filter - only shown when needed */}
-                {selectedType === 'Inventory' && (
-                  <div className="absolute top-0 left-0 right-0 z-20 flex items-center gap-1.5 overflow-x-auto py-1 px-1 scrollbar-none bg-[#09111C]/80 rounded-md"
-                       style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                    <button onClick={toggleAllStatuses}
-                      className={`px-2 py-0.5 rounded-full border text-[9px] font-medium transition-all duration-200 shrink-0 ${
-                        selectedStatuses.length === INVENTORY_STATUSES.length
-                          ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
-                          : 'bg-[#121824]/40 border-white/5 text-slate-400'
-                      }`}>Tất cả</button>
-                    {INVENTORY_STATUSES.map(status => {
-                      const isChecked = selectedStatuses.includes(status);
-                      return (
-                        <button key={status} onClick={() => toggleStatus(status)}
-                          className={`px-2 py-0.5 rounded-full border text-[9px] font-medium transition-all duration-200 shrink-0 ${
-                            isChecked
-                              ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
-                              : 'bg-[#121824]/40 border-white/5 text-slate-400'
-                          }`}>{status}</button>
-                      );
-                    })}
+              <div className="w-full flex flex-col space-y-3 relative">
+                {/* 🎯 Sleek Mobile Top Control Bar (No Overlapping Bars) */}
+                <div className="w-full flex flex-col gap-2 p-2.5 bg-[#09111C]/95 backdrop-blur-md rounded-xl border border-white/[0.08] shadow-lg sticky top-0 z-30">
+                  <div className="flex gap-2 items-center">
+                    <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)}
+                            className="flex-1 bg-[#121824] text-white text-[11px] font-bold py-1.5 px-3 rounded-lg border border-white/10 outline-none cursor-pointer">
+                      <option value="Outbound">Outbound</option>
+                      <option value="Backlog">Backlog</option>
+                      <option value="Inventory">Volume</option>
+                    </select>
+                    <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+                            className="flex-1 bg-[#121824] text-white text-[11px] font-bold py-1.5 px-3 rounded-lg border border-white/10 outline-none cursor-pointer">
+                      {availableDates.length > 0
+                        ? availableDates.map(d => <option key={d} value={d}>{d}</option>)
+                        : <option value="">Chưa có dữ liệu</option>}
+                    </select>
+                    <button onClick={fetchAndUpdateData} disabled={loading}
+                            className="google-sync-btn px-3 py-1.5 text-[10px] gap-1 shrink-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
+                      {loading ? '...' : 'Sync'}
+                    </button>
                   </div>
-                )}
 
-
-                {/* Floating Zoom controls */}
-                <div className="mobile-fab-container">
-                  <button className="mobile-fab text-base font-bold" onClick={handleZoomIn}>＋</button>
-                  <button className="mobile-fab text-base font-bold" onClick={handleZoomOut}>－</button>
-                  <button className="mobile-fab text-sm" onClick={handleResetZoom}>🔄</button>
+                  {/* Inventory Status Chips - Flow naturally without overlapping */}
+                  {selectedType === 'Inventory' && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none"
+                         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                      <button onClick={toggleAllStatuses}
+                        className={`px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all duration-200 shrink-0 ${
+                          selectedStatuses.length === INVENTORY_STATUSES.length
+                            ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
+                            : 'bg-[#121824]/40 border-white/5 text-slate-400'
+                        }`}>Tất cả</button>
+                      {INVENTORY_STATUSES.map(status => {
+                        const isChecked = selectedStatuses.includes(status);
+                        return (
+                          <button key={status} onClick={() => toggleStatus(status)}
+                            className={`px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all duration-200 shrink-0 ${
+                              isChecked
+                                ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
+                                : 'bg-[#121824]/40 border-white/5 text-slate-400'
+                            }`}>{status}</button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
-                {renderSVG()}
+                {/* 🎯 Mobile Telemetry Cards: METRICS & DỰ KIẾN SL LINEHAUL */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {/* Card 1: METRICS */}
+                  <div className="jt-glowing-card p-3 shadow-lg rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    <div className="font-bold text-[11px] tracking-[0.15em] text-center mb-2" style={{ color: '#FFF4D6', fontFamily: "'Inter', sans-serif" }}>
+                      METRICS
+                    </div>
+                    <div className="flex justify-between items-center text-xs border-b border-white/5 pb-1.5 mb-1.5">
+                      <span className="text-slate-300 font-medium">Tổng đơn hàng</span>
+                      <span className="mono font-bold text-sm text-[#B8F7E4]">{totalOrders.toLocaleString()} <span className="text-[10px] text-slate-400">Đơn</span></span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-slate-300 font-medium">Tổng trọng lượng</span>
+                      <span className="mono font-bold text-sm text-[#B8F7E4]">{totalWeight.toFixed(1).replace('.', ',')} <span className="text-[10px] text-slate-400">Tấn</span></span>
+                    </div>
+                  </div>
+
+                  {/* Card 2: DỰ KIẾN SL LINEHAUL */}
+                  {(() => {
+                    const linehaulOrders = microKpiSummary?.linehaul ?? (data['A06']?.current ?? 0);
+                    const linehaulWeight = microKpiSummary?.linehaul_weight ?? (data['A06']?.weight ?? 0);
+                    const fcTotal = microKpiSummary?.forecast_total && microKpiSummary.forecast_total > 0
+                      ? microKpiSummary.forecast_total
+                      : (totalOrders > 0 ? totalOrders : 1);
+                    const pct = ((linehaulOrders / fcTotal) * 100).toFixed(1);
+
+                    return (
+                      <div className="jt-glowing-card p-3 shadow-lg rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', borderTop: '1px solid rgba(249,115,22,0.25)' }}>
+                        <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-white/5">
+                          <span className="text-[11px] font-extrabold uppercase text-[#f97316]">🔶 Dự kiến SL LINEHAUL</span>
+                          <span className="text-[10px] font-bold text-[#22d3ee] bg-[#22d3ee]/10 px-2 py-0.5 rounded-full border border-[#22d3ee]/30">
+                            {linehaulOrders.toLocaleString()} Đơn
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1 text-[10px] text-center">
+                          <div className="bg-white/5 p-1.5 rounded">
+                            <div className="text-slate-400 text-[9px]">HUB</div>
+                            <div className="font-bold text-white text-[11px]">BN HUB</div>
+                          </div>
+                          <div className="bg-white/5 p-1.5 rounded">
+                            <div className="text-slate-400 text-[9px]">T.LƯỢNG</div>
+                            <div className="font-bold text-[#818cf8] text-[11px]">{linehaulWeight.toFixed(1)}T</div>
+                          </div>
+                          <div className="bg-white/5 p-1.5 rounded">
+                            <div className="text-slate-400 text-[9px]">% VOL</div>
+                            <div className="font-bold text-[#34d399] text-[11px]">{pct}%</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* SVG Map Container */}
+                <div className="relative w-full h-[550px] bg-[#02040a] rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+                  {/* Floating Zoom controls */}
+                  <div className="mobile-fab-container">
+                    <button className="mobile-fab text-base font-bold" onClick={handleZoomIn}>＋</button>
+                    <button className="mobile-fab text-base font-bold" onClick={handleZoomOut}>－</button>
+                    <button className="mobile-fab text-sm" onClick={handleResetZoom}>🔄</button>
+                  </div>
+
+                  {renderSVG()}
+                </div>
 
                 {/* Bottom Sheet for Mobile Chute Details */}
                 <div className={`bottom-sheet ${bottomSheetOpen && hoveredRack ? 'open' : ''}`}>
