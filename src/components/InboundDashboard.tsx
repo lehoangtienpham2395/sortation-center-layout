@@ -721,26 +721,27 @@ export default function InboundDashboard({
   );
 
   const finalLinehaulForecast = isFutureDate ? 0 : (
-    (effectiveKpiSummary?.linehaul && effectiveKpiSummary.linehaul > 0 && effectiveKpiSummary.linehaul < 3000)
+    (effectiveKpiSummary && typeof effectiveKpiSummary.linehaul === 'number')
       ? effectiveKpiSummary.linehaul
-      : (
-        (truckEtaMicro?.trucks || []).filter((t: any) => String(t.station_name || t.send_network || '').toUpperCase().includes('BN')).reduce((sum: number, t: any) => sum + (t.orders_count || t.total_orders || 0), 0) ||
-        1248
-      )
+      : forecastLinehaul
   );
   
   const finalLinehaulWeight = isFutureDate ? 0 : (
-    (effectiveKpiSummary?.linehaul_weight && effectiveKpiSummary.linehaul_weight > 0 && effectiveKpiSummary.linehaul_weight < 50)
+    (effectiveKpiSummary && typeof effectiveKpiSummary.linehaul_weight === 'number')
       ? (effectiveKpiSummary.linehaul_weight > 1000 ? effectiveKpiSummary.linehaul_weight / 1000.0 : effectiveKpiSummary.linehaul_weight)
-      : 13.9
+      : forecastLinehaulWeight
   );
 
   const finalShuttleForecast = isFutureDate ? 0 : (
-    (effectiveKpiSummary?.shuttle && effectiveKpiSummary.shuttle > 0)
+    (effectiveKpiSummary && typeof effectiveKpiSummary.shuttle === 'number')
       ? effectiveKpiSummary.shuttle
-      : Math.max(0, totalForecast - finalLinehaulForecast)
+      : forecastShuttle
   );
-  const finalShuttleWeight = isFutureDate ? 0 : Math.max(0.1, Math.round((totalForecastWeight - finalLinehaulWeight) * 10) / 10);
+  const finalShuttleWeight = isFutureDate ? 0 : (
+    (effectiveKpiSummary && typeof effectiveKpiSummary.shuttle_weight === 'number')
+      ? (effectiveKpiSummary.shuttle_weight > 1000 ? effectiveKpiSummary.shuttle_weight / 1000.0 : effectiveKpiSummary.shuttle_weight)
+      : forecastShuttleWeight
+  );
 
   console.log('[DEBUG FORECAST KPI]', { normActiveDate, kpiOpDate: kpiSummary?.op_date, kpiFc: kpiSummary?.forecast_total, snapFc: snapshotForDate?.forecast_total, totalForecast, finalShuttleForecast, finalLinehaulForecast });
 
