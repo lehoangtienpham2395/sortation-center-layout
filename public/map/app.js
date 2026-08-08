@@ -248363,17 +248363,17 @@ function getStationLiveData(po) {
   if (!po) return { volStr: '<span class="val empty" style="color: #64748b;">(Chưa có dữ liệu)</span>', depStr: '<span class="val empty" style="color: #64748b;">(Chưa có dữ liệu)</span>', etaStr: '<span class="val empty" style="color: #64748b;">(Chưa có dữ liệu)</span>', vol: 0 };
 
   const normName = (po.name || po.id || '').trim().toUpperCase();
-  const arrItem = liveArrivalDataMap[normName] || {};
   const etaItem = liveTruckEtaMap[normName] || {};
+  const arrItem = liveArrivalDataMap[normName] || {};
 
-  // Volume: total_orders / chua_den_hub / orders_count / volume
-  const vol = Number(arrItem.total_orders ?? arrItem.chua_den_hub ?? etaItem.orders_count ?? arrItem.Volume ?? 0);
+  // Volume: Prioritize etaItem.orders_count (from Live Truck ETA table e.g. 1,058 orders), then arrItem.total_orders
+  const vol = Number(etaItem.orders_count || arrItem.total_orders || arrItem.chua_den_hub || arrItem.Volume || 0);
   const volStr = vol > 0 
     ? `<span class="val amber" style="color: #f59e0b; font-weight: 800;">${vol.toLocaleString()} đơn</span>` 
     : '<span class="val empty" style="color: #64748b;">(Chưa có dữ liệu)</span>';
 
   // Departure Time (Transporting)
-  const depTime = etaItem.transporting_time || etaItem.transport_time || arrItem.last_scan_time || arrItem.scan_hour || '';
+  const depTime = etaItem.transporting_time || etaItem.actual_departure || etaItem.planned_departure || arrItem.last_scan_time || arrItem.scan_hour || '';
   let depStr = '<span class="val empty" style="color: #64748b;">(Chưa có dữ liệu)</span>';
   if (depTime) {
     const timeOnly = depTime.length >= 16 ? depTime.substring(11, 16) : depTime;
@@ -248471,7 +248471,11 @@ async function fetchLiveMapData() {
     if (Array.isArray(resArr)) {
       resArr.forEach(d => {
         const stName = (d.station_name || d.Pickup_station || d.send_network || '').trim().toUpperCase();
-        if (stName) arrMap[stName] = d;
+        if (stName) {
+          if (!arrMap[stName] || (d.op_date || '') >= (arrMap[stName].op_date || '')) {
+            arrMap[stName] = d;
+          }
+        }
       });
     }
     liveArrivalDataMap = arrMap;
@@ -248479,10 +248483,25 @@ async function fetchLiveMapData() {
     const etaMap = {};
     const trucksList = resEta.trucks || (Array.isArray(resEta) ? resEta : []);
     trucksList.forEach(tr => {
-      const stName = (tr.send_network || tr.sendNetworkName || '').trim().toUpperCase();
+      const stName = (tr.send_network || tr.sendNetworkName || tr.station_name || '').trim().toUpperCase();
       if (stName) {
-        if (!etaMap[stName] || (tr.transporting_time || '') > (etaMap[stName].transporting_time || '')) {
-          etaMap[stName] = tr;
+        if (!etaMap[stName]) {
+          etaMap[stName] = {
+            orders_count: 0,
+            transporting_time: '',
+            eta: ''
+          };
+        }
+        etaMap[stName].orders_count += (Number(tr.orders_count) || 0);
+
+        const dep = tr.actual_departure || tr.planned_departure || tr.transporting_time || '';
+        if (dep > etaMap[stName].transporting_time) {
+          etaMap[stName].transporting_time = dep;
+        }
+
+        const eta = tr.eta || tr.planned_arrival || '';
+        if (eta > etaMap[stName].eta) {
+          etaMap[stName].eta = eta;
         }
       }
     });
