@@ -5,8 +5,14 @@ import webbrowser
 import sys
 import os
 
-# Set root directory
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+# Set directory to dist/ (singlefile production bundle) if it exists
+project_dir = os.path.dirname(os.path.abspath(__file__))
+dist_dir = os.path.join(project_dir, 'dist')
+
+if os.path.exists(os.path.join(dist_dir, 'index.html')):
+    os.chdir(dist_dir)
+else:
+    os.chdir(project_dir)
 
 class CustomHTTPHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):

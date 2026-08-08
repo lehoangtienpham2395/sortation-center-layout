@@ -1,10 +1,10 @@
 @echo off
 cd /d "%~dp0"
-title J&T CARGO HCM HUB DASHBOARD - LUONG CHAY MANG NOI BO (LAN INTRANET)
+title "J&T CARGO HCM HUB DASHBOARD - LUONG CHAY MANG NOI BO (LAN INTRANET)"
 color 0A
 cls
 echo =========================================================================
-echo       J&T CARGO HCM HUB DASHBOARD - LUONG CHAY MANG NOI BO (LAN INTRANET)
+echo       J^&T CARGO HCM HUB DASHBOARD - LUONG CHAY MANG NOI BO (LAN INTRANET)
 echo =========================================================================
 echo.
 echo [1/3] Dang giai phong cong 5173 de dam bao luong chay sach 100%...
@@ -15,5 +15,5 @@ powershell -Command "if (-not (Get-NetFirewallRule -DisplayName 'Allow Vite Port
 
 echo [3/3] Dang khoi chay Web Server Mang Noi Bo...
 echo.
-python server_lan.py
+"C:\Users\lehoa\AppData\Local\Python\pythoncore-3.14-64\python.exe" server_lan.py
 pause
