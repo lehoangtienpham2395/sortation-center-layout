@@ -717,7 +717,7 @@ export default function InboundDashboard({
           (effectiveOrdersStatus?.pickup_done_weight || 0) +
           (effectiveOrdersStatus?.created_weight || 0)
         ) * 10) / 10
-      ) || 120.9
+      ) || 0
   );
 
   const finalLinehaulForecast = isFutureDate ? 0 : (

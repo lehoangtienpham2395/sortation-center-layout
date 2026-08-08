@@ -1316,10 +1316,7 @@ def sync_postgre_to_dashboard():
         # Save CSV for User Audit
         lh_df.to_csv(os.path.join(DATA_DIR, 'linehaul_1156_check.csv'), index=False, encoding='utf-8-sig')
     except Exception as _elh:
-        fc_linehaul = 1156
-        linehaul_weight_ton = 14.3
-        fc_linehaul = 828
-        linehaul_weight_ton = 9.9
+        print(f"   ⚠️ Linehaul calculation dynamic fallback: {_elh}")
         fc_linehaul = sum(
             stats['volume'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items()
             if (in_op == today or ar_op == today or pk_op == today or fc_op == today) and is_linehaul_item(st, pk, status)
