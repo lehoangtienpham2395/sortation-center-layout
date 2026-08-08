@@ -2456,25 +2456,19 @@ export default function App() {
                 {/* 🎯 Ultra-Premium Mobile Top Control Bar (High-Tech Glassmorphism) */}
                 <div className="w-full flex flex-col gap-2 p-2.5 bg-[#0b1019]/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)] sticky top-0 z-30">
                   <div className="flex gap-2 items-center">
-                    <div className="relative flex-1">
-                      <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)}
-                              className="w-full bg-[#131b2a] text-white text-[11px] font-extrabold py-2 px-3 pr-6 rounded-xl border border-white/10 outline-none appearance-none cursor-pointer focus:border-[#06b6d4] transition-all shadow-inner">
-                        <option value="Outbound">⚡ Outbound</option>
-                        <option value="Backlog">📦 Backlog</option>
-                        <option value="Inventory">📊 Volume</option>
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-slate-400 text-[9px]">▼</div>
-                    </div>
+                    <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)}
+                            className="flex-1 bg-[#121824] text-white text-[11px] font-bold py-1.5 px-3 rounded-lg border border-white/10 outline-none cursor-pointer">
+                      <option value="Outbound">Outbound</option>
+                      <option value="Backlog">Backlog</option>
+                      <option value="Inventory">Volume</option>
+                    </select>
 
-                    <div className="relative flex-1">
-                      <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
-                              className="w-full bg-[#131b2a] text-white text-[11px] font-extrabold py-2 px-3 pr-6 rounded-xl border border-white/10 outline-none appearance-none cursor-pointer focus:border-[#06b6d4] transition-all shadow-inner">
-                        {availableDates.length > 0
-                          ? availableDates.map(d => <option key={d} value={d}>📅 {d}</option>)
-                          : <option value="">Chưa có dữ liệu</option>}
-                      </select>
-                      <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-slate-400 text-[9px]">▼</div>
-                    </div>
+                    <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+                            className="flex-1 bg-[#121824] text-white text-[11px] font-bold py-1.5 px-3 rounded-lg border border-white/10 outline-none cursor-pointer">
+                      {availableDates.length > 0
+                        ? availableDates.map(d => <option key={d} value={d}>{d}</option>)
+                        : <option value="">Chưa có dữ liệu</option>}
+                    </select>
 
                     <button onClick={fetchAndUpdateData} disabled={loading}
                             className="google-sync-btn px-3 py-1.5 text-[10px] gap-1 shrink-0">
