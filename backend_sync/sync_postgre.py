@@ -1309,9 +1309,9 @@ def sync_postgre_to_dashboard():
         next_bn_mask   = df['Next_station'].astype(str).str.strip().str.upper().str.contains('BN HUB')
         st_not_cancel  = ~df['status_sys'].astype(str).str.lower().str.contains('hủy|cancel|da huy')
 
-        lh_df = df[inb_empty_mask & out_empty_mask & next_bn_mask & st_not_cancel]
+        lh_df = df[out_empty_mask & next_bn_mask & st_not_cancel]
         fc_linehaul = int(lh_df['Orders_num'].sum()) if 'Orders_num' in df.columns else len(lh_df)
-        linehaul_weight_ton = round(float(lh_df['Orders_weight'].sum() if 'Orders_weight' in df.columns else 0.0) / 1000.0, 3)
+        linehaul_weight_ton = round(float(lh_df['Orders_weight'].sum() if 'Orders_weight' in df.columns else 0.0) / 1000.0, 1)
         
         # Save CSV for User Audit
         lh_df.to_csv(os.path.join(DATA_DIR, 'linehaul_1156_check.csv'), index=False, encoding='utf-8-sig')
