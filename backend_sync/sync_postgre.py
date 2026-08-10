@@ -1353,12 +1353,16 @@ def sync_postgre_to_dashboard():
                       'Pickup Done' if status in ('Pickup Done', 'Đã lấy hàng') else
                       'Created' if status in ('Created', 'Đơn mới tạo') else '')
         
-        if not std_status:
+        # 🛡️ EXCLUDE BN HUB & NORTHERN STATIONS FROM ORDERS STATUS
+        st_clean = str(st or '').strip().upper()
+        pk_clean = str(pk or '').strip().upper()
+        is_north = (pk_clean.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
+                    st_clean.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')))
+        if is_north:
             continue
 
         if std_status == 'Inbound':
-            pk_clean = str(pk or '').strip().upper()
-            if in_op == today and pk_clean != 'BN HUB':
+            if in_op == today:
                 status_counts['Inbound'] += stats['volume']
                 status_weights['Inbound'] += stats['weight_kg'] / 1000.0
         else:
@@ -1434,6 +1438,14 @@ def sync_postgre_to_dashboard():
                       'Created' if status in ('Created', 'Đơn mới tạo') else '')
         
         if not std_status:
+            continue
+
+        # 🛡️ EXCLUDE BN HUB & NORTHERN STATIONS FROM ORDERS STATUS
+        st_clean = str(st or '').strip().upper()
+        pk_clean = str(pk or '').strip().upper()
+        is_north = (pk_clean.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
+                    st_clean.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')))
+        if is_north:
             continue
 
         if std_status == 'Inbound':
