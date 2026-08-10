@@ -904,14 +904,19 @@ def main():
     now      = datetime.now(tz_vn)
     op_today = (now - timedelta(days=1)) if now.hour < 6 else now
 
-    start_str      = op_today.strftime('%Y-%m-%d 06:00:00')  # Từ 06:00 sáng hôm nay
-    scan_start_str = op_today.strftime('%Y-%m-%d 06:00:00')  # Từ 06:00 sáng hôm nay
-    end_str        = now.strftime('%Y-%m-%d %H:%M:%S')
-    end_str_plus1  = (now + timedelta(days=1)).strftime('%Y-%m-%d 23:59:59')
+    # Dispatch: Riêng Dispatch chỉ lấy từ 06:00 sáng hôm nay
+    dispatch_start_str = op_today.strftime('%Y-%m-%d 06:00:00')
+
+    # Tất cả các báo biểu khác (Inbound, Outbound, Arrival, Linehaul, Shuttle, Backlog): Giảm xuống 3 ngày
+    scan_3d_dt        = now - timedelta(days=3)
+    scan_3d_start_str = scan_3d_dt.strftime('%Y-%m-%d 00:00:00')
+    end_str           = now.strftime('%Y-%m-%d %H:%M:%S')
+    end_str_plus1     = (now + timedelta(days=1)).strftime('%Y-%m-%d 23:59:59')
 
     print('=' * 65)
-    print(f'PIPELINE UNIFIED V6 -- Song song 7 nguon ({DAYS_BACK} ngay Dispatch / {SCAN_DAYS_BACK} ngay Scan), khong file trung gian')
-    print(start_str + '  ->  ' + end_str)
+    print(f'PIPELINE UNIFIED V6 -- Song song 7 nguon (Dispatch from 06:00 today / 3 days all other reports)')
+    print('Dispatch: ' + dispatch_start_str + '  ->  ' + end_str)
+    print('Other:    ' + scan_3d_start_str + '  ->  ' + end_str)
     print('=' * 65)
 
     session_main = build_session()
@@ -930,9 +935,9 @@ def main():
     oh_headers = load_json(cfg('outboundheaders.json'))
     op_payload = load_json(cfg('outboundpayload.json'))
 
-    # Scan dùng scan_start_str (SCAN_DAYS_BACK ngày) — nhẹ hơn Dispatch 3-5x
-    ip_payload['beginDate'] = scan_start_str;  ip_payload['endDate'] = end_str
-    op_payload['beginDate'] = scan_start_str;  op_payload['endDate'] = end_str
+    # Scan dùng scan_3d_start_str (3 ngày gần nhất)
+    ip_payload['beginDate'] = scan_3d_start_str;  ip_payload['endDate'] = end_str
+    op_payload['beginDate'] = scan_3d_start_str;  op_payload['endDate'] = end_str
 
     i_params = {'sqlCode': ip_payload.get('sqlCode', ''),
                 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693',
@@ -943,14 +948,14 @@ def main():
 
     dh_headers = load_json(cfg('dispatchheaders.json'))
     dp_payload = load_json(cfg('dispatchpayload.json'))
-    dp_payload['startInputTime'] = start_str
+    dp_payload['startInputTime'] = dispatch_start_str
     dp_payload['endInputTime']   = end_str
     dp_payload['current']        = '1'
     dp_payload['size']           = str(PAGE_SIZE)
 
     bh_headers = load_json(cfg('backlogheaders.json'))
     bp_payload = load_json(cfg('backlogpayload.json'))
-    bp_payload['beginDate'] = start_str
+    bp_payload['beginDate'] = scan_3d_start_str
 
     # ── Phase 1: Keo song song 8 nguon ──────────────────────
     print('\nPhase 1 -- Keo song song 8 nguon...')
@@ -959,17 +964,16 @@ def main():
 
     with ThreadPoolExecutor(max_workers=8) as ex:
         futures = {
-            # Dispatch giữ 7 ngày (DAYS_BACK) — bắt đơn Created cũ mới Pickup hôm nay
+            # Dispatch riêng 06:00 sáng hôm nay
             ex.submit(pull_dispatch,       session_main, tkn_main, dh_headers, dp_payload):        'dispatch',
-            # Inbound/Outbound/Arrival scan dùng SCAN_DAYS_BACK ngày — nhẹ tải 3-5x
+            # Tất cả các báo biểu khác dùng 3 ngày gần nhất
             ex.submit(pull_scan,           session_main, tkn_main, ih_headers, i_params, ip_payload, 'Inbound'):  'inbound',
             ex.submit(pull_scan,           session_main, tkn_main, oh_headers, o_params, op_payload, 'Outbound'): 'outbound',
-            ex.submit(pull_arrival,        session_arr,  tkn_arr,  ih_headers, scan_start_str, end_str):  'arrival',
-            # Linehaul/Shuttle/Backlog: realtime hoặc dựa theo chuyến xe — dùng start_str gốc
-            ex.submit(pull_linehaul_ops,   session_main, tkn_main, start_str, end_str):              'lh_ops',
-            ex.submit(pull_linehaul_consol,session_main, tkn_main, start_str, end_str_plus1):        'lh_consol',
-            ex.submit(pull_shuttle,        session_arr,  tkn_arr,  start_str, end_str):              'shuttle',
-            ex.submit(pull_backlog,        session_main, tkn_main, bh_headers, bp_payload, start_str, end_str): 'backlog',
+            ex.submit(pull_arrival,        session_arr,  tkn_arr,  ih_headers, scan_3d_start_str, end_str):  'arrival',
+            ex.submit(pull_linehaul_ops,   session_main, tkn_main, scan_3d_start_str, end_str):              'lh_ops',
+            ex.submit(pull_linehaul_consol,session_main, tkn_main, scan_3d_start_str, end_str_plus1):        'lh_consol',
+            ex.submit(pull_shuttle,        session_arr,  tkn_arr,  scan_3d_start_str, end_str):              'shuttle',
+            ex.submit(pull_backlog,        session_main, tkn_main, bh_headers, bp_payload, scan_3d_start_str, end_str): 'backlog',
         }
 
         for f in as_completed(futures):
