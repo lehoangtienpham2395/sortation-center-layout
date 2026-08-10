@@ -251,16 +251,20 @@ def save_and_get_daily_snapshots(conn, today_date_str: str, rot_hom_truoc_val: i
 
 
 def build_hourly_trend_for_date(conn, target_date: str) -> dict:
-    """Tạo 4-series hourly trend chính xác 100% từ PostgreSQL cho bất kỳ ngày vận hành nào (shift boundary 06:00 AM -> 05:00 AM)."""
+    """Tạo 4-series hourly trend chính xác 100% từ PostgreSQL cho bất kỳ ngày vận hành nào (Loại bỏ đơn BN HUB/Miền Bắc)."""
     hours_list = [f"{h:02d}:00" for h in (list(range(6, 24)) + list(range(0, 6)))]
     try:
         cur = conn.cursor()
         
+        # 🛡️ Loại trừ tuyệt đối đơn Miền Bắc / Linehaul Bắc (BN HUB, HN, HD, HY)
+        EXCLUDE_NORTH_SQL = " AND NOT (COALESCE(pickup_station, '') LIKE 'BN HUB%' OR COALESCE(pickup_station, '') LIKE 'HN %' OR COALESCE(pickup_station, '') LIKE 'HD %' OR COALESCE(pickup_station, '') LIKE 'HY %' OR COALESCE(rank, '') = 'BN HUB') "
+
         # 1. Inbound series
         cur.execute("""
             SELECT TO_CHAR(inbound_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:00') as hr, COUNT(*) 
             FROM enriched.dispatch_enriched
             WHERE inbound_scandate IS NOT NULL
+        """ + EXCLUDE_NORTH_SQL + """
               AND (CASE WHEN EXTRACT(HOUR FROM inbound_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh') < 6 
                         THEN (inbound_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 1
                         ELSE (inbound_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh')::date END)::text = %s
@@ -268,11 +272,12 @@ def build_hourly_trend_for_date(conn, target_date: str) -> dict:
         """, (target_date,))
         inb_map = dict(cur.fetchall())
 
-        # 2. Transporting series (Dùng arrival_scandate — Mốc thời gian bưu kiện đến cổng HUB/Chờ Inbound, loại bỏ mốc xe xuất kho Outbound lúc 03:00)
+        # 2. Transporting series (Dùng arrival_scandate)
         cur.execute("""
             SELECT TO_CHAR(arrival_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:00') as hr, COUNT(*) 
             FROM enriched.dispatch_enriched
             WHERE arrival_scandate IS NOT NULL
+        """ + EXCLUDE_NORTH_SQL + """
               AND (CASE WHEN EXTRACT(HOUR FROM arrival_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh') < 6 
                         THEN (arrival_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 1
                         ELSE (arrival_scandate AT TIME ZONE 'Asia/Ho_Chi_Minh')::date END)::text = %s
@@ -285,6 +290,7 @@ def build_hourly_trend_for_date(conn, target_date: str) -> dict:
             SELECT TO_CHAR(pickup_time AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:00') as hr, COUNT(*) 
             FROM enriched.dispatch_enriched
             WHERE pickup_time IS NOT NULL
+        """ + EXCLUDE_NORTH_SQL + """
               AND (CASE WHEN EXTRACT(HOUR FROM pickup_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < 6 
                         THEN (pickup_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 1
                         ELSE (pickup_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::date END)::text = %s
@@ -297,6 +303,7 @@ def build_hourly_trend_for_date(conn, target_date: str) -> dict:
             SELECT TO_CHAR(created_time AT TIME ZONE 'Asia/Ho_Chi_Minh', 'HH24:00') as hr, COUNT(*) 
             FROM enriched.dispatch_enriched
             WHERE created_time IS NOT NULL
+        """ + EXCLUDE_NORTH_SQL + """
               AND (CASE WHEN EXTRACT(HOUR FROM created_time AT TIME ZONE 'Asia/Ho_Chi_Minh') < 6 
                         THEN (created_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::date - 1
                         ELSE (created_time AT TIME ZONE 'Asia/Ho_Chi_Minh')::date END)::text = %s
