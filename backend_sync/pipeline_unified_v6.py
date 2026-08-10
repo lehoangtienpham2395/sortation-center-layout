@@ -979,8 +979,11 @@ def main():
 
     dh_headers = load_json(cfg('dispatchheaders.json'))
     dp_payload = load_json(cfg('dispatchpayload.json'))
+    dp_payload['timeType']       = '1'
     dp_payload['startInputTime'] = dispatch_start_str
     dp_payload['endInputTime']   = end_str
+    dp_payload['startPickTime']  = ''
+    dp_payload['endPickTime']    = ''
     dp_payload['current']        = '1'
     dp_payload['size']           = str(PAGE_SIZE)
 
