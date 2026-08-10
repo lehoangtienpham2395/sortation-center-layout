@@ -257,7 +257,7 @@ def build_hourly_trend_for_date(conn, target_date: str) -> dict:
         cur = conn.cursor()
         
         # 🛡️ Loại trừ tuyệt đối đơn Miền Bắc / Linehaul Bắc (BN HUB, HN, HD, HY)
-        EXCLUDE_NORTH_SQL = " AND NOT (COALESCE(pickup_station, '') LIKE 'BN HUB%' OR COALESCE(pickup_station, '') LIKE 'HN %' OR COALESCE(pickup_station, '') LIKE 'HD %' OR COALESCE(pickup_station, '') LIKE 'HY %' OR COALESCE(rank, '') = 'BN HUB') "
+        EXCLUDE_NORTH_SQL = " AND NOT (COALESCE(pickup_station, '') LIKE 'BN HUB%%' OR COALESCE(pickup_station, '') LIKE 'HN %%' OR COALESCE(pickup_station, '') LIKE 'HD %%' OR COALESCE(pickup_station, '') LIKE 'HY %%' OR COALESCE(rank, '') = 'BN HUB') "
 
         # 1. Inbound series
         cur.execute("""
