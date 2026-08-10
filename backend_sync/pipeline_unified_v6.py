@@ -20,6 +20,15 @@ if hasattr(sys.stdout, 'reconfigure'):
     except Exception:
         pass
 
+try:
+    from checkpoint_manager import get_checkpoint, save_checkpoint
+except ImportError:
+    try:
+        from backend_sync.checkpoint_manager import get_checkpoint, save_checkpoint
+    except ImportError:
+        def get_checkpoint(src, fallback): return fallback
+        def save_checkpoint(src, val): pass
+
 # ============================================================
 # CONFIG
 # ============================================================
@@ -899,13 +908,16 @@ def merge_in_out_chronological(df_in: pd.DataFrame, df_out: pd.DataFrame) -> pd.
 # ============================================================
 # MAIN
 # ============================================================
+# MAIN
+# ============================================================
 def main():
     tz_vn    = ZoneInfo('Asia/Ho_Chi_Minh')
     now      = datetime.now(tz_vn)
     op_today = (now - timedelta(days=1)) if now.hour < 6 else now
 
-    # Dispatch: Riêng Dispatch chỉ lấy từ 06:00 sáng hôm nay
-    dispatch_start_str = op_today.strftime('%Y-%m-%d 06:00:00')
+    # Checkpoint Manager: Tự động gối đầu mốc dừng của lần chạy trước
+    fallback_dispatch  = op_today.strftime('%Y-%m-%d 06:00:00')
+    dispatch_start_str = get_checkpoint('dispatch', fallback_dispatch)
 
     # Tất cả các báo biểu khác (Inbound, Outbound, Arrival, Linehaul, Shuttle, Backlog): Giảm xuống 3 ngày
     scan_3d_dt        = now - timedelta(days=3)
@@ -914,7 +926,7 @@ def main():
     end_str_plus1     = (now + timedelta(days=1)).strftime('%Y-%m-%d 23:59:59')
 
     print('=' * 65)
-    print(f'PIPELINE UNIFIED V6 -- Song song 7 nguon (Dispatch from 06:00 today / 3 days all other reports)')
+    print(f'PIPELINE UNIFIED V6 -- Song song 7 nguon (Dispatch from checkpoint/06:00 today / 3 days all other reports)')
     print('Dispatch: ' + dispatch_start_str + '  ->  ' + end_str)
     print('Other:    ' + scan_3d_start_str + '  ->  ' + end_str)
     print('=' * 65)
@@ -987,6 +999,9 @@ def main():
     print('\nPhase 1 xong: ' + str(round(time.time() - t0, 1)) + 's')
     for k, v in raw.items():
         print('   ' + k.ljust(20) + ': ' + str(len(v)) + ' ban ghi')
+
+    # Lưu checkpoint sau khi Phase 1 hoàn thành thành công
+    save_checkpoint('dispatch', end_str)
 
     # ── Phase 2: trip_time_map ───────────────────────────────
     print('\nPhase 2 -- trip_time_map...')
