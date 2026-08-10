@@ -2195,7 +2195,12 @@ export default function App() {
                             return (
                               <button
                                 key={type}
-                                onClick={() => setSelectedType(type)}
+                                onClick={() => {
+                                  setSelectedType(type);
+                                  if (type === 'Inventory') {
+                                    setSelectedStatuses([...INVENTORY_STATUSES]);
+                                  }
+                                }}
                                 className={`flex-1 text-center py-1.5 rounded-md text-[11.5px] font-bold transition-all duration-200 relative z-10 ${
                                   isActive
                                     ? 'text-white bg-emerald-500/20 shadow-[0_2px_8px_rgba(16,185,129,0.25)]'
