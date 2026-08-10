@@ -387,7 +387,8 @@ export default function InboundDashboard({
       'Mã chuyến': d.shipmentName || d.plateNumber || d.plate_number || d.trip_code || 'DIRECT',
       'Biển số': d.plateNumber || d.plate_number || d.trip_code || 'DIRECT',
       'Nhà xe': d.carrierName || d.carrier_name || 'J&T Express',
-      'Bưu cục đi': d.send_network || d.sendNetworkName || d['Bưu cục đi'] || 'BN HUB',
+      'Bưu cục đi': d.send_network || d.sendNetworkName || d['Bưu cục đi'] || '',
+      // Lưu ý: KHÔNG dùng 'BN HUB' làm fallback mặc định — chỉ xe có send_network='BN HUB' thật mới được xếp loại BN HUB Linehaul
       'Bưu cục đến': d.arrive_network || d.arriveNetworkName || d['Bưu cục đến'] || 'HCM HUB',
       'Tổng số đơn': d.orders_count ?? d.loadscanwaybillnum ?? d.volume ?? 0,
       'Tổng trọng lượng (kg)': d.weight_kg ?? d.loadpackageweight ?? 0,
