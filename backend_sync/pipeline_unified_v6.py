@@ -75,7 +75,7 @@ if len(sys.argv) > 1:
         pass
 
 # Network tuning: Kéo song song trang siêu tốc (20 page workers)
-PAGE_WORKERS     = 2        # Lowered to 2 to prevent IT server overload
+PAGE_WORKERS     = 5        # 5 luồng kéo song song
 PAGE_SIZE        = 100      # Dispatch page size set to 100 (confirmed working)
 SCAN_PAGE_SIZE   = 100      # Inbound/Outbound page size set to 100
 POOL_SIZE        = 30       # 30 luồng kết nối HTTP
