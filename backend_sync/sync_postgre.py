@@ -903,11 +903,13 @@ def sync_postgre_to_dashboard():
             op_date_inbound_effective      -- Ngay inbound chinh xac cho Rebound
         FROM enriched.dispatch_enriched
         WHERE 
-            -- POOL 1: TẤT CẢ các đơn ĐANG HOẠT ĐỘNG / TỒN KHO / ĐANG CHẠY
-            (is_active = 1 OR is_completed = FALSE)
-
-            -- POOL 2: Các đơn thuộc Ngày vận hành Hôm nay & Hôm qua (Cửa sổ 2 ngày ca vận hành)
-            OR COALESCE(op_date_pickup::date, operation_date_created::date) >= %(op_yesterday)s::date
+            -- CHỈ LẤY CÁC ĐƠN ĐANG HOẠT ĐỘNG TRONG CA VẬN HÀNH (HÔM NAY + HÔM QUA)
+            outbound_scandate IS NULL
+            AND (
+                COALESCE(op_date_pickup::date, operation_date_created::date) >= %(op_yesterday)s::date
+                OR arrival_scandate::date >= %(op_yesterday)s::date
+                OR inbound_scandate::date >= %(op_yesterday)s::date
+            )
         ORDER BY operation_date_created DESC, created_time DESC
     """
     params = {'op_yesterday': yesterday}
