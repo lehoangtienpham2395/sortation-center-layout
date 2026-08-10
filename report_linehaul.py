@@ -140,7 +140,8 @@ def paginate_post(session, url, token_mgr, headers, payload, params=None, size=1
         p = {**payload, 'size': size, 'current': page}
         try:
             resp = auth_post(session, url, token_mgr, headers, json_body=p, params=params, label=f"{label} p{page}")
-            data = resp.json()
+            raw_json = resp.json() if resp and hasattr(resp, 'json') else {}
+            data = raw_json if isinstance(raw_json, dict) else {}
             node = data.get('data', {})
             recs = node.get('records', []) if isinstance(node, dict) else (node if isinstance(node, list) else [])
             if not recs:
@@ -207,7 +208,8 @@ def pull_incoming_10days(session, token_mgr, days=10):
                 resp = auth_post(session, URL_INCOMING, token_mgr, hdr,
                                  params=INCOMING_PARAMS, json_body=payload,
                                  label=f'Incoming {cur.strftime("%m/%d")} p{page}')
-                data = resp.json().get('data', {})
+                raw_json = resp.json() if resp and hasattr(resp, 'json') else {}
+                data = (raw_json or {}).get('data', {}) if isinstance(raw_json, dict) else {}
                 recs = data.get('records', []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
                 if not recs:
                     break
