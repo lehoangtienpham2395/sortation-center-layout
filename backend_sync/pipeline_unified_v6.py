@@ -76,8 +76,8 @@ if len(sys.argv) > 1:
 
 # Network tuning: Kéo song song trang siêu tốc (20 page workers)
 PAGE_WORKERS     = 2        # Lowered to 2 to prevent IT server overload
-PAGE_SIZE        = 200      # Dispatch page size lowered to 200
-SCAN_PAGE_SIZE   = 200      # Inbound/Outbound page size lowered to 200
+PAGE_SIZE        = 100      # Dispatch page size set to 100 (confirmed working)
+SCAN_PAGE_SIZE   = 100      # Inbound/Outbound page size set to 100
 POOL_SIZE        = 30       # 30 luồng kết nối HTTP
 REQUEST_TIMEOUT  = 10
 MAX_RETRIES      = 2
@@ -900,13 +900,12 @@ def merge_in_out_chronological(df_in: pd.DataFrame, df_out: pd.DataFrame) -> pd.
 # MAIN
 # ============================================================
 def main():
-    tz_vn  = ZoneInfo('Asia/Ho_Chi_Minh')
-    now    = datetime.now(tz_vn)
-    start_dt      = now - timedelta(days=DAYS_BACK)
-    scan_start_dt = now - timedelta(days=SCAN_DAYS_BACK)
+    tz_vn    = ZoneInfo('Asia/Ho_Chi_Minh')
+    now      = datetime.now(tz_vn)
+    op_today = (now - timedelta(days=1)) if now.hour < 6 else now
 
-    start_str      = start_dt.strftime('%Y-%m-%d 00:00:00')       # Dispatch: DAYS_BACK ngày
-    scan_start_str = scan_start_dt.strftime('%Y-%m-%d 00:00:00')  # Inbound/Outbound/Arrival: SCAN_DAYS_BACK ngày
+    start_str      = op_today.strftime('%Y-%m-%d 06:00:00')  # Từ 06:00 sáng hôm nay
+    scan_start_str = op_today.strftime('%Y-%m-%d 06:00:00')  # Từ 06:00 sáng hôm nay
     end_str        = now.strftime('%Y-%m-%d %H:%M:%S')
     end_str_plus1  = (now + timedelta(days=1)).strftime('%Y-%m-%d 23:59:59')
 
