@@ -1543,9 +1543,14 @@ def sync_postgre_to_dashboard():
                 truck_eta_obj = f_eta.result()
 
         except Exception as e:
-            print(f"   ⚠️  JFS API error: {e}")
+            print(f"   ⚠️ JFS API error: {e}")
     else:
-        print("   ⚠️  JFS API skipped (pipeline_unified_v6 not available)")
+        print("   ⚠️ JFS API skipped (pipeline_unified_v6 not available)")
+
+    # 🎯 AUTOMATIC FALLBACK TO POSTGRESQL DB IF TRUCK_ETA IS EMPTY (e.g. JFS API account banned or returned 0 trucks)
+    if not truck_eta_obj.get("trucks") or len(truck_eta_obj.get("trucks", [])) == 0:
+        print("   🔄 JFS API returned 0 trucks -> Falling back to PostgreSQL DB queries for Truck ETA...")
+        truck_eta_obj = fetch_truck_eta_json(None, None)
 
     inbound_truck_eta = {
         "op_date": today,
