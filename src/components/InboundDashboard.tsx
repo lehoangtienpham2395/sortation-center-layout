@@ -690,6 +690,10 @@ export default function InboundDashboard({
     ? localOrdersStatus
     : ((ordersStatus && ordersStatus.op_date === normActiveDate) ? ordersStatus : null);
 
+  const effectiveHourlyTrend = (localHourlyTrend && (localHourlyTrend.op_date === normActiveDate || localHourlyTrend.date === normActiveDate))
+    ? localHourlyTrend
+    : null;
+
   const snapshotForDate = (lastUpdateObj?.daily_snapshots as Record<string, any>)?.[normActiveDate];
 
   const totalInbound     = isFutureDate ? 0 : Math.max(stages['Inbound'].orders, effectiveOrdersStatus?.inbound || 0);
@@ -878,10 +882,10 @@ export default function InboundDashboard({
   let pickupDonePct = totalBase > 0 ? Math.round((totalPickupDone / totalBase) * 100) : 0;
   let createdPct = totalBase > 0 ? Math.max(0, 100 - (inboundPct + inTransitPct + pickupDonePct)) : 0;
 
-  const inboundTrendData  = (localHourlyTrend?.series?.inbound && localHourlyTrend.series.inbound.length > 0) ? localHourlyTrend.series.inbound : labels.map(l => hourlyInbound[l]);
-  const arrivedTrendData  = (localHourlyTrend?.series?.transporting && localHourlyTrend.series.transporting.length > 0) ? localHourlyTrend.series.transporting : labels.map(l => hourlyArrived[l]);
-  const forecastTrendData = (localHourlyTrend?.series?.created && localHourlyTrend.series.created.length > 0) ? localHourlyTrend.series.created : labels.map(l => hourlyForecast[l]);
-  const pickupTrendData   = (localHourlyTrend?.series?.pickup_done && localHourlyTrend.series.pickup_done.length > 0) ? localHourlyTrend.series.pickup_done : labels.map(l => hourlyPickup[l]);
+  const inboundTrendData  = (effectiveHourlyTrend?.series?.inbound && effectiveHourlyTrend.series.inbound.length > 0) ? effectiveHourlyTrend.series.inbound : labels.map(l => hourlyInbound[l]);
+  const arrivedTrendData  = (effectiveHourlyTrend?.series?.transporting && effectiveHourlyTrend.series.transporting.length > 0) ? effectiveHourlyTrend.series.transporting : labels.map(l => hourlyArrived[l]);
+  const forecastTrendData = (effectiveHourlyTrend?.series?.created && effectiveHourlyTrend.series.created.length > 0) ? effectiveHourlyTrend.series.created : labels.map(l => hourlyForecast[l]);
+  const pickupTrendData   = (effectiveHourlyTrend?.series?.pickup_done && effectiveHourlyTrend.series.pickup_done.length > 0) ? effectiveHourlyTrend.series.pickup_done : labels.map(l => hourlyPickup[l]);
 
   const totalOrders = totalInbound;
   const rawInbWt = (effectiveOrdersStatus?.inbound_weight !== undefined && effectiveOrdersStatus.inbound_weight > 0)

@@ -571,7 +571,6 @@ export default function App() {
     setLastUpdate(currentLoadTime);
     lastUpdateTimestampRef.current = currentLoadTime;
 
-    userChangedInboundDate.current = false;
     const todayOpDate = getTodayOpDate();
 
     // 1. Fetch last_update.json ngay lập tức để lấy daily_snapshots & metadata
