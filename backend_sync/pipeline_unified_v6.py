@@ -44,6 +44,7 @@ URL_SCAN          = 'https://gw.jtcargo.com.vn/jfs-report-leader/report/dynamicR
 URL_LINEHAUL_OPS  = 'https://gw.jtcargo.com.vn/operatingplatform/traceSub/queryTraceSubForPage'
 URL_SHUTTLE_TRACK = 'https://gw.jtcargo.com.vn/transportation/tmsBranchTrackingDetail/page'
 URL_FORECAST      = 'https://gw.jtcargo.com.vn/networkmanagement/omsWaybill/shippingWaybillList'
+URL_FORECAST_COUNT = 'https://gw.jtcargo.com.vn/networkmanagement/omsWaybill/shippingWaybillListCount'
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _cfg_candidates = [
@@ -780,6 +781,56 @@ def pull_backlog(session, token_mgr, bh_headers, bp_payload, start_str, end_str)
     return records
 
 
+# ============================================================
+# TIME-BASED FORECAST & PICKUP TIME PULLER (Delta Sync by collectTime)
+# ============================================================
+def pull_forecast_by_time(session, token_mgr, start_str, end_str):
+    label = 'Forecast (Pickup Time)'
+    hdrs = {'Accept': 'application/json, text/plain, */*',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+            'lang': 'VN', 'langtype': 'VN',
+            'routeName': 'shippingWaybillList', 'User-Agent': 'Mozilla/5.0'}
+    
+    base_pl = {
+        'current': '1',
+        'size': str(PAGE_SIZE),
+        'timeType': '2',
+        'timeStart': start_str,
+        'timeEnd': end_str,
+        'inputTimeStart': '',
+        'inputTimeEnd': '',
+        'collectTimeStart': start_str,
+        'collectTimeEnd': end_str,
+        'pickFinanceCode': '',
+        'pickNetworkCode': ''
+    }
+
+    def fetch_page(p):
+        pl = dict(base_pl)
+        pl['current'] = str(p)
+        try:
+            r = auth_post(session, URL_FORECAST, token_mgr, hdrs, data=pl, label=label + ' p' + str(p))
+            data_node = r.json().get('data', {}) or {}
+            if isinstance(data_node, dict):
+                return data_node.get('records', []) or []
+            elif isinstance(data_node, list):
+                return data_node
+            return []
+        except Exception as e:
+            print('   ⚠️ ' + label + ' p' + str(p) + ' error: ' + str(e))
+            return []
+
+    try:
+        r1 = auth_post(session, URL_FORECAST_COUNT, token_mgr, hdrs, data=base_pl, label=label + ' count')
+        tot = r1.json().get('data', 0) if isinstance(r1.json().get('data'), int) else 0
+        print('   ℹ️ ' + label + ' total: ' + str(tot) + ' don (tu ' + start_str + ' -> ' + end_str + ')')
+        if not tot:
+            return []
+        return pull_pages_parallel(fetch_page, tot, PAGE_SIZE, label)
+    except Exception as e:
+        print('   ⚠️ ' + label + ' count error: ' + str(e))
+        return []
+
 
 # ============================================================
 # OPTIMIZED BATCH FORECAST PULLER (100 mã / batch)
@@ -918,6 +969,7 @@ def main():
     # Checkpoint Manager: Tự động gối đầu mốc dừng của lần chạy trước
     fallback_dispatch  = op_today.strftime('%Y-%m-%d 06:00:00')
     dispatch_start_str = get_checkpoint('dispatch', fallback_dispatch)
+    forecast_start_str = get_checkpoint('forecast', fallback_dispatch)
 
     # Tất cả các báo biểu khác (Inbound, Outbound, Arrival, Linehaul, Shuttle, Backlog): Giảm xuống 3 ngày
     scan_3d_dt        = now - timedelta(days=3)
@@ -926,8 +978,9 @@ def main():
     end_str_plus1     = (now + timedelta(days=1)).strftime('%Y-%m-%d 23:59:59')
 
     print('=' * 65)
-    print(f'PIPELINE UNIFIED V6 -- Song song 7 nguon (Dispatch from checkpoint/06:00 today / 3 days all other reports)')
+    print(f'PIPELINE UNIFIED V6 -- Song song 9 nguon (Dispatch & Forecast from checkpoint / 3 days all other reports)')
     print('Dispatch: ' + dispatch_start_str + '  ->  ' + end_str)
+    print('Forecast: ' + forecast_start_str + '  ->  ' + end_str)
     print('Other:    ' + scan_3d_start_str + '  ->  ' + end_str)
     print('=' * 65)
 
@@ -969,15 +1022,16 @@ def main():
     bp_payload = load_json(cfg('backlogpayload.json'))
     bp_payload['beginDate'] = scan_3d_start_str
 
-    # ── Phase 1: Keo song song 8 nguon ──────────────────────
-    print('\nPhase 1 -- Keo song song 8 nguon...')
+    # ── Phase 1: Keo song song 9 nguon ──────────────────────
+    print('\nPhase 1 -- Keo song song 9 nguon...')
     t0  = time.time()
     raw = {}
 
-    with ThreadPoolExecutor(max_workers=8) as ex:
+    with ThreadPoolExecutor(max_workers=9) as ex:
         futures = {
-            # Dispatch riêng 06:00 sáng hôm nay
+            # Dispatch & Forecast riêng theo checkpoint / 06:00 sáng hôm nay
             ex.submit(pull_dispatch,       session_main, tkn_main, dh_headers, dp_payload):        'dispatch',
+            ex.submit(pull_forecast_by_time,session_main, tkn_main, forecast_start_str, end_str):   'forecast',
             # Tất cả các báo biểu khác dùng 3 ngày gần nhất
             ex.submit(pull_scan,           session_main, tkn_main, ih_headers, i_params, ip_payload, 'Inbound'):  'inbound',
             ex.submit(pull_scan,           session_main, tkn_main, oh_headers, o_params, op_payload, 'Outbound'): 'outbound',
@@ -1002,6 +1056,7 @@ def main():
 
     # Lưu checkpoint sau khi Phase 1 hoàn thành thành công
     save_checkpoint('dispatch', end_str)
+    save_checkpoint('forecast', end_str)
 
     # ── Phase 2: trip_time_map ───────────────────────────────
     print('\nPhase 2 -- trip_time_map...')
