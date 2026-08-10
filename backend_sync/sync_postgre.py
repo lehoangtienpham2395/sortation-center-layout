@@ -599,6 +599,12 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
               AND (flag_arrival = 1 OR flag_pickup = 1)
               AND (is_completed = FALSE OR is_active = 1)
               AND UPPER(COALESCE(NULLIF(TRIM(pickup_station), ''), '')) NOT IN ('BN HUB', 'BNI001H')
+              AND (
+                  (transporing_time IS NOT NULL AND transporing_time::date >= CURRENT_DATE - INTERVAL '1 day')
+                  OR (arrival_scandate IS NOT NULL AND arrival_scandate::date >= CURRENT_DATE - INTERVAL '1 day')
+                  OR (op_date_pickup IS NOT NULL AND op_date_pickup::date >= CURRENT_DATE - INTERVAL '1 day')
+                  OR (operation_date_created IS NOT NULL AND operation_date_created::date >= CURRENT_DATE - INTERVAL '1 day')
+              )
             GROUP BY send_net, trip_c
             HAVING COUNT(*) >= 5
             ORDER BY vol DESC;
@@ -657,7 +663,7 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
                 return str(transp_t)
 
         for r in rows:
-            send_st, arr_st, trip, vol, wt_kg, max_arr, max_transp = r
+            send_st, arr_st, trip, vol, wt_kg_raw, max_arr, max_transp = r
             ref_dep = str(max_transp or '')[:16]
             calc_eta = compute_truck_eta(send_st, max_transp, max_arr)[:16]
             op_d = get_op_date(ref_dep or calc_eta) if (ref_dep or calc_eta) else today
@@ -665,13 +671,14 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
             if op_d in (today, yesterday):
                 key = (send_st, trip)
                 seen_keys.add(key)
-                calc_wt_ton = round(float(wt_kg) / 1000.0, 3)
+                valid_wt_kg = float(wt_kg_raw) if (wt_kg_raw is not None and float(wt_kg_raw) > 0) else float(vol * 10.0)
+                calc_wt_ton = round(valid_wt_kg / 1000.0, 3)
                 trucks.append({
                     "send_network":     send_st,
                     "arrive_network":   arr_st,
                     "trip_code":        trip,
                     "orders_count":     int(vol),
-                    "weight_kg":        float(wt_kg),
+                    "weight_kg":        valid_wt_kg,
                     "weight_ton":       calc_wt_ton,
                     "planned_departure":ref_dep,
                     "planned_arrival":  calc_eta,
