@@ -1280,7 +1280,8 @@ def main():
         
         st_src = 'Outbound' if outb_t else ('Inbound' if inb_t else 'Arrival')
 
-        cr_t = inb_t or outb_t or arr_t
+        # 🛡️ BẢO VỆ GIỜ TẠO ĐƠN GỐC: KHÔNG dùng giờ quét kho đè lên Created_time
+        cr_t = ''
         
         orphan_rows.append({
             'tracking': wb,
@@ -1610,12 +1611,12 @@ def main():
                 data_source              = EXCLUDED.data_source,
                 status_sys               = EXCLUDED.status_sys,
                 -- ═══════════════════════════════════════════════════════════
-                -- NGUYÊN TẮC ĐÓNG BĂNG (Completed Order Freezing)
+                -- NGUYÊN TẮC BẢO VỆ GIỜ TẠO ĐƠN GỐC (Created Time Protection)
                 -- ═══════════════════════════════════════════════════════════
                 created_time             = CASE
-                                            WHEN enriched.dispatch_enriched.is_completed = TRUE
-                                            THEN enriched.dispatch_enriched.created_time       -- bảo vệ mốc gốc
-                                            ELSE COALESCE(EXCLUDED.created_time, enriched.dispatch_enriched.created_time)
+                                            WHEN enriched.dispatch_enriched.created_time IS NOT NULL
+                                            THEN enriched.dispatch_enriched.created_time       -- 🛡️ Bảo vệ tuyệt đối mốc Created gốc, không bao giờ cho phép đè!
+                                            ELSE EXCLUDED.created_time
                                           END,
                 pickup_time              = CASE
                                             WHEN enriched.dispatch_enriched.is_completed = TRUE
