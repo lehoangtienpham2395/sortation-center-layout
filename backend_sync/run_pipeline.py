@@ -72,7 +72,7 @@ def pull_shuttle(token):
     
     payload['startDepartureTime'] = START_TIME
     payload['endDepartureTime'] = END_TIME
-    payload['size'] = 1000
+    payload['size'] = 200
     
     all_data = []
     current_page = 1
@@ -127,7 +127,7 @@ def pull_linehaul(token):
     
     payload['startTime'] = START_TIME
     payload['endTime'] = END_TIME
-    payload['size'] = 1000
+    payload['size'] = 200
     
     params = {
         "sqlCode": "transport_consolidated_report",
@@ -238,7 +238,7 @@ def pull_incoming_cargo(token):
     
     payload['beginDate'] = START_TIME
     payload['endDate'] = END_TIME
-    payload['size'] = 1000
+    payload['size'] = 200
     
     all_data = []
     

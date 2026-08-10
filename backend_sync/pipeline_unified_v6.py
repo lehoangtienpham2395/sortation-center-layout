@@ -75,9 +75,9 @@ if len(sys.argv) > 1:
         pass
 
 # Network tuning: Kéo song song trang siêu tốc (20 page workers)
-PAGE_WORKERS     = 10
-PAGE_SIZE        = 500      # Dispatch page size
-SCAN_PAGE_SIZE   = 1000     # Inbound/Outbound page size
+PAGE_WORKERS     = 2        # Lowered to 2 to prevent IT server overload
+PAGE_SIZE        = 200      # Dispatch page size lowered to 200
+SCAN_PAGE_SIZE   = 200      # Inbound/Outbound page size lowered to 200
 POOL_SIZE        = 30       # 30 luồng kết nối HTTP
 REQUEST_TIMEOUT  = 10
 MAX_RETRIES      = 2
@@ -514,7 +514,7 @@ def pull_linehaul_ops(session, token_mgr, start_str, end_str):
              'Content-Type': 'application/json;charset=utf-8',
              'lang': 'VN', 'langtype': 'VN',
              'routeName': 'opsTraceSub', 'User-Agent': 'Mozilla/5.0'}
-    base_pl = {'countryId': '1', 'current': 1, 'size': 1000,
+    base_pl = {'countryId': '1', 'current': 1, 'size': 200,
                'searchType': 1, 'startScanTime': start_str, 'endScanTime': end_str,
                'traceCodes': [], 'traceSubCodes': []}
     try:
@@ -526,7 +526,7 @@ def pull_linehaul_ops(session, token_mgr, start_str, end_str):
         print('   ' + label + ' total: ' + str(tot))
         if not tot:
             return []
-        n_pg = math.ceil(tot / 1000)
+        n_pg = math.ceil(tot / 200)
         res  = {}
         def fetch_p(p):
             pl = dict(base_pl); pl['current'] = p
@@ -556,7 +556,7 @@ def pull_linehaul_consol(session, token_mgr, start_str, end_str):
               'lang': 'VN', 'langtype': 'VN',
               'routeName': 'scanQueryConstantlyNew|businessIndicatorIndex',
               'User-Agent': 'Mozilla/5.0'}
-    base_pl = {'countryId': '1', 'current': 1, 'size': 1000,
+    base_pl = {'countryId': '1', 'current': 1, 'size': 200,
                'startTime': start_str, 'endTime': end_str,
                'sqlCode': 'transport_consolidated_report', 'timeType': '2'}
     params = {'sqlCode': 'transport_consolidated_report',
@@ -653,7 +653,7 @@ def pull_arrival(session, arr_tmgr, ib_headers, start_str, end_str):
 
     def fetch_one(st):
         pl = {'beginDate': start_str, 'endDate': end_str,
-              'countryId': '1', 'size': 1000,
+              'countryId': '1', 'size': 200,
               'sqlCode': 'realtime_sca_sen_mon_dtl',
               'scanSiteCode': st['code'], 'scanSiteCodeId': '',
               'scanSiteCodeName': st['name'], 'scanSiteCodeTypeId': ''}
@@ -672,7 +672,7 @@ def pull_arrival(session, arr_tmgr, ib_headers, start_str, end_str):
                 rows = dn.get('records', []) if isinstance(dn, dict) else (dn or [])
                 if not rows: break
                 recs.extend(rows)
-                if len(rows) < 1000: break
+                if len(rows) < 200: break
                 page += 1
             except Exception: break
         if recs:
@@ -692,7 +692,7 @@ def pull_shuttle(session, arr_tmgr, start_str, end_str):
                'Content-Type': 'application/json;charset=utf-8',
                'lang': 'VN', 'langtype': 'VN',
                'routeName': 'brancTaskTrackSearch', 'User-Agent': 'Mozilla/5.0'}
-    base_pl = {'countryId': '1', 'current': 1, 'size': 1000,
+    base_pl = {'countryId': '1', 'current': 1, 'size': 200,
                'startDepartureTime': start_str, 'endDepartureTime': end_str}
     try:
         r   = auth_post(session, URL_SHUTTLE_TRACK, arr_tmgr, hdrs,
@@ -702,7 +702,7 @@ def pull_shuttle(session, arr_tmgr, start_str, end_str):
         tot = obj.get('total', 0) if isinstance(obj, dict) else 0
         print('   ' + label + ' total: ' + str(tot))
         if not tot: return []
-        n_pg = math.ceil(tot / 1000)
+        n_pg = math.ceil(tot / 200)
         res  = {}
         def fetch_p(p):
             pl = dict(base_pl); pl['current'] = p
