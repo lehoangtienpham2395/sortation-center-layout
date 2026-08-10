@@ -1376,32 +1376,10 @@ def sync_postgre_to_dashboard():
     fc_total_4stages = status_counts['Inbound'] + status_counts['Transporting'] + status_counts['Pickup Done'] + status_counts['Created']
     fc_total_weight  = round(status_weights['Inbound'] + status_weights['Transporting'] + status_weights['Pickup Done'] + status_weights['Created'], 3)
     
-    # 🎯 USER EXACT LINEHAUL FORECAST DIRECTLY FROM POSTGRESQL (1,191 ORDERS / 14.6 TẤN):
-    try:
-        conn_lh = get_pg_conn()
-        cur_lh  = conn_lh.cursor()
-        cur_lh.execute("""
-            SELECT 
-                SUM(COALESCE(orders_num, 1)) as total_orders,
-                SUM(COALESCE(orders_weight, 0)) / 1000.0 as total_weight_ton
-            FROM enriched.dispatch_enriched
-            WHERE outbound_scandate IS NULL
-              AND UPPER(COALESCE(next_station, '')) LIKE '%BN HUB%'
-              AND (COALESCE(op_date_pickup::date, operation_date_created::date) >= CURRENT_DATE - INTERVAL '1 day');
-        """)
-        row_lh = cur_lh.fetchone()
-        if row_lh and row_lh[0] is not None:
-            fc_linehaul = int(row_lh[0])
-            linehaul_weight_ton = round(float(row_lh[1] or 0.0), 1)
-        cur_lh.close()
-        conn_lh.close()
-    except Exception as _elh:
-        print(f"   ⚠️ Linehaul query from PostgreSQL error: {_elh}")
-
-    if fc_linehaul > fc_total_4stages:
-        fc_linehaul = min(fc_linehaul, int(fc_total_4stages * 0.35))
-    if linehaul_weight_ton > fc_total_weight:
-        linehaul_weight_ton = min(linehaul_weight_ton, round(fc_total_weight * 0.35, 3))
+    # 🎯 DYNAMIC LINEHAUL FORECAST 100% PURE FROM DYNAMIC A06 (BN HUB) INVENTORY
+    a06_items = [v for (z, a, s, stt, d), v in inv_group.items() if a == 'A06' or s == 'BN HUB']
+    fc_linehaul = sum(v['volume'] for v in a06_items)
+    linehaul_weight_ton = round(sum(v['weight_kg'] for v in a06_items) / 1000.0, 1)
 
     fc_shuttle = max(0, fc_total_4stages - fc_linehaul)
     shuttle_weight_ton = max(0.0, round(fc_total_weight - linehaul_weight_ton, 3))
