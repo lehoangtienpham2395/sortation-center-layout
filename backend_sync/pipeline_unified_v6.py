@@ -1013,7 +1013,7 @@ def main():
         import copy
         dp_payload_w2 = copy.deepcopy(dp_payload)
         dp_payload_w2['startInputTime'] = op_day_start_str
-        dp_payload_w2['endInputTime']   = dispatch_start_str   # chỉ kéo phần chưa có
+        dp_payload_w2['endInputTime']   = end_str   # toàn bộ ngày vận hành 06:00 → now
 
     with ThreadPoolExecutor(max_workers=10) as ex:
         futures = {
@@ -1042,14 +1042,25 @@ def main():
                 print('   FAIL ' + key + ': ' + str(e))
                 raw[key] = []
 
-        # Merge Window 2 vào dispatch (dedup theo tracking)
+        # W2 merge: Ghi đè W1 bằng dữ liệu mới nhất từ W2 (cập nhật status đơn cũ bị rớt)
         if fut_w2 is not None:
             try:
                 w2_records = fut_w2.result()
-                existing_tracking = {r.get('trackingNumber') or r.get('waybillNo') or r.get('tracking') for r in raw.get('dispatch', [])}
-                new_from_w2 = [r for r in w2_records if (r.get('trackingNumber') or r.get('waybillNo') or r.get('tracking')) not in existing_tracking]
-                raw['dispatch'] = raw.get('dispatch', []) + new_from_w2
-                print(f'   Dispatch W2 (repull):  {len(w2_records)} ban ghi, +{len(new_from_w2)} bo sung trang thai moi')
+                disp_dict = {}
+                for r in raw.get('dispatch', []):
+                    wb = clean_wb(r.get('waybillId') or r.get('waybillNo') or r.get('tracking'))
+                    if wb: disp_dict[wb] = r
+                
+                upd_cnt, new_cnt = 0, 0
+                for r in w2_records:
+                    wb = clean_wb(r.get('waybillId') or r.get('waybillNo') or r.get('tracking'))
+                    if wb:
+                        if wb in disp_dict: upd_cnt += 1
+                        else: new_cnt += 1
+                        disp_dict[wb] = r  # W2 mới nhất ghi đè W1
+                
+                raw['dispatch'] = list(disp_dict.values())
+                print(f'   Dispatch W2 (repull): {len(w2_records)} ban ghi ({upd_cnt} cap nhat status don cu, {new_cnt} don moi)')
             except Exception as e:
                 print('   FAIL dispatch_w2: ' + str(e))
 
@@ -1573,10 +1584,10 @@ def main():
             if trk in completed_trackings and not is_rebound:
                 continue
 
-            # operation_date_created là NOT NULL → fallback sang target_date nếu rỗng
-            op_cr_val = op_cr or str(r.get('Ngay_van_hanh') or r.get('Ngày vận hành') or '')[:10] or None
-            if not op_cr_val and cr_t:
-                op_cr_val = cr_t[:10]
+            # operation_date_created là NOT NULL → fallback sang scan dates hoặc ngày hiện tại nếu không có created_time
+            op_cr_val = op_cr or str(r.get('Ngay_van_hanh') or r.get('Ngày vận hành') or '')[:10] or (cr_t[:10] if cr_t else None)
+            if not op_cr_val:
+                op_cr_val = inb_t[:10] if inb_t else (arr_t[:10] if arr_t else (outb_t[:10] if outb_t else now.strftime('%Y-%m-%d')))
 
             flag_created  = 1 if cr_t else 0
             flag_pickup   = 1 if has_pick else 0
