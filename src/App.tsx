@@ -844,7 +844,7 @@ export default function App() {
       } else if (isBacklogMode) {
         isForSelectedType = row.type === 'Backlog' && statusMatched;
       } else if (isVolumeMode) {
-        isForSelectedType = (row.type === 'Inventory' || row.type === 'Backlog') && rowStatus !== 'Outbound' && statusMatched;
+        isForSelectedType = row.type === 'Inventory' && rowStatus !== 'Outbound' && statusMatched;
       }
 
       if (isForSelectedType) {
