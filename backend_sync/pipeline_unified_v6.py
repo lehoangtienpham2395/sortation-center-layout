@@ -937,6 +937,15 @@ def main():
     dispatch_start_str = get_checkpoint('dispatch', fallback_dispatch)
     forecast_start_str = get_checkpoint('forecast', fallback_dispatch)
 
+    # ── DUAL-WINDOW DISPATCH (fix đơn rớt cập nhật trạng thái muộn) ──────────
+    # Window 1 (Checkpoint): Chỉ kéo đơn MỚI tạo từ lần chạy trước → now
+    # Window 2 (Repull):     Kéo lại TOÀN BỘ ngày vận hành hôm nay (06:00 → now)
+    #   → Bắt các đơn tạo TRƯỚC checkpoint nhưng có pickup/status MỚI sau checkpoint
+    #   → Ví dụ: đơn tạo 18:00, pickup 21:00, checkpoint=20:00 → Window 2 sẽ bắt được
+    op_day_start_str  = op_today.strftime('%Y-%m-%d 06:00:00')   # đầu ngày vận hành
+    # Nếu checkpoint đã bao phủ cả ngày (== op_day_start), không cần Window 2
+    need_repull = dispatch_start_str > op_day_start_str           # True khi checkpoint > 06:00
+
     # Tất cả các báo biểu khác (Inbound, Outbound, Arrival, Linehaul, Shuttle, Backlog): Giảm xuống 3 ngày
     scan_3d_dt        = now - timedelta(days=3)
     scan_3d_start_str = scan_3d_dt.strftime('%Y-%m-%d 00:00:00')
@@ -944,8 +953,10 @@ def main():
     end_str_plus1     = (now + timedelta(days=1)).strftime('%Y-%m-%d 23:59:59')
 
     print('=' * 65)
-    print(f'PIPELINE UNIFIED V6 -- Song song 9 nguon (Dispatch & Forecast from checkpoint / 3 days all other reports)')
-    print('Dispatch: ' + dispatch_start_str + '  ->  ' + end_str)
+    print(f'PIPELINE UNIFIED V6 -- Dual-window Dispatch + 9 nguon song song')
+    print('Dispatch W1 (new):    ' + dispatch_start_str + '  ->  ' + end_str)
+    if need_repull:
+        print('Dispatch W2 (repull): ' + op_day_start_str + '  ->  ' + end_str + '  [cap nhat trang thai don cu]')
     print('Forecast: ' + forecast_start_str + '  ->  ' + end_str)
     print('Other:    ' + scan_3d_start_str + '  ->  ' + end_str)
     print('=' * 65)
@@ -991,17 +1002,25 @@ def main():
     bp_payload = load_json(cfg('backlogpayload.json'))
     bp_payload['beginDate'] = scan_3d_start_str
 
-    # ── Phase 1: Keo song song 9 nguon ──────────────────────
+    # ── Phase 1: Keo song song 9 nguon + Dispatch Window 2 (repull) ──────
     print('\nPhase 1 -- Keo song song 9 nguon...')
     t0  = time.time()
     raw = {}
 
-    with ThreadPoolExecutor(max_workers=9) as ex:
+    # Chuẩn bị payload Window 2 (repull toàn ngày vận hành)
+    dp_payload_w2 = None
+    if need_repull:
+        import copy
+        dp_payload_w2 = copy.deepcopy(dp_payload)
+        dp_payload_w2['startInputTime'] = op_day_start_str
+        dp_payload_w2['endInputTime']   = dispatch_start_str   # chỉ kéo phần chưa có
+
+    with ThreadPoolExecutor(max_workers=10) as ex:
         futures = {
-            # Dispatch & Forecast riêng theo checkpoint / 06:00 sáng hôm nay
+            # Dispatch Window 1: đơn MỚI từ checkpoint → now
             ex.submit(pull_dispatch,       session_main, tkn_main, dh_headers, dp_payload):        'dispatch',
             ex.submit(pull_forecast_by_time,session_main, tkn_main, forecast_start_str, end_str):   'forecast',
-            # Tất cả các báo biểu khác dùng 3 ngày gần nhất
+            # Scan / Linehaul / Shuttle / Backlog: 3 ngày gần nhất
             ex.submit(pull_scan,           session_main, tkn_main, ih_headers, i_params, ip_payload, 'Inbound'):  'inbound',
             ex.submit(pull_scan,           session_main, tkn_main, oh_headers, o_params, op_payload, 'Outbound'): 'outbound',
             ex.submit(pull_arrival,        session_arr,  tkn_arr,  ih_headers, scan_3d_start_str, end_str):  'arrival',
@@ -1010,6 +1029,10 @@ def main():
             ex.submit(pull_shuttle,        session_arr,  tkn_arr,  scan_3d_start_str, end_str):              'shuttle',
             ex.submit(pull_backlog,        session_main, tkn_main, bh_headers, bp_payload, scan_3d_start_str, end_str): 'backlog',
         }
+        # Dispatch Window 2 (repull): đơn CŨ có thể đã cập nhật trạng thái
+        fut_w2 = None
+        if need_repull and dp_payload_w2 is not None:
+            fut_w2 = ex.submit(pull_dispatch, session_main, tkn_main, dh_headers, dp_payload_w2)
 
         for f in as_completed(futures):
             key = futures[f]
@@ -1018,6 +1041,17 @@ def main():
             except Exception as e:
                 print('   FAIL ' + key + ': ' + str(e))
                 raw[key] = []
+
+        # Merge Window 2 vào dispatch (dedup theo tracking)
+        if fut_w2 is not None:
+            try:
+                w2_records = fut_w2.result()
+                existing_tracking = {r.get('trackingNumber') or r.get('waybillNo') or r.get('tracking') for r in raw.get('dispatch', [])}
+                new_from_w2 = [r for r in w2_records if (r.get('trackingNumber') or r.get('waybillNo') or r.get('tracking')) not in existing_tracking]
+                raw['dispatch'] = raw.get('dispatch', []) + new_from_w2
+                print(f'   Dispatch W2 (repull):  {len(w2_records)} ban ghi, +{len(new_from_w2)} bo sung trang thai moi')
+            except Exception as e:
+                print('   FAIL dispatch_w2: ' + str(e))
 
     print('\nPhase 1 xong: ' + str(round(time.time() - t0, 1)) + 's')
     for k, v in raw.items():
