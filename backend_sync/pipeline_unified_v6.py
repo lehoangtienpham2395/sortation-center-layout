@@ -1671,17 +1671,17 @@ def main():
                 inbound_scandate         = CASE
                                             WHEN enriched.dispatch_enriched.is_completed = TRUE
                                             THEN enriched.dispatch_enriched.inbound_scandate    -- bảo vệ mốc gốc
-                                            ELSE EXCLUDED.inbound_scandate
+                                            ELSE COALESCE(EXCLUDED.inbound_scandate, enriched.dispatch_enriched.inbound_scandate)
                                           END,
                 outbound_scandate        = CASE
                                             WHEN enriched.dispatch_enriched.is_completed = TRUE
                                             THEN enriched.dispatch_enriched.outbound_scandate   -- bảo vệ mốc gốc
-                                            ELSE EXCLUDED.outbound_scandate
+                                            ELSE COALESCE(EXCLUDED.outbound_scandate, enriched.dispatch_enriched.outbound_scandate)
                                           END,
                 arrival_scandate         = CASE
                                             WHEN enriched.dispatch_enriched.is_completed = TRUE
                                             THEN enriched.dispatch_enriched.arrival_scandate    -- bảo vệ mốc gốc
-                                            ELSE EXCLUDED.arrival_scandate
+                                            ELSE COALESCE(EXCLUDED.arrival_scandate, enriched.dispatch_enriched.arrival_scandate)
                                           END,
                 is_completed             = CASE
                                             WHEN enriched.dispatch_enriched.is_completed = TRUE
