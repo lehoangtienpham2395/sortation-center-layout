@@ -256,8 +256,8 @@ def build_hourly_trend_for_date(conn, target_date: str) -> dict:
     try:
         cur = conn.cursor()
         
-        # 🛡️ Loại trừ tuyệt đối đơn Miền Bắc / Linehaul Bắc (BN HUB, HN, HD, HY)
-        EXCLUDE_NORTH_SQL = " AND NOT (COALESCE(pickup_station, '') LIKE 'BN HUB%%' OR COALESCE(pickup_station, '') LIKE 'HN %%' OR COALESCE(pickup_station, '') LIKE 'HD %%' OR COALESCE(pickup_station, '') LIKE 'HY %%' OR COALESCE(rank, '') = 'BN HUB') "
+        # 🛡️ CHỈ loại trừ các đơn có PICKUP_STATION = BN HUB / Miền Bắc (Không loại trừ đơn gửi ĐI Miền Bắc!)
+        EXCLUDE_NORTH_SQL = " AND NOT (COALESCE(pickup_station, '') LIKE 'BN HUB%%' OR COALESCE(pickup_station, '') LIKE 'HN %%' OR COALESCE(pickup_station, '') LIKE 'HD %%' OR COALESCE(pickup_station, '') LIKE 'HY %%') "
 
         # 1. Inbound series
         cur.execute("""
@@ -1353,12 +1353,10 @@ def sync_postgre_to_dashboard():
                       'Pickup Done' if status in ('Pickup Done', 'Đã lấy hàng') else
                       'Created' if status in ('Created', 'Đơn mới tạo') else '')
         
-        # 🛡️ EXCLUDE BN HUB & NORTHERN STATIONS FROM ORDERS STATUS
-        st_clean = str(st or '').strip().upper()
+        # 🛡️ CHỈ EXCLUDE PICKUP_STATION = BN HUB / MIỀN BẮC (Vẫn tính hàng gửi ĐI Miền Bắc!)
         pk_clean = str(pk or '').strip().upper()
-        is_north = (pk_clean.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
-                    st_clean.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')))
-        if is_north:
+        is_pickup_north = pk_clean.startswith(('BN HUB', 'HN ', 'HD ', 'HY '))
+        if is_pickup_north:
             continue
 
         if std_status == 'Inbound':
@@ -1440,12 +1438,10 @@ def sync_postgre_to_dashboard():
         if not std_status:
             continue
 
-        # 🛡️ EXCLUDE BN HUB & NORTHERN STATIONS FROM ORDERS STATUS
-        st_clean = str(st or '').strip().upper()
+        # 🛡️ CHỈ EXCLUDE PICKUP_STATION = BN HUB / MIỀN BẮC (Vẫn tính hàng gửi ĐI Miền Bắc!)
         pk_clean = str(pk or '').strip().upper()
-        is_north = (pk_clean.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
-                    st_clean.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')))
-        if is_north:
+        is_pickup_north = pk_clean.startswith(('BN HUB', 'HN ', 'HD ', 'HY '))
+        if is_pickup_north:
             continue
 
         if std_status == 'Inbound':
