@@ -334,11 +334,11 @@ body {
 /* Floating Action Button for Mobile (+ - Zoom Controls) */
 .mobile-fab-container {
   position: absolute;
-  bottom: 24px;
+  top: 16px;
   right: 16px;
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-direction: row;
+  gap: 8px;
   z-index: 40;
 }
 
@@ -1813,3 +1813,14 @@ body {
   padding: 0 !important;
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
 }
+
+/* ==========================================
+   MOBILE & TABLET RESPONSIVE GUARDRAILS (ZERO OVERLAP)
+   ========================================== */
+@media (max-width: 1024px) {
+  .mobile-fab-container {
+    top: 12px !important;
+    right: 12px !important;
+  }
+}
+
