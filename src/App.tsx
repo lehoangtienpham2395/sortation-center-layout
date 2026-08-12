@@ -2029,8 +2029,7 @@ export default function App() {
                       );
                     })}
                   </div>
-
-                  {/* Chi tiết ô chứa */}
+            {/* Chi tiết ô chứa */}
                   <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '12px' }}>
                     <div style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', color: '#cbd5e1', marginBottom: '8px', fontFamily: "'Inter',sans-serif" }}>CHI TIẾT Ô CHỨA</div>
                     {hoveredRack ? (
@@ -2058,18 +2057,18 @@ export default function App() {
               )}
 
               {showTelemetry && (
-                <div className="jt-glowing-card shadow-2xl shrink-0 w-full" style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.04)' }}>
-                  <div className="font-bold text-[13px] tracking-[0.15em] text-center" style={{ color: '#FFF4D6', fontFamily: "'Inter', sans-serif", marginBottom: '10px', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
+                <div className="jt-glowing-card shadow-2xl shrink-0 w-full" style={{ padding: '3px', margin: '3px 0', background: 'rgba(255,255,255,0.04)' }}>
+                  <div className="font-bold text-[13px] tracking-[0.15em] text-center w-full flex justify-center items-center" style={{ color: '#FFF4D6', fontFamily: "'Inter', sans-serif", marginBottom: '3px', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
                     METRICS
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div className="flex justify-between items-center">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    <div className="flex justify-between items-center px-1">
                       <span style={{ fontSize: '13px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng đơn hàng</span>
                       <span className="mono font-bold" style={{ fontSize: '15px', color: '#B8F7E4', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
                         <NumberTicker value={totalOrders} /> <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Đơn</span>
                       </span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center px-1">
                       <span style={{ fontSize: '13px', color: '#cbd5e1', fontFamily: "'Inter',sans-serif", fontWeight: 600 }}>Tổng trọng lượng</span>
                       <span className="mono font-bold" style={{ fontSize: '15px', color: '#B8F7E4', textShadow: '0 0 10px rgba(184,247,228,0.5)' }}>
                         {(totalWeight > 0 && totalWeight < 0.1) ? totalWeight.toFixed(3).replace('.', ',') : totalWeight.toFixed(1).replace('.', ',')} <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 500 }}>Tấn</span>
@@ -2107,7 +2106,6 @@ export default function App() {
                 // 🔥🧊 Warm-Cool Balance Palette
                 const C_HEADER   = '#f97316'; // Orange 🔥  — header title (brand/identity)
                 const C_BADGE    = '#22d3ee'; // Cyan   🧊  — badge (contrast điểm nhấn)
-                // C_TOT_LBL removed — TỔNG CỘNG row now uses C_TOT_VAL for all cells
                 const C_TOT_VAL  = '#67e8f9'; // Ice Cyan  — TỔNG CỘNG values
                 const C_ORDERS   = '#fbbf24'; // Amber  🔥  — ĐƠN (số quan trọng nhất, warm)
                 const C_WEIGHT   = '#818cf8'; // Indigo 🧊  — T.LƯỢNG (cool)
@@ -2115,11 +2113,11 @@ export default function App() {
 
                 return (
                   <div className="jt-glowing-card shadow-2xl shrink-0 w-full"
-                    style={{ marginTop: '20px', padding: '12px 16px', background: 'rgba(255,255,255,0.04)', overflow: 'hidden', borderTop: '1px solid rgba(249,115,22,0.25)', borderBottom: '1px solid rgba(34,211,238,0.2)' }}>
-                    {/* Header — warm title 🔥 + cool badge 🧊 */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', paddingBottom: '8px', borderBottom: '1px solid rgba(249,115,22,0.2)' }}>
+                    style={{ marginTop: '3px', padding: '3px', background: 'rgba(255,255,255,0.04)', overflow: 'hidden', borderTop: '1px solid rgba(249,115,22,0.25)', borderBottom: '1px solid rgba(34,211,238,0.2)' }}>
+                    {/* Header — clean title without emojis */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px', paddingBottom: '3px', borderBottom: '1px solid rgba(249,115,22,0.2)' }}>
                       <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: C_HEADER, fontFamily: "'Inter',sans-serif", textShadow: `0 0 10px ${C_HEADER}60` }}>
-                        🔶 Dự kiến SL LINEHAUL
+                        DỰ KIẾN SL LINEHAUL
                       </span>
                       <span style={{ fontSize: '10px', fontWeight: 700, color: C_BADGE, background: `${C_BADGE}18`, border: `1px solid ${C_BADGE}45`, borderRadius: '10px', padding: '2px 8px' }}>
                         {totOrders.toLocaleString()} Đơn
@@ -2138,190 +2136,59 @@ export default function App() {
                         {/* Total row — warm label, cool values */}
                         {totOrders > 0 && (
                           <tr style={{ background: 'rgba(103,232,249,0.07)', borderBottom: '1px solid rgba(103,232,249,0.18)' }}>
-                            <td style={{ padding: '5px 4px', fontWeight: 800, color: C_TOT_VAL, fontSize: '10px', fontFamily: "'Inter',sans-serif" }}>TỔNG CỘNG</td>
-                            <td className="mono" style={{ textAlign: 'right', padding: '5px 4px', fontWeight: 800, color: C_TOT_VAL, fontSize: '11px' }}>{totOrders.toLocaleString()}</td>
-                            <td className="mono" style={{ textAlign: 'right', padding: '5px 4px', fontWeight: 800, color: C_TOT_VAL, fontSize: '11px' }}>{totWeight.toFixed(1)}T</td>
-                            <td className="mono" style={{ textAlign: 'right', padding: '5px 4px', fontWeight: 800, color: C_TOT_VAL, fontSize: '11px' }}>{totalPct}%</td>
+                            <td style={{ padding: '3px 4px', fontWeight: 800, color: C_TOT_VAL, fontSize: '10px', fontFamily: "'Inter',sans-serif" }}>TỔNG CỘNG</td>
+                            <td className="mono" style={{ textAlign: 'right', padding: '3px 4px', fontWeight: 800, color: C_TOT_VAL, fontSize: '11px' }}>{totOrders.toLocaleString()}</td>
+                            <td className="mono" style={{ textAlign: 'right', padding: '3px 4px', fontWeight: 800, color: C_TOT_VAL, fontSize: '11px' }}>{totWeight.toFixed(1)}T</td>
+                            <td className="mono" style={{ textAlign: 'right', padding: '3px 4px', fontWeight: 800, color: C_TOT_VAL, fontSize: '11px' }}>{totalPct}%</td>
                           </tr>
                         )}
                         {bnRows.map(row => {
                           const pct = ((row.orders / grandTotal) * 100).toFixed(1);
                           return (
                             <tr key={row.name} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                              <td style={{ padding: '4px 4px', color: '#cbd5e1', fontSize: '10px', fontWeight: 600, fontFamily: "'Inter',sans-serif" }}>{row.name}</td>
-                              <td className="mono" style={{ textAlign: 'right', padding: '4px 4px', color: C_ORDERS, fontWeight: 700, fontSize: '11px' }}>{row.orders.toLocaleString()}</td>
-                              <td className="mono" style={{ textAlign: 'right', padding: '4px 4px', color: C_WEIGHT, fontSize: '11px' }}>{row.weightTon.toFixed(1)}T</td>
-                              <td className="mono" style={{ textAlign: 'right', padding: '4px 4px', color: C_PCT, fontSize: '11px' }}>{pct}%</td>
+                              <td style={{ padding: '3px 4px', color: '#cbd5e1', fontSize: '10px', fontWeight: 600, fontFamily: "'Inter',sans-serif" }}>{row.name}</td>
+                              <td className="mono" style={{ textAlign: 'right', padding: '3px 4px', color: C_ORDERS, fontWeight: 700, fontSize: '11px' }}>{row.orders.toLocaleString()}</td>
+                              <td className="mono" style={{ textAlign: 'right', padding: '3px 4px', color: C_WEIGHT, fontSize: '11px' }}>{row.weightTon.toFixed(1)}T</td>
+                              <td className="mono" style={{ textAlign: 'right', padding: '3px 4px', color: C_PCT, fontSize: '11px' }}>{pct}%</td>
                             </tr>
                           );
                         })}
                         {bnRows.length === 0 && (
-                          <tr><td colSpan={4} style={{ textAlign: 'center', padding: '14px 4px', color: '#475569', fontSize: '10px' }}>Không có dữ liệu Linehaul</td></tr>
+                          <tr><td colSpan={4} style={{ textAlign: 'center', padding: '3px 4px', color: '#475569', fontSize: '10px' }}>Không có dữ liệu Linehaul</td></tr>
                         )}
                       </tbody>
                     </table>
                   </div>
                 );
               })()}
-
-
-
-
-
-
-
-            </div>
-          )}
-
-          {/* Right Column: Control Center & Top 10 Racks (w-90, 15px gap, 10% rounded corners) */}
-          {currentView === 'master' && (
-            <div className="absolute z-40 top-16 right-6 w-90 flex flex-col gap-[15px] max-h-[calc(100vh-120px)] overflow-y-auto pr-2 pb-6 scrollbar-none">
-              {/* A. Control Center Panel (Chỉ hiển thị khi xem Sơ đồ Master, không hiển thị chồng lên Inbound Dashboard) */}
-              {currentView === 'master' && showControls && (
-                <div 
-                  className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-20 rounded-lg"
-                  style={{ borderRadius: '8px' }}
-                >
-                  {currentView === 'master' ? (
-                    <>
-                      <h3 className="font-outfit text-[13px] font-bold tracking-[0.08em] pb-2 mb-2.5 border-b border-white/[0.08] text-center" style={{ margin: 0, color: '#FFF4D6', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>CONTROL CENTER</h3>
-                      <div className="flex flex-col gap-[4px]">
-                        {/* 1. LOẠI (Type Selector) - Segmented Control */}
-                        <div className="flex bg-black/35 rounded-lg p-0.5 w-full">
-                          {(['Outbound', 'Backlog', 'Inventory'] as const).map(type => {
-                            const isActive = selectedType === type;
-                            const labelMap = { Outbound: 'Outbound', Backlog: 'Backlog', Inventory: 'Volume' };
-                            return (
-                              <button
-                                key={type}
-                                onClick={() => {
-                                  setSelectedType(type);
-                                  if (type === 'Inventory') {
-                                    setSelectedStatuses([...INVENTORY_STATUSES]);
-                                  }
-                                }}
-                                className={`flex-1 text-center py-1.5 rounded-md text-[11.5px] font-bold transition-all duration-200 relative z-10 ${
-                                  isActive
-                                    ? 'text-white bg-emerald-500/20 shadow-[0_2px_8px_rgba(16,185,129,0.25)]'
-                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                                }`}
-                              >
-                                {labelMap[type]}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {/* 2. TRẠNG THÁI (Status Selector) - CHIP style with checkmarks */}
-                        <div className={`grid grid-cols-2 gap-[2px] transition-all duration-300 ${
-                          selectedType !== 'Inventory' ? 'opacity-30 pointer-events-none select-none filter blur-[0.4px]' : 'opacity-100'
-                        }`}>
-                          <button
-                            onClick={toggleAllStatuses}
-                            className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11.5px] font-bold transition-all duration-200 ${
-                              selectedStatuses.length === INVENTORY_STATUSES.length
-                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-[0_4px_12px_rgba(0,0,0,0.3),_0_0_8px_rgba(16,185,129,0.15)] hover:translate-y-[-1px]'
-                                : 'bg-white/[0.04] border border-white/5 text-slate-400 hover:bg-white/[0.07] hover:text-white hover:translate-y-[-1px]'
-                            }`}
-                          >
-                            {selectedStatuses.length === INVENTORY_STATUSES.length && <i className="fa-solid fa-check text-[10px] text-emerald-400"></i>}
-                            <span>Total</span>
-                          </button>
-                          {INVENTORY_STATUSES.map(status => {
-                            const isChecked = selectedStatuses.includes(status);
-                            return (
-                              <button
-                                key={status}
-                                onClick={() => toggleStatus(status)}
-                                className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11.5px] font-bold transition-all duration-200 ${
-                                  isChecked
-                                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-[0_4px_12px_rgba(0,0,0,0.3),_0_0_8px_rgba(16,185,129,0.15)] hover:translate-y-[-1px]'
-                                    : 'bg-white/[0.04] border border-white/5 text-slate-400 hover:bg-white/[0.07] hover:text-white hover:translate-y-[-1px]'
-                                }`}
-                              >
-                                {isChecked && <i className="fa-solid fa-check text-[10px] text-emerald-400"></i>}
-                                <span>{status}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <h3 className="disp text-xs tracking-[0.14em] pb-3 mb-4 border-b border-[var(--line)] text-[#8B5CF6]">OPERATIONS DATE</h3>
-                      <div className="space-y-4">
-                        {/* Operating Date Selector for Inbound */}
-                        <div className="space-y-2">
-                          <div className="mono text-[9.5px] tracking-[0.1em] text-slate-400">NGÀY VẬN HÀNH</div>
-                          <div className="flex gap-1.5 overflow-x-auto py-1 scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                            {(() => {
-                              const inboundDates = Array.from(
-                                new Set([
-                                  ...inboundData.map(d => d['Ngày vận hành_Inbound']),
-                                  ...inboundData.map(d => d['Ngày vận hành_Forecast']),
-                                  ...inboundData.map(d => d['Ngày vận hành_Pickup'])
-                                ].filter(Boolean))
-                              ) as string[];
-                              inboundDates.sort((a, b) => b.localeCompare(a));
-                              const activeDate = selectedInboundDate || inboundDates[0] || '';
-                              return inboundDates.slice(0, 7).map(d => {
-                                const isActive = activeDate === d;
-                                return (
-                                  <button
-                                    key={d}
-                                    onClick={() => handleInboundDateChange(d)}
-                                    className={`px-3 py-1.5 rounded-full text-[10.5px] font-bold border transition-all duration-250 shrink-0 ${
-                                      isActive
-                                        ? 'bg-[#2d2440]/60 border-[#8B5CF6] text-[#c084fc] shadow-[0_0_8px_rgba(139,92,246,0.15)]'
-                                        : 'bg-[#101622]/40 border-white/5 text-slate-400 hover:border-slate-700/80 hover:text-slate-200'
-                                    }`}
-                                  >
-                                    {d}
-                                  </button>
-                                );
-                              });
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* B. TOP 10 RACKS - Moved to Right Column below */}
             </div>
           )}
 
           {/* Right Column: TOP 10 BƯU CỤC (Dedicated Right Side Panel w-96) */}
           {currentView === 'master' && showTop10 && (
             <div 
-              className="absolute z-20 top-[104px] right-6 w-96 flex flex-col gap-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-1 pb-6 scrollbar-thin transition-all duration-200"
+              className="absolute z-20 top-[104px] right-6 w-96 flex flex-col gap-1 max-h-[calc(100vh-200px)] overflow-y-auto pr-1 pb-6 scrollbar-thin transition-all duration-200"
             >
               <div 
-                className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-10 animate-fade-in rounded-xl border border-white/10 bg-[#0b1019]/90 backdrop-blur-xl"
+                className="jt-glowing-card shadow-2xl p-1 shrink-0 relative z-10 animate-fade-in rounded-xl border border-white/10 bg-[#0b1019]/90 backdrop-blur-xl"
               >
                 {/* Header Title */}
-                <div className="flex justify-between items-center mb-3 pb-2.5 border-b border-white/[0.08]">
-                  <h3 className="font-outfit text-[12px] font-bold tracking-[0.08em]" style={{ margin: 0, color: '#FFF4D6', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
+                <div className="flex justify-center items-center mb-1 pb-1 border-b border-white/[0.08] text-center w-full">
+                  <h3 className="font-outfit text-[12px] font-bold tracking-[0.08em] text-center w-full" style={{ margin: 0, color: '#FFF4D6', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
                     {selectedType === 'Outbound' ? 'DỰ KIẾN SẢN LƯỢNG BƯU CỤC TOP 10' : 'DỰ KIẾN TỒN KHO BƯU CỤC TOP 10'}
                   </h3>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#00e5ff]/10 text-[#00e5ff] border border-[#00e5ff]/30">
-                    REALTIME
-                  </span>
                 </div>
 
                 <div className="table-wrapper" style={{ maxHeight: '380px', overflowY: 'auto' }}>
                   <table className="jt-grid-table w-full">
                     <thead>
                       <tr style={{ position: 'sticky', top: 0, zIndex: 10, background: '#09111c' }}>
-                        <th style={{ width: '28px', textAlign: 'center' }}>#</th>
-                        <th style={{ width: '48px', textAlign: 'center' }}>MÃ</th>
-                        <th style={{ textAlign: 'left' }}>BƯU CỤC</th>
-                        <th style={{ textAlign: 'center', width: '55px' }}>{selectedType === 'Outbound' ? 'XUẤT' : 'TỒN'}</th>
-                        <th style={{ textAlign: 'center', width: '75px' }}>T.LƯỢNG</th>
-                        <th style={{ textAlign: 'center', width: '65px' }}>% VOL</th>
+                        <th style={{ width: '28px', textAlign: 'center', padding: '3px 4px' }}>#</th>
+                        <th style={{ width: '48px', textAlign: 'center', padding: '3px 4px' }}>MÃ</th>
+                        <th style={{ textAlign: 'center', padding: '3px 4px' }}>BƯU CỤC</th>
+                        <th style={{ textAlign: 'center', width: '55px', padding: '3px 4px' }}>{selectedType === 'Outbound' ? 'XUẤT' : 'TỒN'}</th>
+                        <th style={{ textAlign: 'center', width: '75px', padding: '3px 4px' }}>T.LƯỢNG</th>
+                        <th style={{ textAlign: 'center', width: '65px', padding: '3px 4px' }}>% VOL</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2337,16 +2204,16 @@ export default function App() {
                                 setHoveredRack(null);
                                 setHoveredZone(null);
                               }}>
-                            <td className="font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.2)' }}>{index + 1}</td>
-                            <td className="mono font-bold text-center" style={{ color: '#22d3ee', fontSize: '11.5px', textShadow: '0 0 8px rgba(34, 211, 238, 0.5)' }}>{chute.areaId}</td>
-                            <td className="font-bold uppercase" style={{ color: '#22d3ee', fontSize: '11px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2', textShadow: '0 0 8px rgba(34, 211, 238, 0.3)' }} title={chute.name}>
+                            <td className="font-bold text-center text-white" style={{ fontSize: '11px', padding: '3px 4px', textShadow: '0 0 6px rgba(255, 255, 255, 0.2)' }}>{index + 1}</td>
+                            <td className="mono font-bold text-center" style={{ color: '#22d3ee', fontSize: '11.5px', padding: '3px 4px', textShadow: '0 0 8px rgba(34, 211, 238, 0.5)' }}>{chute.areaId}</td>
+                            <td className="font-bold uppercase text-center" style={{ color: '#22d3ee', fontSize: '11px', padding: '3px 4px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2', textShadow: '0 0 8px rgba(34, 211, 238, 0.3)' }} title={chute.name}>
                               {chute.name}
                             </td>
-                            <td className="mono font-bold text-center" style={{ color: '#B8F7E4', fontSize: '12px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
-                            <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>
+                            <td className="mono font-bold text-center" style={{ color: '#B8F7E4', fontSize: '12px', padding: '3px 4px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
+                            <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', padding: '3px 4px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>
                               {(chute.weight > 0 && chute.weight < 0.1) ? chute.weight.toFixed(3) : chute.weight.toFixed(1)} Tấn
                             </td>
-                            <td className="mono font-bold text-center" style={{ color: UTILCOL[chute.bucket], fontSize: '11.5px', textShadow: chute.bucket === 'darkred' || chute.bucket === 'red' ? '0 0 8px rgba(239,68,68,0.6)' : '0 0 8px rgba(16,185,129,0.5)' }}>{chute.utilization}%</td>
+                            <td className="mono font-bold text-center" style={{ color: UTILCOL[chute.bucket], fontSize: '11.5px', padding: '3px 4px', textShadow: chute.bucket === 'darkred' || chute.bucket === 'red' ? '0 0 8px rgba(239,68,68,0.6)' : '0 0 8px rgba(16,185,129,0.5)' }}>{chute.utilization}%</td>
                           </tr>
                         );
                       })}
@@ -2360,7 +2227,7 @@ export default function App() {
           {/* Floating Legend */}
           {currentView === 'master' && (
             <div 
-              className="absolute bottom-16 z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-2 px-3 backdrop-blur-md shadow-lg transition-all duration-200"
+              className="absolute bottom-16 z-20 flex gap-3 mono text-[10px] text-[var(--muted)] bg-[var(--panel)] border border-[var(--line)] rounded-lg py-1.5 px-3 backdrop-blur-md shadow-lg transition-all duration-200"
               style={{ left: sidebarHovered ? '176px' : '64px' }}
             >
               {[['#0c883d','Ô chứa'],['var(--orange)','Cổng Outbound'],
@@ -2375,14 +2242,14 @@ export default function App() {
 
           {/* Aligned bottom right buttons */}
           {currentView === 'master' && (
-            <div className="absolute bottom-16 right-6 z-20 flex gap-3 w-[300px] justify-between" >
+            <div className="absolute bottom-16 right-6 z-20 flex gap-1 w-[300px] justify-between" style={{ padding: '3px' }}>
               {currentView === 'master' ? (
                 <button onClick={handleResetZoom}
-                        className="flex-1 font-sans font-bold text-[10.5px] uppercase py-2.5 px-4 rounded-md border border-white/20 bg-[var(--panel)] text-[var(--muted)] cursor-pointer hover:bg-white/10 hover:text-white transition-all shadow-lg text-center">
-                  THU NHỎ / RESET
+                        className="flex-1 font-sans font-bold text-[10.5px] uppercase py-2 px-3 rounded-md border border-white/20 bg-[var(--panel)] text-[var(--muted)] cursor-pointer hover:bg-white/10 hover:text-white transition-all shadow-lg text-center">
+                  RESET ZOOM
                 </button>
               ) : (
-                <div className="flex-1 p-2 border border-white/5 rounded-md bg-[#101622]/30 text-center flex items-center justify-center">
+                <div className="flex-1 p-1 border border-white/5 rounded-md bg-[#101622]/30 text-center flex items-center justify-center">
                   <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Inbound Panel</span>
                 </div>
               )}
@@ -2397,7 +2264,7 @@ export default function App() {
           {/* Center Content: Switch between Layout Master and Inbound */}
           <div 
             className={currentView === 'master'
-              ? 'absolute top-16 bottom-20 flex items-center justify-center transition-all duration-200'
+              ? 'absolute top-16 bottom-20 flex items-center justify-center m-auto transition-all duration-200'
               : 'absolute inset-0 pt-16 pb-6 overflow-y-auto scrollbar-thin transition-all duration-200 flex flex-col items-center'
             }
             style={!isMobile ? (
@@ -2462,118 +2329,6 @@ export default function App() {
       ) : ( 
         /* ── MOBILE LAYOUT ── */
         <>
-          <div className="w-full h-full pt-3 pb-24 px-3 sm:px-4 overflow-y-auto flex flex-col space-y-5 max-w-7xl mx-auto">
-            {activeTab === 'layout' && (
-              <div className="w-full flex flex-col space-y-5 relative">
-                {/* 🎯 Ultra-Premium Mobile Top Control Bar (High-Tech Glassmorphism) */}
-                <div className="w-full flex flex-col gap-3 p-3.5 bg-[#0b1019]/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)] sticky top-0 z-30">
-                  <div className="flex gap-3 items-center">
-                    <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)}
-                            className="flex-1 bg-[#121824] text-white text-[12px] font-bold py-2 px-3 rounded-xl border border-white/10 outline-none cursor-pointer">
-                      <option value="Outbound">Outbound</option>
-                      <option value="Backlog">Backlog</option>
-                      <option value="Inventory">Volume</option>
-                    </select>
-
-                    <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
-                            className="flex-1 bg-[#121824] text-white text-[12px] font-bold py-2 px-3 rounded-xl border border-white/10 outline-none cursor-pointer">
-                      {availableDates.length > 0
-                        ? availableDates.map(d => <option key={d} value={d}>{d}</option>)
-                        : <option value="">Chưa có dữ liệu</option>}
-                    </select>
-
-                    <button onClick={fetchAndUpdateData} disabled={loading}
-                            className="google-sync-btn px-3.5 py-2 text-[10.5px] gap-1.5 shrink-0">
-                      <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
-                      {loading ? '...' : 'Sync'}
-                    </button>
-                  </div>
-
-                  {/* Inventory Status Chips - Flow naturally without overlapping */}
-                  {selectedType === 'Inventory' && (
-                    <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none"
-                         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                      <button onClick={toggleAllStatuses}
-                        className={`px-3 py-1.5 rounded-full border text-[11px] font-semibold transition-all duration-200 shrink-0 ${
-                          selectedStatuses.length === INVENTORY_STATUSES.length
-                            ? 'bg-yellow-500/15 border-yellow-500/50 text-yellow-400 font-bold shadow-[0_0_10px_rgba(245,158,11,0.2)]'
-                            : 'bg-[#121824]/60 border-white/10 text-slate-400'
-                        }`}>Tất cả</button>
-                      {INVENTORY_STATUSES.map(status => {
-                        const isChecked = selectedStatuses.includes(status);
-                        return (
-                          <button key={status} onClick={() => toggleStatus(status)}
-                            className={`px-3 py-1.5 rounded-full border text-[11px] font-semibold transition-all duration-200 shrink-0 ${
-                              isChecked
-                                ? 'bg-yellow-500/15 border-yellow-500/50 text-yellow-400 font-bold shadow-[0_0_10px_rgba(245,158,11,0.2)]'
-                                : 'bg-[#121824]/60 border-white/10 text-slate-400'
-                            }`}>{status}</button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                {/* 🎯 Mobile Telemetry Cards: METRICS & DỰ KIẾN SL LINEHAUL (Matching Inbound Dashboard spacing & glassmorphism) */}
-                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-full">
-                  {/* Card 1: METRICS */}
-                  <div className="jt-glowing-card p-4 shadow-2xl rounded-2xl w-full border border-white/10 bg-[#0b1019]/90 backdrop-blur-xl flex flex-col justify-between space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-white/10">
-                      <span className="font-extrabold text-[11px] tracking-[0.14em] uppercase text-[#FFF4D6]" style={{ fontFamily: "'Inter', sans-serif" }}>
-                        📊 METRICS
-                      </span>
-                      <span className="text-[10px] font-bold text-[#B8F7E4] bg-[#B8F7E4]/10 px-2 py-0.5 rounded-full border border-[#B8F7E4]/30">
-                        REALTIME
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center text-[12px] bg-white/[0.03] p-2.5 rounded-xl border border-white/5">
-                        <span className="text-slate-300 font-semibold">Tổng đơn hàng</span>
-                        <span className="mono font-bold text-sm text-[#B8F7E4] ml-2">{totalOrders.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">Đơn</span></span>
-                      </div>
-                      <div className="flex justify-between items-center text-[12px] bg-white/[0.03] p-2.5 rounded-xl border border-white/5">
-                        <span className="text-slate-300 font-semibold">Tổng trọng lượng</span>
-                        <span className="mono font-bold text-sm text-[#B8F7E4] ml-2">{totalWeight.toFixed(1).replace('.', ',')} <span className="text-[10px] text-slate-400 font-normal">Tấn</span></span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card 2: DỰ KIẾN SL LINEHAUL */}
-                  {(() => {
-                    const linehaulOrders = microKpiSummary?.linehaul ?? (data['A06']?.current ?? 0);
-                    const linehaulWeight = microKpiSummary?.linehaul_weight ?? (data['A06']?.weight ?? 0);
-                    const fcTotal = microKpiSummary?.forecast_total && microKpiSummary.forecast_total > 0
-                      ? microKpiSummary.forecast_total
-                      : (totalOrders > 0 ? totalOrders : 1);
-                    const pct = ((linehaulOrders / fcTotal) * 100).toFixed(1);
-
-                    return (
-                      <div className="jt-glowing-card p-4 shadow-2xl rounded-2xl w-full border border-orange-500/30 bg-[#0b1019]/90 backdrop-blur-xl flex flex-col justify-between space-y-3">
-                        <div className="flex justify-between items-center pb-2 border-b border-white/10 gap-2">
-                          <span className="text-[11px] font-extrabold uppercase text-[#f97316] truncate">🔸 Dự kiến SL LINEHAUL</span>
-                          <span className="text-[10px] font-extrabold text-[#22d3ee] bg-[#22d3ee]/10 px-2 py-0.5 rounded-full border border-[#22d3ee]/30 shrink-0">
-                            {linehaulOrders.toLocaleString()} Đơn
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                          <div className="bg-white/[0.04] p-2 rounded-xl border border-white/5">
-                            <div className="text-slate-400 text-[9px] font-bold">HUB</div>
-                            <div className="font-extrabold text-white text-[11px] truncate mt-0.5">BN HUB</div>
-                          </div>
-                          <div className="bg-white/[0.04] p-2 rounded-xl border border-white/5">
-                            <div className="text-slate-400 text-[9px] font-bold">T.LƯỢNG</div>
-                            <div className="font-extrabold text-[#818cf8] text-[11px] truncate mt-0.5">{linehaulWeight.toFixed(1)}T</div>
-                          </div>
-                          <div className="bg-white/[0.04] p-2 rounded-xl border border-white/5">
-                            <div className="text-slate-400 text-[9px] font-bold">% VOL</div>
-                            <div className="font-extrabold text-[#34d399] text-[11px] truncate mt-0.5">{pct}%</div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-
                 {/* SVG Map Container (Dynamic Height & Zero Overlap) */}
                 <div className="relative w-full h-[55vh] min-h-[440px] bg-[#02040a] rounded-2xl overflow-hidden border border-white/10 shadow-2xl my-1">
                   {/* Floating Zoom controls (Top-Right) */}
@@ -2945,3 +2700,4 @@ export default function App() {
   );
 }
 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             
