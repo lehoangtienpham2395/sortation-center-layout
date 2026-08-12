@@ -1186,7 +1186,7 @@ def sync_postgre_to_dashboard():
         else:
             ref_date = op_date_fc or today
 
-        if ref_date in (today, yesterday) and (not has_out or (has_in and not outb_t)):
+        if ref_date <= today and (not has_out or (has_in and not outb_t)):
             in_status = ('Inbound'      if (has_in or is_reb or inb_t) else
                          'Transporting' if (has_arr or arr_t or transp_t) else
                          'Pickup Done'  if (has_pick or pk_t) else 'Created')
