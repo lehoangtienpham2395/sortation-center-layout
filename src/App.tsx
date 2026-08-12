@@ -477,7 +477,7 @@ export default function App() {
   const [showControls, setShowControls] = useState(true);
   const [showTop10, setShowTop10] = useState(true);
   const [activeTab, setActiveTab] = useState<'layout' | 'inbound' | 'top10' | 'stats' | 'heatmap' | 'kpi'>('inbound');
-  const [bottomSheetOpen, setBottomSheetOpen] = useState(false);
+  const [, setBottomSheetOpen] = useState(false);
   const [data,       setData]       = useState<any>(generateEmptyData());
   const [utilTotal,  setUtilTotal]  = useState('0.0');
   const [free,       setFree]       = useState(0);
@@ -1233,7 +1233,7 @@ export default function App() {
 
   const renderSVG = () => {
     return (
-      <svg viewBox="0 0 1100 660" className="w-full h-full max-h-[75vh] md:max-h-[85vh] drop-shadow-2xl select-none"
+      <svg viewBox="-65 -25 1100 640" className="w-full h-full max-h-[75vh] md:max-h-[85vh] drop-shadow-2xl select-none"
              onWheel={handleWheel}
              onMouseDown={handleMouseDown}
              onMouseMove={handleMouseMove}
@@ -1262,7 +1262,7 @@ export default function App() {
               <path d="M 2 2.5 L 7.5 5 L 2 7.5 z" fill="rgba(96,165,250,0.85)"/>
             </marker>
           </defs>
-          <g transform={`translate(${translateX}, ${translateY}) scale(${scale})`} style={{ transformOrigin: '550px 330px' }}>
+          <g transform={`translate(${translateX}, ${translateY}) scale(${scale})`} style={{ transformOrigin: '485px 292.5px' }}>
 
           <rect x={WL} y={WT} width={WR-WL} height={WB-WT}
                 rx="5" fill="#0c111e" fillOpacity="0.45" stroke="#1f2d4d" strokeWidth="2"/>
@@ -1754,14 +1754,29 @@ export default function App() {
             ))}
           </g>
 
-          {/* ── Gate A18 arrow (entry to NS path) ── */}
+          {/* 🎯 Gate A18 arrow (entry to NS path) */}
           <path d={`M${NS_X+NS_W/2},${DOCK_Y+DOCK_H-8} L${NS_X+NS_W/2},${WB-4}`}
                 fill="none" stroke="rgba(96,165,250,0.6)" strokeWidth="1.5"
                 strokeDasharray="3 2" markerEnd="url(#arrow-blue)"/>
           <text x={NS_X-2} y={WB+25} fill="rgba(96,165,250,0.75)"
                 className="mono text-[5px] font-bold">VÀO ĐƯỜNG ĐI (A18)</text>
 
-          
+          {/* 🎯 Floating Info Card Overlay when hovering any chute cell */}
+          {hoveredRack && (
+            <g transform="translate(70, 475)" pointerEvents="none">
+              <rect x="0" y="0" width="285" height="66" rx="6" fill="#0b1019" fillOpacity="0.95" stroke="#00e5ff" strokeWidth="1.2" style={{ filter: 'drop-shadow(0 4px 14px rgba(0,0,0,0.85))' }} />
+              <text x="12" y="20" fill="#00e5ff" className="disp font-extrabold text-[10px] tracking-wider">
+                Ô CHỨA: {hoveredRack.areaId} — {hoveredRack.name}
+              </text>
+              <text x="12" y="38" fill="#ffffff" className="mono font-bold text-[9px]">
+                Sản lượng: {hoveredRack.current?.toLocaleString()} / {hoveredRack.capacity} Đơn
+              </text>
+              <text x="12" y="54" fill="#cbd5e1" className="mono font-semibold text-[8.5px]">
+                T.Lượng: {((hoveredRack.weight || 0) > 0 && (hoveredRack.weight || 0) < 0.1) ? (hoveredRack.weight || 0).toFixed(3).replace('.', ',') : (hoveredRack.weight || 0).toFixed(1).replace('.', ',')} Tấn  |  Lấp đầy: <tspan fill={UTILCOL[hoveredRack.bucket] || '#fff'} fontWeight="bold">{hoveredRack.utilization}%</tspan>
+              </text>
+            </g>
+          )}
+
           </g>
         </svg>
     );
@@ -2119,7 +2134,7 @@ export default function App() {
                       <span style={{ fontSize: '11px', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', color: C_HEADER, fontFamily: "'Inter',sans-serif", textShadow: `0 0 10px ${C_HEADER}60` }}>
                         DỰ KIẾN SL LINEHAUL
                       </span>
-                      <span style={{ fontSize: '10px', fontWeight: 700, color: C_BADGE, background: `${C_BADGE}18`, border: `1px solid ${C_BADGE}45`, borderRadius: '10px', padding: '2px 8px' }}>
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: C_BADGE, background: `${C_BADGE}18`, border: `1px solid ${C_BADGE}45`, borderRadius: '12px', padding: '3px 10px' }}>
                         {totOrders.toLocaleString()} Đơn
                       </span>
                     </div>
@@ -2170,25 +2185,26 @@ export default function App() {
               className="absolute z-20 top-[104px] right-6 w-96 flex flex-col gap-1 max-h-[calc(100vh-200px)] overflow-y-auto pr-1 pb-6 scrollbar-thin transition-all duration-200"
             >
               <div 
-                className="jt-glowing-card shadow-2xl p-1 shrink-0 relative z-10 animate-fade-in rounded-xl border border-white/10 bg-[#0b1019]/90 backdrop-blur-xl"
+                className="jt-glowing-card shadow-2xl p-2 shrink-0 relative z-10 animate-fade-in rounded-xl border border-white/10 bg-[#0b1019]/90 backdrop-blur-xl"
               >
                 {/* Header Title */}
-                <div className="flex justify-center items-center mb-1 pb-1 border-b border-white/[0.08] text-center w-full">
-                  <h3 className="font-outfit text-[12px] font-bold tracking-[0.08em] text-center w-full" style={{ margin: 0, color: '#FFF4D6', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
-                    {selectedType === 'Outbound' ? 'DỰ KIẾN SẢN LƯỢNG BƯU CỤC TOP 10' : 'DỰ KIẾN TỒN KHO BƯU CỤC TOP 10'}
+                <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-white/[0.08] px-1 w-full gap-2">
+                  <h3 className="font-outfit text-[11.5px] font-bold tracking-[0.05em] text-left truncate" style={{ margin: 0, color: '#FFF4D6', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
+                    {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
                   </h3>
+                  <span className="badge-count sky shrink-0" style={{ fontSize: '9.5px', padding: '2px 6px' }}>Top 10</span>
                 </div>
 
-                <div className="table-wrapper" style={{ maxHeight: '380px', overflowY: 'auto' }}>
+                <div className="table-wrapper rounded-lg overflow-x-auto" style={{ maxHeight: '380px', overflowY: 'auto' }}>
                   <table className="jt-grid-table w-full">
                     <thead>
                       <tr style={{ position: 'sticky', top: 0, zIndex: 10, background: '#09111c' }}>
-                        <th style={{ width: '28px', textAlign: 'center', padding: '3px 4px' }}>#</th>
-                        <th style={{ width: '48px', textAlign: 'center', padding: '3px 4px' }}>MÃ</th>
-                        <th style={{ textAlign: 'center', padding: '3px 4px' }}>BƯU CỤC</th>
-                        <th style={{ textAlign: 'center', width: '55px', padding: '3px 4px' }}>{selectedType === 'Outbound' ? 'XUẤT' : 'TỒN'}</th>
-                        <th style={{ textAlign: 'center', width: '75px', padding: '3px 4px' }}>T.LƯỢNG</th>
-                        <th style={{ textAlign: 'center', width: '65px', padding: '3px 4px' }}>% VOL</th>
+                        <th style={{ width: '28px', textAlign: 'center', padding: '4px 4px' }}>#</th>
+                        <th style={{ width: '48px', textAlign: 'center', padding: '4px 4px' }}>MÃ</th>
+                        <th style={{ textAlign: 'left', padding: '4px 6px' }}>BƯU CỤC</th>
+                        <th style={{ textAlign: 'right', width: '55px', padding: '4px 6px' }}>{selectedType === 'Outbound' ? 'XUẤT' : 'TỒN'}</th>
+                        <th style={{ textAlign: 'right', width: '70px', padding: '4px 6px' }}>T.LƯỢNG</th>
+                        <th style={{ textAlign: 'right', width: '60px', padding: '4px 6px' }}>% VOL</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2204,16 +2220,16 @@ export default function App() {
                                 setHoveredRack(null);
                                 setHoveredZone(null);
                               }}>
-                            <td className="font-bold text-center text-white" style={{ fontSize: '11px', padding: '3px 4px', textShadow: '0 0 6px rgba(255, 255, 255, 0.2)' }}>{index + 1}</td>
-                            <td className="mono font-bold text-center" style={{ color: '#22d3ee', fontSize: '11.5px', padding: '3px 4px', textShadow: '0 0 8px rgba(34, 211, 238, 0.5)' }}>{chute.areaId}</td>
-                            <td className="font-bold uppercase text-center" style={{ color: '#22d3ee', fontSize: '11px', padding: '3px 4px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2', textShadow: '0 0 8px rgba(34, 211, 238, 0.3)' }} title={chute.name}>
+                            <td className="font-bold text-center text-white" style={{ fontSize: '11px', padding: '4px 4px', textShadow: '0 0 6px rgba(255, 255, 255, 0.2)' }}>{index + 1}</td>
+                            <td className="mono font-bold text-center" style={{ color: '#22d3ee', fontSize: '11.5px', padding: '4px 4px', textShadow: '0 0 8px rgba(34, 211, 238, 0.5)' }}>{chute.areaId}</td>
+                            <td className="font-bold uppercase text-left" style={{ color: '#22d3ee', fontSize: '11px', padding: '4px 6px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2', textShadow: '0 0 8px rgba(34, 211, 238, 0.3)' }} title={chute.name}>
                               {chute.name}
                             </td>
-                            <td className="mono font-bold text-center" style={{ color: '#B8F7E4', fontSize: '12px', padding: '3px 4px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
-                            <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', padding: '3px 4px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>
+                            <td className="mono font-bold text-right" style={{ color: '#B8F7E4', fontSize: '12px', padding: '4px 6px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
+                            <td className="mono font-bold text-right text-white" style={{ fontSize: '11px', padding: '4px 6px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>
                               {(chute.weight > 0 && chute.weight < 0.1) ? chute.weight.toFixed(3) : chute.weight.toFixed(1)} Tấn
                             </td>
-                            <td className="mono font-bold text-center" style={{ color: UTILCOL[chute.bucket], fontSize: '11.5px', padding: '3px 4px', textShadow: chute.bucket === 'darkred' || chute.bucket === 'red' ? '0 0 8px rgba(239,68,68,0.6)' : '0 0 8px rgba(16,185,129,0.5)' }}>{chute.utilization}%</td>
+                            <td className="mono font-bold text-right" style={{ color: UTILCOL[chute.bucket], fontSize: '11.5px', padding: '4px 6px', textShadow: chute.bucket === 'darkred' || chute.bucket === 'red' ? '0 0 8px rgba(239,68,68,0.6)' : '0 0 8px rgba(16,185,129,0.5)' }}>{chute.utilization}%</td>
                           </tr>
                         );
                       })}
@@ -2329,75 +2345,196 @@ export default function App() {
       ) : ( 
         /* ── MOBILE LAYOUT ── */
         <>
+          <div className="w-full h-full pt-1 pb-20 overflow-y-auto flex flex-col" style={{ padding: '5px', gap: '5px' }}>
+            {activeTab === 'layout' && (
+              <div className="w-full flex flex-col relative" style={{ gap: '5px' }}>
+                {/* 🎯 Mobile Top Control Bar */}
+                <div className="w-full flex flex-col bg-[#0b1019]/95 backdrop-blur-xl rounded-xl border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)] sticky top-0 z-30" style={{ padding: '8px 10px', gap: '8px' }}>
+                  <div className="flex items-center gap-2">
+                    <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)}
+                            className="bg-[#121824] text-white text-[11px] font-bold rounded-lg border border-white/15 outline-none cursor-pointer shrink-0"
+                            style={{ width: '105px', padding: '6px 8px' }}>
+                      <option value="Outbound">Outbound</option>
+                      <option value="Backlog">Backlog</option>
+                      <option value="Inventory">Volume</option>
+                    </select>
+
+                    <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+                            className="bg-[#121824] text-white text-[11px] font-bold rounded-lg border border-white/15 outline-none cursor-pointer shrink-0"
+                            style={{ width: '120px', padding: '6px 8px' }}>
+                      {availableDates.length > 0
+                        ? availableDates.map(d => <option key={d} value={d}>{d}</option>)
+                        : <option value="">Chưa có dữ liệu</option>}
+                    </select>
+
+                    <button onClick={fetchAndUpdateData} disabled={loading}
+                            className="google-sync-btn shrink-0 font-bold"
+                            style={{ padding: '5px 14px', fontSize: '10px', height: '31px', gap: '6px' }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
+                      {loading ? '...' : 'Sync'}
+                    </button>
+                  </div>
+
+                  {selectedType === 'Inventory' && (
+                    <div className="flex items-center gap-2 overflow-x-auto pt-1.5 pb-1 scrollbar-none border-t border-white/10"
+                         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                      <button onClick={toggleAllStatuses}
+                        style={{ padding: '5px 14px', fontSize: '11px', lineHeight: '1.2' }}
+                        className={`rounded-full border font-bold transition-all duration-200 shrink-0 ${
+                          selectedStatuses.length === INVENTORY_STATUSES.length
+                            ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.35)]'
+                            : 'bg-[#121824]/80 border-white/15 text-slate-400 hover:text-slate-200'
+                        }`}>Tất cả</button>
+                      {INVENTORY_STATUSES.map(status => {
+                        const isChecked = selectedStatuses.includes(status);
+                        return (
+                          <button key={status} onClick={() => toggleStatus(status)}
+                            style={{ padding: '5px 14px', fontSize: '11px', lineHeight: '1.2' }}
+                            className={`rounded-full border font-bold transition-all duration-200 shrink-0 ${
+                              isChecked
+                                ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.35)]'
+                                : 'bg-[#121824]/80 border-white/15 text-slate-400 hover:text-slate-200'
+                            }`}>{status}</button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* 🎯 Mobile Telemetry Cards: METRICS & DỰ KIẾN SL LINEHAUL */}
+                <div className="w-full grid grid-cols-1 sm:grid-cols-2 max-w-full overflow-hidden" style={{ gap: '5px' }}>
+                  {/* Card 1: METRICS */}
+                  <div className="jt-glowing-card shadow-lg rounded-xl w-full max-w-full overflow-hidden" style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.04)' }}>
+                    <div className="font-extrabold text-[10px] tracking-[0.14em] text-center uppercase text-[#FFF4D6]" style={{ fontFamily: "'Inter', sans-serif", marginBottom: '6px' }}>
+                      METRICS
+                    </div>
+                    <div className="flex justify-between items-center text-[11px] border-b border-white/5" style={{ padding: '5px 0', marginBottom: '2px' }}>
+                      <span className="text-slate-300 font-semibold truncate">Tổng đơn hàng</span>
+                      <span className="mono font-bold text-xs text-[#B8F7E4] shrink-0 ml-2">{totalOrders.toLocaleString()} <span className="text-[9px] text-slate-400 font-normal">Đơn</span></span>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px]" style={{ padding: '5px 0' }}>
+                      <span className="text-slate-300 font-semibold truncate">Tổng trọng lượng</span>
+                      <span className="mono font-bold text-xs text-[#B8F7E4] shrink-0 ml-2">{totalWeight.toFixed(1).replace('.', ',')} <span className="text-[9px] text-slate-400 font-normal">Tấn</span></span>
+                    </div>
+                  </div>
+
+                  {/* Card 2: DỰ KIẾN SL LINEHAUL */}
+                  {(() => {
+                    const linehaulOrders = microKpiSummary?.linehaul ?? (data['A06']?.current ?? 0);
+                    const linehaulWeight = microKpiSummary?.linehaul_weight ?? (data['A06']?.weight ?? 0);
+                    const fcTotal = microKpiSummary?.forecast_total && microKpiSummary.forecast_total > 0
+                      ? microKpiSummary.forecast_total
+                      : (totalOrders > 0 ? totalOrders : 1);
+                    const pct = ((linehaulOrders / fcTotal) * 100).toFixed(1);
+
+                    return (
+                      <div className="jt-glowing-card shadow-lg rounded-xl w-full max-w-full overflow-hidden" style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.04)', borderTop: '1px solid rgba(249,115,22,0.3)' }}>
+                        <div className="flex justify-between items-center border-b border-white/5 gap-1" style={{ paddingBottom: '6px', marginBottom: '6px' }}>
+                          <span className="text-[10px] font-extrabold uppercase text-[#f97316] truncate">🔸 Dự kiến SL LINEHAUL</span>
+                          <span className="text-[9.5px] font-extrabold text-[#22d3ee] bg-[#22d3ee]/10 rounded-full border border-[#22d3ee]/40 shrink-0" style={{ padding: '3px 10px' }}>
+                            {linehaulOrders.toLocaleString()} Đơn
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-4 text-center" style={{ gap: '4px' }}>
+                          <div className="bg-white/5 rounded-md overflow-hidden" style={{ padding: '5px 2px' }}>
+                            <div className="text-slate-400 text-[8px] font-bold uppercase">HUB</div>
+                            <div className="font-extrabold text-white text-[9.5px] truncate">BN HUB</div>
+                          </div>
+                          <div className="bg-white/5 rounded-md overflow-hidden" style={{ padding: '5px 2px' }}>
+                            <div className="text-slate-400 text-[8px] font-bold uppercase">SỐ ĐƠN</div>
+                            <div className="font-extrabold text-[#fbbf24] text-[9.5px] truncate">{linehaulOrders.toLocaleString()}</div>
+                          </div>
+                          <div className="bg-white/5 rounded-md overflow-hidden" style={{ padding: '5px 2px' }}>
+                            <div className="text-slate-400 text-[8px] font-bold uppercase">T.LƯỢNG</div>
+                            <div className="font-extrabold text-[#818cf8] text-[9.5px] truncate">{linehaulWeight.toFixed(1)}T</div>
+                          </div>
+                          <div className="bg-white/5 rounded-md overflow-hidden" style={{ padding: '5px 2px' }}>
+                            <div className="text-slate-400 text-[8px] font-bold uppercase">% VOL</div>
+                            <div className="font-extrabold text-[#34d399] text-[9.5px] truncate">{pct}%</div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
                 {/* SVG Map Container (Dynamic Height & Zero Overlap) */}
-                <div className="relative w-full h-[55vh] min-h-[440px] bg-[#02040a] rounded-2xl overflow-hidden border border-white/10 shadow-2xl my-1">
+                <div className="relative w-full h-[55vh] min-h-[440px] bg-[#02040a] rounded-xl overflow-hidden border border-white/10 shadow-2xl" style={{ marginTop: '5px', marginBottom: '5px' }}>
                   {/* Floating Zoom controls (Top-Right) */}
                   <div className="mobile-fab-container">
                     <button className="mobile-fab text-base font-bold" onClick={handleZoomIn} title="Phóng to">＋</button>
                     <button className="mobile-fab text-base font-bold" onClick={handleZoomOut} title="Thu nhỏ">－</button>
-                    <button className="mobile-fab text-sm" onClick={handleResetZoom} title="Mặc định">🔄</button>
+                    <button className="mobile-fab text-base font-bold" onClick={handleResetZoom} title="Mặc định">↺</button>
                   </div>
 
                   {renderSVG()}
                 </div>
 
-                {/* Mobile Chute Details Card (Structured inline card below map with proper spacing) */}
-                {isMobile && bottomSheetOpen && hoveredRack && (
-                  <div className="w-full p-4 bg-[#0b1019]/95 backdrop-blur-xl rounded-2xl border border-[#00e5ff]/40 shadow-[0_10px_30px_rgba(0,0,0,0.6)] space-y-3 transition-all duration-300">
-                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
-                      <h4 className="disp text-[11px] tracking-[0.14em] text-[#00e5ff] uppercase font-bold flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-[#00e5ff] animate-ping" />
-                        Chi tiết ô chứa: {hoveredRack.areaId}
-                      </h4>
-                      <button className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-bold flex items-center justify-center transition-colors"
-                              onClick={() => { setBottomSheetOpen(false); setHoveredRack(null); }}>✕</button>
+                {/* Mobile Chute Details Card (Always present below SVG map) */}
+                <div className="w-full bg-[#0b1019]/95 backdrop-blur-xl rounded-xl border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition-all duration-300 overflow-hidden" style={{ padding: '10px 12px' }}>
+                  {hoveredRack ? (
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                        <h4 className="disp text-[11px] tracking-[0.12em] text-[#00e5ff] uppercase font-bold flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-[#00e5ff] animate-ping" />
+                          Chi tiết ô chứa: {hoveredRack.areaId}
+                        </h4>
+                        <button className="w-5 h-5 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-bold flex items-center justify-center transition-colors"
+                                onClick={() => { setBottomSheetOpen(false); setHoveredRack(null); }}>✕</button>
+                      </div>
+                      <div className="bg-white/[0.03] rounded-lg border border-white/5" style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 12px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                            <span className="text-[9px] text-slate-400 font-medium">Mã ô:</span>
+                            <span className="mono text-[11.5px] font-bold text-[#00e5ff]">{hoveredRack.areaId}</span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                            <span className="text-[9px] text-slate-400 font-medium">Tên bưu cục:</span>
+                            <span className="text-[11.5px] font-bold text-white truncate" title={hoveredRack.name}>{hoveredRack.name}</span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                            <span className="text-[9px] text-slate-400 font-medium">Sản lượng:</span>
+                            <span className="mono text-[11.5px] font-bold text-white">{hoveredRack.current?.toLocaleString()} / {hoveredRack.capacity} Đơn</span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                            <span className="text-[9px] text-slate-400 font-medium">Trọng lượng:</span>
+                            <span className="mono text-[11.5px] font-bold text-white">{((hoveredRack.weight || 0) > 0 && (hoveredRack.weight || 0) < 0.1) ? (hoveredRack.weight || 0).toFixed(3).replace('.', ',') : (hoveredRack.weight || 0).toFixed(1).replace('.', ',')} Tấn</span>
+                          </div>
+                        </div>
+                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span className="text-[9.5px] text-slate-400 font-medium">{displayUtilizationLabelLc}:</span>
+                          <span className="mono text-[11.5px] font-bold px-2 py-0.5 rounded" style={{color: UTILCOL[hoveredRack.bucket] || '#fff', background: `${UTILCOL[hoveredRack.bucket]}18` || 'transparent'}}>{hoveredRack.utilization}%</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2.5 bg-white/[0.03] rounded-xl p-3 border border-white/5">
-                      <div>
-                        <div className="text-[9.5px] text-slate-400 font-medium">Mã ô:</div>
-                        <div className="mono text-[12px] font-bold text-[#00e5ff]">{hoveredRack.areaId}</div>
-                      </div>
-                      <div>
-                        <div className="text-[9.5px] text-slate-400 font-medium">Tên bưu cục:</div>
-                        <div className="text-[12px] font-bold text-white truncate" title={hoveredRack.name}>{hoveredRack.name}</div>
-                      </div>
-                      <div>
-                        <div className="text-[9.5px] text-slate-400 font-medium">Sản lượng:</div>
-                        <div className="mono text-[12px] font-bold text-white">{hoveredRack.current?.toLocaleString()} / {hoveredRack.capacity}</div>
-                      </div>
-                      <div>
-                        <div className="text-[9.5px] text-slate-400 font-medium">Trọng lượng:</div>
-                        <div className="mono text-[12px] font-bold text-white">{hoveredRack.weight?.toLocaleString()} kg</div>
-                      </div>
-                      <div className="col-span-2 pt-1 border-t border-white/5 flex justify-between items-center">
-                        <div className="text-[9.5px] text-slate-400 font-medium">{displayUtilizationLabelLc}:</div>
-                        <div className="mono text-[12px] font-bold px-2 py-0.5 rounded" style={{color: UTILCOL[hoveredRack.bucket] || '#fff', background: `${UTILCOL[hoveredRack.bucket]}15` || 'transparent'}}>{hoveredRack.utilization}%</div>
-                      </div>
+                  ) : (
+                    <div className="flex items-center justify-center py-1 text-slate-400 text-[10.5px] font-medium text-center">
+                      <span>Rê chuột hoặc chạm vào ô chứa trên sơ đồ để xem chi tiết thông tin ô</span>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
 
             {activeTab === 'top10' && (
-              <div className="w-full h-full overflow-y-auto px-1 pt-1">
-                <div className="p-4 sm:p-5 rounded-2xl bg-[#0b1019]/90 border border-white/10 shadow-2xl space-y-4">
-                  <div className="flex justify-between items-center pb-3 border-b border-white/10">
-                    <h3 className="disp text-xs tracking-[0.14em] text-[#FFF4D6] font-bold uppercase" style={{ margin: 0 }}>
+              <div className="w-full h-full overflow-y-auto" style={{ padding: '5px' }}>
+                <div className="rounded-xl bg-[#0b1019]/90 border border-white/10 shadow-2xl space-y-3" style={{ padding: '10px 12px' }}>
+                  <div className="flex justify-between items-center pb-2 border-b border-white/10 gap-2">
+                    <h3 className="disp text-[11px] sm:text-xs tracking-[0.08em] text-[#FFF4D6] font-bold uppercase truncate" style={{ margin: 0 }}>
                       {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
                     </h3>
-                    <span className="badge-count sky">Top 10</span>
+                    <span className="badge-count sky shrink-0" style={{ fontSize: '10px', padding: '2px 8px' }}>Top 10</span>
                   </div>
-                  <div className="premium-table-wrapper rounded-xl overflow-hidden border border-white/5">
+                  <div className="premium-table-wrapper rounded-xl overflow-x-auto border border-white/5" style={{ margin: 0 }}>
                     <table className="premium-table w-full">
                       <thead>
                         <tr>
-                          <th style={{ width: '40px' }}>#</th>
-                          <th style={{ width: '60px' }}>Mã</th>
-                          <th>Bưu Cục</th>
-                          <th style={{ textAlign: 'right', width: '90px' }}>{selectedType === 'Outbound' ? 'Lượng xuất' : 'Tồn'}</th>
-                          <th style={{ textAlign: 'right', width: '100px' }}>T.lượng</th>
-                          <th style={{ textAlign: 'right', width: '60px' }}>%</th>
+                          <th style={{ width: '36px', textAlign: 'center' }}>#</th>
+                          <th style={{ width: '55px', textAlign: 'center' }}>Mã</th>
+                          <th style={{ textAlign: 'left' }}>Bưu Cục</th>
+                          <th style={{ textAlign: 'right', width: '80px' }}>{selectedType === 'Outbound' ? 'Lượng xuất' : 'Tồn'}</th>
+                          <th style={{ textAlign: 'right', width: '85px' }}>T.lượng</th>
+                          <th style={{ textAlign: 'right', width: '55px' }}>%</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2412,9 +2549,9 @@ export default function App() {
                           const col = colors[chute.bucket] || '#fff';
                           return (
                             <tr key={chute.areaId}>
-                              <td className="table-index">{index + 1}</td>
-                              <td className="num-tabular font-bold" style={{ color: 'var(--cyan)' }}>{chute.areaId}</td>
-                              <td className="table-buucuc">{chute.name}</td>
+                              <td className="table-index" style={{ textAlign: 'center' }}>{index + 1}</td>
+                              <td className="num-tabular font-bold" style={{ color: 'var(--cyan)', textAlign: 'center' }}>{chute.areaId}</td>
+                              <td className="table-buucuc" style={{ textAlign: 'left' }}>{chute.name}</td>
                               <td className="num-tabular" style={{ textAlign: 'right', fontWeight: 600 }}>{chute.current.toLocaleString()}</td>
                               <td className="num-tabular" style={{ textAlign: 'right', color: '#cbd5e1' }}>{Math.round(chute.weight).toLocaleString()} kg</td>
                               <td className="num-tabular" style={{ textAlign: 'right', fontWeight: 'bold', color: col }}>{chute.utilization}%</td>
@@ -2429,17 +2566,19 @@ export default function App() {
             )}
 
             {activeTab === 'stats' && (
-              <div className="w-full max-w-full overflow-x-hidden space-y-3 px-2 pt-2 pb-24">
-                {/* Telemetry Block */}
-                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-xl p-3.5 shadow-xl w-full max-w-full overflow-hidden">
-                  <h3 className="disp text-[11px] tracking-[0.14em] pb-2.5 mb-2.5 border-b border-[var(--line)] text-[var(--accent)] font-bold uppercase truncate">TÌNH TRẠNG VẬN HÀNH</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="p-2.5 text-center bg-[#101622]/40 rounded-lg border border-white/5 overflow-hidden">
-                      <div className="mono text-[9px] text-[var(--muted)] mb-1 font-semibold truncate">TỔNG ĐƠN HÀNG</div>
+              <div className="w-full max-w-full overflow-x-hidden flex flex-col" style={{ padding: '5px', gap: '3px' }}>
+                {/* Operational Status Block */}
+                <div className="bg-[#0b1019]/90 border border-white/10 border-t-2 border-t-[var(--accent)] rounded-xl shadow-xl w-full max-w-full overflow-hidden" style={{ padding: '10px 12px' }}>
+                  <h3 className="disp text-[11px] tracking-[0.12em] text-[var(--accent)] font-bold uppercase truncate" style={{ margin: '0 0 8px 0', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    TÌNH TRẠNG VẬN HÀNH
+                  </h3>
+                  <div className="grid grid-cols-2" style={{ gap: '6px' }}>
+                    <div className="text-center bg-[#101622]/60 rounded-lg border border-white/5 overflow-hidden" style={{ padding: '8px 10px' }}>
+                      <div className="mono text-[9px] text-[var(--muted)] font-semibold truncate" style={{ marginBottom: '4px' }}>TỔNG ĐƠN HÀNG</div>
                       <div className="disp font-extrabold text-lg sm:text-xl text-[var(--cyan)] truncate">{totalOrders.toLocaleString()}</div>
                     </div>
-                    <div className="p-2.5 text-center bg-[#101622]/40 rounded-lg border border-white/5 overflow-hidden">
-                      <div className="mono text-[9px] text-[var(--muted)] mb-1 font-semibold truncate">TỔNG TRỌNG LƯỢNG</div>
+                    <div className="text-center bg-[#101622]/60 rounded-lg border border-white/5 overflow-hidden" style={{ padding: '8px 10px' }}>
+                      <div className="mono text-[9px] text-[var(--muted)] font-semibold truncate" style={{ marginBottom: '4px' }}>TỔNG TRỌNG LƯỢNG</div>
                       <div className="disp font-extrabold text-lg sm:text-xl text-[var(--green)] truncate">
                         {Math.ceil(totalWeight).toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">kg</span>
                       </div>
@@ -2447,21 +2586,23 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Operational Stats */}
-                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--accent)] rounded-xl p-3.5 shadow-xl w-full max-w-full overflow-hidden">
-                  <h3 className="disp text-[11px] tracking-[0.14em] pb-2.5 mb-2.5 border-b border-[var(--line)] text-[var(--accent)] font-bold uppercase truncate">THỐNG KÊ CHI TIẾT</h3>
-                  <div className="space-y-2.5">
+                {/* Operational Detailed Stats */}
+                <div className="bg-[#0b1019]/90 border border-white/10 border-t-2 border-t-[var(--accent)] rounded-xl shadow-xl w-full max-w-full overflow-hidden" style={{ padding: '10px 12px' }}>
+                  <h3 className="disp text-[11px] tracking-[0.12em] text-[var(--accent)] font-bold uppercase truncate" style={{ margin: '0 0 8px 0', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    THỐNG KÊ CHI TIẾT
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     {[
                       [displayUtilizationLabel, `${utilTotal}%`, 'var(--cyan)'],
                       ['CÒN TRỐNG', `${free}`, 'var(--green)'],
                       ['Ô ĐANG DÙNG', `${usedCells}/${CHUTE_RACKS.length}`, '#fff']
                     ].map(([label, val, col]) => (
-                      <div key={label} className="flex justify-between items-center text-xs text-[var(--muted)] border-b border-[#1e2942]/50 pb-2 gap-2">
-                        <span className="truncate">{label}</span>
+                      <div key={label} className="flex justify-between items-center text-xs text-[var(--muted)] border-b border-[#1e2942]/50 rounded-md" style={{ padding: '6px 8px', background: 'rgba(255,255,255,0.02)' }}>
+                        <span className="truncate font-medium">{label}</span>
                         <span className="mono font-bold text-sm shrink-0" style={{color: col}}>{val}</span>
                       </div>
                     ))}
-                    <div className="h-1.5 rounded bg-[var(--line)] overflow-hidden">
+                    <div className="h-1.5 rounded bg-[var(--line)] overflow-hidden" style={{ marginTop: '4px' }}>
                       <div className="h-full bg-gradient-to-r from-[var(--green)] to-[var(--cyan)] transition-all duration-1000"
                            style={{width:`${Math.min(100,Number(utilTotal))}%`}}/>
                     </div>
@@ -2469,9 +2610,11 @@ export default function App() {
                 </div>
 
                 {/* Zone Metrics Blocks */}
-                <div className="bg-[var(--panel)] border border-white/10 border-t-2 border-t-[var(--cyan)] rounded-xl p-3.5 shadow-xl w-full max-w-full overflow-hidden">
-                  <h3 className="disp text-[11px] tracking-[0.14em] pb-2.5 mb-2.5 border-b border-[var(--line)] text-[var(--cyan)] font-bold uppercase truncate">THỐNG KÊ PHÂN KHU (ZONES)</h3>
-                  <div className="space-y-3">
+                <div className="bg-[#0b1019]/90 border border-white/10 border-t-2 border-t-[var(--cyan)] rounded-xl shadow-xl w-full max-w-full overflow-hidden" style={{ padding: '10px 12px' }}>
+                  <h3 className="disp text-[11px] tracking-[0.12em] text-[var(--cyan)] font-bold uppercase truncate" style={{ margin: '0 0 8px 0', paddingBottom: '6px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    THỐNG KÊ PHÂN KHU (ZONES)
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {[3, 2, 1].map(zoneNum => {
                       const zInfo = getZoneInfo(zoneNum);
                       const colors: Record<number, string> = {
@@ -2481,13 +2624,13 @@ export default function App() {
                       };
                       const zColor = colors[zoneNum] || 'var(--cyan)';
                       return (
-                        <div key={zoneNum} className="p-3 bg-[#101622]/40 rounded-lg border border-white/5 overflow-hidden"
-                             style={{ borderColor: `${zColor}33` }}>
-                          <div className="flex justify-between items-center border-b border-[#1e2942]/50 pb-2 mb-2 gap-2">
-                            <span className="disp font-extrabold text-[11px] shrink-0" style={{ color: zColor }}>ZONE {zoneNum}</span>
+                        <div key={zoneNum} className="bg-[#101622]/60 rounded-lg border border-white/5 overflow-hidden"
+                             style={{ padding: '8px 10px', borderColor: `${zColor}33` }}>
+                          <div className="flex justify-between items-center border-b border-[#1e2942]/60 pb-1.5 mb-2 gap-2">
+                            <span className="disp font-extrabold text-[11.5px] shrink-0" style={{ color: zColor }}>ZONE {zoneNum}</span>
                             <span className="mono text-[11px] font-bold shrink-0" style={{ color: zColor }}>{zInfo.ratio}% sản lượng</span>
                           </div>
-                          <div className="grid grid-cols-2 gap-2 text-[10px] text-[var(--muted)]">
+                          <div className="grid grid-cols-2 gap-2 text-[10.5px] text-[var(--muted)]">
                             <div className="truncate">Bưu cục có hàng: <b className="text-white mono">{zInfo.activeChutesCount}/{zInfo.totalChutes}</b></div>
                             <div className="truncate">Tổng lượng đơn: <b className="text-white mono">{zInfo.zoneOrders.toLocaleString()}</b></div>
                             <div className="col-span-2 mt-1 border-t border-white/5 pt-1.5 truncate">Tổng trọng lượng: <b className="text-white mono">{zInfo.zoneWeight.toFixed(1).replace('.', ',')} Tấn</b></div>
