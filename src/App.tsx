@@ -2462,51 +2462,51 @@ export default function App() {
       ) : ( 
         /* ── MOBILE LAYOUT ── */
         <>
-          <div className="w-full h-full pt-2 pb-20 px-2 overflow-y-auto flex flex-col space-y-3">
+          <div className="w-full h-full pt-3 pb-24 px-3 sm:px-4 overflow-y-auto flex flex-col space-y-5 max-w-7xl mx-auto">
             {activeTab === 'layout' && (
-              <div className="w-full flex flex-col space-y-3 relative">
+              <div className="w-full flex flex-col space-y-5 relative">
                 {/* 🎯 Ultra-Premium Mobile Top Control Bar (High-Tech Glassmorphism) */}
-                <div className="w-full flex flex-col gap-2 p-2.5 bg-[#0b1019]/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)] sticky top-0 z-30">
-                  <div className="flex gap-2 items-center">
+                <div className="w-full flex flex-col gap-3 p-3.5 bg-[#0b1019]/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)] sticky top-0 z-30">
+                  <div className="flex gap-3 items-center">
                     <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)}
-                            className="flex-1 bg-[#121824] text-white text-[11px] font-bold py-1.5 px-3 rounded-lg border border-white/10 outline-none cursor-pointer">
+                            className="flex-1 bg-[#121824] text-white text-[12px] font-bold py-2 px-3 rounded-xl border border-white/10 outline-none cursor-pointer">
                       <option value="Outbound">Outbound</option>
                       <option value="Backlog">Backlog</option>
                       <option value="Inventory">Volume</option>
                     </select>
 
                     <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
-                            className="flex-1 bg-[#121824] text-white text-[11px] font-bold py-1.5 px-3 rounded-lg border border-white/10 outline-none cursor-pointer">
+                            className="flex-1 bg-[#121824] text-white text-[12px] font-bold py-2 px-3 rounded-xl border border-white/10 outline-none cursor-pointer">
                       {availableDates.length > 0
                         ? availableDates.map(d => <option key={d} value={d}>{d}</option>)
                         : <option value="">Chưa có dữ liệu</option>}
                     </select>
 
                     <button onClick={fetchAndUpdateData} disabled={loading}
-                            className="google-sync-btn px-3 py-1.5 text-[10px] gap-1 shrink-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
+                            className="google-sync-btn px-3.5 py-2 text-[10.5px] gap-1.5 shrink-0">
+                      <span className="w-2 h-2 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
                       {loading ? '...' : 'Sync'}
                     </button>
                   </div>
 
                   {/* Inventory Status Chips - Flow naturally without overlapping */}
                   {selectedType === 'Inventory' && (
-                    <div className="flex items-center gap-1.5 overflow-x-auto py-1 scrollbar-none"
+                    <div className="flex items-center gap-2 overflow-x-auto py-1 scrollbar-none"
                          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                       <button onClick={toggleAllStatuses}
-                        className={`px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all duration-200 shrink-0 ${
+                        className={`px-3 py-1.5 rounded-full border text-[11px] font-semibold transition-all duration-200 shrink-0 ${
                           selectedStatuses.length === INVENTORY_STATUSES.length
-                            ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
-                            : 'bg-[#121824]/40 border-white/5 text-slate-400'
+                            ? 'bg-yellow-500/15 border-yellow-500/50 text-yellow-400 font-bold shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+                            : 'bg-[#121824]/60 border-white/10 text-slate-400'
                         }`}>Tất cả</button>
                       {INVENTORY_STATUSES.map(status => {
                         const isChecked = selectedStatuses.includes(status);
                         return (
                           <button key={status} onClick={() => toggleStatus(status)}
-                            className={`px-2.5 py-1 rounded-full border text-[10px] font-medium transition-all duration-200 shrink-0 ${
+                            className={`px-3 py-1.5 rounded-full border text-[11px] font-semibold transition-all duration-200 shrink-0 ${
                               isChecked
-                                ? 'bg-yellow-500/10 border-yellow-500/40 text-yellow-400 font-bold'
-                                : 'bg-[#121824]/40 border-white/5 text-slate-400'
+                                ? 'bg-yellow-500/15 border-yellow-500/50 text-yellow-400 font-bold shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+                                : 'bg-[#121824]/60 border-white/10 text-slate-400'
                             }`}>{status}</button>
                         );
                       })}
@@ -2514,20 +2514,27 @@ export default function App() {
                   )}
                 </div>
 
-                {/* 🎯 Mobile Telemetry Cards: METRICS & DỰ KIẾN SL LINEHAUL (Zero Overflow & Solid Dark Background) */}
-                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-full overflow-hidden">
+                {/* 🎯 Mobile Telemetry Cards: METRICS & DỰ KIẾN SL LINEHAUL (Matching Inbound Dashboard spacing & glassmorphism) */}
+                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-full">
                   {/* Card 1: METRICS */}
-                  <div className="jt-glowing-card p-2.5 shadow-xl rounded-xl w-full max-w-full overflow-hidden border border-white/10" style={{ background: '#0d131f' }}>
-                    <div className="font-extrabold text-[10px] tracking-[0.14em] text-center mb-1.5 uppercase text-[#FFF4D6]" style={{ fontFamily: "'Inter', sans-serif" }}>
-                      METRICS
+                  <div className="jt-glowing-card p-4 shadow-2xl rounded-2xl w-full border border-white/10 bg-[#0b1019]/90 backdrop-blur-xl flex flex-col justify-between space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                      <span className="font-extrabold text-[11px] tracking-[0.14em] uppercase text-[#FFF4D6]" style={{ fontFamily: "'Inter', sans-serif" }}>
+                        📊 METRICS
+                      </span>
+                      <span className="text-[10px] font-bold text-[#B8F7E4] bg-[#B8F7E4]/10 px-2 py-0.5 rounded-full border border-[#B8F7E4]/30">
+                        REALTIME
+                      </span>
                     </div>
-                    <div className="flex justify-between items-center text-[11px] border-b border-white/5 pb-1 mb-1">
-                      <span className="text-slate-300 font-semibold truncate">Tổng đơn hàng</span>
-                      <span className="mono font-bold text-xs text-[#B8F7E4] shrink-0 ml-2">{totalOrders.toLocaleString()} <span className="text-[9px] text-slate-400 font-normal">Đơn</span></span>
-                    </div>
-                    <div className="flex justify-between items-center text-[11px]">
-                      <span className="text-slate-300 font-semibold truncate">Tổng trọng lượng</span>
-                      <span className="mono font-bold text-xs text-[#B8F7E4] shrink-0 ml-2">{totalWeight.toFixed(1).replace('.', ',')} <span className="text-[9px] text-slate-400 font-normal">Tấn</span></span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center text-[12px] bg-white/[0.03] p-2.5 rounded-xl border border-white/5">
+                        <span className="text-slate-300 font-semibold">Tổng đơn hàng</span>
+                        <span className="mono font-bold text-sm text-[#B8F7E4] ml-2">{totalOrders.toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">Đơn</span></span>
+                      </div>
+                      <div className="flex justify-between items-center text-[12px] bg-white/[0.03] p-2.5 rounded-xl border border-white/5">
+                        <span className="text-slate-300 font-semibold">Tổng trọng lượng</span>
+                        <span className="mono font-bold text-sm text-[#B8F7E4] ml-2">{totalWeight.toFixed(1).replace('.', ',')} <span className="text-[10px] text-slate-400 font-normal">Tấn</span></span>
+                      </div>
                     </div>
                   </div>
 
@@ -2541,25 +2548,25 @@ export default function App() {
                     const pct = ((linehaulOrders / fcTotal) * 100).toFixed(1);
 
                     return (
-                      <div className="jt-glowing-card p-2.5 shadow-xl rounded-xl w-full max-w-full overflow-hidden border border-orange-500/30" style={{ background: '#0d131f' }}>
-                        <div className="flex justify-between items-center mb-1.5 pb-1 border-b border-white/5 gap-1">
-                          <span className="text-[10px] font-extrabold uppercase text-[#f97316] truncate">🔸 Dự kiến SL LINEHAUL</span>
-                          <span className="text-[9.5px] font-extrabold text-[#22d3ee] bg-[#22d3ee]/10 px-1.5 py-0.5 rounded-md border border-[#22d3ee]/30 shrink-0">
+                      <div className="jt-glowing-card p-4 shadow-2xl rounded-2xl w-full border border-orange-500/30 bg-[#0b1019]/90 backdrop-blur-xl flex flex-col justify-between space-y-3">
+                        <div className="flex justify-between items-center pb-2 border-b border-white/10 gap-2">
+                          <span className="text-[11px] font-extrabold uppercase text-[#f97316] truncate">🔸 Dự kiến SL LINEHAUL</span>
+                          <span className="text-[10px] font-extrabold text-[#22d3ee] bg-[#22d3ee]/10 px-2 py-0.5 rounded-full border border-[#22d3ee]/30 shrink-0">
                             {linehaulOrders.toLocaleString()} Đơn
                           </span>
                         </div>
-                        <div className="grid grid-cols-3 gap-1 text-center">
-                          <div className="bg-white/5 p-1 rounded-md overflow-hidden">
-                            <div className="text-slate-400 text-[8.5px] font-bold">HUB</div>
-                            <div className="font-extrabold text-white text-[10px] truncate">BN HUB</div>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div className="bg-white/[0.04] p-2 rounded-xl border border-white/5">
+                            <div className="text-slate-400 text-[9px] font-bold">HUB</div>
+                            <div className="font-extrabold text-white text-[11px] truncate mt-0.5">BN HUB</div>
                           </div>
-                          <div className="bg-white/5 p-1 rounded-md overflow-hidden">
-                            <div className="text-slate-400 text-[8.5px] font-bold">T.LƯỢNG</div>
-                            <div className="font-extrabold text-[#818cf8] text-[10px] truncate">{linehaulWeight.toFixed(1)}T</div>
+                          <div className="bg-white/[0.04] p-2 rounded-xl border border-white/5">
+                            <div className="text-slate-400 text-[9px] font-bold">T.LƯỢNG</div>
+                            <div className="font-extrabold text-[#818cf8] text-[11px] truncate mt-0.5">{linehaulWeight.toFixed(1)}T</div>
                           </div>
-                          <div className="bg-white/5 p-1 rounded-md overflow-hidden">
-                            <div className="text-slate-400 text-[8.5px] font-bold">% VOL</div>
-                            <div className="font-extrabold text-[#34d399] text-[10px] truncate">{pct}%</div>
+                          <div className="bg-white/[0.04] p-2 rounded-xl border border-white/5">
+                            <div className="text-slate-400 text-[9px] font-bold">% VOL</div>
+                            <div className="font-extrabold text-[#34d399] text-[11px] truncate mt-0.5">{pct}%</div>
                           </div>
                         </div>
                       </div>
@@ -2567,10 +2574,8 @@ export default function App() {
                   })()}
                 </div>
 
-
-
                 {/* SVG Map Container (Dynamic Height & Zero Overlap) */}
-                <div className="relative w-full h-[60vh] min-h-[480px] bg-[#02040a] rounded-xl overflow-hidden border border-white/10 shadow-2xl">
+                <div className="relative w-full h-[55vh] min-h-[440px] bg-[#02040a] rounded-2xl overflow-hidden border border-white/10 shadow-2xl my-1">
                   {/* Floating Zoom controls (Top-Right) */}
                   <div className="mobile-fab-container">
                     <button className="mobile-fab text-base font-bold" onClick={handleZoomIn} title="Phóng to">＋</button>
@@ -2581,51 +2586,55 @@ export default function App() {
                   {renderSVG()}
                 </div>
 
-                {/* Bottom Sheet for Mobile Chute Details */}
-                <div className={`bottom-sheet ${bottomSheetOpen && hoveredRack ? 'open' : ''}`}>
-                  {hoveredRack && (
-                    <>
-                      <div className="bottom-sheet-close" onClick={() => { setBottomSheetOpen(false); setHoveredRack(null); }}>✕</div>
-                      <h4 className="disp text-[10px] tracking-[0.14em] text-[var(--accent)] mb-3 uppercase font-bold">Chi tiết ô chứa</h4>
-                      <div className="grid grid-cols-2 gap-3 bg-[#101622]/60 rounded-md p-3 border border-white/5">
-                        <div>
-                          <div className="text-[9px] text-[var(--muted)]">Mã ô:</div>
-                          <div className="mono text-[11px] font-bold text-[var(--cyan)]">{hoveredRack.areaId}</div>
-                        </div>
-                        <div>
-                          <div className="text-[9px] text-[var(--muted)]">Tên bưu cục:</div>
-                          <div className="text-[11px] font-bold text-white truncate" title={hoveredRack.name}>{hoveredRack.name}</div>
-                        </div>
-                        <div>
-                          <div className="text-[9px] text-[var(--muted)]">Sản lượng:</div>
-                          <div className="mono text-[11px] font-bold text-white">{hoveredRack.current?.toLocaleString()} / {hoveredRack.capacity}</div>
-                        </div>
-                        <div>
-                          <div className="text-[9px] text-[var(--muted)]">Trọng lượng:</div>
-                          <div className="mono text-[11px] font-bold text-white">{hoveredRack.weight?.toLocaleString()} kg</div>
-                        </div>
-                        <div>
-                          <div className="text-[9px] text-[var(--muted)]">{displayUtilizationLabelLc}:</div>
-                          <div className="mono text-[11px] font-bold" style={{color: UTILCOL[hoveredRack.bucket] || '#fff'}}>{hoveredRack.utilization}%</div>
-                        </div>
+                {/* Mobile Chute Details Card (Structured inline card below map with proper spacing) */}
+                {isMobile && bottomSheetOpen && hoveredRack && (
+                  <div className="w-full p-4 bg-[#0b1019]/95 backdrop-blur-xl rounded-2xl border border-[#00e5ff]/40 shadow-[0_10px_30px_rgba(0,0,0,0.6)] space-y-3 transition-all duration-300">
+                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                      <h4 className="disp text-[11px] tracking-[0.14em] text-[#00e5ff] uppercase font-bold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-[#00e5ff] animate-ping" />
+                        Chi tiết ô chứa: {hoveredRack.areaId}
+                      </h4>
+                      <button className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 text-xs font-bold flex items-center justify-center transition-colors"
+                              onClick={() => { setBottomSheetOpen(false); setHoveredRack(null); }}>✕</button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5 bg-white/[0.03] rounded-xl p-3 border border-white/5">
+                      <div>
+                        <div className="text-[9.5px] text-slate-400 font-medium">Mã ô:</div>
+                        <div className="mono text-[12px] font-bold text-[#00e5ff]">{hoveredRack.areaId}</div>
                       </div>
-                    </>
-                  )}
-                </div>
+                      <div>
+                        <div className="text-[9.5px] text-slate-400 font-medium">Tên bưu cục:</div>
+                        <div className="text-[12px] font-bold text-white truncate" title={hoveredRack.name}>{hoveredRack.name}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9.5px] text-slate-400 font-medium">Sản lượng:</div>
+                        <div className="mono text-[12px] font-bold text-white">{hoveredRack.current?.toLocaleString()} / {hoveredRack.capacity}</div>
+                      </div>
+                      <div>
+                        <div className="text-[9.5px] text-slate-400 font-medium">Trọng lượng:</div>
+                        <div className="mono text-[12px] font-bold text-white">{hoveredRack.weight?.toLocaleString()} kg</div>
+                      </div>
+                      <div className="col-span-2 pt-1 border-t border-white/5 flex justify-between items-center">
+                        <div className="text-[9.5px] text-slate-400 font-medium">{displayUtilizationLabelLc}:</div>
+                        <div className="mono text-[12px] font-bold px-2 py-0.5 rounded" style={{color: UTILCOL[hoveredRack.bucket] || '#fff', background: `${UTILCOL[hoveredRack.bucket]}15` || 'transparent'}}>{hoveredRack.utilization}%</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
             {activeTab === 'top10' && (
-              <div className="w-full h-full overflow-y-auto px-1 pt-2">
-                <div className="glass-card p-5 shadow-2xl">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px', marginBottom: '16px' }}>
-                    <h3 className="disp text-xs tracking-[0.14em] text-[var(--accent)] font-bold uppercase" style={{ margin: 0 }}>
+              <div className="w-full h-full overflow-y-auto px-1 pt-1">
+                <div className="p-4 sm:p-5 rounded-2xl bg-[#0b1019]/90 border border-white/10 shadow-2xl space-y-4">
+                  <div className="flex justify-between items-center pb-3 border-b border-white/10">
+                    <h3 className="disp text-xs tracking-[0.14em] text-[#FFF4D6] font-bold uppercase" style={{ margin: 0 }}>
                       {selectedType === 'Outbound' ? 'TOP 10 BƯU CỤC XUẤT HÀNG' : 'TOP 10 BƯU CỤC TỒN HÀNG'}
                     </h3>
                     <span className="badge-count sky">Top 10</span>
                   </div>
-                  <div className="premium-table-wrapper">
-                    <table className="premium-table">
+                  <div className="premium-table-wrapper rounded-xl overflow-hidden border border-white/5">
+                    <table className="premium-table w-full">
                       <thead>
                         <tr>
                           <th style={{ width: '40px' }}>#</th>
