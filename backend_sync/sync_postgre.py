@@ -1104,14 +1104,8 @@ def sync_postgre_to_dashboard():
         st_name = str(station or '').strip().upper()
         rk_val = str(r.get('rank') or '').strip().upper()
         rd_val = str(r.get('round') or '').strip().upper()
-        is_north = (
-            pk_st.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
-            next_st.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
-            st_name.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')) or 
-            rk_val == 'BN HUB' or 
-            'LINEHAUL' in rd_val
-        )
-        is_rot = (not has_in) and (not has_out) and (not is_canceled) and (not is_reb) and (not is_north)
+        is_pickup_north = pk_st.startswith(('BN HUB', 'HN ', 'HD ', 'HY '))
+        is_rot = (not has_in) and (not has_out) and (not is_canceled) and (not is_reb) and (not is_pickup_north)
 
         ref_rot_date = str(r.get('op_date_pickup') or get_op_date(cr_t) or op_date or '')[:10]
         if is_rot:
