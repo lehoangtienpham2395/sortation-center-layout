@@ -343,27 +343,27 @@ body {
 }
 
 .mobile-fab {
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, rgba(6, 182, 212, 0.15) 0%, rgba(13, 19, 31, 0.92) 100%) !important;
-  border: 1px solid rgba(6, 182, 212, 0.35) !important;
+  background: radial-gradient(circle at 30% 30%, rgba(6, 182, 212, 0.2) 0%, rgba(13, 19, 31, 0.95) 100%) !important;
+  border: 1px solid rgba(6, 182, 212, 0.4) !important;
   color: #B8F7E4 !important;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 15px rgba(6, 182, 212, 0.2) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 10px rgba(6, 182, 212, 0.25) !important;
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .mobile-fab:hover, .mobile-fab:active {
-  transform: scale(1.1) !important;
+  transform: scale(1.08) !important;
   border-color: #06b6d4 !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 25px rgba(6, 182, 212, 0.45) !important;
-  background: radial-gradient(circle at 30% 30%, rgba(6, 182, 212, 0.3) 0%, rgba(13, 19, 31, 0.98) 100%) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.8), 0 0 18px rgba(6, 182, 212, 0.5) !important;
+  background: radial-gradient(circle at 30% 30%, rgba(6, 182, 212, 0.35) 0%, rgba(13, 19, 31, 0.98) 100%) !important;
 }
 
 /* ── Google One Refresh Button Style ── */

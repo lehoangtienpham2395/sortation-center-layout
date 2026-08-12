@@ -2506,10 +2506,10 @@ export default function App() {
                   )}
                 </div>
 
-                {/* 🎯 Mobile Telemetry Cards: METRICS & DỰ KIẾN SL LINEHAUL (Zero Overflow) */}
+                {/* 🎯 Mobile Telemetry Cards: METRICS & DỰ KIẾN SL LINEHAUL (Zero Overflow & Solid Dark Background) */}
                 <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-full overflow-hidden">
                   {/* Card 1: METRICS */}
-                  <div className="jt-glowing-card p-2.5 shadow-lg rounded-xl w-full max-w-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <div className="jt-glowing-card p-2.5 shadow-xl rounded-xl w-full max-w-full overflow-hidden border border-white/10" style={{ background: '#0d131f' }}>
                     <div className="font-extrabold text-[10px] tracking-[0.14em] text-center mb-1.5 uppercase text-[#FFF4D6]" style={{ fontFamily: "'Inter', sans-serif" }}>
                       METRICS
                     </div>
@@ -2533,7 +2533,7 @@ export default function App() {
                     const pct = ((linehaulOrders / fcTotal) * 100).toFixed(1);
 
                     return (
-                      <div className="jt-glowing-card p-2.5 shadow-lg rounded-xl w-full max-w-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', borderTop: '1px solid rgba(249,115,22,0.3)' }}>
+                      <div className="jt-glowing-card p-2.5 shadow-xl rounded-xl w-full max-w-full overflow-hidden border border-orange-500/30" style={{ background: '#0d131f' }}>
                         <div className="flex justify-between items-center mb-1.5 pb-1 border-b border-white/5 gap-1">
                           <span className="text-[10px] font-extrabold uppercase text-[#f97316] truncate">🔸 Dự kiến SL LINEHAUL</span>
                           <span className="text-[9.5px] font-extrabold text-[#22d3ee] bg-[#22d3ee]/10 px-1.5 py-0.5 rounded-md border border-[#22d3ee]/30 shrink-0">
@@ -2558,6 +2558,7 @@ export default function App() {
                     );
                   })()}
                 </div>
+
 
                 {/* Mobile Landscape Hint Banner */}
                 <div className="w-full flex items-center justify-between px-3 py-1.5 bg-[#0f172a]/90 border border-cyan-500/30 rounded-xl text-[10px] text-cyan-300 backdrop-blur-md shadow-md">
