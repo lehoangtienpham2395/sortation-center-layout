@@ -2403,8 +2403,8 @@ export default function App() {
             style={!isMobile ? (
               currentView === 'master'
                 ? {
-                    left: sidebarHovered ? '468px' : '356px',
-                    right: '384px'
+                    left: sidebarHovered ? '472px' : '360px',
+                    right: '416px'
                   }
                 : {
                     paddingLeft: sidebarHovered ? '176px' : '64px',
@@ -2568,14 +2568,6 @@ export default function App() {
                 </div>
 
 
-                {/* Mobile Landscape Hint Banner */}
-                <div className="w-full flex items-center justify-between px-3 py-1.5 bg-[#0f172a]/90 border border-cyan-500/30 rounded-xl text-[10px] text-cyan-300 backdrop-blur-md shadow-md">
-                  <span className="flex items-center gap-1.5 font-semibold">
-                    <span className="animate-pulse">📱</span>
-                    <span>Xoay ngang màn hình để xem 26 Chute bao quát nhất</span>
-                  </span>
-                  <span className="text-[9.5px] text-cyan-400/80 font-mono bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-500/20">Landscape 16:9</span>
-                </div>
 
                 {/* SVG Map Container (Dynamic Height & Zero Overlap) */}
                 <div className="relative w-full h-[60vh] min-h-[480px] bg-[#02040a] rounded-xl overflow-hidden border border-white/10 shadow-2xl">
