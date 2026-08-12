@@ -2290,62 +2290,70 @@ export default function App() {
                 </div>
               )}
 
-              {/* B. TOP 10 RACKS */}
-              {currentView === 'master' && showTop10 && (
-                <div 
-                  className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-10 animate-fade-in rounded-lg"
-                  style={{ borderRadius: '8px' }}
-                >
-                  {/* Header Title */}
-                  <div className="flex justify-center items-center mb-2.5 pb-2.5 border-b border-white/[0.08]">
-                    <h3 className="font-outfit text-[12px] font-bold tracking-[0.08em] text-center" style={{ margin: 0, color: '#FFF4D6', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
-                      {selectedType === 'Outbound' ? 'DỰ KIẾN SẢN LƯỢNG BƯU CỤC TOP 10' : 'DỰ KIẾN TỒN KHO BƯU CỤC TOP 10'}
-                    </h3>
-                  </div>
+              {/* B. TOP 10 RACKS - Moved to Right Column below */}
+            </div>
+          )}
 
-                  <div className="table-wrapper" style={{ maxHeight: '330px', overflowY: 'auto' }}>
-                    <table className="jt-grid-table">
-                      <thead>
-                        <tr style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-                          <th style={{ width: '25px', textAlign: 'center' }}>#</th>
-                          <th style={{ width: '45px', textAlign: 'center' }}>MÃ</th>
-                          <th style={{ textAlign: 'left' }}>BƯU CỤC</th>
-                          <th style={{ textAlign: 'center', width: '45px' }}>{selectedType === 'Outbound' ? 'XUẤT' : 'TỒN'}</th>
-                          <th style={{ textAlign: 'center', width: '70px' }}>T.LƯỢNG</th>
-                          <th style={{ textAlign: 'center', width: '60px' }}>%Volume</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {getTop10Chutes().map((chute, index) => {
-                          return (
-                            <tr key={chute.areaId} className="cursor-pointer"
-                                onMouseEnter={() => {
-                                  const d = data[chute.areaId];
-                                  setHoveredRack({ areaId: chute.areaId, name: chute.name, ...d });
-                                  if (chute.zone) setHoveredZone(chute.zone);
-                                }}
-                                onMouseLeave={() => {
-                                  setHoveredRack(null);
-                                  setHoveredZone(null);
-                                }}>
-                              <td className="font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.2)' }}>{index + 1}</td>
-                              <td className="mono font-bold text-center" style={{ color: '#22d3ee', fontSize: '11.5px', textShadow: '0 0 8px rgba(34, 211, 238, 0.5)' }}>{chute.areaId}</td>
-                              <td className="font-bold uppercase" style={{ color: '#22d3ee', fontSize: '11px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2', textShadow: '0 0 8px rgba(34, 211, 238, 0.3)' }} title={chute.name}>
-                                {chute.name}
-                              </td>
-                              <td className="mono font-bold text-center" style={{ color: '#B8F7E4', fontSize: '12px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
-                              <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>
-                                {(chute.weight > 0 && chute.weight < 0.1) ? chute.weight.toFixed(3) : chute.weight.toFixed(1)} Tấn
-                              </td>
-                              <td className="mono font-bold text-center" style={{ color: UTILCOL[chute.bucket], fontSize: '11.5px', textShadow: chute.bucket === 'darkred' || chute.bucket === 'red' ? '0 0 8px rgba(239,68,68,0.6)' : '0 0 8px rgba(16,185,129,0.5)' }}>{chute.utilization}%</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+          {/* Right Column: TOP 10 BƯU CỤC (Dedicated Right Side Panel w-96) */}
+          {currentView === 'master' && showTop10 && (
+            <div 
+              className="absolute z-20 top-[104px] right-6 w-96 flex flex-col gap-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-1 pb-6 scrollbar-thin transition-all duration-200"
+            >
+              <div 
+                className="jt-glowing-card shadow-2xl p-4 shrink-0 relative z-10 animate-fade-in rounded-xl border border-white/10 bg-[#0b1019]/90 backdrop-blur-xl"
+              >
+                {/* Header Title */}
+                <div className="flex justify-between items-center mb-3 pb-2.5 border-b border-white/[0.08]">
+                  <h3 className="font-outfit text-[12px] font-bold tracking-[0.08em]" style={{ margin: 0, color: '#FFF4D6', textShadow: '0 0 12px rgba(255,244,214,0.3)' }}>
+                    {selectedType === 'Outbound' ? 'DỰ KIẾN SẢN LƯỢNG BƯU CỤC TOP 10' : 'DỰ KIẾN TỒN KHO BƯU CỤC TOP 10'}
+                  </h3>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#00e5ff]/10 text-[#00e5ff] border border-[#00e5ff]/30">
+                    REALTIME
+                  </span>
                 </div>
-              )}
+
+                <div className="table-wrapper" style={{ maxHeight: '380px', overflowY: 'auto' }}>
+                  <table className="jt-grid-table w-full">
+                    <thead>
+                      <tr style={{ position: 'sticky', top: 0, zIndex: 10, background: '#09111c' }}>
+                        <th style={{ width: '28px', textAlign: 'center' }}>#</th>
+                        <th style={{ width: '48px', textAlign: 'center' }}>MÃ</th>
+                        <th style={{ textAlign: 'left' }}>BƯU CỤC</th>
+                        <th style={{ textAlign: 'center', width: '55px' }}>{selectedType === 'Outbound' ? 'XUẤT' : 'TỒN'}</th>
+                        <th style={{ textAlign: 'center', width: '75px' }}>T.LƯỢNG</th>
+                        <th style={{ textAlign: 'center', width: '65px' }}>% VOL</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {getTop10Chutes().map((chute, index) => {
+                        return (
+                          <tr key={chute.areaId} className="cursor-pointer hover:bg-white/[0.06] transition-colors"
+                              onMouseEnter={() => {
+                                const d = data[chute.areaId];
+                                setHoveredRack({ areaId: chute.areaId, name: chute.name, ...d });
+                                if (chute.zone) setHoveredZone(chute.zone);
+                              }}
+                              onMouseLeave={() => {
+                                setHoveredRack(null);
+                                setHoveredZone(null);
+                              }}>
+                            <td className="font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.2)' }}>{index + 1}</td>
+                            <td className="mono font-bold text-center" style={{ color: '#22d3ee', fontSize: '11.5px', textShadow: '0 0 8px rgba(34, 211, 238, 0.5)' }}>{chute.areaId}</td>
+                            <td className="font-bold uppercase" style={{ color: '#22d3ee', fontSize: '11px', whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: '1.2', textShadow: '0 0 8px rgba(34, 211, 238, 0.3)' }} title={chute.name}>
+                              {chute.name}
+                            </td>
+                            <td className="mono font-bold text-center" style={{ color: '#B8F7E4', fontSize: '12px', textShadow: '0 0 8px rgba(184,247,228,0.5)' }}>{chute.current.toLocaleString()}</td>
+                            <td className="mono font-bold text-center text-white" style={{ fontSize: '11px', textShadow: '0 0 6px rgba(255, 255, 255, 0.25)' }}>
+                              {(chute.weight > 0 && chute.weight < 0.1) ? chute.weight.toFixed(3) : chute.weight.toFixed(1)} Tấn
+                            </td>
+                            <td className="mono font-bold text-center" style={{ color: UTILCOL[chute.bucket], fontSize: '11.5px', textShadow: chute.bucket === 'darkred' || chute.bucket === 'red' ? '0 0 8px rgba(239,68,68,0.6)' : '0 0 8px rgba(16,185,129,0.5)' }}>{chute.utilization}%</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
 
