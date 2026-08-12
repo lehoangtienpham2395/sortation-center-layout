@@ -1961,6 +1961,74 @@ export default function App() {
             </div>
           )}
 
+          {/* 🎯 DESKTOP CONTROL BAR (Dropdowns & Status Pills) */}
+          {currentView === 'master' && showControls && (
+            <div 
+              className="absolute z-30 flex flex-col bg-[#0b1019]/95 backdrop-blur-xl rounded-xl border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition-all duration-200"
+              style={{ 
+                top: '12px', 
+                left: '50%',
+                transform: 'translateX(-50%)',
+                padding: '8px 14px',
+                gap: '6px'
+              }}
+            >
+              <div className="flex items-center gap-3 justify-center">
+                <select value={selectedType} onChange={e => setSelectedType(e.target.value as any)}
+                        className="bg-[#121824] text-white text-xs font-bold rounded-lg border border-white/15 outline-none cursor-pointer"
+                        style={{ padding: '6px 12px' }}>
+                  <option value="Outbound">Outbound</option>
+                  <option value="Backlog">Backlog</option>
+                  <option value="Inventory">Volume</option>
+                </select>
+
+                <select value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+                        className="bg-[#121824] text-white text-xs font-bold rounded-lg border border-white/15 outline-none cursor-pointer"
+                        style={{ padding: '6px 12px' }}>
+                  {availableDates.length > 0
+                    ? availableDates.map(d => <option key={d} value={d}>{d}</option>)
+                    : <option value="">Chưa có dữ liệu</option>}
+                </select>
+
+                <button onClick={fetchAndUpdateData} disabled={loading}
+                        className="google-sync-btn font-bold"
+                        style={{ padding: '5px 14px', fontSize: '11px', height: '31px', gap: '6px' }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#22c55e] animate-pulse shrink-0" />
+                  {loading ? '...' : 'Sync'}
+                </button>
+              </div>
+
+              {selectedType === 'Inventory' && (
+                <div className="flex items-center justify-center gap-2 border-t border-white/10 scrollbar-none"
+                     style={{ paddingTop: '6px', paddingBottom: '2px' }}>
+                  <button onClick={toggleAllStatuses}
+                    style={{ height: '26px', padding: '0 14px', fontSize: '11px' }}
+                    className={`inline-flex items-center justify-center rounded-full border font-bold transition-all duration-200 shrink-0 leading-none ${
+                      selectedStatuses.length === INVENTORY_STATUSES.length
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.35)]'
+                        : 'bg-[#121824]/80 border-white/15 text-slate-400 hover:text-slate-200'
+                    }`}>
+                    <span className="inline-block" style={{ transform: 'translateY(-0.5px)' }}>Tất cả</span>
+                  </button>
+                  {INVENTORY_STATUSES.map(status => {
+                    const isChecked = selectedStatuses.includes(status);
+                    return (
+                      <button key={status} onClick={() => toggleStatus(status)}
+                        style={{ height: '26px', padding: '0 14px', fontSize: '11px' }}
+                        className={`inline-flex items-center justify-center rounded-full border font-bold transition-all duration-200 shrink-0 leading-none ${
+                          isChecked
+                            ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.35)]'
+                            : 'bg-[#121824]/80 border-white/15 text-slate-400 hover:text-slate-200'
+                        }`}>
+                        <span className="inline-block" style={{ transform: 'translateY(-0.5px)' }}>{status}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Left Column: Stacked panels (w-72) */}
           {currentView === 'master' && (
             <div 
