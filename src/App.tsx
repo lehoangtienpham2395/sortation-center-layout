@@ -2376,25 +2376,29 @@ export default function App() {
                   </div>
 
                   {selectedType === 'Inventory' && (
-                    <div className="flex items-center gap-2 overflow-x-auto pt-1.5 pb-1 scrollbar-none border-t border-white/10"
+                    <div className="flex items-center justify-center gap-2 overflow-x-auto pt-1.5 pb-1 scrollbar-none border-t border-white/10"
                          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                       <button onClick={toggleAllStatuses}
-                        style={{ padding: '5px 14px', fontSize: '11px', lineHeight: '1.2' }}
-                        className={`rounded-full border font-bold transition-all duration-200 shrink-0 ${
+                        style={{ height: '26px', padding: '0 14px', fontSize: '11px' }}
+                        className={`inline-flex items-center justify-center rounded-full border font-bold transition-all duration-200 shrink-0 leading-none ${
                           selectedStatuses.length === INVENTORY_STATUSES.length
                             ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.35)]'
                             : 'bg-[#121824]/80 border-white/15 text-slate-400 hover:text-slate-200'
-                        }`}>Tất cả</button>
+                        }`}>
+                        <span className="inline-block" style={{ transform: 'translateY(-0.5px)' }}>Tất cả</span>
+                      </button>
                       {INVENTORY_STATUSES.map(status => {
                         const isChecked = selectedStatuses.includes(status);
                         return (
                           <button key={status} onClick={() => toggleStatus(status)}
-                            style={{ padding: '5px 14px', fontSize: '11px', lineHeight: '1.2' }}
-                            className={`rounded-full border font-bold transition-all duration-200 shrink-0 ${
+                            style={{ height: '26px', padding: '0 14px', fontSize: '11px' }}
+                            className={`inline-flex items-center justify-center rounded-full border font-bold transition-all duration-200 shrink-0 leading-none ${
                               isChecked
                                 ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.35)]'
                                 : 'bg-[#121824]/80 border-white/15 text-slate-400 hover:text-slate-200'
-                            }`}>{status}</button>
+                            }`}>
+                            <span className="inline-block" style={{ transform: 'translateY(-0.5px)' }}>{status}</span>
+                          </button>
                         );
                       })}
                     </div>
