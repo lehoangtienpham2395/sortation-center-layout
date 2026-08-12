@@ -2376,7 +2376,7 @@ export default function App() {
                   </div>
 
                   {selectedType === 'Inventory' && (
-                    <div className="flex items-center justify-center gap-2 overflow-x-auto pt-1.5 pb-1 scrollbar-none border-t border-white/10"
+                    <div className="flex items-center justify-center gap-2 overflow-x-auto pt-2.5 pb-1.5 scrollbar-none border-t border-white/10"
                          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                       <button onClick={toggleAllStatuses}
                         style={{ height: '26px', padding: '0 14px', fontSize: '11px' }}
