@@ -830,9 +830,9 @@ export default function App() {
       const isVolumeMode    = selectedType === 'Inventory' || selectedType === 'Volume';
 
       // 🎯 BỘ LỌC NGÀY VẬN HÀNH:
-      // Outbound: Lọc theo ngày vận hành được chọn (effectiveDate)
-      // Volume / Inventory / Backlog: Bao gồm toàn bộ sản lượng ca vận hành đang tồn kho
-      if (isOutboundMode) {
+      // Outbound & Volume / Inventory: Lọc theo ngày vận hành được chọn (effectiveDate)
+      // Backlog: Giữ số LIVE tồn kho thực tế tại sàn (hàng đã Inbound chưa Outbound)
+      if (isOutboundMode || isVolumeMode) {
         const dateMatched = !effectiveDate || isDateMatch(row.date, effectiveDate);
         if (!dateMatched) return;
       }
@@ -856,13 +856,16 @@ export default function App() {
         selectedMap[key].weight += row.weight;
       }
 
-      // Populate inventoryMap (dùng cho tooltip — không filter ngày)
+      // Populate inventoryMap (dùng cho tooltip — lọc theo ngày để đồng nhất với Chute display)
       if (row.type === 'Inventory' && statusMatched) {
-        if (!inventoryMap[key]) {
-          inventoryMap[key] = { volume: 0, weight: 0, capacity: row.capacity || 780, buuCuc: row.buuCuc };
+        const dateMatched = !effectiveDate || isDateMatch(row.date, effectiveDate);
+        if (dateMatched) {
+          if (!inventoryMap[key]) {
+            inventoryMap[key] = { volume: 0, weight: 0, capacity: row.capacity || 780, buuCuc: row.buuCuc };
+          }
+          inventoryMap[key].volume += row.volume;
+          inventoryMap[key].weight += row.weight;
         }
-        inventoryMap[key].volume += row.volume;
-        inventoryMap[key].weight += row.weight;
       }
 
       // Populate backlogMap LIVE — Inbound chưa Outbound, TẤT CẢ ngày (không filter ngày)

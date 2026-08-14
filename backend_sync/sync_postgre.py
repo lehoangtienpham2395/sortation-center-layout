@@ -1268,14 +1268,15 @@ def sync_postgre_to_dashboard():
         for (op_d, st, hr), s in arr_group.items()
     ]
 
-    # hub_inventory_pivot — mỗi station 1 dòng (tổng mọi status)
+    # hub_inventory_pivot — mỗi station 1 dòng (tổng mọi status cho ca hôm nay)
     pivot_map = {}
-    for (z, a, s, _, _d), v in inv_group.items():
-        k = (z, a, s)
-        if k not in pivot_map:
-            pivot_map[k] = {'volume': 0, 'weight_kg': 0.0, 'capacity': v['capacity']}
-        pivot_map[k]['volume']    += v['volume']
-        pivot_map[k]['weight_kg'] += v['weight_kg']
+    for (z, a, s, _, d), v in inv_group.items():
+        if d == today:
+            k = (z, a, s)
+            if k not in pivot_map:
+                pivot_map[k] = {'volume': 0, 'weight_kg': 0.0, 'capacity': v['capacity']}
+            pivot_map[k]['volume']    += v['volume']
+            pivot_map[k]['weight_kg'] += v['weight_kg']
 
     hub_pivot_json = [
         {"zone": z, "area_id": a, "station_name": s,
@@ -1318,7 +1319,7 @@ def sync_postgre_to_dashboard():
         "total_records":         len(df),
         "total_inbound_today":   total_inbound_today,
         "total_backlog":         sum(v['volume'] for v in backlog_group.values()),
-        "total_inventory":       sum(v['volume'] for v in inv_group.values()),
+        "total_inventory":       sum(v['volume'] for (z, a, s, stt, d), v in inv_group.items() if d == today),
         "rot_hom_truoc":         rot_hom_truoc_baseline if rot_hom_truoc_baseline > 0 else rot_hom_truoc,
         "rot_hom_truoc_live":    rot_hom_truoc,
         "rot_hom_nay":           rot_hom_nay,
@@ -1381,8 +1382,8 @@ def sync_postgre_to_dashboard():
     fc_total_4stages = status_counts['Inbound'] + status_counts['Transporting'] + status_counts['Pickup Done'] + status_counts['Created']
     fc_total_weight  = round(status_weights['Inbound'] + status_weights['Transporting'] + status_weights['Pickup Done'] + status_weights['Created'], 3)
     
-    # 🎯 DYNAMIC LINEHAUL FORECAST 100% PURE FROM DYNAMIC A06 (BN HUB) INVENTORY
-    a06_items = [v for (z, a, s, stt, d), v in inv_group.items() if a == 'A06' or s == 'BN HUB']
+    # 🎯 DYNAMIC LINEHAUL FORECAST 100% PURE FROM DYNAMIC A06 (BN HUB) INVENTORY CHO CA HÔM NAY
+    a06_items = [v for (z, a, s, stt, d), v in inv_group.items() if (a == 'A06' or s == 'BN HUB') and d == today]
     fc_linehaul = sum(v['volume'] for v in a06_items)
     linehaul_weight_ton = round(sum(v['weight_kg'] for v in a06_items) / 1000.0, 1)
 
