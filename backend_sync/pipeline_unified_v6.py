@@ -84,13 +84,12 @@ if len(sys.argv) > 1:
     except ValueError:
         pass
 
-# Network tuning: Kéo song song trang siêu tốc (20 page workers)
 PAGE_WORKERS     = 5        # 5 luồng kéo song song
 PAGE_SIZE        = 100      # Dispatch page size set to 100 (confirmed working)
 SCAN_PAGE_SIZE   = 100      # Inbound/Outbound page size set to 100
 POOL_SIZE        = 30       # 30 luồng kết nối HTTP
-REQUEST_TIMEOUT  = 10
-MAX_RETRIES      = 2
+REQUEST_TIMEOUT  = 15
+MAX_RETRIES      = 3
 BACKOFF_BASE     = 2
 RETRYABLE_STATUS = {405, 429, 500, 502, 503, 504}
 
@@ -298,22 +297,19 @@ class TokenManager:
     def get_token(self):
         with self._lock:
             if self._token is None:
-                cached = self._load_cached_token()
-                if cached:
-                    self._token = cached
-                    print('   OK [' + self.label + '] token (cached): ' + self._token[:12] + '...')
-                else:
+                self._token = self._load_cached_token()
+                if not self._token:
                     self._token = self._login()
                     self._save_cached_token(self._token)
-                    print('   OK [' + self.label + '] token (new login): ' + self._token[:12] + '...')
             return self._token
 
-    def refresh(self, stale):
+    def refresh(self, old_token=None):
         with self._lock:
-            if self._token is None or self._token == stale:
-                print('   🔄 [' + self.label + '] Token het han/khong hop le -> Login lai de lay token moi...')
-                self._token = self._login()
-                self._save_cached_token(self._token)
+            if old_token and self._token != old_token:
+                return self._token
+            print('   [' + self.label + '] Refresh token JFS...')
+            self._token = self._login()
+            self._save_cached_token(self._token)
             return self._token
 
 # ============================================================
@@ -381,20 +377,33 @@ def pull_pages_parallel(fetch_fn, total, page_size, label, start_page=1):
         for f in as_completed(fmap):
             p = fmap[f]
             try:
-                results[p] = f.result()
+                res = f.result()
+                if not res and p < n_pages:
+                    failed.append(p)
+                else:
+                    results[p] = res
             except Exception:
                 failed.append(p)
     if failed:
-        print('   ' + label + ': retry ' + str(len(failed)) + ' trang loi song song...')
-        time.sleep(1)
-        with ThreadPoolExecutor(max_workers=min(5, len(failed))) as ex:
-            fmap = {ex.submit(fetch_fn, p): p for p in failed}
-            for f in as_completed(fmap):
-                p = fmap[f]
-                try:
-                    results[p] = f.result()
-                except Exception:
-                    results[p] = []
+        for retry_round in range(1, 4):
+            if not failed:
+                break
+            print('   ' + label + f': retry lan {retry_round} cho ' + str(len(failed)) + ' trang loi...')
+            time.sleep(1.5 * retry_round)
+            still_failed = []
+            with ThreadPoolExecutor(max_workers=min(5, len(failed))) as ex:
+                fmap = {ex.submit(fetch_fn, p): p for p in failed}
+                for f in as_completed(fmap):
+                    p = fmap[f]
+                    try:
+                        res = f.result()
+                        if not res and p < n_pages:
+                            still_failed.append(p)
+                        else:
+                            results[p] = res
+                    except Exception:
+                        still_failed.append(p)
+            failed = still_failed
     out = []
     for p in pages:
         out.extend(results.get(p, []))
@@ -427,8 +436,17 @@ def pull_dispatch(session, token_mgr, headers, base_payload, label='Dispatch'):
         pl['current'] = str(p)
         r = auth_post(session, URL_DISPATCH, token_mgr,
                       headers, data=pl, label=label + ' p' + str(p))
-        obj = r.json().get('data', {})
+        res_json = r.json()
+        if not isinstance(res_json, dict) or res_json.get('code') != 1:
+            raise RuntimeError(f"JFS API error on page {p}: {res_json.get('msg') if isinstance(res_json, dict) else res_json}")
+        obj = res_json.get('data')
+        if not isinstance(obj, dict):
+            raise RuntimeError(f"JFS API returned null data on page {p}")
         recs = obj.get('records') or obj.get('list') or obj.get('rows') or []
+        tot = obj.get('total')
+        n_pgs = math.ceil(tot / page_size) if (tot and isinstance(tot, int)) else None
+        if not recs and n_pgs and p < n_pgs:
+            raise RuntimeError(f"JFS API returned empty records on page {p} of {n_pgs}")
         return recs, obj
 
     try:
