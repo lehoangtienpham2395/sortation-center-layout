@@ -1455,10 +1455,16 @@ def main():
             elif ob_st not in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
                 next_st = ob_st
 
-        # Step 4: Miền Bắc (HN, BN, HD, HY...) -> Gán Linehaul/BN HUB nếu trạm nguồn thuộc Miền Bắc ngoài BN HUB
+        # Step 4: Miền Bắc (HN, BN, HD, HY, HP, PT, NB, BG, QN, LS, CB, TQ, YB, SL, DB, HG, ND, VP, TH, NA, HT...)
+        # Gán Linehaul/BN HUB nếu trạm nguồn thuộc Miền Bắc HOẶC mã sortcode/dispatch_code thuộc Miền Bắc
         pk_upper = pk_st.upper()
-        if any(prefix in pk_upper for prefix in ['HN ', 'BN ', 'HD ', 'HY ']):
-            if not next_st:
+        sc_upper = sc.upper()
+        north_prefixes = ('HN', 'BN', 'HD', 'HY', 'HP', 'TB', 'QN', 'PT', 'TH', 'NA', 'HT', 'VP', 'BG', 'BK', 'CB', 'LS', 'LC', 'TQ', 'YB', 'SL', 'DB', 'HG', 'ND', 'NB', 'HA')
+        is_sc_north = any(sc_upper.startswith(pfx) for pfx in north_prefixes) and not sc_upper.startswith(('TNI', 'TNG'))
+        is_pk_north = any(prefix in pk_upper for prefix in ['HN ', 'BN ', 'HD ', 'HY ', 'HP ', 'NB ', 'PT '])
+        
+        if is_sc_north or is_pk_north:
+            if not next_st or next_st in ('', 'KHÔ VÙNG KHÁC', 'KHO VÙNG KHÁC', 'KHÁC', 'Chưa phân vùng'):
                 next_st = 'BN HUB'
             if not rnd:
                 rnd = 'Linehaul'

@@ -1024,10 +1024,9 @@ def sync_postgre_to_dashboard():
         pk_st_upper = pk_st_raw.strip().upper()
         is_north_record = (
             target_st_upper == 'BN HUB' or
-            target_st_upper.startswith('HN ') or
-            target_st_upper.startswith('HD ') or
-            target_st_upper.startswith('HY ') or
-            dict_area.get(sc) == 'A06'
+            target_st_upper.startswith(('HN ', 'HD ', 'HY ', 'HP ', 'BN ', 'PT ', 'NB ', 'BG ', 'QN ', 'LS ', 'CB ', 'TQ ', 'YB ', 'SL ', 'DB ', 'HG ', 'ND ', 'VP ', 'TH ', 'NA ', 'HT ')) or
+            dict_area.get(sc) == 'A06' or
+            (sc and any(sc.upper().startswith(pfx) for pfx in ('HN', 'BN', 'HD', 'HY', 'HP', 'TB', 'QN', 'PT', 'TH', 'NA', 'HT', 'VP', 'BG', 'BK', 'CB', 'LS', 'LC', 'TQ', 'YB', 'SL', 'DB', 'HG', 'ND', 'NB', 'HA')) and not sc.upper().startswith(('TNI', 'TNG')))
         )
 
 
