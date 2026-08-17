@@ -910,16 +910,22 @@ def sync_postgre_to_dashboard():
             op_date_inbound_effective      -- Ngay inbound chinh xac cho Rebound
         FROM enriched.dispatch_enriched
         WHERE 
-            -- CHỈ LẤY CÁC ĐƠN ĐANG HOẠT ĐỘNG TRONG CA VẬN HÀNH (HÔM NAY + HÔM QUA)
-            outbound_scandate IS NULL
-            AND (
-                COALESCE(op_date_pickup::date, operation_date_created::date) >= %(op_yesterday)s::date
-                OR arrival_scandate::date >= %(op_yesterday)s::date
-                OR inbound_scandate::date >= %(op_yesterday)s::date
+            -- 🎯 LẤY TOÀN BỘ ĐƠN CHƯA OUTBOUND (HÀNG TỒN CŨ VÀ ĐƠN MỚI 15 NGÀY GẦN NHẤT)
+            (
+                outbound_scandate IS NULL
+                AND operation_date_created::date >= (%(op_today)s::date - INTERVAL '15 days')
+            )
+            -- 🎯 CÁC ĐƠN ĐÃ OUTBOUND TRONG CA HÔM NAY / HÔM QUA (ĐỂ TÍNH TAB OUTBOUND)
+            OR (
+                outbound_scandate IS NOT NULL
+                AND (
+                    outbound_scandate::date >= %(op_yesterday)s::date
+                    OR outbound_scandate_2::date >= %(op_yesterday)s::date
+                )
             )
         ORDER BY operation_date_created DESC, created_time DESC
     """
-    params = {'op_yesterday': yesterday}
+    params = {'op_today': today, 'op_yesterday': yesterday}
     try:
         sa_engine = get_sa_engine()
         if sa_engine:
