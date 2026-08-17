@@ -114,7 +114,7 @@ const ZONE2_TRUCKS = Array.from({ length: 21 }, (_, i) => {
   return {
     areaId: `T2-${String(num).padStart(2, '0')}`,
     name: `TẢI Chờ 2-${String(num).padStart(2, '0')}`,
-    zone: num >= 17 ? 3 : 2
+    zone: 2
   };
 });
 
@@ -1461,18 +1461,18 @@ export default function App() {
                 </g>
               );
             })}
-            {/* Zone 2 Chutes Left border (bao quanh B01->B16, đã bỏ B17-B18) */}
+            {/* Zone 2 Chutes Left border (bao quanh B01->B16) */}
             <rect x={194} y={336} width={448} height={Z_H} rx="2"
                   {...getZoneBorderProps(2, '--yellow')}/>
-            {/* Zone 2 Chutes Right border (bao quanh A00->A04, now Zone 3) */}
+            {/* Zone 2 Chutes Right border (bao quanh B17->B20, B00 kế vách tường - Đồng bộ Zone 2 Màu Vàng) */}
             <rect x={642} y={336} width={140} height={Z_H} rx="2"
-                  {...getZoneBorderProps(3, '--green')}/>
+                  {...getZoneBorderProps(2, '--yellow')}/>
             {/* Zone 2 Trucks border (bao quanh T2-01->T2-16) */}
             <rect x={194} y={280} width={448} height={Z_H} rx="2"
                   {...getZoneBorderProps(2, '--yellow')}/>
-            {/* Zone 3 Trucks border extension (bao quanh T2-17->T2-21) */}
+            {/* Zone 2 Trucks Right border (bao quanh T2-17->T2-21 kế vách tường - Đồng bộ Zone 2 Màu Vàng) */}
             <rect x={642} y={280} width={140} height={Z_H} rx="2"
-                  {...getZoneBorderProps(3, '--green')}/>
+                  {...getZoneBorderProps(2, '--yellow')}/>
           </g>
 
           <line x1={(A23_X + NS_X)/2} y1={EW_Y+EW_H/2} x2={(A23_X + NS_X)/2} y2={EW_Y+3}
