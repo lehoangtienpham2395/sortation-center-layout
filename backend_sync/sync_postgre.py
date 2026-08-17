@@ -1126,14 +1126,11 @@ def sync_postgre_to_dashboard():
             continue
 
         # 🎯 QUY TẮC ĐỐI SOÁT SOURCE BACKLOG (USER SPECIFIED):
-        # Các đơn có Inbound nhưng Hub miss quét Outbound:
-        # Nếu đơn đã Inbound mà chưa Outbound, thuộc ngày cũ (< today),
-        # mà source Backlog KHÔNG CÒN đơn này -> Đã xuất kho thực tế -> Bỏ qua, không tính vào Tồn kho / Forecast!
+        # Mọi đơn thuộc ngày cũ (op_date < today) mà chưa Outbound:
+        # Nếu KHÔNG CÒN NẰM TRONG SOURCE BACKLOG -> Thực tế đã xuất kho hoặc đơn hủy/ảo -> LOẠI BỎ KHỎI TỒN KHO & FORECAST!
         wb_tracking = str(r.get('tracking') or '').strip()
-        is_inb_unout = (has_in or is_reb) and (not has_out)
-        if is_inb_unout:
-            ref_inb_date = op_date_inb_eff or op_date
-            if ref_inb_date < today and wb_tracking and backlog_billcodes_set and (wb_tracking not in backlog_billcodes_set):
+        if op_date < today and (not has_out):
+            if wb_tracking and backlog_billcodes_set and (wb_tracking not in backlog_billcodes_set):
                 continue
         pk_st = str(r.get('pickup_station') or '').strip().upper()
         next_st = str(r.get('next_station') or '').strip().upper()
