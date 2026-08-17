@@ -915,12 +915,12 @@ def sync_postgre_to_dashboard():
                 outbound_scandate IS NULL
                 AND operation_date_created::date >= (%(op_today)s::date - INTERVAL '15 days')
             )
-            -- 🎯 CÁC ĐƠN ĐÃ OUTBOUND TRONG CA HÔM NAY / HÔM QUA (ĐỂ TÍNH TAB OUTBOUND)
+            -- 🎯 CÁC ĐƠN ĐÃ OUTBOUND (LẤY ĐẦY ĐỦ LỊCH SỬ OUTBOUND TỪ 01/08/2026 ĐẾN NAY)
             OR (
                 outbound_scandate IS NOT NULL
                 AND (
-                    outbound_scandate::date >= %(op_yesterday)s::date
-                    OR outbound_scandate_2::date >= %(op_yesterday)s::date
+                    outbound_scandate::date >= '2026-08-01'
+                    OR outbound_scandate_2::date >= '2026-08-01'
                 )
             )
         ORDER BY operation_date_created DESC, created_time DESC
@@ -1157,7 +1157,7 @@ def sync_postgre_to_dashboard():
             effective_out_time = outb_t_2 if has_out_2 else outb_t
             if effective_out_time and len(effective_out_time) >= 10:
                 op_date_outb = get_op_date(effective_out_time)
-                if op_date_outb in (today, yesterday):
+                if op_date_outb and op_date_outb >= '2026-08-01':
                     ko = (zone, area_id, station, op_date_outb)
                     if ko not in out_group:
                         out_group[ko] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
