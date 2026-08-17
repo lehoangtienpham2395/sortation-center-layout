@@ -62,17 +62,16 @@ try {
 }
 
 
-// ── Rack / chute definitions (Chuẩn hóa 100% tên bưu cục theo valid.csv) ──
+// ── Rack / chute definitions (Chuẩn hóa 100% tên bưu cục theo quy hoạch 61 Chutes mới nhất) ──
 const ZONE3_LIST = [
   // 5 ô chutes bên phải vách ngăn (vùng xanh lá)
-  { areaId: 'C01', name: 'SG CHỢ LỚN', zone: 3 },
-  { areaId: 'C02', name: 'SG HƯNG LONG', zone: 3 },
   { areaId: 'C03', name: 'SG BÌNH LỢI TRUNG', zone: 3 },
   { areaId: 'C04', name: 'SG BÌNH TRỊ ĐÔNG', zone: 3 },
   { areaId: 'C05', name: 'SG KHÁNH HỘI', zone: 3 },
-  // 21 ô chutes bên trái vách ngăn (C06 -> C26)
-  { areaId: 'C06', name: 'BD DĨ AN', zone: 3 },       { areaId: 'C07', name: 'DC GIA ĐỊNH', zone: 3 },
-  { areaId: 'C08', name: 'TG GÒ CÔNG', zone: 3 },   { areaId: 'C09', name: 'LA HẬU NGHĨA', zone: 3 },
+  { areaId: 'C06', name: 'BD DĨ AN', zone: 3 },
+  { areaId: 'C07', name: 'DC GIA ĐỊNH', zone: 3 },
+  // 20 ô chutes bên trái vách ngăn (C08 -> C27)
+  { areaId: 'C08', name: 'TG GÒ CÔNG', zone: 3 },    { areaId: 'C09', name: 'LA HẬU NGHĨA', zone: 3 },
   { areaId: 'C10', name: 'SG XUÂN HÒA', zone: 3 },   { areaId: 'C11', name: 'LA CẦN ĐƯỚC', zone: 3 },
   { areaId: 'C12', name: 'SG PHÚ NHUẬN', zone: 3 },  { areaId: 'C13', name: 'ST VĨNH CHÂU', zone: 3 },
   { areaId: 'C14', name: 'CT LONG MỸ', zone: 3 },    { areaId: 'C15', name: 'ST PHÚ LỢI', zone: 3 },
@@ -82,7 +81,8 @@ const ZONE3_LIST = [
   { areaId: 'C22', name: 'VT LONG ĐẤT', zone: 3 },   { areaId: 'C23', name: 'SG BẢY HIỀN', zone: 3 },
   { areaId: 'C24', name: 'BD BÌNH HÒA', zone: 3 },
   { areaId: 'C25', name: 'LA BẾN LỨC', zone: 3 },
-  { areaId: 'C26', name: '3PL', zone: 3 }
+  { areaId: 'C26', name: 'SETN', zone: 3 },
+  { areaId: 'C27', name: 'DN TRẢNG BOM', zone: 3 }
 ];
 
 const ZONE3_TRUCKS = Array.from({ length: 24 }, (_, i) => ({
@@ -93,14 +93,14 @@ const ZONE3_TRUCKS = Array.from({ length: 24 }, (_, i) => ({
 
 const ZONE2_LIST = [
   // 5 ô chutes bên phải vách ngăn (vùng màu vàng)
-  { areaId: 'A00', name: 'VT LONG ĐẤT', zone: 3 },
-  { areaId: 'A01', name: 'SG HÓC MÔN', zone: 3 },
-  { areaId: 'A02', name: 'SG BÌNH LỢI', zone: 3 },
-  { areaId: 'A03', name: 'SG TÂN THỚI HIỆP', zone: 3 },
-  { areaId: 'A04', name: 'LA ĐỨC HÒA', zone: 3 },
-  // 18 ô chutes bên trái vách ngăn (B01 -> B18)
+  { areaId: 'B17', name: 'SG HƯNG LONG', zone: 2 },
+  { areaId: 'B18', name: 'SG HÓC MÔN', zone: 2 },
+  { areaId: 'B19', name: 'SG BÌNH LỢI,SG MINH XUÂN', zone: 2 },
+  { areaId: 'B20', name: 'LA ĐỨC HÒA', zone: 2 },
+  { areaId: 'B00', name: 'SG CHỢ LỚN', zone: 2 },
+  // 16 ô chutes bên trái vách ngăn (B01 -> B16)
   { areaId: 'B01', name: 'SG ĐÔNG HƯNG THUẬN', zone: 2 }, { areaId: 'B02', name: 'SG TÂN HƯNG', zone: 2 },
-  { areaId: 'B03', name: 'SG BÌNH TÂN', zone: 2 },         { areaId: 'B04', name: 'SG AN LẠC', zone: 2 },
+  { areaId: 'B03', name: 'SG BÌNH TÂN', zone: 2 },         { areaId: 'B04', name: 'SG TÂN THỚI HIỆP', zone: 2 },
   { areaId: 'B05', name: 'SG PHÚ LÂM', zone: 2 },          { areaId: 'B06', name: 'SG HIỆP BÌNH', zone: 2 },
   { areaId: 'B07', name: 'SG TÂN SƠN NHÌ', zone: 2 },       { areaId: 'B08', name: 'SG CỦ CHI', zone: 2 },
   { areaId: 'B09', name: 'SG TÂN TẠO', zone: 2 },          { areaId: 'B10', name: 'SG GÒ VẤP', zone: 2 },
@@ -119,7 +119,7 @@ const ZONE2_TRUCKS = Array.from({ length: 21 }, (_, i) => {
 });
 
 const ZONE1_LIST = [
-  // 15 ô chutes bên trái vách ngăn (A06 -> A20, loại bỏ A03, A04 để tránh trùng lặp với Zone 2)
+  // 15 ô chutes bên trái vách ngăn (A06 -> A20)
   { areaId: 'A06', name: 'BN HUB', zone: 1 },
   { areaId: 'A07', name: 'CT Ô MÔN', zone: 1 },       { areaId: 'A08', name: 'CT BÌNH THỦY', zone: 1 },
   { areaId: 'A09', name: 'CT NINH KIỀU', zone: 1 },   { areaId: 'A10', name: 'DT CAO LÃNH', zone: 1 },
