@@ -304,9 +304,9 @@ export default function InboundDashboard({
     const normFcDate = getFcOpDate(d);
     const status = d.status || d['Trng thi'] || d['Trạng thái'] || '';
     const vol = parseInt(d.volume ?? d['Volume'] ?? 1, 10) || 1;
-    const itemWt = parseFloat(d.weight_ton ?? d.weight_kg ?? d.Weight ?? 0) || 0;
-    const normItemWt = itemWt > 100 ? itemWt / 1000.0 : itemWt;
-    const wt = normItemWt > 0 && normItemWt < 0.5 ? normItemWt * vol : normItemWt;
+    // 🎯 SINGLE SOURCE OF TRUTH: weight_ton từ Backend đã là tổng Tấn chuẩn xác
+    const itemWt = parseFloat(d.weight_ton ?? d.Weight ?? 0) || (parseFloat(d.weight_kg ?? 0) / 1000.0) || 0;
+    const wt = itemWt;
 
     if (status !== 'Đã hủy' && status !== 'Canceled') {
 

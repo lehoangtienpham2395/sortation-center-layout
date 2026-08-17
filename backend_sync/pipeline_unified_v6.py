@@ -1264,7 +1264,7 @@ def main():
                 'tracking': wb, 'status_sys': 'Inbound', 'Created_time': st,
                 'Pickup_station': send_st, 'Dispatch_code': '',
                 'Orders_num': int(r.get('piece') or 1),
-                'Orders_weight': (wt / 1000.0) if wt > 5000.0 else (wt if wt > 0 else 1.5),
+                'Orders_weight': float(wt) if wt > 0 else 1.5,
                 'Pickup_station2': send_st,
                 'Pickup_time': '', 'AreaCode': '',
                 'flowTypeDesc': 'Inbound Linehaul',

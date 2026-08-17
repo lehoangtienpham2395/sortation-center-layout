@@ -1064,7 +1064,7 @@ def sync_postgre_to_dashboard():
         valid_area = bool(area_id)
         cap      = 1400 if area_id == 'A06' else 780
         raw_wt   = float(r.get('orders_weight') or 0)
-        wt_kg    = (raw_wt / 1000.0) if raw_wt > 5000.0 else raw_wt
+        wt_kg    = raw_wt  # 🎯 SINGLE SOURCE OF TRUTH: Trọng lượng tính cước (packageChargeWeight) đơn vị kg nguyên bản
         cr_t     = clean_ts_str(r.get('created_time'))
         pk_t     = clean_ts_str(r.get('pickup_time'))
         pk_st    = str(r.get('pickup_station') or '').upper()
@@ -1267,10 +1267,13 @@ def sync_postgre_to_dashboard():
         for (op_d, st, hr), s in arr_group.items()
     ]
 
-    # hub_inventory_pivot — mỗi station 1 dòng (tổng mọi status cho ca hôm nay)
+    # hub_inventory_pivot — mỗi station 1 dòng (tổng mọi status chưa Outbound cho ca hôm nay)
+    # 🎯 BẢO VỆ ĐƠN HÀNG HOÀN / TỒN BÃI:
+    # Volume của mỗi Chute trong ca hôm nay = Toàn bộ đơn chưa Outbound của ca hôm nay (d == today)
+    # CỘNG VỚI các đơn hàng hoàn / tồn bãi chưa Outbound từ các ngày cũ (d <= today) đang chờ xử lý tại HUB!
     pivot_map = {}
     for (z, a, s, _, d), v in inv_group.items():
-        if d == today:
+        if d <= today:
             k = (z, a, s)
             if k not in pivot_map:
                 pivot_map[k] = {'volume': 0, 'weight_kg': 0.0, 'capacity': v['capacity']}
@@ -1328,10 +1331,6 @@ def sync_postgre_to_dashboard():
     }
     print(f"   📊 Cờ Rớt: Rớt hôm trước (Baseline 6AM)={last_update_obj['rot_hom_truoc']:,} | Live={rot_hom_truoc:,} | Rớt hôm nay={rot_hom_nay:,}")
 
-    # ── 5. Build Micro-JSONs (Data Architecture v2.0 - Ultra Light) ──
-    print(f"\n⚡ Building Micro-JSON Payloads (Data Architecture v2.0)...")
-    
-    # 🎯 LINEHAUL USER BUSINESS RULE: Pickup_station != 'BN HUB' AND Next_station == 'BN HUB' (Hàng từ HCM HUB đi BN HUB / Miền Bắc)
     def is_linehaul_item(st, pk, status):
         pk_u = str(pk or '').strip().upper()
         next_u = str(st or '').strip().upper()
