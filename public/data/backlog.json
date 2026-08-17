@@ -10,16 +10,6 @@
     "op_date": "2026-08-17"
   },
   {
-    "zone": "1",
-    "area_id": "A16",
-    "station_name": "SG THỦ ĐỨC",
-    "status": "Inbound",
-    "volume": 36,
-    "weight_ton": 0.59571,
-    "capacity": 780,
-    "op_date": "2026-08-17"
-  },
-  {
     "zone": "3",
     "area_id": "C17",
     "station_name": "VL CHỢ LÁCH",
@@ -30,12 +20,12 @@
     "op_date": "2026-08-17"
   },
   {
-    "zone": "3",
-    "area_id": "C06",
-    "station_name": "BD DĨ AN",
+    "zone": "1",
+    "area_id": "A16",
+    "station_name": "SG THỦ ĐỨC",
     "status": "Inbound",
-    "volume": 7,
-    "weight_ton": 0.14652,
+    "volume": 36,
+    "weight_ton": 0.59571,
     "capacity": 780,
     "op_date": "2026-08-17"
   },
@@ -46,6 +36,16 @@
     "status": "Inbound",
     "volume": 3,
     "weight_ton": 0.10617,
+    "capacity": 780,
+    "op_date": "2026-08-17"
+  },
+  {
+    "zone": "3",
+    "area_id": "C06",
+    "station_name": "BD DĨ AN",
+    "status": "Inbound",
+    "volume": 7,
+    "weight_ton": 0.14652,
     "capacity": 780,
     "op_date": "2026-08-17"
   },
@@ -66,16 +66,6 @@
     "status": "Inbound",
     "volume": 5,
     "weight_ton": 0.09307,
-    "capacity": 780,
-    "op_date": "2026-08-17"
-  },
-  {
-    "zone": "2",
-    "area_id": "B17",
-    "station_name": "SG HƯNG LONG",
-    "status": "Inbound",
-    "volume": 5,
-    "weight_ton": 0.06241,
     "capacity": 780,
     "op_date": "2026-08-17"
   },
@@ -101,11 +91,31 @@
   },
   {
     "zone": "2",
+    "area_id": "B17",
+    "station_name": "SG HƯNG LONG",
+    "status": "Inbound",
+    "volume": 5,
+    "weight_ton": 0.06241,
+    "capacity": 780,
+    "op_date": "2026-08-17"
+  },
+  {
+    "zone": "2",
     "area_id": "B10",
     "station_name": "SG GÒ VẤP",
     "status": "Inbound",
     "volume": 14,
     "weight_ton": 0.26472,
+    "capacity": 780,
+    "op_date": "2026-08-17"
+  },
+  {
+    "zone": "3",
+    "area_id": "C15",
+    "station_name": "ST PHÚ LỢI",
+    "status": "Inbound",
+    "volume": 13,
+    "weight_ton": 0.20522,
     "capacity": 780,
     "op_date": "2026-08-17"
   },
@@ -116,16 +126,6 @@
     "status": "Inbound",
     "volume": 13,
     "weight_ton": 0.2058,
-    "capacity": 780,
-    "op_date": "2026-08-17"
-  },
-  {
-    "zone": "3",
-    "area_id": "C05",
-    "station_name": "SG KHÁNH HỘI",
-    "status": "Inbound",
-    "volume": 8,
-    "weight_ton": 0.10856,
     "capacity": 780,
     "op_date": "2026-08-17"
   },
@@ -141,11 +141,11 @@
   },
   {
     "zone": "3",
-    "area_id": "C15",
-    "station_name": "ST PHÚ LỢI",
+    "area_id": "C05",
+    "station_name": "SG KHÁNH HỘI",
     "status": "Inbound",
-    "volume": 13,
-    "weight_ton": 0.20522,
+    "volume": 8,
+    "weight_ton": 0.10856,
     "capacity": 780,
     "op_date": "2026-08-17"
   },
@@ -330,16 +330,6 @@
     "op_date": "2026-08-17"
   },
   {
-    "zone": "1",
-    "area_id": "A10",
-    "station_name": "DT CAO LÃNH",
-    "status": "Inbound",
-    "volume": 5,
-    "weight_ton": 0.11966,
-    "capacity": 780,
-    "op_date": "2026-08-17"
-  },
-  {
     "zone": "3",
     "area_id": "C25",
     "station_name": "LA BẾN LỨC",
@@ -350,42 +340,12 @@
     "op_date": "2026-08-17"
   },
   {
-    "zone": "2",
-    "area_id": "B19",
-    "station_name": "SG BÌNH LỢI,SG MINH XUÂN",
-    "status": "Inbound",
-    "volume": 7,
-    "weight_ton": 0.10337,
-    "capacity": 780,
-    "op_date": "2026-08-17"
-  },
-  {
-    "zone": "3",
-    "area_id": "C18",
-    "station_name": "AG AN PHÚ",
-    "status": "Inbound",
-    "volume": 2,
-    "weight_ton": 0.04264,
-    "capacity": 780,
-    "op_date": "2026-08-17"
-  },
-  {
     "zone": "1",
-    "area_id": "A20",
-    "station_name": "AG CẦN ĐĂNG",
+    "area_id": "A10",
+    "station_name": "DT CAO LÃNH",
     "status": "Inbound",
-    "volume": 3,
-    "weight_ton": 0.06388,
-    "capacity": 780,
-    "op_date": "2026-08-17"
-  },
-  {
-    "zone": "2",
-    "area_id": "B07",
-    "station_name": "SG TÂN SƠN NHÌ",
-    "status": "Inbound",
-    "volume": 4,
-    "weight_ton": 0.05863,
+    "volume": 5,
+    "weight_ton": 0.11966,
     "capacity": 780,
     "op_date": "2026-08-17"
   },
@@ -416,6 +376,46 @@
     "status": "Inbound",
     "volume": 9,
     "weight_ton": 0.08131,
+    "capacity": 780,
+    "op_date": "2026-08-17"
+  },
+  {
+    "zone": "2",
+    "area_id": "B07",
+    "station_name": "SG TÂN SƠN NHÌ",
+    "status": "Inbound",
+    "volume": 4,
+    "weight_ton": 0.05863,
+    "capacity": 780,
+    "op_date": "2026-08-17"
+  },
+  {
+    "zone": "1",
+    "area_id": "A20",
+    "station_name": "AG CẦN ĐĂNG",
+    "status": "Inbound",
+    "volume": 3,
+    "weight_ton": 0.06388,
+    "capacity": 780,
+    "op_date": "2026-08-17"
+  },
+  {
+    "zone": "3",
+    "area_id": "C18",
+    "station_name": "AG AN PHÚ",
+    "status": "Inbound",
+    "volume": 2,
+    "weight_ton": 0.04264,
+    "capacity": 780,
+    "op_date": "2026-08-17"
+  },
+  {
+    "zone": "2",
+    "area_id": "B19",
+    "station_name": "SG BÌNH LỢI,SG MINH XUÂN",
+    "status": "Inbound",
+    "volume": 7,
+    "weight_ton": 0.10337,
     "capacity": 780,
     "op_date": "2026-08-17"
   },
@@ -601,6 +601,16 @@
   },
   {
     "zone": "2",
+    "area_id": "B10",
+    "station_name": "SG GÒ VẤP",
+    "status": "Inbound",
+    "volume": 21,
+    "weight_ton": 0.1575,
+    "capacity": 780,
+    "op_date": "2026-08-16"
+  },
+  {
+    "zone": "2",
     "area_id": "B05",
     "station_name": "SG PHÚ LÂM",
     "status": "Inbound",
@@ -616,16 +626,6 @@
     "status": "Inbound",
     "volume": 20,
     "weight_ton": 0.13698,
-    "capacity": 780,
-    "op_date": "2026-08-16"
-  },
-  {
-    "zone": "2",
-    "area_id": "B10",
-    "station_name": "SG GÒ VẤP",
-    "status": "Inbound",
-    "volume": 21,
-    "weight_ton": 0.1575,
     "capacity": 780,
     "op_date": "2026-08-16"
   },
@@ -660,22 +660,22 @@
     "op_date": "2026-08-16"
   },
   {
-    "zone": "2",
-    "area_id": "B20",
-    "station_name": "LA ĐỨC HÒA",
-    "status": "Inbound",
-    "volume": 23,
-    "weight_ton": 0.15474,
-    "capacity": 780,
-    "op_date": "2026-08-16"
-  },
-  {
     "zone": "3",
     "area_id": "C04",
     "station_name": "SG BÌNH TRỊ ĐÔNG",
     "status": "Inbound",
     "volume": 16,
     "weight_ton": 0.12633,
+    "capacity": 780,
+    "op_date": "2026-08-16"
+  },
+  {
+    "zone": "2",
+    "area_id": "B20",
+    "station_name": "LA ĐỨC HÒA",
+    "status": "Inbound",
+    "volume": 23,
+    "weight_ton": 0.15474,
     "capacity": 780,
     "op_date": "2026-08-16"
   },
@@ -800,22 +800,22 @@
     "op_date": "2026-08-16"
   },
   {
-    "zone": "1",
-    "area_id": "A08",
-    "station_name": "CT BÌNH THỦY",
-    "status": "Inbound",
-    "volume": 6,
-    "weight_ton": 0.04574,
-    "capacity": 780,
-    "op_date": "2026-08-16"
-  },
-  {
     "zone": "3",
     "area_id": "X",
     "station_name": "DT TN",
     "status": "Inbound",
     "volume": 30,
     "weight_ton": 0.19688,
+    "capacity": 780,
+    "op_date": "2026-08-16"
+  },
+  {
+    "zone": "1",
+    "area_id": "A08",
+    "station_name": "CT BÌNH THỦY",
+    "status": "Inbound",
+    "volume": 6,
+    "weight_ton": 0.04574,
     "capacity": 780,
     "op_date": "2026-08-16"
   },
@@ -1030,22 +1030,22 @@
     "op_date": "2026-08-16"
   },
   {
-    "zone": "2",
-    "area_id": "B19",
-    "station_name": "SG BÌNH LỢI,SG MINH XUÂN",
-    "status": "Inbound",
-    "volume": 14,
-    "weight_ton": 0.0994,
-    "capacity": 780,
-    "op_date": "2026-08-16"
-  },
-  {
     "zone": "3",
     "area_id": "C20",
     "station_name": "AG TỊNH BIÊN",
     "status": "Inbound",
     "volume": 3,
     "weight_ton": 0.01832,
+    "capacity": 780,
+    "op_date": "2026-08-16"
+  },
+  {
+    "zone": "2",
+    "area_id": "B19",
+    "station_name": "SG BÌNH LỢI,SG MINH XUÂN",
+    "status": "Inbound",
+    "volume": 14,
+    "weight_ton": 0.0994,
     "capacity": 780,
     "op_date": "2026-08-16"
   },
@@ -1200,16 +1200,6 @@
     "op_date": "2026-08-15"
   },
   {
-    "zone": "1",
-    "area_id": "A17",
-    "station_name": "TG TRUNG AN",
-    "status": "Inbound",
-    "volume": 2,
-    "weight_ton": 0.01794,
-    "capacity": 780,
-    "op_date": "2026-08-15"
-  },
-  {
     "zone": "3",
     "area_id": "C19",
     "station_name": "AG TÂN CHÂU",
@@ -1220,9 +1210,9 @@
     "op_date": "2026-08-15"
   },
   {
-    "zone": "1",
-    "area_id": "A09",
-    "station_name": "CT NINH KIỀU",
+    "zone": "2",
+    "area_id": "B02",
+    "station_name": "SG TÂN HƯNG",
     "status": "Inbound",
     "volume": 1,
     "weight_ton": 0.01,
@@ -1230,9 +1220,9 @@
     "op_date": "2026-08-15"
   },
   {
-    "zone": "2",
-    "area_id": "B02",
-    "station_name": "SG TÂN HƯNG",
+    "zone": "1",
+    "area_id": "A09",
+    "station_name": "CT NINH KIỀU",
     "status": "Inbound",
     "volume": 1,
     "weight_ton": 0.01,
@@ -1266,6 +1256,16 @@
     "status": "Inbound",
     "volume": 1,
     "weight_ton": 0.01127,
+    "capacity": 780,
+    "op_date": "2026-08-15"
+  },
+  {
+    "zone": "1",
+    "area_id": "A17",
+    "station_name": "TG TRUNG AN",
+    "status": "Inbound",
+    "volume": 1,
+    "weight_ton": 0.007,
     "capacity": 780,
     "op_date": "2026-08-15"
   },
@@ -1381,16 +1381,6 @@
   },
   {
     "zone": "2",
-    "area_id": "B02",
-    "station_name": "SG TÂN HƯNG",
-    "status": "Inbound",
-    "volume": 2,
-    "weight_ton": 0.02008,
-    "capacity": 780,
-    "op_date": "2026-08-14"
-  },
-  {
-    "zone": "2",
     "area_id": "B00",
     "station_name": "SG CHỢ LỚN",
     "status": "Inbound",
@@ -1406,6 +1396,16 @@
     "status": "Inbound",
     "volume": 1,
     "weight_ton": 0.0085,
+    "capacity": 780,
+    "op_date": "2026-08-14"
+  },
+  {
+    "zone": "2",
+    "area_id": "B02",
+    "station_name": "SG TÂN HƯNG",
+    "status": "Inbound",
+    "volume": 1,
+    "weight_ton": 0.015,
     "capacity": 780,
     "op_date": "2026-08-14"
   },
@@ -1431,16 +1431,6 @@
   },
   {
     "zone": "1",
-    "area_id": "A19",
-    "station_name": "AG LONG XUYÊN",
-    "status": "Inbound",
-    "volume": 3,
-    "weight_ton": 0.01524,
-    "capacity": 780,
-    "op_date": "2026-08-14"
-  },
-  {
-    "zone": "1",
     "area_id": "A10",
     "station_name": "DT CAO LÃNH",
     "status": "Inbound",
@@ -1450,12 +1440,12 @@
     "op_date": "2026-08-14"
   },
   {
-    "zone": "3",
-    "area_id": "C06",
-    "station_name": "BD DĨ AN",
+    "zone": "1",
+    "area_id": "A19",
+    "station_name": "AG LONG XUYÊN",
     "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.01504,
+    "volume": 2,
+    "weight_ton": 0.01016,
     "capacity": 780,
     "op_date": "2026-08-14"
   },
@@ -1486,16 +1476,6 @@
     "status": "Inbound",
     "volume": 2,
     "weight_ton": 0.001,
-    "capacity": 780,
-    "op_date": "2026-08-13"
-  },
-  {
-    "zone": "2",
-    "area_id": "B09",
-    "station_name": "SG TÂN TẠO",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.005,
     "capacity": 780,
     "op_date": "2026-08-13"
   },
@@ -1541,41 +1521,11 @@
   },
   {
     "zone": "2",
-    "area_id": "B07",
-    "station_name": "SG TÂN SƠN NHÌ",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.01,
-    "capacity": 780,
-    "op_date": "2026-08-13"
-  },
-  {
-    "zone": "3",
-    "area_id": "C03",
-    "station_name": "SG BÌNH LỢI TRUNG",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.01,
-    "capacity": 780,
-    "op_date": "2026-08-13"
-  },
-  {
-    "zone": "2",
     "area_id": "B19",
     "station_name": "SG BÌNH LỢI,SG MINH XUÂN",
     "status": "Inbound",
     "volume": 1,
     "weight_ton": 0.0216,
-    "capacity": 780,
-    "op_date": "2026-08-13"
-  },
-  {
-    "zone": "3",
-    "area_id": "C11",
-    "station_name": "LA CẦN ĐƯỚC",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.006,
     "capacity": 780,
     "op_date": "2026-08-13"
   },
@@ -1621,16 +1571,6 @@
   },
   {
     "zone": "2",
-    "area_id": "B05",
-    "station_name": "SG PHÚ LÂM",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.01,
-    "capacity": 780,
-    "op_date": "2026-08-13"
-  },
-  {
-    "zone": "2",
     "area_id": "B03",
     "station_name": "SG BÌNH TÂN",
     "status": "Inbound",
@@ -1646,16 +1586,6 @@
     "status": "Inbound",
     "volume": 7,
     "weight_ton": 0.05869,
-    "capacity": 780,
-    "op_date": "2026-08-12"
-  },
-  {
-    "zone": "3",
-    "area_id": "C12",
-    "station_name": "SG PHÚ NHUẬN",
-    "status": "Inbound",
-    "volume": 3,
-    "weight_ton": 0.02016,
     "capacity": 780,
     "op_date": "2026-08-12"
   },
@@ -1701,51 +1631,11 @@
   },
   {
     "zone": "3",
-    "area_id": "C23",
-    "station_name": "SG BẢY HIỀN",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.01,
-    "capacity": 780,
-    "op_date": "2026-08-12"
-  },
-  {
-    "zone": "1",
-    "area_id": "A06",
-    "station_name": "BN HUB",
-    "status": "Inbound",
-    "volume": 5,
-    "weight_ton": 0.0444,
-    "capacity": 1400,
-    "op_date": "2026-08-11"
-  },
-  {
-    "zone": "3",
-    "area_id": "C06",
-    "station_name": "BD DĨ AN",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0005,
-    "capacity": 780,
-    "op_date": "2026-08-11"
-  },
-  {
-    "zone": "3",
     "area_id": "C16",
     "station_name": "SG NHƠN ĐỨC",
     "status": "Inbound",
     "volume": 3,
     "weight_ton": 0.0222,
-    "capacity": 780,
-    "op_date": "2026-08-11"
-  },
-  {
-    "zone": "1",
-    "area_id": "A17",
-    "station_name": "TG TRUNG AN",
-    "status": "Inbound",
-    "volume": 2,
-    "weight_ton": 0.0155,
     "capacity": 780,
     "op_date": "2026-08-11"
   },
@@ -1764,18 +1654,8 @@
     "area_id": "B08",
     "station_name": "SG CỦ CHI",
     "status": "Inbound",
-    "volume": 3,
-    "weight_ton": 0.02601,
-    "capacity": 780,
-    "op_date": "2026-08-11"
-  },
-  {
-    "zone": "2",
-    "area_id": "B11",
-    "station_name": "SG AN PHÚ ĐÔNG",
-    "status": "Inbound",
-    "volume": 12,
-    "weight_ton": 0.1036,
+    "volume": 2,
+    "weight_ton": 0.01601,
     "capacity": 780,
     "op_date": "2026-08-11"
   },
@@ -1800,46 +1680,6 @@
     "op_date": "2026-08-11"
   },
   {
-    "zone": "2",
-    "area_id": "B16",
-    "station_name": "SG BÀ ĐIỂM",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.032,
-    "capacity": 780,
-    "op_date": "2026-08-11"
-  },
-  {
-    "zone": "2",
-    "area_id": "B19",
-    "station_name": "SG BÌNH LỢI,SG MINH XUÂN",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.01,
-    "capacity": 780,
-    "op_date": "2026-08-11"
-  },
-  {
-    "zone": "1",
-    "area_id": "A18",
-    "station_name": "VT VŨNG TÀU",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0098,
-    "capacity": 780,
-    "op_date": "2026-08-10"
-  },
-  {
-    "zone": "3",
-    "area_id": "C25",
-    "station_name": "LA BẾN LỨC",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0015,
-    "capacity": 780,
-    "op_date": "2026-08-10"
-  },
-  {
     "zone": "1",
     "area_id": "A09",
     "station_name": "CT NINH KIỀU",
@@ -1851,82 +1691,12 @@
   },
   {
     "zone": "1",
-    "area_id": "A11",
-    "station_name": "DT SA ĐÉC",
-    "status": "Inbound",
-    "volume": 2,
-    "weight_ton": 0.001,
-    "capacity": 780,
-    "op_date": "2026-08-10"
-  },
-  {
-    "zone": "3",
-    "area_id": "C26",
-    "station_name": "SETN",
-    "status": "Inbound",
-    "volume": 9,
-    "weight_ton": 0.05543,
-    "capacity": 780,
-    "op_date": "2026-08-10"
-  },
-  {
-    "zone": "1",
-    "area_id": "A07",
-    "station_name": "CT Ô MÔN",
-    "status": "Inbound",
-    "volume": 2,
-    "weight_ton": 0.0113,
-    "capacity": 780,
-    "op_date": "2026-08-10"
-  },
-  {
-    "zone": "3",
-    "area_id": "C03",
-    "station_name": "SG BÌNH LỢI TRUNG",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.007,
-    "capacity": 780,
-    "op_date": "2026-08-10"
-  },
-  {
-    "zone": "2",
-    "area_id": "B17",
-    "station_name": "SG HƯNG LONG",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0005,
-    "capacity": 780,
-    "op_date": "2026-08-10"
-  },
-  {
-    "zone": "2",
-    "area_id": "B03",
-    "station_name": "SG BÌNH TÂN",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0005,
-    "capacity": 780,
-    "op_date": "2026-08-10"
-  },
-  {
-    "zone": "1",
     "area_id": "A06",
     "station_name": "BN HUB",
     "status": "Inbound",
     "volume": 1,
     "weight_ton": 0.006,
     "capacity": 1400,
-    "op_date": "2026-08-10"
-  },
-  {
-    "zone": "3",
-    "area_id": "C13",
-    "station_name": "ST VĨNH CHÂU",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.007,
-    "capacity": 780,
     "op_date": "2026-08-10"
   },
   {
@@ -1940,26 +1710,6 @@
     "op_date": "2026-08-10"
   },
   {
-    "zone": "3",
-    "area_id": "C26",
-    "station_name": "SETN",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.00681,
-    "capacity": 780,
-    "op_date": "2026-08-09"
-  },
-  {
-    "zone": "3",
-    "area_id": "C06",
-    "station_name": "BD DĨ AN",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0052,
-    "capacity": 780,
-    "op_date": "2026-08-09"
-  },
-  {
     "zone": "2",
     "area_id": "B05",
     "station_name": "SG PHÚ LÂM",
@@ -1968,36 +1718,6 @@
     "weight_ton": 0.01,
     "capacity": 780,
     "op_date": "2026-08-09"
-  },
-  {
-    "zone": "3",
-    "area_id": "C26",
-    "station_name": "SETN",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.01,
-    "capacity": 780,
-    "op_date": "2026-08-08"
-  },
-  {
-    "zone": "3",
-    "area_id": "C04",
-    "station_name": "SG BÌNH TRỊ ĐÔNG",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.00967,
-    "capacity": 780,
-    "op_date": "2026-08-08"
-  },
-  {
-    "zone": "3",
-    "area_id": "C16",
-    "station_name": "SG NHƠN ĐỨC",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.01026,
-    "capacity": 780,
-    "op_date": "2026-08-08"
   },
   {
     "zone": "2",
@@ -2010,126 +1730,6 @@
     "op_date": "2026-08-08"
   },
   {
-    "zone": "1",
-    "area_id": "A06",
-    "station_name": "BN HUB",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.01,
-    "capacity": 1400,
-    "op_date": "2026-08-08"
-  },
-  {
-    "zone": "1",
-    "area_id": "A09",
-    "station_name": "CT NINH KIỀU",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0015,
-    "capacity": 780,
-    "op_date": "2026-08-08"
-  },
-  {
-    "zone": "3",
-    "area_id": "X",
-    "station_name": "DT TN",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.01,
-    "capacity": 780,
-    "op_date": "2026-08-08"
-  },
-  {
-    "zone": "2",
-    "area_id": "B09",
-    "station_name": "SG TÂN TẠO",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0052,
-    "capacity": 780,
-    "op_date": "2026-08-07"
-  },
-  {
-    "zone": "2",
-    "area_id": "B06",
-    "station_name": "SG HIỆP BÌNH",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.00523,
-    "capacity": 780,
-    "op_date": "2026-08-07"
-  },
-  {
-    "zone": "3",
-    "area_id": "C06",
-    "station_name": "BD DĨ AN",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0005,
-    "capacity": 780,
-    "op_date": "2026-08-07"
-  },
-  {
-    "zone": "3",
-    "area_id": "C05",
-    "station_name": "SG KHÁNH HỘI",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.00942,
-    "capacity": 780,
-    "op_date": "2026-08-07"
-  },
-  {
-    "zone": "3",
-    "area_id": "X",
-    "station_name": "DT TN",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.00653,
-    "capacity": 780,
-    "op_date": "2026-08-07"
-  },
-  {
-    "zone": "1",
-    "area_id": "A06",
-    "station_name": "BN HUB",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0085,
-    "capacity": 1400,
-    "op_date": "2026-08-07"
-  },
-  {
-    "zone": "3",
-    "area_id": "C23",
-    "station_name": "SG BẢY HIỀN",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.00508,
-    "capacity": 780,
-    "op_date": "2026-08-07"
-  },
-  {
-    "zone": "2",
-    "area_id": "B06",
-    "station_name": "SG HIỆP BÌNH",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.006,
-    "capacity": 780,
-    "op_date": "2026-08-06"
-  },
-  {
-    "zone": "1",
-    "area_id": "A16",
-    "station_name": "SG THỦ ĐỨC",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.006,
-    "capacity": 780,
-    "op_date": "2026-08-06"
-  },
-  {
     "zone": "2",
     "area_id": "B09",
     "station_name": "SG TÂN TẠO",
@@ -2138,86 +1738,6 @@
     "weight_ton": 0.006,
     "capacity": 780,
     "op_date": "2026-08-06"
-  },
-  {
-    "zone": "1",
-    "area_id": "A06",
-    "station_name": "BN HUB",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.006,
-    "capacity": 1400,
-    "op_date": "2026-08-06"
-  },
-  {
-    "zone": "3",
-    "area_id": "C19",
-    "station_name": "AG TÂN CHÂU",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0055,
-    "capacity": 780,
-    "op_date": "2026-08-06"
-  },
-  {
-    "zone": "2",
-    "area_id": "B03",
-    "station_name": "SG BÌNH TÂN",
-    "status": "Inbound",
-    "volume": 15,
-    "weight_ton": 0.255,
-    "capacity": 780,
-    "op_date": "2026-08-06"
-  },
-  {
-    "zone": "1",
-    "area_id": "A06",
-    "station_name": "BN HUB",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.09,
-    "capacity": 1400,
-    "op_date": "2026-08-05"
-  },
-  {
-    "zone": "3",
-    "area_id": "C22",
-    "station_name": "VT LONG ĐẤT",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0055,
-    "capacity": 780,
-    "op_date": "2026-08-05"
-  },
-  {
-    "zone": "3",
-    "area_id": "C09",
-    "station_name": "LA HẬU NGHĨA",
-    "status": "Inbound",
-    "volume": 2,
-    "weight_ton": 0.01374,
-    "capacity": 780,
-    "op_date": "2026-08-05"
-  },
-  {
-    "zone": "2",
-    "area_id": "B05",
-    "station_name": "SG PHÚ LÂM",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0105,
-    "capacity": 780,
-    "op_date": "2026-08-05"
-  },
-  {
-    "zone": "2",
-    "area_id": "B02",
-    "station_name": "SG TÂN HƯNG",
-    "status": "Inbound",
-    "volume": 7,
-    "weight_ton": 0.05858,
-    "capacity": 780,
-    "op_date": "2026-08-05"
   },
   {
     "zone": "3",
@@ -2240,16 +1760,6 @@
     "op_date": "2026-08-05"
   },
   {
-    "zone": "3",
-    "area_id": "C24",
-    "station_name": "BD BÌNH HÒA",
-    "status": "Inbound",
-    "volume": 2,
-    "weight_ton": 0.0137,
-    "capacity": 780,
-    "op_date": "2026-08-04"
-  },
-  {
     "zone": "2",
     "area_id": "B02",
     "station_name": "SG TÂN HƯNG",
@@ -2261,21 +1771,11 @@
   },
   {
     "zone": "1",
-    "area_id": "A06",
-    "station_name": "BN HUB",
-    "status": "Inbound",
-    "volume": 2,
-    "weight_ton": 0.01763,
-    "capacity": 1400,
-    "op_date": "2026-08-04"
-  },
-  {
-    "zone": "1",
     "area_id": "A16",
     "station_name": "SG THỦ ĐỨC",
     "status": "Inbound",
-    "volume": 3,
-    "weight_ton": 0.05815,
+    "volume": 1,
+    "weight_ton": 0.0414,
     "capacity": 780,
     "op_date": "2026-08-04"
   },
@@ -2283,90 +1783,10 @@
     "zone": "2",
     "area_id": "B08",
     "station_name": "SG CỦ CHI",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0055,
-    "capacity": 780,
-    "op_date": "2026-08-04"
-  },
-  {
-    "zone": "1",
-    "area_id": "A15",
-    "station_name": "LA TÂN AN",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0005,
-    "capacity": 780,
-    "op_date": "2026-08-04"
-  },
-  {
-    "zone": "2",
-    "area_id": "B08",
-    "station_name": "SG CỦ CHI",
-    "status": "Inbound",
-    "volume": 3,
-    "weight_ton": 0.01891,
-    "capacity": 780,
-    "op_date": "2026-08-03"
-  },
-  {
-    "zone": "3",
-    "area_id": "C06",
-    "station_name": "BD DĨ AN",
     "status": "Inbound",
     "volume": 2,
-    "weight_ton": 0.021,
+    "weight_ton": 0.01381,
     "capacity": 780,
     "op_date": "2026-08-03"
-  },
-  {
-    "zone": "3",
-    "area_id": "C24",
-    "station_name": "BD BÌNH HÒA",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.00553,
-    "capacity": 780,
-    "op_date": "2026-08-03"
-  },
-  {
-    "zone": "3",
-    "area_id": "C16",
-    "station_name": "SG NHƠN ĐỨC",
-    "status": "Inbound",
-    "volume": 3,
-    "weight_ton": 0.0217,
-    "capacity": 780,
-    "op_date": "2026-08-03"
-  },
-  {
-    "zone": "3",
-    "area_id": "C01",
-    "station_name": "SG BÌNH LỢI",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0005,
-    "capacity": 780,
-    "op_date": "2026-08-02"
-  },
-  {
-    "zone": "3",
-    "area_id": "C24",
-    "station_name": "BD BÌNH HÒA",
-    "status": "Inbound",
-    "volume": 4,
-    "weight_ton": 0.0303,
-    "capacity": 780,
-    "op_date": "2026-08-02"
-  },
-  {
-    "zone": "3",
-    "area_id": "C01",
-    "station_name": "SG AN LẠC",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0005,
-    "capacity": 780,
-    "op_date": "2026-08-02"
   }
 ]

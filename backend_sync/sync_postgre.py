@@ -910,37 +910,37 @@ def sync_postgre_to_dashboard():
             op_date_inbound_effective      -- Ngay inbound chinh xac cho Rebound
         FROM enriched.dispatch_enriched
         WHERE 
-            -- 🎯 LẤY TOÀN BỘ ĐƠN CHƯA OUTBOUND (HÀNG TỒN CŨ VÀ ĐƠN MỚI 15 NGÀY GẦN NHẤT)
+            -- 🛡️ LOẠI BỎ TRIỆT ĐỂ 100% ĐƠN ĐÃ HỦY KHỎI TOÀN BỘ BÁO CÁO VÀ FORECAST
             (
-                outbound_scandate IS NULL
-                AND operation_date_created::date >= (%(op_today)s::date - INTERVAL '15 days')
+                status_sys IS NULL 
+                OR (
+                    status_sys NOT ILIKE '%hủy%' 
+                    AND status_sys NOT ILIKE '%cancel%'
+                    AND status_sys NOT IN ('Đã hủy', 'Cancelled', 'da huy', 'Hủy', 'Huy', 'cancel')
+                )
             )
-            -- 🎯 CÁC ĐƠN ĐÃ OUTBOUND (LẤY ĐẦY ĐỦ LỊCH SỬ OUTBOUND TỪ 01/08/2026 ĐẾN NAY)
-            OR (
-                outbound_scandate IS NOT NULL
-                AND (
-                    outbound_scandate::date >= '2026-08-01'
-                    OR outbound_scandate_2::date >= '2026-08-01'
+            AND (
+                -- 🎯 LẤY TOÀN BỘ ĐƠN CHƯA OUTBOUND (HÀNG TỒN CŨ VÀ ĐƠN MỚI 15 NGÀY GẦN NHẤT)
+                (
+                    outbound_scandate IS NULL
+                    AND operation_date_created::date >= ('{today}'::date - INTERVAL '15 days')
+                )
+                -- 🎯 CÁC ĐƠN ĐÃ OUTBOUND (LẤY ĐẦY ĐỦ LỊCH SỬ OUTBOUND TỪ 01/08/2026 ĐẾN NAY)
+                OR (
+                    outbound_scandate IS NOT NULL
+                    AND (
+                        outbound_scandate::date >= '2026-08-01'
+                        OR outbound_scandate_2::date >= '2026-08-01'
+                    )
                 )
             )
         ORDER BY operation_date_created DESC, created_time DESC
     """
-    params = {'op_today': today, 'op_yesterday': yesterday}
     try:
-        sa_engine = get_sa_engine()
-        if sa_engine:
-            df = pd.read_sql(query, sa_engine, params=params)
-            sa_engine.dispose()
-            print("   🟢 Connected to PostgreSQL (SQLAlchemy)")
-        else:
-            # Fallback nếu sqlalchemy chưa cài
-            import warnings
-            conn = get_pg_conn()
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
-                df = pd.read_sql(query, conn, params=params)
-            conn.close()
-            print("   🟢 Connected to PostgreSQL (psycopg2 fallback)")
+        conn_q = get_pg_conn()
+        df = pd.read_sql(query, conn_q)
+        conn_q.close()
+        print("   🟢 Connected to PostgreSQL")
     except Exception as e:
         print(f"   ❌ Query failed: {e}")
         return
@@ -987,6 +987,21 @@ def sync_postgre_to_dashboard():
     rot_hom_nay   = 0   # Pickup hôm nay, chưa về HUB  → đang trên đường
     rot_ton_dong  = 0   # Tồn đọng lâu ngày
     ZONE_MAP = {'SR0001': '1', 'BNI001': '1', '1': '1', '2': '2', '3': '3'}
+
+    # 📦 Tải danh sách toàn bộ billcode tồn kho thực tế từ Source Backlog (backlog_live & raw_backlog) để đối soát
+    backlog_billcodes_set = set()
+    try:
+        conn_bl = get_pg_conn()
+        df_bl = pd.read_sql("""
+            SELECT DISTINCT COALESCE(billcode, bill_no) as billcode FROM kpi_hub.backlog_live
+            UNION
+            SELECT DISTINCT COALESCE(billcode, bill_no) as billcode FROM kpi_hub.raw_backlog
+        """, conn_bl)
+        conn_bl.close()
+        backlog_billcodes_set = set(str(x).strip() for x in df_bl['billcode'] if str(x).strip())
+        print(f"   📦 Đã nạp {len(backlog_billcodes_set):,} mã đơn từ Source Backlog để đối soát hàng xuất kho")
+    except Exception as _ebl:
+        print(f"   ⚠️ Could not load backlog billcodes: {_ebl}")
 
     # Bảng quy hoạch layout ô chứa chuẩn 61 Chutes mới nhất từ người dùng cấp
     OFFICIAL_LAYOUT_MAP = {
@@ -1109,6 +1124,17 @@ def sync_postgre_to_dashboard():
         is_canceled = any(kw in st_sys_val for kw in ['hủy', 'cancel', 'da huy'])
         if is_canceled:
             continue
+
+        # 🎯 QUY TẮC ĐỐI SOÁT SOURCE BACKLOG (USER SPECIFIED):
+        # Các đơn có Inbound nhưng Hub miss quét Outbound:
+        # Nếu đơn đã Inbound mà chưa Outbound, thuộc ngày cũ (< today),
+        # mà source Backlog KHÔNG CÒN đơn này -> Đã xuất kho thực tế -> Bỏ qua, không tính vào Tồn kho / Forecast!
+        wb_tracking = str(r.get('tracking') or '').strip()
+        is_inb_unout = (has_in or is_reb) and (not has_out)
+        if is_inb_unout:
+            ref_inb_date = op_date_inb_eff or op_date
+            if ref_inb_date < today and wb_tracking and backlog_billcodes_set and (wb_tracking not in backlog_billcodes_set):
+                continue
         pk_st = str(r.get('pickup_station') or '').strip().upper()
         next_st = str(r.get('next_station') or '').strip().upper()
         st_name = str(station or '').strip().upper()
