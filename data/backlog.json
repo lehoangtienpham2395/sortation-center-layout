@@ -740,42 +740,12 @@
     "op_date": "2026-08-16"
   },
   {
-    "zone": "1",
-    "area_id": "A12",
-    "station_name": "TG HÒA KHÁNH",
-    "status": "Inbound",
-    "volume": 5,
-    "weight_ton": 0.03491,
-    "capacity": 780,
-    "op_date": "2026-08-16"
-  },
-  {
-    "zone": "1",
-    "area_id": "A06",
-    "station_name": "BN HUB",
-    "status": "Inbound",
-    "volume": 67,
-    "weight_ton": 0.57775,
-    "capacity": 1400,
-    "op_date": "2026-08-16"
-  },
-  {
     "zone": "2",
-    "area_id": "B07",
-    "station_name": "SG TÂN SƠN NHÌ",
+    "area_id": "B01",
+    "station_name": "SG ĐÔNG HƯNG THUẬN",
     "status": "Inbound",
-    "volume": 27,
-    "weight_ton": 0.2702,
-    "capacity": 780,
-    "op_date": "2026-08-16"
-  },
-  {
-    "zone": "3",
-    "area_id": "C17",
-    "station_name": "VL CHỢ LÁCH",
-    "status": "Inbound",
-    "volume": 9,
-    "weight_ton": 0.08593,
+    "volume": 15,
+    "weight_ton": 0.1313,
     "capacity": 780,
     "op_date": "2026-08-16"
   },
@@ -791,31 +761,41 @@
   },
   {
     "zone": "2",
-    "area_id": "B01",
-    "station_name": "SG ĐÔNG HƯNG THUẬN",
+    "area_id": "B07",
+    "station_name": "SG TÂN SƠN NHÌ",
     "status": "Inbound",
-    "volume": 15,
-    "weight_ton": 0.1313,
+    "volume": 27,
+    "weight_ton": 0.2702,
     "capacity": 780,
     "op_date": "2026-08-16"
   },
   {
-    "zone": "2",
-    "area_id": "B10",
-    "station_name": "SG GÒ VẤP",
+    "zone": "1",
+    "area_id": "A06",
+    "station_name": "BN HUB",
     "status": "Inbound",
-    "volume": 25,
-    "weight_ton": 0.23074,
+    "volume": 67,
+    "weight_ton": 0.57775,
+    "capacity": 1400,
+    "op_date": "2026-08-16"
+  },
+  {
+    "zone": "1",
+    "area_id": "A12",
+    "station_name": "TG HÒA KHÁNH",
+    "status": "Inbound",
+    "volume": 5,
+    "weight_ton": 0.03491,
     "capacity": 780,
     "op_date": "2026-08-16"
   },
   {
     "zone": "3",
-    "area_id": "C12",
-    "station_name": "SG PHÚ NHUẬN",
+    "area_id": "C17",
+    "station_name": "VL CHỢ LÁCH",
     "status": "Inbound",
-    "volume": 17,
-    "weight_ton": 0.15119,
+    "volume": 9,
+    "weight_ton": 0.08593,
     "capacity": 780,
     "op_date": "2026-08-16"
   },
@@ -831,11 +811,31 @@
   },
   {
     "zone": "2",
+    "area_id": "B10",
+    "station_name": "SG GÒ VẤP",
+    "status": "Inbound",
+    "volume": 25,
+    "weight_ton": 0.23074,
+    "capacity": 780,
+    "op_date": "2026-08-16"
+  },
+  {
+    "zone": "2",
     "area_id": "B06",
     "station_name": "SG HIỆP BÌNH",
     "status": "Inbound",
     "volume": 31,
     "weight_ton": 0.34731,
+    "capacity": 780,
+    "op_date": "2026-08-16"
+  },
+  {
+    "zone": "3",
+    "area_id": "C12",
+    "station_name": "SG PHÚ NHUẬN",
+    "status": "Inbound",
+    "volume": 17,
+    "weight_ton": 0.15119,
     "capacity": 780,
     "op_date": "2026-08-16"
   },
@@ -851,21 +851,21 @@
   },
   {
     "zone": "2",
-    "area_id": "B03",
-    "station_name": "SG BÌNH TÂN",
-    "status": "Inbound",
-    "volume": 75,
-    "weight_ton": 0.59273,
-    "capacity": 780,
-    "op_date": "2026-08-16"
-  },
-  {
-    "zone": "2",
     "area_id": "B16",
     "station_name": "SG BÀ ĐIỂM",
     "status": "Inbound",
     "volume": 20,
     "weight_ton": 0.21474,
+    "capacity": 780,
+    "op_date": "2026-08-16"
+  },
+  {
+    "zone": "2",
+    "area_id": "B03",
+    "station_name": "SG BÌNH TÂN",
+    "status": "Inbound",
+    "volume": 75,
+    "weight_ton": 0.59273,
     "capacity": 780,
     "op_date": "2026-08-16"
   },
@@ -1311,21 +1311,21 @@
   },
   {
     "zone": "2",
-    "area_id": "B00",
-    "station_name": "SG CHỢ LỚN",
-    "status": "Inbound",
-    "volume": 2,
-    "weight_ton": 0.01278,
-    "capacity": 780,
-    "op_date": "2026-08-15"
-  },
-  {
-    "zone": "2",
     "area_id": "B04",
     "station_name": "SG TÂN THỚI HIỆP",
     "status": "Inbound",
     "volume": 4,
     "weight_ton": 0.10544,
+    "capacity": 780,
+    "op_date": "2026-08-15"
+  },
+  {
+    "zone": "2",
+    "area_id": "B00",
+    "station_name": "SG CHỢ LỚN",
+    "status": "Inbound",
+    "volume": 2,
+    "weight_ton": 0.01278,
     "capacity": 780,
     "op_date": "2026-08-15"
   },
