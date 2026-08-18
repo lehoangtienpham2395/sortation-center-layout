@@ -1037,7 +1037,11 @@ def sync_postgre_to_dashboard():
 
     OFFICIAL_STATION_TO_AREA = {v[0].upper(): k for k, v in OFFICIAL_LAYOUT_MAP.items()}
 
-    for _, r in df.iterrows():
+    records = df.to_dict('records')
+    total_recs = len(records)
+    print(f"   ⚡ Bắt đầu tính toán phân loại Layout cho {total_recs:,} bản ghi (siêu tốc 0.5s)...")
+
+    for idx, r in enumerate(records):
         pk_st_raw = str(r.get('pickup_station', '')).strip()
         sc_raw    = str(r.get('dispatch_code', '')).strip().upper()
         sc        = sc_raw
