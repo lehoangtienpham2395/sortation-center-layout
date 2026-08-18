@@ -1048,13 +1048,16 @@ def sync_postgre_to_dashboard():
         target_st_upper = target_st.strip().upper()
 
         pk_st_upper = pk_st_raw.strip().upper()
+        rk_raw = str(r.get('rank') or '').strip().upper()
+        rd_raw = str(r.get('round') or '').strip().upper()
         is_north_record = (
-            target_st_upper == 'BN HUB' or
-            target_st_upper.startswith(('HN ', 'HD ', 'HY ', 'HP ', 'BN ', 'PT ', 'NB ', 'BG ', 'QN ', 'LS ', 'CB ', 'TQ ', 'YB ', 'SL ', 'DB ', 'HG ', 'ND ', 'VP ', 'TH ', 'NA ', 'HT ')) or
+            target_st_upper in ('BN HUB', 'HN SALE', 'HN HƯƠNG SƠN') or
+            target_st_upper.startswith(('HN ', 'HD ', 'HY ', 'HP ', 'BN ', 'PT ', 'NB ', 'BG ', 'QN ', 'LS ', 'CB ', 'TQ ', 'YB ', 'SL ', 'DB ', 'HG ', 'ND ', 'VP ', 'TH ', 'NA ', 'HT ', 'HN', 'BN')) or
             dict_area.get(sc) == 'A06' or
-            (sc and any(sc.upper().startswith(pfx) for pfx in ('HN', 'BN', 'HD', 'HY', 'HP', 'TB', 'QN', 'PT', 'TH', 'NA', 'HT', 'VP', 'BG', 'BK', 'CB', 'LS', 'LC', 'TQ', 'YB', 'SL', 'DB', 'HG', 'ND', 'NB', 'HA')) and not sc.upper().startswith(('TNI', 'TNG')))
+            rk_raw == 'BN HUB' or
+            rd_raw == 'LINEHAUL' or
+            (sc and any(sc.upper().startswith(pfx) for pfx in ('HN', 'BN', 'HD', 'HY', 'HP', 'TB', 'QN', 'PT', 'TH', 'NA', 'HT', 'VP', 'BG', 'BK', 'CB', 'LS', 'LC', 'TQ', 'YB', 'SL', 'DB', 'HG', 'ND', 'NB', 'HA', 'HNI', 'BNI', 'HPG', 'PTH', 'NBI')) and not sc.upper().startswith(('TNI', 'TNG')))
         )
-
 
         if is_north_record:
             area_id = 'A06'
