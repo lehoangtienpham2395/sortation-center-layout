@@ -30,7 +30,9 @@ else:
 # ── Resolve paths ─────────────────────────────────────────────────────────────
 BASE_DIR   = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR   = os.path.join(BASE_DIR, "data")
-VALID_FILE = os.path.join(BASE_DIR, "backend_sync", "config", "valid.csv")
+_PRIMARY_VALID = os.path.join(os.path.expanduser("~"), "OneDrive", "Desktop", "testing", "Exportauto", "Valid", "valid.csv")
+_FALLBACK_VALID = os.path.join(BASE_DIR, "backend_sync", "config", "valid.csv")
+VALID_FILE = _PRIMARY_VALID if os.path.exists(_PRIMARY_VALID) else _FALLBACK_VALID
 CONTRACT_FILE = os.path.join(BASE_DIR, "backend_sync", "config", "data_contract.json")
 
 DATA_CONTRACT = {}

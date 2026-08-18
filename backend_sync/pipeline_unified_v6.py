@@ -48,12 +48,12 @@ URL_FORECAST_COUNT = 'https://gw.jtcargo.com.vn/networkmanagement/omsWaybill/shi
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _cfg_candidates = [
+    r'C:\Users\lehoa\OneDrive\Desktop\testing\Exportauto\Valid',
+    r'C:\Users\lehoa\OneDrive\Desktop\testing\config',
     os.path.join(BASE_DIR, 'config'),
     os.path.join(BASE_DIR, 'backend_sync', 'config'),
     os.path.abspath('.'),
     os.path.abspath('backend_sync'),
-    r'C:\Users\lehoa\OneDrive\Desktop\testing\Exportauto\Valid',
-    r'C:\Users\lehoa\OneDrive\Desktop\testing\config',
     r'C:\Users\lehoa\OneDrive\Desktop\testing',
     os.path.abspath('data')
 ]
