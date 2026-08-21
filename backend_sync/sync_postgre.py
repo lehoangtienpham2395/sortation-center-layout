@@ -895,21 +895,14 @@ def sync_postgre_to_dashboard():
         SELECT
             tracking, status_sys, created_time,
             pickup_station, dispatch_code,
-            orders_num, orders_weight,
-            pickup_station2, pickup_time,
-            areacode, flowtypedesc, next_station,
-            round, rank,
+            orders_weight, pickup_time,
+            next_station, round, rank,
             inbound_scandate, outbound_scandate, arrival_scandate,
             trip_code, transporing_time, transported_time,
             operation_date_created, operation_date_inbound,
-            is_backlog, is_active,
-            is_completed, cycle_no, is_rebound, return_count,
+            is_rebound, return_count,
             inbound_scandate_2, operation_date_inbound_2, outbound_scandate_2,
-            -- Operational Flags (atomic-refreshed sau Phase 1)
-            flag_created, flag_pickup, flag_arrival, flag_inbound, flag_outbound,
-            -- Helper columns (fix Rui ro 2 & 3)
-            op_date_pickup,                -- Dung tinh rot dong (flag_rot_nay/truoc)
-            op_date_inbound_effective      -- Ngay inbound chinh xac cho Rebound
+            flag_pickup, op_date_pickup, op_date_inbound_effective
         FROM enriched.dispatch_enriched
         WHERE 
             -- 🛡️ LOẠI BỎ TRIỆT ĐỂ 100% ĐƠN ĐÃ HỦY KHỎI TOÀN BỘ BÁO CÁO VÀ FORECAST
@@ -1037,11 +1030,11 @@ def sync_postgre_to_dashboard():
 
     OFFICIAL_STATION_TO_AREA = {v[0].upper(): k for k, v in OFFICIAL_LAYOUT_MAP.items()}
 
-    records = df.to_dict('records')
-    total_recs = len(records)
-    print(f"   ⚡ Bắt đầu tính toán phân loại Layout cho {total_recs:,} bản ghi (siêu tốc 0.5s)...")
+    total_recs = len(df)
+    print(f"   ⚡ Bắt đầu tính toán phân loại Layout cho {total_recs:,} bản ghi (siêu tốc 1s, 0% RAM overhead)...")
 
-    for idx, r in enumerate(records):
+    for idx, r_row in enumerate(df.itertuples(index=False)):
+        r = r_row._asdict()
         pk_st_raw = str(r.get('pickup_station', '')).strip()
         sc_raw    = str(r.get('dispatch_code', '')).strip().upper()
         sc        = sc_raw
@@ -1182,9 +1175,9 @@ def sync_postgre_to_dashboard():
         if is_not_outbound and valid_area:
             ki = (zone, area_id, station, inv_status, op_date)
             if ki not in inv_group:
-                inv_group[ki] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
-            inv_group[ki]['volume']    += 1
-            inv_group[ki]['weight_kg'] += wt_kg
+                inv_group[ki] = [0, 0.0, cap]
+            inv_group[ki][0] += 1
+            inv_group[ki][1] += wt_kg
 
         # 🎯 2. outbound group — CHỈ nhận đơn CÓ MỐC THỜI GIAN XUẤT KHO THỰC TẾ (effective_out_time)
         if (has_out_2 or (has_out and not is_active_rebound)) and valid_area:
@@ -1194,17 +1187,17 @@ def sync_postgre_to_dashboard():
                 if op_date_outb and op_date_outb >= '2026-08-01':
                     ko = (zone, area_id, station, op_date_outb)
                     if ko not in out_group:
-                        out_group[ko] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
-                    out_group[ko]['volume']    += 1
-                    out_group[ko]['weight_kg'] += wt_kg
+                        out_group[ko] = [0, 0.0, cap]
+                    out_group[ko][0] += 1
+                    out_group[ko][1] += wt_kg
 
         # 🎯 3. backlog group — đơn ĐANG TỒN KHO (Tồn đọng cả ngày cũ và ngày mới)
         if is_currently_at_hub and (has_in or is_reb) and valid_area:
             kb = (zone, area_id, station, op_date)
             if kb not in backlog_group:
-                backlog_group[kb] = {'volume': 0, 'weight_kg': 0.0, 'capacity': cap}
-            backlog_group[kb]['volume']    += 1
-            backlog_group[kb]['weight_kg'] += wt_kg
+                backlog_group[kb] = [0, 0.0, cap]
+            backlog_group[kb][0] += 1
+            backlog_group[kb][1] += wt_kg
 
         # 4. inbound group — nguồn dữ liệu cho inbound.json
         op_date_inb  = get_op_date(inb_t)  if inb_t  else ''
@@ -1242,9 +1235,9 @@ def sync_postgre_to_dashboard():
                 drop_type, trip, transp_t, transpd_t, is_reb
             )
             if key_ib not in inbound_group:
-                inbound_group[key_ib] = {'volume': 0, 'weight_kg': 0.0, 'return_count': ret_cnt}
-            inbound_group[key_ib]['volume']    += 1
-            inbound_group[key_ib]['weight_kg'] += wt_kg
+                inbound_group[key_ib] = [0, 0.0, ret_cnt]
+            inbound_group[key_ib][0] += 1
+            inbound_group[key_ib][1] += wt_kg
 
         # arrival
         if arr_t:
@@ -1253,11 +1246,11 @@ def sync_postgre_to_dashboard():
             arr_st = (pk_st_raw or station).strip()
             ka     = (op_d, arr_st, scan_h)
             if ka not in arr_group:
-                arr_group[ka] = {'total': 0, 'at_hub': 0, 'not_hub': 0, 'last_scan_time': arr_t}
-            arr_group[ka]['total'] += 1
-            arr_group[ka]['at_hub' if (has_in or is_reb) else 'not_hub'] += 1
-            if arr_t > arr_group[ka]['last_scan_time']:
-                arr_group[ka]['last_scan_time'] = arr_t
+                arr_group[ka] = [0, 0, 0, arr_t]
+            arr_group[ka][0] += 1
+            arr_group[ka][1 if (has_in or is_reb) else 2] += 1
+            if arr_t > arr_group[ka][3]:
+                arr_group[ka][3] = arr_t
 
         # heatmap — inbound hôm nay
         effective_inb_h = final_inb_hour[:2] + ":00" if len(final_inb_hour) >= 2 else ""
@@ -1269,35 +1262,35 @@ def sync_postgre_to_dashboard():
 
     inventory_json = [
         {"zone": z, "area_id": a, "station_name": s, "status": stt,
-         "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000.0, 6),
-         "capacity": v['capacity'], "op_date": d}
+         "volume": v[0], "weight_ton": round(v[1] / 1000.0, 6),
+         "capacity": v[2], "op_date": d}
         for (z, a, s, stt, d), v in inv_group.items()
     ]
 
     outbound_json = [
         {"zone": z, "area_id": a, "station_name": s, "status": "Outbound",
-         "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000.0, 6),
-         "capacity": v['capacity'], "op_date": op_d}
+         "volume": v[0], "weight_ton": round(v[1] / 1000.0, 6),
+         "capacity": v[2], "op_date": op_d}
         for (z, a, s, op_d), v in out_group.items()
     ]
 
     backlog_json = [
         {"zone": z, "area_id": a, "station_name": s, "status": "Inbound",
-         "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000.0, 6),
-         "capacity": v['capacity'], "op_date": d}
+         "volume": v[0], "weight_ton": round(v[1] / 1000.0, 6),
+         "capacity": v[2], "op_date": d}
         for (z, a, s, d), v in backlog_group.items()
     ]
 
     inbound_json = [
         {"station_name": st, "pickup_station": pk_st, "status": status,
-         "volume": stats['volume'], "weight_ton": round(stats['weight_kg'] / 1000.0, 6),
+         "volume": stats[0], "weight_ton": round(stats[1] / 1000.0, 6),
          "op_date_inbound": in_op, "op_date_forecast": fc_op,
          "op_date_pickup": pk_op, "op_date_arrival": ar_op,
          "inbound_hour": in_hr, "forecast_time": fc_hr,
          "pickup_time": pk_hr, "arrival_time": ar_hr,
          "drop_type": drop_t, "trip_code": tc,
          "transporing_time": tr_t, "transported_time": trd_t,
-         "is_rebound": is_reb, "return_count": stats['return_count'],
+         "is_rebound": is_reb, "return_count": stats[2],
          "is_north": (st.strip().upper().startswith('HN ') or st.strip().upper().startswith('HD ') or st.strip().upper().startswith('HY ')),
          "region": 'north' if (st.strip().upper().startswith('HN ') or st.strip().upper().startswith('HD ') or st.strip().upper().startswith('HY ')) else 'south'}
         for (st, pk_st, status, in_op, fc_op, pk_op, ar_op,
@@ -1307,8 +1300,8 @@ def sync_postgre_to_dashboard():
 
     arrival_json = [
         {"op_date": op_d, "station_name": st, "scan_hour": hr,
-         "total_orders": s['total'], "at_hub": s['at_hub'],
-         "not_hub": s['not_hub'], "last_scan_time": s['last_scan_time']}
+         "total_orders": s[0], "at_hub": s[1],
+         "not_hub": s[2], "last_scan_time": s[3]}
         for (op_d, st, hr), s in arr_group.items()
     ]
 
@@ -1321,15 +1314,15 @@ def sync_postgre_to_dashboard():
         if d <= today:
             k = (z, a, s)
             if k not in pivot_map:
-                pivot_map[k] = {'volume': 0, 'weight_kg': 0.0, 'capacity': v['capacity']}
-            pivot_map[k]['volume']    += v['volume']
-            pivot_map[k]['weight_kg'] += v['weight_kg']
+                pivot_map[k] = [0, 0.0, v[2]]
+            pivot_map[k][0] += v[0]
+            pivot_map[k][1] += v[1]
 
     hub_pivot_json = [
         {"zone": z, "area_id": a, "station_name": s,
-         "volume": v['volume'], "weight_ton": round(v['weight_kg'] / 1000.0, 6),
-         "capacity": v['capacity'],
-         "utilization_pct": round((v['volume'] / v['capacity']) * 100, 1) if v['capacity'] else 0,
+         "volume": v[0], "weight_ton": round(v[1] / 1000.0, 6),
+         "capacity": v[2],
+         "utilization_pct": round((v[0] / v[2]) * 100, 1) if v[2] else 0,
          "op_date": today}
         for (z, a, s), v in pivot_map.items()
     ]
@@ -1365,8 +1358,8 @@ def sync_postgre_to_dashboard():
         "yesterday":             yesterday,
         "total_records":         len(df),
         "total_inbound_today":   total_inbound_today,
-        "total_backlog":         sum(v['volume'] for v in backlog_group.values()),
-        "total_inventory":       sum(v['volume'] for (z, a, s, stt, d), v in inv_group.items() if d == today),
+        "total_backlog":         sum(v[0] for v in backlog_group.values()),
+        "total_inventory":       sum(v[0] for (z, a, s, stt, d), v in inv_group.items() if d == today),
         "rot_hom_truoc":         rot_hom_truoc_baseline if rot_hom_truoc_baseline > 0 else rot_hom_truoc,
         "rot_hom_truoc_live":    rot_hom_truoc,
         "rot_hom_nay":           rot_hom_nay,
@@ -1399,13 +1392,13 @@ def sync_postgre_to_dashboard():
 
         if std_status == 'Inbound':
             if in_op == today:
-                status_counts['Inbound'] += stats['volume']
-                status_weights['Inbound'] += stats['weight_kg'] / 1000.0
+                status_counts['Inbound'] += stats[0]
+                status_weights['Inbound'] += stats[1] / 1000.0
         else:
             is_match = (in_op == today) or (ar_op == today) or (pk_op == today) or (fc_op == today) or (fc_op and fc_op < today)
             if is_match:
-                status_counts[std_status] += stats['volume']
-                status_weights[std_status] += stats['weight_kg'] / 1000.0
+                status_counts[std_status] += stats[0]
+                status_weights[std_status] += stats[1] / 1000.0
 
     inbound_orders_status = {
         "op_date": today,
@@ -1427,12 +1420,12 @@ def sync_postgre_to_dashboard():
     
     # 🎯 DYNAMIC LINEHAUL FORECAST 100% PURE FROM DYNAMIC A06 (BN HUB) INVENTORY (GỒM TỒN CŨ VÀ ĐƠN MỚI)
     a06_items = [v for (z, a, s, stt, d), v in inv_group.items() if (a == 'A06' or s == 'BN HUB') and d <= today]
-    fc_linehaul = sum(v['volume'] for v in a06_items)
-    linehaul_weight_ton = round(sum(v['weight_kg'] for v in a06_items) / 1000.0, 1)
+    fc_linehaul = sum(v[0] for v in a06_items)
+    linehaul_weight_ton = round(sum(v[1] for v in a06_items) / 1000.0, 1)
 
     fc_shuttle = max(0, fc_total_4stages - fc_linehaul)
     shuttle_weight_ton = max(0.0, round(fc_total_weight - linehaul_weight_ton, 3))
-    total_inb_wt_kg = sum(stats['weight_kg'] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if in_op == today)
+    total_inb_wt_kg = sum(stats[1] for (st, pk, status, in_op, fc_op, pk_op, ar_op, *rest), stats in inbound_group.items() if in_op == today)
     inbound_weight_ton = round(total_inb_wt_kg / 1000.0, 1) if total_inbound_today > 0 else 0.0
 
     inbound_kpi_summary = {
@@ -1484,13 +1477,13 @@ def sync_postgre_to_dashboard():
 
         if std_status == 'Inbound':
             if in_op == today:
-                status_counts['Inbound'] += stats['volume']
-                status_weights['Inbound'] += stats['weight_kg'] / 1000.0
+                status_counts['Inbound'] += stats[0]
+                status_weights['Inbound'] += stats[1] / 1000.0
         else:
             is_match = (in_op == today) or (ar_op == today) or (pk_op == today) or (fc_op == today) or (fc_op and fc_op < today)
             if is_match:
-                status_counts[std_status] += stats['volume']
-                status_weights[std_status] += stats['weight_kg'] / 1000.0
+                status_counts[std_status] += stats[0]
+                status_weights[std_status] += stats[1] / 1000.0
 
     inbound_orders_status = {
         "op_date": today,
@@ -1516,8 +1509,8 @@ def sync_postgre_to_dashboard():
         if is_match:
             if pk_clean not in origin_map:
                 origin_map[pk_clean] = {'total_volume': 0, 'inbound_volume': 0, 'transporting_volume': 0, 'pickup_done_volume': 0, 'created_volume': 0, 'total_weight': 0.0, 'inbound_weight': 0.0}
-            vol = stats['volume']
-            wt_ton = stats['weight_kg'] / 1000.0
+            vol = stats[0]
+            wt_ton = stats[1] / 1000.0
             origin_map[pk_clean]['total_volume'] += vol
             origin_map[pk_clean]['total_weight'] += wt_ton
             if status in ('Inbound', 'Đã nhập kho') and in_op == today:
