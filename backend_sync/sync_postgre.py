@@ -933,24 +933,13 @@ def sync_postgre_to_dashboard():
     """
     try:
         conn_q = get_pg_conn()
-        df = pd.read_sql(query, conn_q)
-        conn_q.close()
-        print("   🟢 Connected to PostgreSQL")
+        cur_q = conn_q.cursor(name='sync_stream_cur')
+        cur_q.itersize = 25000
+        cur_q.execute(query)
+        print("   🟢 Connected to PostgreSQL — Streaming records directly (Zero RAM overhead)...")
     except Exception as e:
         print(f"   ❌ Query failed: {e}")
         return
-
-    if len(df) == 0:
-        print("   ⚠️  0 rows — aborting to protect existing files")
-        return
-
-    df = df.fillna('')
-    total_rows = len(df)
-    today_rows = len(df[df['operation_date_created'].astype(str).str[:10] == today])
-    yest_rows  = len(df[df['operation_date_created'].astype(str).str[:10] == yesterday])
-    print(f"   📦 {total_rows:,} records từ PostgreSQL (Live & Active 2 ngày)")
-    print(f"   📅 Ngày vận hành hôm nay ({today}): {today_rows:,} đơn")
-    print(f"   📅 Ngày hôm qua ({yesterday})       : {yest_rows:,} đơn")
 
     # ── 3. Aggregate ──────────────────────────────────────────────
     inv_group     = {}   # (zone, area_id, station_name, status) → {volume, weight_kg, capacity}
@@ -966,10 +955,6 @@ def sync_postgre_to_dashboard():
         yesterday_str = ''
 
     # ── Cờ Rớt đơn (Nguyên tắc 6) ────────────────────────────────
-    # rot_hom_truoc_baseline: GIỮ LẠI biến này để tương thích ngược (dùng ở vài
-    # chỗ khác trong script), nhưng việc CHỐT thật sự giờ nằm ở
-    # save_and_get_daily_snapshots() gọi bên dưới, sau khi rot_hom_truoc/nay/ton_dong
-    # đã được tính xong từ vòng lặp chính.
     rot_hom_truoc_baseline = 0
     try:
         conn_b = get_pg_conn()
@@ -987,13 +972,15 @@ def sync_postgre_to_dashboard():
     backlog_billcodes_set = set()
     try:
         conn_bl = get_pg_conn()
-        df_bl = pd.read_sql("""
+        cur_bl = conn_bl.cursor()
+        cur_bl.execute("""
             SELECT DISTINCT COALESCE(billcode, bill_no) as billcode FROM kpi_hub.backlog_live
             UNION
             SELECT DISTINCT COALESCE(billcode, bill_no) as billcode FROM kpi_hub.raw_backlog
-        """, conn_bl)
+        """)
+        backlog_billcodes_set = set(str(x[0]).strip() for x in cur_bl.fetchall() if x[0] and str(x[0]).strip())
+        cur_bl.close()
         conn_bl.close()
-        backlog_billcodes_set = set(str(x).strip() for x in df_bl['billcode'] if str(x).strip())
         print(f"   📦 Đã nạp {len(backlog_billcodes_set):,} mã đơn từ Source Backlog để đối soát hàng xuất kho")
     except Exception as _ebl:
         print(f"   ⚠️ Could not load backlog billcodes: {_ebl}")
@@ -1030,15 +1017,36 @@ def sync_postgre_to_dashboard():
 
     OFFICIAL_STATION_TO_AREA = {v[0].upper(): k for k, v in OFFICIAL_LAYOUT_MAP.items()}
 
-    total_recs = len(df)
-    print(f"   ⚡ Bắt đầu tính toán phân loại Layout cho {total_recs:,} bản ghi (siêu tốc 1s, 0% RAM overhead)...")
+    total_recs = 0
+    today_rows = 0
+    yest_rows  = 0
+    print(f"   ⚡ Bắt đầu tính toán phân loại Layout (Streaming siêu tốc, 0% RAM overhead)...")
 
-    for idx, r_row in enumerate(df.itertuples(index=False)):
-        r = r_row._asdict()
-        pk_st_raw = str(r.get('pickup_station', '')).strip()
-        sc_raw    = str(r.get('dispatch_code', '')).strip().upper()
+    for r_row in cur_q:
+        total_recs += 1
+        (
+            tracking, status_sys, created_time,
+            pickup_station, dispatch_code,
+            orders_weight, pickup_time,
+            next_station, round_val, rank_val,
+            inbound_scandate, outbound_scandate, arrival_scandate,
+            trip_code, transporing_time, transported_time,
+            operation_date_created, operation_date_inbound,
+            is_rebound, return_count,
+            inbound_scandate_2, operation_date_inbound_2, outbound_scandate_2,
+            flag_pickup, op_date_pickup, op_date_inbound_effective
+        ) = r_row
+
+        op_date = str(operation_date_created or today)[:10] or today
+        if op_date == today:
+            today_rows += 1
+        elif op_date == yesterday:
+            yest_rows += 1
+
+        pk_st_raw = str(pickup_station or '').strip()
+        sc_raw    = str(dispatch_code or '').strip().upper()
         sc        = sc_raw
-        next_st   = str(r.get('next_station',  '')).strip()
+        next_st   = str(next_station or '').strip()
         mapped_st = dict_station.get(sc, '') or dict_station.get(sc[:6] if len(sc) >= 6 else '', '')
         
         # 🎯 INVENTORY LOGIC: Categorized strictly by Next_station (Bưu cục đích)
@@ -1047,8 +1055,8 @@ def sync_postgre_to_dashboard():
         target_st_upper = target_st.strip().upper()
 
         pk_st_upper = pk_st_raw.strip().upper()
-        rk_raw = str(r.get('rank') or '').strip().upper()
-        rd_raw = str(r.get('round') or '').strip().upper()
+        rk_raw = str(rank_val or '').strip().upper()
+        rd_raw = str(round_val or '').strip().upper()
         is_north_record = (
             target_st_upper in ('BN HUB', 'HN SALE', 'HN HƯƠNG SƠN') or
             target_st_upper.startswith(('HN ', 'HD ', 'HY ', 'HP ', 'BN ', 'PT ', 'NB ', 'BG ', 'QN ', 'LS ', 'CB ', 'TQ ', 'YB ', 'SL ', 'DB ', 'HG ', 'ND ', 'VP ', 'TH ', 'NA ', 'HT ', 'HN', 'BN')) or
@@ -1087,34 +1095,31 @@ def sync_postgre_to_dashboard():
             station = 'BN HUB'
             zone = '1'
 
-
-
         valid_area = bool(area_id)
         cap      = 1400 if area_id == 'A06' else 780
-        raw_wt   = float(r.get('orders_weight') or 0)
+        raw_wt   = float(orders_weight or 0)
         wt_kg    = raw_wt  # 🎯 SINGLE SOURCE OF TRUTH: Trọng lượng tính cước (packageChargeWeight) đơn vị kg nguyên bản
-        cr_t     = clean_ts_str(r.get('created_time'))
-        pk_t     = clean_ts_str(r.get('pickup_time'))
-        pk_st    = str(r.get('pickup_station') or '').upper()
-        inb_t    = clean_ts_str(r.get('inbound_scandate'))
-        outb_t   = clean_ts_str(r.get('outbound_scandate'))
-        arr_t    = clean_ts_str(r.get('arrival_scandate'))
-        trip     = str(r.get('trip_code',           '')).strip()
-        transp_t = clean_ts_str(r.get('transporing_time'))
-        transpd_t= clean_ts_str(r.get('transported_time'))
-        op_date  = str(r.get('operation_date_created', today))[:10] or today
+        cr_t     = clean_ts_str(created_time)
+        pk_t     = clean_ts_str(pickup_time)
+        pk_st    = str(pickup_station or '').upper()
+        inb_t    = clean_ts_str(inbound_scandate)
+        outb_t   = clean_ts_str(outbound_scandate)
+        arr_t    = clean_ts_str(arrival_scandate)
+        trip     = str(trip_code or '').strip()
+        transp_t = clean_ts_str(transporing_time)
+        transpd_t= clean_ts_str(transported_time)
 
-        op_date_inb_eff = str(r.get('operation_date_inbound') or r.get('op_date_inbound_effective') or '')[:10]
+        op_date_inb_eff = str(operation_date_inbound or op_date_inbound_effective or '')[:10]
         has_in   = bool(inb_t or op_date_inb_eff)
         has_out  = bool(outb_t)
         has_arr  = bool(arr_t)
         has_pick = bool(pk_t)
 
-        is_reb    = int(r.get('is_rebound') or 0)
-        ret_cnt   = int(r.get('return_count') or 0)
-        inb_t_2   = clean_ts_str(r.get('inbound_scandate_2'))
-        outb_t_2  = clean_ts_str(r.get('outbound_scandate_2'))
-        op_inb_2  = str(r.get('operation_date_inbound_2') or '')[:10]
+        is_reb    = int(is_rebound or 0)
+        ret_cnt   = int(return_count or 0)
+        inb_t_2   = clean_ts_str(inbound_scandate_2)
+        outb_t_2  = clean_ts_str(outbound_scandate_2)
+        op_inb_2  = str(operation_date_inbound_2 or '')[:10]
         has_out_2 = bool(outb_t_2)
 
         # Dynamic Rot calculation theo tiêu chí USER:
@@ -1122,29 +1127,27 @@ def sync_postgre_to_dashboard():
         DROP_TYPE_YESTERDAY = 'Rớt hôm trước'
         DROP_TYPE_AGED      = 'Tồn đọng lâu ngày'
 
-        st_sys_val = str(r.get('status_sys') or r.get('status') or r.get('orderStatusName') or '').strip().lower()
+        st_sys_val = str(status_sys or '').strip().lower()
         is_canceled = any(kw in st_sys_val for kw in ['hủy', 'cancel', 'da huy'])
         if is_canceled:
             continue
 
         # 🎯 QUY TẮC ĐỐI SOÁT SOURCE BACKLOG (CHỈ ÁP DỤNG CHO ĐƠN ĐÃ INBOUND MÀ CHƯA OUTBOUND):
-        # Đơn ĐÃ INBOUND vào HUB (has_in == True hoặc is_reb == 1) mà chưa có Outbound (not has_out):
-        # Nếu là đơn Inbound của ngày cũ (< today) mà Source Backlog KHÔNG CÓ -> Đã xuất kho thực tế (miss quét Outbound) -> LOẠI BỎ!
-        wb_tracking = str(r.get('tracking') or '').strip()
+        wb_tracking = str(tracking or '').strip()
         is_inb_unout = (has_in or is_reb) and (not has_out)
         if is_inb_unout:
             ref_inb_date = op_date_inb_eff or op_date
             if ref_inb_date < today and wb_tracking and backlog_billcodes_set and (wb_tracking not in backlog_billcodes_set):
                 continue
-        pk_st = str(r.get('pickup_station') or '').strip().upper()
-        next_st = str(r.get('next_station') or '').strip().upper()
+        pk_st = str(pickup_station or '').strip().upper()
+        next_st = str(next_station or '').strip().upper()
         st_name = str(station or '').strip().upper()
-        rk_val = str(r.get('rank') or '').strip().upper()
-        rd_val = str(r.get('round') or '').strip().upper()
+        rk_val = str(rank_val or '').strip().upper()
+        rd_val = str(round_val or '').strip().upper()
         is_pickup_north = pk_st.startswith(('BN HUB', 'HN ', 'HD ', 'HY '))
         is_rot = (not has_in) and (not has_out) and (not is_canceled) and (not is_reb) and (not is_pickup_north)
 
-        ref_rot_date = str(r.get('op_date_pickup') or get_op_date(cr_t) or op_date or '')[:10]
+        ref_rot_date = str(op_date_pickup or get_op_date(cr_t) or op_date or '')[:10]
         if is_rot:
             if ref_rot_date == today:
                 rot_hom_nay   += 1
@@ -1160,8 +1163,8 @@ def sync_postgre_to_dashboard():
 
         is_active_rebound = (is_reb == 1 and not has_out_2)
         is_currently_at_hub = (not has_out) or is_active_rebound
-        st_sys_raw = str(r.get('status_sys', '')).strip()
-        has_pk = bool(r.get('flag_pickup') or pk_t or st_sys_raw in ('Đã lấy hàng', 'Pickup Done', 'pickup_done'))
+        st_sys_raw = str(status_sys or '').strip()
+        has_pk = bool(flag_pickup or pk_t or st_sys_raw in ('Đã lấy hàng', 'Pickup Done', 'pickup_done'))
 
         inv_status = ('Inbound'      if is_active_rebound else
                       'Outbound'     if (has_out and not is_active_rebound) else
@@ -1257,6 +1260,12 @@ def sync_postgre_to_dashboard():
         if (inb_t or is_reb) and final_op_date_inb == today and effective_inb_h:
             if effective_inb_h in hourly:
                 hourly[effective_inb_h] += 1
+
+    cur_q.close()
+    conn_q.close()
+    print(f"   📦 {total_recs:,} records đã xử lý trực tiếp từ PostgreSQL")
+    print(f"   📅 Ngày vận hành hôm nay ({today}): {today_rows:,} đơn")
+    print(f"   📅 Ngày hôm qua ({yesterday})       : {yest_rows:,} đơn")
 
     # ── 4. Build JSON payloads ────────────────────────────────────
 
@@ -1356,7 +1365,7 @@ def sync_postgre_to_dashboard():
         "last_update":           now_display,
         "active_date":           today,
         "yesterday":             yesterday,
-        "total_records":         len(df),
+        "total_records":         total_recs,
         "total_inbound_today":   total_inbound_today,
         "total_backlog":         sum(v[0] for v in backlog_group.values()),
         "total_inventory":       sum(v[0] for (z, a, s, stt, d), v in inv_group.items() if d == today),
