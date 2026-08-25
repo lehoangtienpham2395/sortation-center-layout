@@ -985,37 +985,43 @@ def sync_postgre_to_dashboard():
     except Exception as _ebl:
         print(f"   ⚠️ Could not load backlog billcodes: {_ebl}")
 
-    # Bảng quy hoạch layout ô chứa chuẩn 61 Chutes mới nhất từ người dùng cấp
+    # Bảng quy hoạch layout ô chứa chuẩn 54 Chutes + 3PL mới nhất từ người dùng cấp
     OFFICIAL_LAYOUT_MAP = {
-        # ZONE 1 (15 máng)
-        'A06': ('BN HUB', '1'), 'A07': ('CT Ô MÔN', '1'), 'A08': ('CT BÌNH THỦY', '1'),
-        'A09': ('CT NINH KIỀU', '1'), 'A10': ('DT CAO LÃNH', '1'), 'A11': ('DT SA ĐÉC', '1'),
-        'A12': ('TG HÒA KHÁNH', '1'), 'A13': ('VL VĨNH LONG', '1'), 'A14': ('TG AN HỮU', '1'),
-        'A15': ('LA TÂN AN', '1'), 'A16': ('SG THỦ ĐỨC', '1'), 'A17': ('TG TRUNG AN', '1'),
-        'A18': ('VT VŨNG TÀU', '1'), 'A19': ('AG LONG XUYÊN', '1'), 'A20': ('AG CẦN ĐĂNG', '1'),
+        # ZONE 1 (16 máng)
+        'A05': ('CTO SC', '1'), 'A06': ('BN HUB', '1'), 'A07': ('VT CHÂU ĐỨC', '1'),
+        'A08': ('VT LONG ĐẤT', '1'), 'A09': ('VT VŨNG TÀU', '1'), 'A10': ('VT XUYÊN MỘC', '1'),
+        'A11': ('BD BÌNH HÒA', '1'), 'A12': ('TG HÒA KHÁNH', '1'), 'A13': ('VL VĨNH LONG', '1'),
+        'A14': ('TG AN HỮU', '1'), 'A15': ('LA TÂN AN', '1'), 'A16': ('SG THỦ ĐỨC', '1'),
+        'A17': ('TG TRUNG AN', '1'), 'A18': ('VL CHỢ LÁCH', '1'), 'A19': ('AG LONG XUYÊN', '1'),
+        'A20': ('AG CẦN ĐĂNG', '1'),
 
-        # ZONE 2 (21 máng: B00 -> B20)
+        # ZONE 2 (20 máng)
         'B00': ('SG CHỢ LỚN', '2'), 'B01': ('SG ĐÔNG HƯNG THUẬN', '2'), 'B02': ('SG TÂN HƯNG', '2'),
         'B03': ('SG BÌNH TÂN', '2'), 'B04': ('SG TÂN THỚI HIỆP', '2'), 'B05': ('SG PHÚ LÂM', '2'),
         'B06': ('SG HIỆP BÌNH', '2'), 'B07': ('SG TÂN SƠN NHÌ', '2'), 'B08': ('SG CỦ CHI', '2'),
         'B09': ('SG TÂN TẠO', '2'), 'B10': ('SG GÒ VẤP', '2'), 'B11': ('SG AN PHÚ ĐÔNG', '2'),
-        'B12': ('VT CHÂU ĐỨC', '2'), 'B13': ('VT XUYÊN MỘC', '2'), 'B14': ('SG VĨNH LỘC', '2'),
-        'B15': ('SG TÂN NHỰT', '2'), 'B16': ('SG BÀ ĐIỂM', '2'), 'B17': ('SG HƯNG LONG', '2'),
-        'B18': ('SG HÓC MÔN', '2'), 'B19': ('SG BÌNH LỢI,SG MINH XUÂN', '2'), 'B20': ('LA ĐỨC HÒA', '2'),
+        'B12': ('DN TRẢNG BOM', '2'), 'B14': ('SG VĨNH LỘC', '2'), 'B15': ('SG TÂN NHỰT', '2'),
+        'B16': ('SG BÀ ĐIỂM', '2'), 'B17': ('SG HƯNG LONG', '2'), 'B18': ('SG HÓC MÔN', '2'),
+        'B19': ('SG MINH XUÂN', '2'), 'B20': ('LA ĐỨC HÒA', '2'),
 
-        # ZONE 3 (25 máng: C03 -> C27)
+        # ZONE 3 (18 máng)
         'C03': ('SG BÌNH LỢI TRUNG', '3'), 'C04': ('SG BÌNH TRỊ ĐÔNG', '3'), 'C05': ('SG KHÁNH HỘI', '3'),
         'C06': ('BD DĨ AN', '3'), 'C07': ('DC GIA ĐỊNH', '3'), 'C08': ('TG GÒ CÔNG', '3'),
         'C09': ('LA HẬU NGHĨA', '3'), 'C10': ('SG XUÂN HÒA', '3'), 'C11': ('LA CẦN ĐƯỚC', '3'),
-        'C12': ('SG PHÚ NHUẬN', '3'), 'C13': ('ST VĨNH CHÂU', '3'), 'C14': ('CT LONG MỸ', '3'),
-        'C15': ('ST PHÚ LỢI', '3'), 'C16': ('SG NHƠN ĐỨC', '3'), 'C17': ('VL CHỢ LÁCH', '3'),
-        'C18': ('AG AN PHÚ', '3'), 'C19': ('AG TÂN CHÂU', '3'), 'C20': ('AG TỊNH BIÊN', '3'),
-        'C21': ('AG THOẠI SƠN', '3'), 'C22': ('VT LONG ĐẤT', '3'), 'C23': ('SG BẢY HIỀN', '3'),
-        'C24': ('BD BÌNH HÒA', '3'), 'C25': ('LA BẾN LỨC', '3'), 'C26': ('SETN', '3'),
-        'C27': ('DN TRẢNG BOM', '3')
+        'C12': ('SG PHÚ NHUẬN', '3'), 'C13': ('ST VĨNH CHÂU', '3'), 'C15': ('ST PHÚ LỢI', '3'),
+        'C16': ('SG NHƠN ĐỨC', '3'), 'C18': ('AG AN PHÚ', '3'), 'C19': ('AG TÂN CHÂU', '3'),
+        'C20': ('AG TỊNH BIÊN', '3'), 'C21': ('AG THOẠI SƠN', '3'), 'C23': ('SG BẢY HIỀN', '3'),
+        'C25': ('LA BẾN LỨC', '3'),
+
+        # ZONE 5 (3PL)
+        'Z01': ('DT TN', '5'), 'Z02': ('SETN', '5'), 'Z03': ('HN SALE', '5')
     }
 
     OFFICIAL_STATION_TO_AREA = {v[0].upper(): k for k, v in OFFICIAL_LAYOUT_MAP.items()}
+    # Hỗ trợ gom toàn bộ 6 trạm Cần Thơ & Đồng Tháp vào A05
+    CAN_THO_SET = {'CTO SC', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'CT LONG MỸ'}
+    for ct_st in CAN_THO_SET:
+        OFFICIAL_STATION_TO_AREA[ct_st] = 'A05'
 
     total_recs = 0
     today_rows = 0
@@ -1050,13 +1056,12 @@ def sync_postgre_to_dashboard():
         mapped_st = dict_station.get(sc, '') or dict_station.get(sc[:6] if len(sc) >= 6 else '', '')
         
         # 🎯 INVENTORY LOGIC: Categorized strictly by Next_station (Bưu cục đích)
-        # Uu tien 1: Next station (Buu cuc dich) -> Uu tien 2: Mapped station tu sortcode/dispatch_code -> Uu tien 3: Pickup station (Buu cuc nguon)
         target_st = next_st if (next_st and next_st not in ('', 'KHÔ VÙNG KHÁC', 'Chưa phân vùng', 'KHÔNG XÁC ĐỊNH')) else (mapped_st or pk_st_raw)
         target_st_upper = target_st.strip().upper()
-
         pk_st_upper = pk_st_raw.strip().upper()
         rk_raw = str(rank_val or '').strip().upper()
         rd_raw = str(round_val or '').strip().upper()
+
         is_north_record = (
             target_st_upper in ('BN HUB', 'HN SALE', 'HN HƯƠNG SƠN') or
             target_st_upper.startswith(('HN ', 'HD ', 'HY ', 'HP ', 'BN ', 'PT ', 'NB ', 'BG ', 'QN ', 'LS ', 'CB ', 'TQ ', 'YB ', 'SL ', 'DB ', 'HG ', 'ND ', 'VP ', 'TH ', 'NA ', 'HT ', 'HN', 'BN')) or
@@ -1065,6 +1070,17 @@ def sync_postgre_to_dashboard():
             rd_raw == 'LINEHAUL' or
             (sc and any(sc.upper().startswith(pfx) for pfx in ('HN', 'BN', 'HD', 'HY', 'HP', 'TB', 'QN', 'PT', 'TH', 'NA', 'HT', 'VP', 'BG', 'BK', 'CB', 'LS', 'LC', 'TQ', 'YB', 'SL', 'DB', 'HG', 'ND', 'NB', 'HA', 'HNI', 'BNI', 'HPG', 'PTH', 'NBI')) and not sc.upper().startswith(('TNI', 'TNG')))
         )
+
+        # 🎯 LOGIC LỌC CỤM CTO SC (6 Bưu cục Cần Thơ & Đồng Tháp):
+        # 1. Hàng nội cụm CTO SC hoặc đi thẳng BN HUB -> KHÔNG qua sàn HCM HUB -> LOẠI TRỪ KHỎI FORECAST/INVENTORY HCM HUB
+        is_from_can_tho = (pk_st_upper in CAN_THO_SET)
+        if is_from_can_tho:
+            is_direct_bypass = (target_st_upper in CAN_THO_SET or target_st_upper == 'BN HUB' or is_north_record)
+            if is_direct_bypass:
+                continue
+            # 2. Hàng từ 6 bưu cục CTO SC đi về HCM HUB -> Tính vào Forecast Inbound HCM HUB với tên ga gửi đại diện là 'CTO SC'
+            pk_st_raw = 'CTO SC'
+            pk_st_upper = 'CTO SC'
 
         if is_north_record:
             area_id = 'A06'

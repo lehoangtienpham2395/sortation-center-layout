@@ -1503,10 +1503,25 @@ def main():
 
     df['status_sys'] = df.apply(resolve_source_status_sys, axis=1)
 
-    # 🛡️ BỘ LỌC BẢO VỆ HCM HUB: Loại bỏ hoàn toàn các đơn luân chuyển nội bộ Miền Bắc (BN HUB -> BN HUB)
+    # 🛡️ BỘ LỌC BẢO VỆ HCM HUB:
     pk_s = df['Pickup_station'].astype(str).str.upper().str.strip()
     nx_s = df['Next_station'].astype(str).str.upper().str.strip()
+    # 1. Loại bỏ đơn luân chuyển nội bộ Miền Bắc (BN HUB -> BN HUB)
     df = df[~((pk_s == 'BN HUB') & (nx_s == 'BN HUB'))].copy()
+
+    # 2. BỘ LỌC CỤM CTO SC (Áp dụng từ hôm nay trở đi theo quy định vận hành):
+    CAN_THO_SET = {'CTO SC', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'CT LONG MỸ'}
+    pk_s_curr = df['Pickup_station'].astype(str).str.upper().str.strip()
+    nx_s_curr = df['Next_station'].astype(str).str.upper().str.strip()
+
+    # Hàng nội cụm CTO SC hoặc đi thẳng CTO SC -> BN HUB (Bypass HCM HUB) -> LOẠI TRỪ KHỎI FORECAST/SÀN HCM HUB
+    is_from_ct = pk_s_curr.isin(CAN_THO_SET)
+    is_direct_bypass = is_from_ct & (nx_s_curr.isin(CAN_THO_SET) | (nx_s_curr == 'BN HUB'))
+    df = df[~is_direct_bypass].copy()
+
+    # Hàng từ 6 bưu cục CTO SC đi về HCM HUB -> Chuẩn hóa ga gửi (Pickup_station) thành 'CTO SC'
+    is_ct_to_hcm = df['Pickup_station'].astype(str).str.upper().str.strip().isin(CAN_THO_SET)
+    df.loc[is_ct_to_hcm, 'Pickup_station'] = 'CTO SC'
 
 
 
