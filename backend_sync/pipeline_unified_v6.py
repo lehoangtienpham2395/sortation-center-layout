@@ -1248,7 +1248,14 @@ def main():
         st = str(r.get('scanDate') or '').strip()
         tc = clean_wb(r.get('transferCode') or r.get('transfercode') or r.get('billTaskCode'))
         # Lấy "Trạm trước / Trạm tiếp theo" (upOrNextStation / sendSite) từ JFS Inbound API
-        send_st = str(r.get('upOrNextStation') or r.get('sendSite') or r.get('sendNetworkName') or '').strip()
+        send_st_raw = str(r.get('upOrNextStation') or r.get('sendSite') or r.get('sendNetworkName') or '').strip()
+        send_st_upper = send_st_raw.upper()
+        if 'CTC001' in send_st_upper or 'CTO SC' in send_st_upper:
+            send_st = 'CTO SC'
+        elif 'BNI001' in send_st_upper or 'BN HUB' in send_st_upper or 'BẮC NINH' in send_st_upper:
+            send_st = 'BN HUB'
+        else:
+            send_st = send_st_raw
 
         if wb and st and st.lower() not in ('nan', 'none', ''):
             if wb not in ib_scan_map or st > ib_scan_map[wb]:
@@ -1294,7 +1301,14 @@ def main():
     for r in raw.get('arrival', []):
         wb   = clean_wb(r.get('billcode') or r.get('waybillNo') or r.get('billNo'))
         st   = str(r.get('scantime') or r.get('scanDate') or '').strip()
-        send_st = str(r.get('last_dept_name') or r.get('scansitename') or r.get('sendSite') or r.get('sendNetworkName') or r.get('upOrNextStation') or '').strip()
+        send_st_raw = str(r.get('last_dept_name') or r.get('scansitename') or r.get('sendSite') or r.get('sendNetworkName') or r.get('upOrNextStation') or '').strip()
+        send_st_upper = send_st_raw.upper()
+        if 'CTC001' in send_st_upper or 'CTO SC' in send_st_upper:
+            send_st = 'CTO SC'
+        elif 'BNI001' in send_st_upper or 'BN HUB' in send_st_upper or 'BẮC NINH' in send_st_upper:
+            send_st = 'BN HUB'
+        else:
+            send_st = send_st_raw
         trip = clean_wb(r.get('transfercode') or r.get('transferCode') or
                         r.get('traceCode') or r.get('traceSubCode') or
                         r.get('billTaskCode') or r.get('taskCode'))

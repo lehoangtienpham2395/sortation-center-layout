@@ -478,16 +478,33 @@ export default function InboundDashboard({
     return '--:--';
   };
 
-  // 6 bưu cục vệ tinh miền Tây chạy gom hàng về CTO SC, KHÔNG chạy về HCM HUB -> Loại bỏ khỏi bảng Truck ETA về HCM HUB
-  const CAN_THO_SUB_STATIONS = ['CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'CT LONG MỸ'];
-  const CAN_THO_SET = ['CTO SC', ...CAN_THO_SUB_STATIONS];
+  // Helper: Nhận diện 6 bưu cục vệ tinh miền Tây (chỉ gom hàng về CTO SC, KHÔNG chạy về sàn HCM HUB)
+  const isCanThoSubStation = (name: string): boolean => {
+    if (!name) return false;
+    const clean = String(name)
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[đĐ]/g, 'd')
+      .toUpperCase()
+      .trim();
+    return (
+      clean.includes('SA DEC') ||
+      clean.includes('O MON') ||
+      clean.includes('BINH THUY') ||
+      clean.includes('NINH KIEU') ||
+      clean.includes('CAO LANH') ||
+      clean.includes('LONG MY')
+    );
+  };
+
+  const CAN_THO_SET = ['CTO SC', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'CT LONG MỸ'];
 
   (sortedTruckEta || []).forEach((d: any, idx: number) => {
     let rawSt = (d['send_network'] || d['sendNetworkName'] || d['Station'] || d['Pickup_station'] || d['Bưu cục đi'] || d['send_site_name'] || '').trim();
     if (!rawSt) return;
 
     // Nếu là xe gom của 6 bưu cục vệ tinh chạy về CTO SC -> Bỏ qua (không về sàn HCM HUB)
-    if (CAN_THO_SUB_STATIONS.includes(rawSt.toUpperCase())) {
+    if (isCanThoSubStation(rawSt)) {
       return;
     }
 
@@ -569,7 +586,7 @@ export default function InboundDashboard({
     (arrivalData || []).forEach((d: any) => {
       let rawArrSt = (d['station_name'] || d['Pickup_station'] || d['Bưu cục'] || d['send_network'] || '').trim();
       if (!rawArrSt) return;
-      if (CAN_THO_SUB_STATIONS.includes(rawArrSt.toUpperCase())) {
+      if (isCanThoSubStation(rawArrSt)) {
         return;
       }
       const st = rawArrSt;
@@ -611,7 +628,7 @@ export default function InboundDashboard({
 
 
   let incomingVehicles = Object.values(groupedStationVehicles)
-    .filter(v => v.orders > 0 || v.tongDon > 0)
+    .filter(v => (v.orders > 0 || v.tongDon > 0) && !isCanThoSubStation(v.station))
     .sort((a, b) => b.orders - a.orders);
   // Split by Shuttle and Linehaul ranks
   const shuttleVehicles = incomingVehicles.filter(v => v.rank === 'Shuttle');
