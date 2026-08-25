@@ -394,6 +394,7 @@ function ZoneCell({ c, d, bx, by, bw, bh, midLabelY, isHovered, isMatched, onEnt
   { c:any, d:any, bx:number, by:number, bw:number, bh:number, midLabelY:number,
     isHovered:boolean, isMatched?:boolean, onEnter:()=>void, onLeave:()=>void, onClick?:()=>void, addCenterLine?:boolean, isTruck?:boolean }) {
   const zoneColors: Record<number, string> = {
+    5: '#a855f7',
     4: 'var(--inbound)',
     3: 'var(--green)',
     2: 'var(--yellow)',
@@ -530,35 +531,38 @@ export default function App() {
   const displayUtilizationLabel = 'TỈ LỆ LẤP ĐẦY';
   const displayUtilizationLabelLc = selectedType === 'Outbound' ? 'Tỉ lệ Outbound' : '% Lấp đầy';
 
-    // Calculate statistics for Zone 1, 2, 3 (Zone 1 includes BN HUB A19)
+  // Calculate statistics for Zone 1, 2, 3 (Zone 1 includes BN HUB A19)
   const zoneStats = useMemo(() => {
-    const stats: Record<number, { current: number; capacity: number; backlog: number; weight: number; fillRate: number | string }> = {
+    const stats: Record<number, { current: number; capacity: number; backlog: number; weight: number; fillRate: number | string; totalShare?: string }> = {
       1: { current: 0, capacity: 0, backlog: 0, weight: 0, fillRate: 0 },
       2: { current: 0, capacity: 0, backlog: 0, weight: 0, fillRate: 0 },
-      3: { current: 0, capacity: 0, backlog: 0, weight: 0, fillRate: 0 }
+      3: { current: 0, capacity: 0, backlog: 0, weight: 0, fillRate: 0 },
+      5: { current: 0, capacity: 0, backlog: 0, weight: 0, fillRate: 0 }
     };
 
     CHUTE_RACKS.forEach(c => {
       const d = data[c.areaId];
-      if (d && c.zone) {
-        stats[c.zone].current += d.current;
-        stats[c.zone].capacity += d.capacity;
-        stats[c.zone].backlog += d.backlogCurrent ?? 0;
-        stats[c.zone].weight += d.weight ?? 0;
+      if (d && c.zone && stats[c.zone]) {
+        stats[c.zone].current += (d.current || 0);
+        stats[c.zone].capacity += (d.capacity || 0);
+        stats[c.zone].backlog += (d.backlogCurrent ?? 0);
+        stats[c.zone].weight += (d.weight ?? 0);
       }
     });
 
-    const totalOrdersOfSelectedType = Object.values(data).reduce((acc, d: any) => acc + d.current, 0) as number;
-    const grandTotal = stats[1].current + stats[2].current + stats[3].current;
+    const totalOrdersOfSelectedType = Object.values(data).reduce((acc, d: any) => acc + (d?.current || 0), 0) as number;
+    const grandTotal = (stats[1]?.current || 0) + (stats[2]?.current || 0) + (stats[3]?.current || 0);
 
-    [1, 2, 3].forEach(z => {
+    [1, 2, 3, 5].forEach(z => {
       const s = stats[z];
-      if (selectedType === 'Outbound') {
-        s.fillRate = totalOrdersOfSelectedType > 0 ? ((s.current / totalOrdersOfSelectedType) * 100).toFixed(2) : '0.00';
-      } else {
-        s.fillRate = s.capacity > 0 ? Math.round((s.current / s.capacity) * 100) : 0;
+      if (s) {
+        if (selectedType === 'Outbound') {
+          s.fillRate = totalOrdersOfSelectedType > 0 ? ((s.current / totalOrdersOfSelectedType) * 100).toFixed(2) : '0.00';
+        } else {
+          s.fillRate = s.capacity > 0 ? Math.round((s.current / s.capacity) * 100) : 0;
+        }
+        s.totalShare = grandTotal > 0 ? ((s.current / grandTotal) * 100).toFixed(1) : '0.0';
       }
-      (s as any).totalShare = grandTotal > 0 ? ((s.current / grandTotal) * 100).toFixed(1) : '0.0';
     });
 
     return stats;
