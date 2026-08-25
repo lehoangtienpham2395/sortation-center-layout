@@ -2668,7 +2668,9 @@ export default function App() {
                               <td className="num-tabular font-bold" style={{ color: 'var(--cyan)', textAlign: 'center' }}>{chute.areaId}</td>
                               <td className="table-buucuc" style={{ textAlign: 'left' }}>{chute.name}</td>
                               <td className="num-tabular" style={{ textAlign: 'right', fontWeight: 600 }}>{chute.current.toLocaleString()}</td>
-                              <td className="num-tabular" style={{ textAlign: 'right', color: '#cbd5e1' }}>{Math.round(chute.weight).toLocaleString()} kg</td>
+                              <td className="num-tabular font-bold" style={{ textAlign: 'right', color: '#B8F7E4', fontSize: '11.5px' }}>
+                                {(chute.weight > 0 && chute.weight < 0.1) ? chute.weight.toFixed(3) : chute.weight.toFixed(1)} Tấn
+                              </td>
                               <td className="num-tabular" style={{ textAlign: 'right', fontWeight: 'bold', color: col }}>{chute.utilization}%</td>
                             </tr>
                           );
@@ -2695,7 +2697,7 @@ export default function App() {
                     <div className="text-center bg-[#101622]/60 rounded-lg border border-white/5 overflow-hidden" style={{ padding: '8px 10px' }}>
                       <div className="mono text-[9px] text-[var(--muted)] font-semibold truncate" style={{ marginBottom: '4px' }}>TỔNG TRỌNG LƯỢNG</div>
                       <div className="disp font-extrabold text-lg sm:text-xl text-[var(--green)] truncate">
-                        {Math.ceil(totalWeight).toLocaleString()} <span className="text-[10px] text-slate-400 font-normal">kg</span>
+                        {(totalWeight > 0 && totalWeight < 0.1) ? totalWeight.toFixed(3) : totalWeight.toFixed(1)} <span className="text-[10px] text-slate-400 font-normal">Tấn</span>
                       </div>
                     </div>
                   </div>
@@ -2924,7 +2926,9 @@ export default function App() {
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400">Tổng trọng lượng:</span>
-                  <span className="mono font-bold text-[#f59e0b]">{(selectedDetailRack.detail?.weight || 0).toLocaleString()} kg</span>
+                  <span className="mono font-bold text-[#f59e0b]">
+                    {((selectedDetailRack.detail?.weight || 0) > 0 && (selectedDetailRack.detail?.weight || 0) < 0.1) ? (selectedDetailRack.detail?.weight || 0).toFixed(3) : (selectedDetailRack.detail?.weight || 0).toFixed(1)} Tấn
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-400">Trạng thái vận hành:</span>
