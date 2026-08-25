@@ -2206,17 +2206,24 @@ export default function App() {
 
               {/* ── LINEHAUL Forecast Table ── */}
               {showTelemetry && (() => {
-                // 🎯 Đọc trực tiếp từ microKpiSummary để Dự kiến SL LINEHAUL đồng bộ 100% với Inbound Dashboard
-                const linehaulOrders = microKpiSummary?.linehaul ?? (data['A06']?.current ?? 0);
-                const linehaulWeight = microKpiSummary?.linehaul_weight ?? (data['A06']?.weight ?? 0);
+                // 🎯 Đọc trực tiếp từ A06 (BN HUB) và A05 (CTO SC)
+                const a06Orders = data['A06']?.current ?? 0;
+                const a06Weight = data['A06']?.weight ?? 0;
+                const a05Orders = data['A05']?.current ?? 0;
+                const a05Weight = data['A05']?.weight ?? 0;
 
                 const bnRows = [
                   {
                     name: 'BN HUB',
-                    orders: linehaulOrders,
-                    weightTon: linehaulWeight,
+                    orders: a06Orders,
+                    weightTon: a06Weight,
+                  },
+                  {
+                    name: 'CTO SC',
+                    orders: a05Orders,
+                    weightTon: a05Weight,
                   }
-                ].filter(r => r.orders > 0);
+                ];
 
                 const totOrders = bnRows.reduce((s, r) => s + r.orders, 0);
                 const totWeight = bnRows.reduce((s, r) => s + r.weightTon, 0);
@@ -2535,39 +2542,45 @@ export default function App() {
 
                   {/* Card 2: DỰ KIẾN SL LINEHAUL */}
                   {(() => {
-                    const linehaulOrders = microKpiSummary?.linehaul ?? (data['A06']?.current ?? 0);
-                    const linehaulWeight = microKpiSummary?.linehaul_weight ?? (data['A06']?.weight ?? 0);
+                    const bnRows = [
+                      { name: 'BN HUB', orders: data['A06']?.current ?? 0, weightTon: data['A06']?.weight ?? 0 },
+                      { name: 'CTO SC', orders: data['A05']?.current ?? 0, weightTon: data['A05']?.weight ?? 0 }
+                    ];
+                    const totOrders = bnRows.reduce((s, r) => s + r.orders, 0);
                     const fcTotal = microKpiSummary?.forecast_total && microKpiSummary.forecast_total > 0
                       ? microKpiSummary.forecast_total
                       : (totalOrders > 0 ? totalOrders : 1);
-                    const pct = ((linehaulOrders / fcTotal) * 100).toFixed(1);
 
                     return (
-                      <div className="jt-glowing-card shadow-lg rounded-xl w-full max-w-full overflow-hidden" style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.04)', borderTop: '1px solid rgba(249,115,22,0.3)' }}>
-                        <div className="flex justify-between items-center border-b border-white/5 gap-1" style={{ paddingBottom: '6px', marginBottom: '6px' }}>
+                      <div className="jt-glowing-card shadow-lg rounded-xl w-full max-w-full overflow-hidden" style={{ padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderTop: '1px solid rgba(249,115,22,0.3)' }}>
+                        <div className="flex justify-between items-center border-b border-white/5 gap-1" style={{ paddingBottom: '4px', marginBottom: '4px' }}>
                           <span className="text-[10px] font-extrabold uppercase text-[#f97316] truncate">🔸 Dự kiến SL LINEHAUL</span>
-                          <span className="text-[9.5px] font-extrabold text-[#22d3ee] bg-[#22d3ee]/10 rounded-full border border-[#22d3ee]/40 shrink-0" style={{ padding: '3px 10px' }}>
-                            {linehaulOrders.toLocaleString()} Đơn
+                          <span className="text-[9.5px] font-extrabold text-[#22d3ee] bg-[#22d3ee]/10 rounded-full border border-[#22d3ee]/40 shrink-0" style={{ padding: '2px 8px' }}>
+                            {totOrders.toLocaleString()} Đơn
                           </span>
                         </div>
-                        <div className="grid grid-cols-4 text-center" style={{ gap: '4px' }}>
-                          <div className="bg-white/5 rounded-md overflow-hidden" style={{ padding: '5px 2px' }}>
-                            <div className="text-slate-400 text-[8px] font-bold uppercase">HUB</div>
-                            <div className="font-extrabold text-white text-[9.5px] truncate">BN HUB</div>
-                          </div>
-                          <div className="bg-white/5 rounded-md overflow-hidden" style={{ padding: '5px 2px' }}>
-                            <div className="text-slate-400 text-[8px] font-bold uppercase">SỐ ĐƠN</div>
-                            <div className="font-extrabold text-[#fbbf24] text-[9.5px] truncate">{linehaulOrders.toLocaleString()}</div>
-                          </div>
-                          <div className="bg-white/5 rounded-md overflow-hidden" style={{ padding: '5px 2px' }}>
-                            <div className="text-slate-400 text-[8px] font-bold uppercase">T.LƯỢNG</div>
-                            <div className="font-extrabold text-[#818cf8] text-[9.5px] truncate">{linehaulWeight.toFixed(1)}T</div>
-                          </div>
-                          <div className="bg-white/5 rounded-md overflow-hidden" style={{ padding: '5px 2px' }}>
-                            <div className="text-slate-400 text-[8px] font-bold uppercase">% VOL</div>
-                            <div className="font-extrabold text-[#34d399] text-[9.5px] truncate">{pct}%</div>
-                          </div>
-                        </div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                              {(['HUB', 'ĐƠN', 'T.LƯỢNG', '% VOL'] as const).map((h, i) => (
+                                <th key={h} style={{ padding: '2px 3px', fontSize: '8px', fontWeight: 700, letterSpacing: '0.05em', color: '#94a3b8', textAlign: i === 0 ? 'left' : 'right' }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {bnRows.map(row => {
+                              const pct = ((row.orders / fcTotal) * 100).toFixed(1);
+                              return (
+                                <tr key={row.name} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                  <td style={{ padding: '3px 3px', color: '#cbd5e1', fontSize: '9.5px', fontWeight: 600 }}>{row.name}</td>
+                                  <td className="mono" style={{ textAlign: 'right', padding: '3px 3px', color: '#fbbf24', fontWeight: 700, fontSize: '10px' }}>{row.orders.toLocaleString()}</td>
+                                  <td className="mono" style={{ textAlign: 'right', padding: '3px 3px', color: '#818cf8', fontSize: '10px' }}>{row.weightTon.toFixed(1)}T</td>
+                                  <td className="mono" style={{ textAlign: 'right', padding: '3px 3px', color: '#34d399', fontSize: '10px' }}>{pct}%</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
                     );
                   })()}
