@@ -324,10 +324,35 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
       }
       const capacity = Number(capRaw) || 780;
 
-      if (areaId || buuCuc) {
+      let effectiveAreaId = (areaId && areaId !== 'None') ? areaId : 'A01';
+      const cleanBuuCuc = buuCuc.trim().toUpperCase();
+
+      // Remap stations to new layout if needed (Cần Thơ + Đồng Tháp gộp về A05 CTO SC)
+      const CAN_THO_DONG_THAP = ['CTO SC', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'CT LONG MỸ'];
+      if (CAN_THO_DONG_THAP.some(st => cleanBuuCuc.includes(st) || cleanBuuCuc === st)) {
+        effectiveAreaId = 'A05';
+      } else if (cleanBuuCuc.includes('VT CHÂU ĐỨC')) {
+        effectiveAreaId = 'A07';
+      } else if (cleanBuuCuc.includes('VT LONG ĐẤT')) {
+        effectiveAreaId = 'A08';
+      } else if (cleanBuuCuc.includes('VT VŨNG TÀU')) {
+        effectiveAreaId = 'A09';
+      } else if (cleanBuuCuc.includes('VL CHỢ LÁCH')) {
+        effectiveAreaId = 'A18';
+      } else if (cleanBuuCuc.includes('SG MINH XUÂN')) {
+        effectiveAreaId = 'B19';
+      } else if (cleanBuuCuc.includes('DT TN')) {
+        effectiveAreaId = 'Z01';
+      } else if (cleanBuuCuc === 'SETN' || cleanBuuCuc === '3PL' || cleanBuuCuc === 'SE TN') {
+        effectiveAreaId = 'Z02';
+      } else if (cleanBuuCuc.includes('HN SALE')) {
+        effectiveAreaId = 'Z03';
+      }
+
+      if (effectiveAreaId || buuCuc) {
         rows.push({
           zone: (zone && zone !== 'None') ? zone : 'ZONE 1',
-          areaId: (areaId && areaId !== 'None') ? areaId : 'A01',
+          areaId: effectiveAreaId,
           buuCuc,
           volume: isNaN(volume) ? 1 : volume,
           weight,
