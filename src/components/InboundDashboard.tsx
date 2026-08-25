@@ -478,14 +478,19 @@ export default function InboundDashboard({
     return '--:--';
   };
 
-  const CAN_THO_SET = ['CTO SC', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'CT LONG MỸ'];
+  // 6 bưu cục vệ tinh miền Tây chạy gom hàng về CTO SC, KHÔNG chạy về HCM HUB -> Loại bỏ khỏi bảng Truck ETA về HCM HUB
+  const CAN_THO_SUB_STATIONS = ['CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'CT LONG MỸ'];
+  const CAN_THO_SET = ['CTO SC', ...CAN_THO_SUB_STATIONS];
 
   (sortedTruckEta || []).forEach((d: any, idx: number) => {
     let rawSt = (d['send_network'] || d['sendNetworkName'] || d['Station'] || d['Pickup_station'] || d['Bưu cục đi'] || d['send_site_name'] || '').trim();
     if (!rawSt) return;
-    if (CAN_THO_SET.includes(rawSt.toUpperCase())) {
-      rawSt = 'CTO SC';
+
+    // Nếu là xe gom của 6 bưu cục vệ tinh chạy về CTO SC -> Bỏ qua (không về sàn HCM HUB)
+    if (CAN_THO_SUB_STATIONS.includes(rawSt.toUpperCase())) {
+      return;
     }
+
     const st = rawSt;
     const cleanKey = st.toUpperCase();
     const destKey = String(d['arrive_network'] || d['arriveNetworkName'] || d['Bưu cục đến'] || '').toUpperCase();
@@ -564,8 +569,8 @@ export default function InboundDashboard({
     (arrivalData || []).forEach((d: any) => {
       let rawArrSt = (d['station_name'] || d['Pickup_station'] || d['Bưu cục'] || d['send_network'] || '').trim();
       if (!rawArrSt) return;
-      if (CAN_THO_SET.includes(rawArrSt.toUpperCase())) {
-        rawArrSt = 'CTO SC';
+      if (CAN_THO_SUB_STATIONS.includes(rawArrSt.toUpperCase())) {
+        return;
       }
       const st = rawArrSt;
       const cleanKey = st.toUpperCase();

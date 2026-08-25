@@ -607,7 +607,9 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
             WHERE flag_inbound = 0 
               AND (flag_arrival = 1 OR flag_pickup = 1)
               AND (is_completed = FALSE OR is_active = 1)
-              AND UPPER(COALESCE(NULLIF(TRIM(pickup_station), ''), '')) NOT IN ('BN HUB', 'BNI001H')
+              AND UPPER(COALESCE(NULLIF(TRIM(pickup_station), ''), '')) NOT IN (
+                  'BN HUB', 'BNI001H', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'DT SA DEC', 'CT LONG MỸ'
+              )
               AND (
                   (transporing_time IS NOT NULL AND transporing_time::date >= CURRENT_DATE - INTERVAL '1 day')
                   OR (arrival_scandate IS NOT NULL AND arrival_scandate::date >= CURRENT_DATE - INTERVAL '1 day')
@@ -712,8 +714,13 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
             orders_cnt = int(row.get('loadscanwaybillnum') or row.get('waybillNum') or 0)
 
             # 🎯 CHỈ LẤY CÁC XE ĐANG CHẠY ĐẾN HCM HUB (INBOUND TRUCK ETA)
-            # BỎ QUA các xe xuất phát từ HCM HUB đi tỉnh (Outbound Linehaul)
-            if orders_cnt <= 0 or not trip or 'HCM' in send_net.upper() or ('HCM' not in arr_net.upper() and arr_net != ''):
+            # BỎ QUA các xe xuất phát từ HCM HUB đi tỉnh (Outbound Linehaul) và các xe gom nội tỉnh của 6 bưu cục chạy về CTO SC
+            CAN_THO_SUB_STATIONS = {'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'DT SA DEC', 'CT LONG MỸ'}
+            if (
+                orders_cnt <= 0 or not trip or 'HCM' in send_net.upper() or 
+                ('HCM' not in arr_net.upper() and arr_net != '') or
+                send_net.upper() in CAN_THO_SUB_STATIONS
+            ):
                 continue
 
             key = (send_net, trip)
