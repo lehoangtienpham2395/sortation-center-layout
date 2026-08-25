@@ -478,9 +478,15 @@ export default function InboundDashboard({
     return '--:--';
   };
 
+  const CAN_THO_SET = ['CTO SC', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'CT LONG MỸ'];
+
   (sortedTruckEta || []).forEach((d: any, idx: number) => {
-    const st = (d['send_network'] || d['sendNetworkName'] || d['Station'] || d['Pickup_station'] || d['Bưu cục đi'] || d['send_site_name'] || '').trim();
-    if (!st) return;
+    let rawSt = (d['send_network'] || d['sendNetworkName'] || d['Station'] || d['Pickup_station'] || d['Bưu cục đi'] || d['send_site_name'] || '').trim();
+    if (!rawSt) return;
+    if (CAN_THO_SET.includes(rawSt.toUpperCase())) {
+      rawSt = 'CTO SC';
+    }
+    const st = rawSt;
     const cleanKey = st.toUpperCase();
     const destKey = String(d['arrive_network'] || d['arriveNetworkName'] || d['Bưu cục đến'] || '').toUpperCase();
     const rankVal = String(d['rank'] || d['Rank'] || '').toUpperCase();
@@ -556,8 +562,12 @@ export default function InboundDashboard({
   // Dự phòng an toàn: Nếu truckEtaData chưa tải xong, tự động tạo danh sách xe di chuyển từ arrivalData
   if (Object.keys(groupedStationVehicles).length === 0 && arrivalData && arrivalData.length > 0) {
     (arrivalData || []).forEach((d: any) => {
-      const st = (d['station_name'] || d['Pickup_station'] || d['Bưu cục'] || d['send_network'] || '').trim();
-      if (!st) return;
+      let rawArrSt = (d['station_name'] || d['Pickup_station'] || d['Bưu cục'] || d['send_network'] || '').trim();
+      if (!rawArrSt) return;
+      if (CAN_THO_SET.includes(rawArrSt.toUpperCase())) {
+        rawArrSt = 'CTO SC';
+      }
+      const st = rawArrSt;
       const cleanKey = st.toUpperCase();
 
       const inTransitOrders = Number(d['not_hub'] ?? d['Chưa đến Hub'] ?? d['Chua dn Hub'] ?? d['Orders'] ?? d['total_orders'] ?? 0);
@@ -959,6 +969,8 @@ export default function InboundDashboard({
       let rawFcName = pSt || 'Chưa rõ';
       if (pSt.toUpperCase().includes('BN HUB') || isNorthRow(pSt)) {
         rawFcName = 'BN HUB';
+      } else if (CAN_THO_SET.includes(pSt.toUpperCase())) {
+        rawFcName = 'CTO SC';
       }
       const fc = getFC(rawFcName);
       if (fc) {
@@ -978,18 +990,33 @@ export default function InboundDashboard({
   // 🎯 TÍNH SỐ XE THỰC TẾ CHUẨN VẬN HÀNH (LOẠI BỎ RÁC BẢNG KÊ NỘI BỘ, QUY ĐỔI CHUẨN TẢI TRỌNG XE VẬN CHUYỂN)
   const allSendingFCs = (() => {
     if (localOriginStation?.stations && localOriginStation.stations.length > 0) {
-      return localOriginStation.stations.map((s: any) => {
-        const isBn = String(s.station_name || '').toUpperCase().includes('BN HUB') || String(s.station_name || '').toUpperCase().includes('NORTH');
-        const targetAvgOrdersPerTruck = isBn ? 1400 : 480;
+      const mergedMap: Record<string, { fc: string; orders: number; weight: number; vehicles: number }> = {};
+
+      localOriginStation.stations.forEach((s: any) => {
+        let stName = String(s.station_name || '').trim();
+        if (CAN_THO_SET.includes(stName.toUpperCase())) {
+          stName = 'CTO SC';
+        }
         const vol = Number(s.inbound_volume ?? s.total_volume ?? 0);
         const realWt = s.inbound_weight_ton !== undefined ? Number(s.inbound_weight_ton) : (s.weight_ton !== undefined ? Number(s.weight_ton) : (vol * 9.2 / 1000.0));
+
+        if (!mergedMap[stName]) {
+          mergedMap[stName] = { fc: stName, orders: 0, weight: 0, vehicles: 0 };
+        }
+        mergedMap[stName].orders += vol;
+        mergedMap[stName].weight += realWt;
+      });
+
+      return Object.values(mergedMap).map(item => {
+        const isBn = item.fc.toUpperCase().includes('BN HUB') || item.fc.toUpperCase().includes('NORTH');
+        const targetAvgOrdersPerTruck = isBn ? 1400 : 480;
         return {
-          fc: s.station_name,
-          vehicles: vol > 0 ? Math.max(1, Math.round(vol / targetAvgOrdersPerTruck)) : 0,
-          orders: vol,
-          weight: Math.round(realWt * 10) / 10
+          fc: item.fc,
+          vehicles: item.orders > 0 ? Math.max(1, Math.round(item.orders / targetAvgOrdersPerTruck)) : 0,
+          orders: item.orders,
+          weight: Math.round(item.weight * 10) / 10
         };
-      }).filter((s: any) => s.orders > 0).sort((a: any, b: any) => b.orders - a.orders);
+      }).filter(s => s.orders > 0).sort((a, b) => b.orders - a.orders);
     }
     return Object.values(fcMetrics)
       .map(item => {
