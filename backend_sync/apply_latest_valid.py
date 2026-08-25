@@ -20,19 +20,19 @@ cur = conn.cursor()
 try:
     cur.execute("TRUNCATE TABLE dim.dim_valid_mapping;")
     for _, r in df_new.iterrows():
-        st1 = str(r.get('Station_1') or r.get('Tên bưu cục') or '').strip()
-        st2 = str(r.get('Station_2') or r.get('Tên điểm tiếp theo') or st1).strip()
+        st_final = str(r.get('Station_2') or r.get('Station_1') or r.get('Tên điểm tiếp theo') or '').strip()
         rd  = str(r.get('Round') or r.get('round') or '').strip()
         rk  = str(r.get('Rank') or r.get('rank') or '').strip()
         sc  = str(r.get('sortcode') or '').strip().upper()
         ar  = str(r.get('area') or r.get('Mã khu vực') or '').strip().upper()
-        hub = str(r.get('Hubcode') or '').strip().upper()
+        cap = 1400 if ar == 'A06' else 780
         
-        cur.execute("""
-            INSERT INTO dim.dim_valid_mapping (station_1, station_2, round, rank, sortcode, area, hubcode)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT DO NOTHING;
-        """, (st1, st2, rd, rk, sc, ar, hub))
+        if sc or st_final:
+            cur.execute("""
+                INSERT INTO dim.dim_valid_mapping (sortcode, station_final, round, rank, area_id, capacity, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                ON CONFLICT DO NOTHING;
+            """, (sc, st_final, rd, rk, ar, cap))
     conn.commit()
     print("✅ Đã đồng bộ valid mới vào bảng dim.dim_valid_mapping trên PostgreSQL!")
 except Exception as e:

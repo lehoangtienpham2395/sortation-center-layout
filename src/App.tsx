@@ -62,27 +62,21 @@ try {
 }
 
 
-// ── Rack / chute definitions (Chuẩn hóa 100% tên bưu cục theo quy hoạch 61 Chutes mới nhất) ──
+// ── Rack / chute definitions (Chuẩn hóa 100% tên bưu cục theo quy hoạch 54 Chutes mới nhất) ──
 const ZONE3_LIST = [
-  // 5 ô chutes bên phải vách ngăn (vùng xanh lá)
+  // 4 ô chutes bên phải vách ngăn (vùng xanh lá)
   { areaId: 'C03', name: 'SG BÌNH LỢI TRUNG', zone: 3 },
   { areaId: 'C04', name: 'SG BÌNH TRỊ ĐÔNG', zone: 3 },
   { areaId: 'C05', name: 'SG KHÁNH HỘI', zone: 3 },
   { areaId: 'C06', name: 'BD DĨ AN', zone: 3 },
-  { areaId: 'C07', name: 'DC GIA ĐỊNH', zone: 3 },
-  // 20 ô chutes bên trái vách ngăn (C08 -> C27)
+  // 14 ô chutes bên trái vách ngăn (C08 -> C25)
   { areaId: 'C08', name: 'TG GÒ CÔNG', zone: 3 },    { areaId: 'C09', name: 'LA HẬU NGHĨA', zone: 3 },
   { areaId: 'C10', name: 'SG XUÂN HÒA', zone: 3 },   { areaId: 'C11', name: 'LA CẦN ĐƯỚC', zone: 3 },
   { areaId: 'C12', name: 'SG PHÚ NHUẬN', zone: 3 },  { areaId: 'C13', name: 'ST VĨNH CHÂU', zone: 3 },
-  { areaId: 'C14', name: 'CT LONG MỸ', zone: 3 },    { areaId: 'C15', name: 'ST PHÚ LỢI', zone: 3 },
-  { areaId: 'C16', name: 'SG NHƠN ĐỨC', zone: 3 },   { areaId: 'C17', name: 'VL CHỢ LÁCH', zone: 3 },
+  { areaId: 'C15', name: 'ST PHÚ LỢI', zone: 3 },    { areaId: 'C16', name: 'SG NHƠN ĐỨC', zone: 3 },
   { areaId: 'C18', name: 'AG AN PHÚ', zone: 3 },     { areaId: 'C19', name: 'AG TÂN CHÂU', zone: 3 },
   { areaId: 'C20', name: 'AG TỊNH BIÊN', zone: 3 },  { areaId: 'C21', name: 'AG THOẠI SƠN', zone: 3 },
-  { areaId: 'C22', name: 'VT LONG ĐẤT', zone: 3 },   { areaId: 'C23', name: 'SG BẢY HIỀN', zone: 3 },
-  { areaId: 'C24', name: 'BD BÌNH HÒA', zone: 3 },
-  { areaId: 'C25', name: 'LA BẾN LỨC', zone: 3 },
-  { areaId: 'C26', name: 'SETN', zone: 3 },
-  { areaId: 'C27', name: 'DN TRẢNG BOM', zone: 3 }
+  { areaId: 'C23', name: 'SG BẢY HIỀN', zone: 3 },   { areaId: 'C25', name: 'LA BẾN LỨC', zone: 3 }
 ];
 
 const ZONE3_TRUCKS = Array.from({ length: 24 }, (_, i) => ({
@@ -95,17 +89,16 @@ const ZONE2_LIST = [
   // 5 ô chutes bên phải vách ngăn (vùng màu vàng)
   { areaId: 'B17', name: 'SG HƯNG LONG', zone: 2 },
   { areaId: 'B18', name: 'SG HÓC MÔN', zone: 2 },
-  { areaId: 'B19', name: 'SG BÌNH LỢI,SG MINH XUÂN', zone: 2 },
+  { areaId: 'B19', name: 'SG MINH XUÂN', zone: 2 },
   { areaId: 'B20', name: 'LA ĐỨC HÒA', zone: 2 },
   { areaId: 'B00', name: 'SG CHỢ LỚN', zone: 2 },
-  // 16 ô chutes bên trái vách ngăn (B01 -> B16)
+  // 14 ô chutes bên trái vách ngăn (B01 -> B16)
   { areaId: 'B01', name: 'SG ĐÔNG HƯNG THUẬN', zone: 2 }, { areaId: 'B02', name: 'SG TÂN HƯNG', zone: 2 },
   { areaId: 'B03', name: 'SG BÌNH TÂN', zone: 2 },         { areaId: 'B04', name: 'SG TÂN THỚI HIỆP', zone: 2 },
   { areaId: 'B05', name: 'SG PHÚ LÂM', zone: 2 },          { areaId: 'B06', name: 'SG HIỆP BÌNH', zone: 2 },
   { areaId: 'B07', name: 'SG TÂN SƠN NHÌ', zone: 2 },       { areaId: 'B08', name: 'SG CỦ CHI', zone: 2 },
   { areaId: 'B09', name: 'SG TÂN TẠO', zone: 2 },          { areaId: 'B10', name: 'SG GÒ VẤP', zone: 2 },
-  { areaId: 'B11', name: 'SG AN PHÚ ĐÔNG', zone: 2 },      { areaId: 'B12', name: 'VT CHÂU ĐỨC', zone: 2 },
-  { areaId: 'B13', name: 'VT XUYÊN MỘC', zone: 2 },        { areaId: 'B14', name: 'SG VĨNH LỘC', zone: 2 },
+  { areaId: 'B11', name: 'SG AN PHÚ ĐÔNG', zone: 2 },      { areaId: 'B14', name: 'SG VĨNH LỘC', zone: 2 },
   { areaId: 'B15', name: 'SG TÂN NHỰT', zone: 2 },         { areaId: 'B16', name: 'SG BÀ ĐIỂM', zone: 2 }
 ];
 
@@ -119,15 +112,21 @@ const ZONE2_TRUCKS = Array.from({ length: 21 }, (_, i) => {
 });
 
 const ZONE1_LIST = [
-  // 15 ô chutes bên trái vách ngăn (A06 -> A20)
+  // 14 ô chutes Zone 1 (A05 -> A20)
+  { areaId: 'A05', name: 'CTO SC', zone: 1 },
   { areaId: 'A06', name: 'BN HUB', zone: 1 },
-  { areaId: 'A07', name: 'CT Ô MÔN', zone: 1 },       { areaId: 'A08', name: 'CT BÌNH THỦY', zone: 1 },
-  { areaId: 'A09', name: 'CT NINH KIỀU', zone: 1 },   { areaId: 'A10', name: 'DT CAO LÃNH', zone: 1 },
-  { areaId: 'A11', name: 'DT SA ĐÉC', zone: 1 },      { areaId: 'A12', name: 'TG HÒA KHÁNH', zone: 1 },
+  { areaId: 'A07', name: 'VT CHÂU ĐỨC', zone: 1 },   { areaId: 'A08', name: 'VT LONG ĐẤT', zone: 1 },
+  { areaId: 'A09', name: 'VT VŨNG TÀU', zone: 1 },   { areaId: 'A12', name: 'TG HÒA KHÁNH', zone: 1 },
   { areaId: 'A13', name: 'VL VĨNH LONG', zone: 1 },   { areaId: 'A14', name: 'TG AN HỮU', zone: 1 },
   { areaId: 'A15', name: 'LA TÂN AN', zone: 1 },      { areaId: 'A16', name: 'SG THỦ ĐỨC', zone: 1 },
-  { areaId: 'A17', name: 'TG TRUNG AN', zone: 1 },    { areaId: 'A18', name: 'VT VŨNG TÀU', zone: 1 },
+  { areaId: 'A17', name: 'TG TRUNG AN', zone: 1 },    { areaId: 'A18', name: 'VL CHỢ LÁCH', zone: 1 },
   { areaId: 'A19', name: 'AG LONG XUYÊN', zone: 1 },  { areaId: 'A20', name: 'AG CẦN ĐĂNG', zone: 1 }
+];
+
+const ZONE_3PL_LIST = [
+  { areaId: 'Z01', name: 'DT TN', zone: 5 },
+  { areaId: 'Z02', name: 'SETN', zone: 5 },
+  { areaId: 'Z03', name: 'HN SALE', zone: 5 }
 ];
 
 const ZONE1_TRUCKS = Array.from({ length: 16 }, (_, i) => ({
@@ -145,7 +144,7 @@ const INBOUND_TRUCKS = [
   { areaId: 'TI-06', name: 'Bãi chờ nhập 06', zone: 4, bx: 803 }
 ];
 
-const CHUTE_RACKS = [...ZONE3_LIST, ...ZONE2_LIST, ...ZONE1_LIST];
+const CHUTE_RACKS = [...ZONE3_LIST, ...ZONE2_LIST, ...ZONE1_LIST, ...ZONE_3PL_LIST];
 const ALL_RACKS = [...CHUTE_RACKS, ...ZONE3_TRUCKS, ...ZONE2_TRUCKS, ...ZONE1_TRUCKS, ...INBOUND_TRUCKS];
 
 ALL_RACKS.forEach(item => {
@@ -902,6 +901,7 @@ export default function App() {
     updateListName(ZONE3_LIST);
     updateListName(ZONE2_LIST);
     updateListName(ZONE1_LIST);
+    updateListName(ZONE_3PL_LIST);
 
     const totalOrdersOfSelectedType = Object.values(selectedMap).reduce((sum, item) => sum + item.volume, 0);
     const totalWeightOfSelectedType = Object.values(selectedMap).reduce((sum, item) => sum + item.weight, 0);
@@ -1340,10 +1340,10 @@ export default function App() {
 
           <g>
             {/* Zone 3 Chutes */}
-            {ZONE3_LIST.filter(c => c.areaId !== 'C26').map((c, i) => {
+            {ZONE3_LIST.map((c, i) => {
               const d = data[c.areaId]; if (!d) return null;
-              const isRight = i < 5;
-              const bx = isRight ? 642 + (4 - i) * TR_BAY_W : 614 - (i - 5) * TR_BAY_W;
+              const isRight = i < 4;
+              const bx = isRight ? 642 + (3 - i) * TR_BAY_W : 614 - (i - 4) * TR_BAY_W;
               const by = Z3_Y;
               return (
                 <ZoneCell key={c.areaId} c={c} d={d} bx={bx} by={by}
@@ -1396,11 +1396,11 @@ export default function App() {
                 </g>
               );
             })}
-            {/* Zone 3 Chutes Left border (bao quanh C06->C25) */}
-            <rect x={82} y={118} width={560} height={Z_H} rx="2"
+            {/* Zone 3 Chutes Left border (bao quanh C08->C25) */}
+            <rect x={250} y={118} width={392} height={Z_H} rx="2"
                   {...getZoneBorderProps(3, '--green')}/>
-            {/* Zone 3 Chutes Right border (bao quanh C01->C05) */}
-            <rect x={642} y={118} width={140} height={Z_H} rx="2"
+            {/* Zone 3 Chutes Right border (bao quanh C03->C06) */}
+            <rect x={642} y={118} width={112} height={Z_H} rx="2"
                   {...getZoneBorderProps(3, '--green')}/>
             {/* Zone 3 Trucks border (bao quanh T3-01->T3-24) */}
             <rect x={110} y={174} width={672} height={Z_H} rx="2"
@@ -1462,7 +1462,7 @@ export default function App() {
               );
             })}
             {/* Zone 2 Chutes Left border (bao quanh B01->B16) */}
-            <rect x={194} y={336} width={448} height={Z_H} rx="2"
+            <rect x={250} y={336} width={392} height={Z_H} rx="2"
                   {...getZoneBorderProps(2, '--yellow')}/>
             {/* Zone 2 Chutes Right border (bao quanh B17->B20, B00 kế vách tường - Đồng bộ Zone 2 Màu Vàng) */}
             <rect x={642} y={336} width={140} height={Z_H} rx="2"
@@ -1483,7 +1483,8 @@ export default function App() {
                 fill="rgba(234,179,8,0.65)" className="mono text-[5.5px] font-bold">XE TẢI CHỤM ĐẦU</text>
 
           <g>
-            {ZONE1_LIST.filter(c => c.areaId !== 'A06').map((c, i) => {
+            {/* Zone 1 Chutes (A07 -> A20 bên trái BN HUB) */}
+            {ZONE1_LIST.filter(c => c.areaId !== 'A06' && c.areaId !== 'A05').map((c, i) => {
               const d = data[c.areaId]; if (!d) return null;
               const bx = 556 - i * TR_BAY_W;
               return <ZoneCell key={c.areaId} c={c} d={d} bx={bx} by={Z1_Y}
@@ -1503,30 +1504,29 @@ export default function App() {
                                }}
                                addCenterLine={true}/>;
             })}
-            <rect x={192} y={Z1_Y} width={448} height={Z_H} rx="2"
+            <rect x={248} y={Z1_Y} width={336} height={Z_H} rx="2"
                   {...getZoneBorderProps(1, '--orange')}/>
-
           </g>
- 
-          {/* Render C26 (Zone 3) separately next to BN HUB on the left */}
+
+          {/* Render A05 (CTO SC - Cụm Cần Thơ & Đồng Tháp) bên phải BN HUB */}
           <g>
             {(() => {
-              const c = ZONE3_LIST.find(item => item.areaId === 'C26');
+              const c = ZONE1_LIST.find(item => item.areaId === 'A05');
               if (!c) return null;
               const d = data[c.areaId];
               if (!d) return null;
-              const bx = 153;
+              const bx = 642;
               const by = Z1_Y;
               const bw = TR_BAY_W;
-              const isChuteHovered = hoveredRack?.areaId === 'C26';
+              const isA05Hovered = hoveredRack?.areaId === 'A05';
               return (
                 <>
                   <ZoneCell c={c} d={d} bx={bx} by={by}
                             bw={bw} bh={Z_H} midLabelY={by+Z_H/2}
-                            isHovered={hoveredRack?.areaId===c.areaId}
+                            isHovered={isA05Hovered}
                             onEnter={() => {
                               setHoveredRack({...c,...d});
-                              setHoveredZone(3);
+                              setHoveredZone(1);
                             }}
                             onLeave={() => {
                               setHoveredRack(null);
@@ -1539,17 +1539,51 @@ export default function App() {
                             addCenterLine={true}/>
                   <rect x={bx} y={by} width={bw} height={Z_H} rx="2"
                         fill="none"
-                        stroke="var(--green)"
-                        strokeWidth={isChuteHovered ? 1.5 : 0.8}
-                        strokeOpacity={isChuteHovered ? 1.0 : 0.5}
+                        stroke="var(--orange)"
+                        strokeWidth={isA05Hovered ? 1.5 : 0.8}
+                        strokeOpacity={isA05Hovered ? 1.0 : 0.5}
                         style={{
                           transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                          filter: isChuteHovered ? 'drop-shadow(0 3px 6px rgba(0,0,0,0.4)) drop-shadow(0 3px 6px var(--green))' : 'none'
+                          filter: isA05Hovered ? 'drop-shadow(0 3px 6px rgba(0,0,0,0.4)) drop-shadow(0 3px 6px var(--orange))' : 'none'
                         }}
                         pointerEvents="none"/>
                 </>
               );
             })()}
+          </g>
+
+          {/* Render 3PL (Z01 -> Z03: DT TN, SETN, HN SALE) */}
+          <g>
+            {ZONE_3PL_LIST.map((c, i) => {
+              const d = data[c.areaId];
+              if (!d) return null;
+              const bx = 164 - i * TR_BAY_W;
+              const by = Z1_Y;
+              const bw = TR_BAY_W;
+              const is3PLHovered = hoveredRack?.areaId === c.areaId;
+              return (
+                <ZoneCell key={c.areaId} c={c} d={d} bx={bx} by={by}
+                          bw={bw} bh={Z_H} midLabelY={by+Z_H/2}
+                          isHovered={is3PLHovered}
+                          onEnter={() => {
+                            setHoveredRack({...c,...d});
+                            setHoveredZone(5);
+                          }}
+                          onLeave={() => {
+                            setHoveredRack(null);
+                            setHoveredZone(null);
+                          }}
+                          onClick={() => {
+                            setHoveredRack({...c,...d});
+                            if (isMobile) setBottomSheetOpen(true);
+                          }}
+                          addCenterLine={true}/>
+              );
+            })}
+            <rect x={108} y={Z1_Y} width={84} height={Z_H} rx="2"
+                  fill="none" stroke="rgba(168,85,247,0.55)" strokeWidth="0.8" strokeDasharray="3 2"/>
+            <text x={150} y={Z1_Y - 4} textAnchor="middle"
+                  fill="rgba(168,85,247,0.85)" className="mono text-[5.5px] font-bold">KHU VỰC 3PL</text>
           </g>
 
           {/* Render A06 (BN HUB) separately next to A07 with double cell width */}
@@ -1587,7 +1621,6 @@ export default function App() {
                           filter: isHubHovered ? 'drop-shadow(0 3px 6px rgba(0,0,0,0.4)) drop-shadow(0 3px 6px var(--orange))' : 'none'
                         }}
                         pointerEvents="none"/>
-
                 </>
               );
             })()}
