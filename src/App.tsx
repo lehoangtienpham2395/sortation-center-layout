@@ -325,12 +325,14 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
       const capacity = Number(capRaw) || 780;
 
       let effectiveAreaId = (areaId && areaId !== 'None') ? areaId : 'A01';
+      let effectiveBuuCuc = buuCuc;
       const cleanBuuCuc = buuCuc.trim().toUpperCase();
 
       // Remap stations to new layout if needed (Cần Thơ + Đồng Tháp gộp về A05 CTO SC)
       const CAN_THO_DONG_THAP = ['CTO SC', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'CT LONG MỸ'];
-      if (CAN_THO_DONG_THAP.some(st => cleanBuuCuc.includes(st) || cleanBuuCuc === st)) {
+      if (CAN_THO_DONG_THAP.some(st => cleanBuuCuc.includes(st) || cleanBuuCuc === st) || effectiveAreaId === 'A05') {
         effectiveAreaId = 'A05';
+        effectiveBuuCuc = 'CTO SC';
       } else if (cleanBuuCuc.includes('VT CHÂU ĐỨC')) {
         effectiveAreaId = 'A07';
       } else if (cleanBuuCuc.includes('VT LONG ĐẤT')) {
@@ -353,7 +355,7 @@ async function fetchSheetData(sheetType: string = 'Outbound'): Promise<SheetRow[
         rows.push({
           zone: (zone && zone !== 'None') ? zone : 'ZONE 1',
           areaId: effectiveAreaId,
-          buuCuc,
+          buuCuc: effectiveBuuCuc,
           volume: isNaN(volume) ? 1 : volume,
           weight,
           capacity,

@@ -1067,29 +1067,35 @@ def sync_postgre_to_dashboard():
         target_st_upper = target_st.strip().upper()
         pk_st_upper = pk_st_raw.strip().upper()
         rk_raw = str(rank_val or '').strip().upper()
-        rd_raw = str(round_val or '').strip().upper()
-
-        is_north_record = (
-            target_st_upper in ('BN HUB', 'HN SALE', 'HN HƯƠNG SƠN') or
-            target_st_upper.startswith(('HN ', 'HD ', 'HY ', 'HP ', 'BN ', 'PT ', 'NB ', 'BG ', 'QN ', 'LS ', 'CB ', 'TQ ', 'YB ', 'SL ', 'DB ', 'HG ', 'ND ', 'VP ', 'TH ', 'NA ', 'HT ', 'HN', 'BN')) or
-            dict_area.get(sc) == 'A06' or
-            rk_raw == 'BN HUB' or
-            rd_raw == 'LINEHAUL' or
-            (sc and any(sc.upper().startswith(pfx) for pfx in ('HN', 'BN', 'HD', 'HY', 'HP', 'TB', 'QN', 'PT', 'TH', 'NA', 'HT', 'VP', 'BG', 'BK', 'CB', 'LS', 'LC', 'TQ', 'YB', 'SL', 'DB', 'HG', 'ND', 'NB', 'HA', 'HNI', 'BNI', 'HPG', 'PTH', 'NBI')) and not sc.upper().startswith(('TNI', 'TNG')))
-        )
+        is_dest_can_tho = (target_st_upper in CAN_THO_SET)
+        is_from_can_tho = (pk_st_upper in CAN_THO_SET)
 
         # 🎯 LOGIC LỌC CỤM CTO SC (6 Bưu cục Cần Thơ & Đồng Tháp):
         # 1. Hàng nội cụm CTO SC hoặc đi thẳng BN HUB -> KHÔNG qua sàn HCM HUB -> LOẠI TRỪ KHỎI FORECAST/INVENTORY HCM HUB
-        is_from_can_tho = (pk_st_upper in CAN_THO_SET)
         if is_from_can_tho:
-            is_direct_bypass = (target_st_upper in CAN_THO_SET or target_st_upper == 'BN HUB' or is_north_record)
+            is_direct_bypass = (is_dest_can_tho or target_st_upper == 'BN HUB' or target_st_upper.startswith(('HN', 'BN', 'HD', 'HY', 'HP')))
             if is_direct_bypass:
                 continue
             # 2. Hàng từ 6 bưu cục CTO SC đi về HCM HUB -> Tính vào Forecast Inbound HCM HUB với tên ga gửi đại diện là 'CTO SC'
             pk_st_raw = 'CTO SC'
             pk_st_upper = 'CTO SC'
 
-        if is_north_record:
+        is_north_record = (
+            target_st_upper in ('BN HUB', 'HN SALE', 'HN HƯƠNG SƠN') or
+            target_st_upper.startswith(('HN ', 'HD ', 'HY ', 'HP ', 'BN ', 'PT ', 'NB ', 'BG ', 'QN ', 'LS ', 'CB ', 'TQ ', 'YB ', 'SL ', 'DB ', 'HG ', 'ND ', 'VP ', 'TH ', 'NA ', 'HT ', 'HN', 'BN')) or
+            dict_area.get(sc) == 'A06' or
+            rk_raw == 'BN HUB' or
+            (sc and any(sc.upper().startswith(pfx) for pfx in ('HN', 'BN', 'HD', 'HY', 'HP', 'TB', 'QN', 'PT', 'TH', 'NA', 'HT', 'VP', 'BG', 'BK', 'CB', 'LS', 'LC', 'TQ', 'YB', 'SL', 'DB', 'HG', 'ND', 'NB', 'HA', 'HNI', 'BNI', 'HPG', 'PTH', 'NBI')) and not sc.upper().startswith(('TNI', 'TNG')))
+        )
+
+        # 🎯 PHÂN LOẠI Ô CHỨA TRÊN SƠ ĐỒ LAYOUT HCM HUB:
+        # ƯU TIÊN 1: Toàn bộ hàng có đích đến là 6 bưu cục DT & CT hoặc CTO SC -> GOM VÀO MÁNG A05 (CTO SC)
+        if is_dest_can_tho:
+            area_id = 'A05'
+            station = 'CTO SC'
+            zone    = '1'
+        # ƯU TIÊN 2: Hàng đi Miền Bắc -> Máng A06 (BN HUB)
+        elif is_north_record:
             area_id = 'A06'
             station = 'BN HUB'
             zone    = '1'
