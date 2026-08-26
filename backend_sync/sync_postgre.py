@@ -608,7 +608,7 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
               AND (flag_arrival = 1 OR flag_pickup = 1)
               AND (is_completed = FALSE OR is_active = 1)
               AND UPPER(COALESCE(NULLIF(TRIM(pickup_station), ''), '')) NOT IN (
-                  'BN HUB', 'BNI001H', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'DT SA DEC', 'CT LONG MỸ'
+                  'BN HUB', 'BNI001H', 'CTO SC', 'CTC001H', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'DT SA DEC', 'CT LONG MỸ'
               )
               AND (
                   (transporing_time IS NOT NULL AND transporing_time::date >= CURRENT_DATE - INTERVAL '1 day')
