@@ -4,33 +4,383 @@
   "stations": [
     {
       "station_name": "SG CỦ CHI",
-      "total_volume": 28,
+      "total_volume": 2510,
+      "inbound_volume": 518,
+      "transporting_volume": 1140,
+      "pickup_done_volume": 209,
+      "created_volume": 643,
+      "inbound_weight_ton": 3.36,
+      "total_weight_ton": 17.98
+    },
+    {
+      "station_name": "SG BÌNH TÂN",
+      "total_volume": 2123,
       "inbound_volume": 0,
-      "transporting_volume": 0,
-      "pickup_done_volume": 0,
-      "created_volume": 28,
+      "transporting_volume": 951,
+      "pickup_done_volume": 325,
+      "created_volume": 847,
       "inbound_weight_ton": 0.0,
-      "total_weight_ton": 0.21
+      "total_weight_ton": 22.55
     },
     {
       "station_name": "SG MINH XUÂN",
-      "total_volume": 10,
-      "inbound_volume": 0,
+      "total_volume": 1987,
+      "inbound_volume": 1113,
+      "transporting_volume": 0,
+      "pickup_done_volume": 315,
+      "created_volume": 559,
+      "inbound_weight_ton": 10.97,
+      "total_weight_ton": 19.34
+    },
+    {
+      "station_name": "BN HUB",
+      "total_volume": 1200,
+      "inbound_volume": 1200,
       "transporting_volume": 0,
       "pickup_done_volume": 0,
-      "created_volume": 10,
+      "created_volume": 0,
+      "inbound_weight_ton": 9.69,
+      "total_weight_ton": 9.69
+    },
+    {
+      "station_name": "SG TÂN TẠO",
+      "total_volume": 698,
+      "inbound_volume": 0,
+      "transporting_volume": 1,
+      "pickup_done_volume": 553,
+      "created_volume": 144,
       "inbound_weight_ton": 0.0,
-      "total_weight_ton": 0.09
+      "total_weight_ton": 4.79
+    },
+    {
+      "station_name": "SG THỦ ĐỨC",
+      "total_volume": 636,
+      "inbound_volume": 0,
+      "transporting_volume": 3,
+      "pickup_done_volume": 470,
+      "created_volume": 163,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 9.31
+    },
+    {
+      "station_name": "SG TÂN SƠN NHÌ",
+      "total_volume": 458,
+      "inbound_volume": 0,
+      "transporting_volume": 139,
+      "pickup_done_volume": 159,
+      "created_volume": 160,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 8.24
+    },
+    {
+      "station_name": "SG TÂN THỚI HIỆP",
+      "total_volume": 353,
+      "inbound_volume": 0,
+      "transporting_volume": 148,
+      "pickup_done_volume": 181,
+      "created_volume": 24,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 2.66
+    },
+    {
+      "station_name": "LA ĐỨC HÒA",
+      "total_volume": 348,
+      "inbound_volume": 116,
+      "transporting_volume": 162,
+      "pickup_done_volume": 0,
+      "created_volume": 70,
+      "inbound_weight_ton": 0.99,
+      "total_weight_ton": 3.22
+    },
+    {
+      "station_name": "SG HIỆP BÌNH",
+      "total_volume": 319,
+      "inbound_volume": 0,
+      "transporting_volume": 145,
+      "pickup_done_volume": 86,
+      "created_volume": 87,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 4.72
+    },
+    {
+      "station_name": "SG PHÚ LÂM",
+      "total_volume": 270,
+      "inbound_volume": 65,
+      "transporting_volume": 1,
+      "pickup_done_volume": 148,
+      "created_volume": 56,
+      "inbound_weight_ton": 0.57,
+      "total_weight_ton": 3.71
+    },
+    {
+      "station_name": "SG TÂN NHỰT",
+      "total_volume": 239,
+      "inbound_volume": 0,
+      "transporting_volume": 0,
+      "pickup_done_volume": 4,
+      "created_volume": 235,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 2.92
     },
     {
       "station_name": "SG VĨNH LỘC",
-      "total_volume": 3,
+      "total_volume": 238,
+      "inbound_volume": 160,
+      "transporting_volume": 2,
+      "pickup_done_volume": 33,
+      "created_volume": 43,
+      "inbound_weight_ton": 2.22,
+      "total_weight_ton": 3.67
+    },
+    {
+      "station_name": "SG ĐÔNG HƯNG THUẬN",
+      "total_volume": 217,
+      "inbound_volume": 0,
+      "transporting_volume": 0,
+      "pickup_done_volume": 80,
+      "created_volume": 137,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 2.61
+    },
+    {
+      "station_name": "SG TÂN HƯNG",
+      "total_volume": 199,
+      "inbound_volume": 0,
+      "transporting_volume": 0,
+      "pickup_done_volume": 134,
+      "created_volume": 65,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 2.13
+    },
+    {
+      "station_name": "SG BÀ ĐIỂM",
+      "total_volume": 164,
+      "inbound_volume": 99,
+      "transporting_volume": 0,
+      "pickup_done_volume": 25,
+      "created_volume": 40,
+      "inbound_weight_ton": 2.73,
+      "total_weight_ton": 3.69
+    },
+    {
+      "station_name": "SG AN PHÚ ĐÔNG",
+      "total_volume": 159,
+      "inbound_volume": 0,
+      "transporting_volume": 0,
+      "pickup_done_volume": 129,
+      "created_volume": 30,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 1.77
+    },
+    {
+      "station_name": "SG NHƠN ĐỨC",
+      "total_volume": 156,
       "inbound_volume": 0,
       "transporting_volume": 0,
       "pickup_done_volume": 0,
-      "created_volume": 3,
+      "created_volume": 156,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 1.74
+    },
+    {
+      "station_name": "SG BÌNH TRỊ ĐÔNG",
+      "total_volume": 145,
+      "inbound_volume": 0,
+      "transporting_volume": 0,
+      "pickup_done_volume": 133,
+      "created_volume": 12,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 1.35
+    },
+    {
+      "station_name": "SG HÓC MÔN",
+      "total_volume": 132,
+      "inbound_volume": 0,
+      "transporting_volume": 0,
+      "pickup_done_volume": 124,
+      "created_volume": 8,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 1.7
+    },
+    {
+      "station_name": "AG TỊNH BIÊN",
+      "total_volume": 129,
+      "inbound_volume": 0,
+      "transporting_volume": 0,
+      "pickup_done_volume": 127,
+      "created_volume": 2,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 0.76
+    },
+    {
+      "station_name": "SG XUÂN HÒA",
+      "total_volume": 110,
+      "inbound_volume": 0,
+      "transporting_volume": 14,
+      "pickup_done_volume": 81,
+      "created_volume": 15,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 1.31
+    },
+    {
+      "station_name": "SG BÌNH LỢI TRUNG",
+      "total_volume": 104,
+      "inbound_volume": 0,
+      "transporting_volume": 32,
+      "pickup_done_volume": 15,
+      "created_volume": 57,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 2.93
+    },
+    {
+      "station_name": "SG PHÚ NHUẬN",
+      "total_volume": 98,
+      "inbound_volume": 0,
+      "transporting_volume": 81,
+      "pickup_done_volume": 8,
+      "created_volume": 9,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 1.52
+    },
+    {
+      "station_name": "SG GÒ VẤP",
+      "total_volume": 89,
+      "inbound_volume": 0,
+      "transporting_volume": 0,
+      "pickup_done_volume": 23,
+      "created_volume": 66,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 1.06
+    },
+    {
+      "station_name": "SG BẢY HIỀN",
+      "total_volume": 57,
+      "inbound_volume": 0,
+      "transporting_volume": 43,
+      "pickup_done_volume": 0,
+      "created_volume": 14,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 0.84
+    },
+    {
+      "station_name": "VL CHỢ LÁCH",
+      "total_volume": 50,
+      "inbound_volume": 0,
+      "transporting_volume": 43,
+      "pickup_done_volume": 6,
+      "created_volume": 1,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 0.45
+    },
+    {
+      "station_name": "AG TÂN CHÂU",
+      "total_volume": 50,
+      "inbound_volume": 0,
+      "transporting_volume": 0,
+      "pickup_done_volume": 1,
+      "created_volume": 49,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 0.43
+    },
+    {
+      "station_name": "ST PHÚ LỢI",
+      "total_volume": 18,
+      "inbound_volume": 0,
+      "transporting_volume": 12,
+      "pickup_done_volume": 0,
+      "created_volume": 6,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 0.18
+    },
+    {
+      "station_name": "VT CHÂU ĐỨC",
+      "total_volume": 14,
+      "inbound_volume": 0,
+      "transporting_volume": 13,
+      "pickup_done_volume": 0,
+      "created_volume": 0,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 0.01
+    },
+    {
+      "station_name": "LA BẾN LỨC",
+      "total_volume": 13,
+      "inbound_volume": 0,
+      "transporting_volume": 0,
+      "pickup_done_volume": 8,
+      "created_volume": 5,
       "inbound_weight_ton": 0.0,
       "total_weight_ton": 0.14
+    },
+    {
+      "station_name": "AG AN PHÚ",
+      "total_volume": 12,
+      "inbound_volume": 0,
+      "transporting_volume": 9,
+      "pickup_done_volume": 0,
+      "created_volume": 3,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 0.2
+    },
+    {
+      "station_name": "LA BYD",
+      "total_volume": 8,
+      "inbound_volume": 0,
+      "transporting_volume": 0,
+      "pickup_done_volume": 0,
+      "created_volume": 8,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 0.12
+    },
+    {
+      "station_name": "VL VĨNH LONG",
+      "total_volume": 7,
+      "inbound_volume": 0,
+      "transporting_volume": 5,
+      "pickup_done_volume": 2,
+      "created_volume": 0,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 0.07
+    },
+    {
+      "station_name": "TG TRUNG AN",
+      "total_volume": 3,
+      "inbound_volume": 0,
+      "transporting_volume": 0,
+      "pickup_done_volume": 2,
+      "created_volume": 1,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 0.03
+    },
+    {
+      "station_name": "AG CẦN ĐĂNG",
+      "total_volume": 3,
+      "inbound_volume": 0,
+      "transporting_volume": 3,
+      "pickup_done_volume": 0,
+      "created_volume": 0,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 0.02
+    },
+    {
+      "station_name": "AG THOẠI SƠN",
+      "total_volume": 2,
+      "inbound_volume": 0,
+      "transporting_volume": 0,
+      "pickup_done_volume": 1,
+      "created_volume": 1,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 0.01
+    },
+    {
+      "station_name": "AG LONG XUYÊN",
+      "total_volume": 1,
+      "inbound_volume": 0,
+      "transporting_volume": 1,
+      "pickup_done_volume": 0,
+      "created_volume": 0,
+      "inbound_weight_ton": 0.0,
+      "total_weight_ton": 0.01
     }
   ]
 }
