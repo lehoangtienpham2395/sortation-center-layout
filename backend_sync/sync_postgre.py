@@ -580,7 +580,7 @@ def fetch_linehaul_json(session, token_mgr) -> dict:
     return {"generated_at": now_sys, "total_trucks": len(trucks), "trucks": trucks}
 
 
-def fetch_truck_eta_json(session, token_mgr) -> dict:
+def fetch_truck_eta_json(session_arr=None, token_mgr_arr=None, session_lh=None, token_mgr_lh=None) -> dict:
     """
     Tạo danh sách Truck ETA (xe đang về / chờ nhập kho HCM HUB) từ 2 nguồn:
       1. PostgreSQL dispatch_enriched: các bưu cục có đơn đã Pickup/Arrival nhưng chưa Inbound.
@@ -706,7 +706,9 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
     # ── 2. JFS API: Bổ sung các chuyến Linehaul & Shuttle thực tế từ TMS ──
     try:
         start_4d = (datetime.datetime.now(tz_vn) - datetime.timedelta(days=4)).strftime('%Y-%m-%d 00:00:00')
-        lh_recs = pull_linehaul_consol(session, token_mgr, start_4d, end_plus1)
+        lh_session = session_lh or session_arr
+        lh_tmgr = token_mgr_lh or token_mgr_arr
+        lh_recs = pull_linehaul_consol(lh_session, lh_tmgr, start_4d, end_plus1) if (lh_session and lh_tmgr) else []
         for row in lh_recs:
             arr_net  = str(row.get('arriveNetworkName') or row.get('endName') or '').strip()
             send_net = str(row.get('sendNetworkName') or row.get('startName') or '').strip()
@@ -766,7 +768,7 @@ def fetch_truck_eta_json(session, token_mgr) -> dict:
 
     try:
         today_start = today + ' 00:00:00'
-        recs = pull_shuttle(session, token_mgr, today_start, end_plus1)
+        recs = pull_shuttle(session_arr, token_mgr_arr, today_start, end_plus1) if (session_arr and token_mgr_arr) else []
         for row in recs:
             actual_arr = str(row.get('actualArrivalTime') or '').strip()
             if actual_arr:
@@ -1602,7 +1604,7 @@ def sync_postgre_to_dashboard():
 
             with ThreadPoolExecutor(max_workers=2) as ex:
                 f_lh  = ex.submit(fetch_linehaul_json, session_lh,  tkn_main)
-                f_eta = ex.submit(fetch_truck_eta_json, session_arr, tkn_arr)
+                f_eta = ex.submit(fetch_truck_eta_json, session_arr, tkn_arr, session_lh, tkn_main)
                 linehaul_obj  = f_lh.result()
                 truck_eta_obj = f_eta.result()
 
