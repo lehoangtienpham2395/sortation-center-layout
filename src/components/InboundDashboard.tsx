@@ -510,6 +510,16 @@ export default function InboundDashboard({
       return;
     }
 
+    // 🎯 LỌC CHÍNH XÁC THEO NGÀY: Chỉ hiển thị các chuyến xe có ETA / op_date thuộc ngày đang xem (hôm nay)
+    const truckOpDate = String(d['op_date'] || d['opDate'] || '').trim();
+    const truckEtaStr = String(d['eta'] || d['planned_arrival'] || d['actual_arrival'] || '').trim();
+    const targetDate = (activeDate && activeDate.trim()) || new Date().toISOString().slice(0, 10);
+    if (truckOpDate && targetDate && truckOpDate !== targetDate) {
+      if (!truckEtaStr.startsWith(targetDate)) {
+        return;
+      }
+    }
+
     const st = rawSt;
     const cleanKey = st.toUpperCase();
     const destKey = String(d['arrive_network'] || d['arriveNetworkName'] || d['Bưu cục đến'] || '').toUpperCase();

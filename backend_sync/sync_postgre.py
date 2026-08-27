@@ -754,6 +754,11 @@ def fetch_truck_eta_json(session_arr=None, token_mgr_arr=None, session_lh=None, 
                     calc_eta = str(row.get('predictArriveTime') or row.get('plannedArrivalTime') or '').strip()
 
                 op_d = get_op_date(calc_eta) if calc_eta else today
+
+                # 🎯 CHỈ LẤY CÁC CHUYẾN XE VỀ HÔM NAY (Bỏ qua các chuyến xe thuộc tương lai 28/8, 29/8)
+                if op_d > today:
+                    continue
+
                 wt_kg = float(row.get('loadpackageweight') or 0)
                 trucks.append({
                     "send_network":     send_net,
