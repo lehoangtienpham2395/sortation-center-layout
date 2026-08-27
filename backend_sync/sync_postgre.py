@@ -660,8 +660,10 @@ def fetch_truck_eta_json(session_arr=None, token_mgr_arr=None, session_lh=None, 
                 # Rule 2 & 3: Mapping Station_2 -> Cột ETA từ valid.csv
                 hours_add = VALID_ETA_MAP.get(st_u)
                 if hours_add is None:
-                    if st_u.startswith(('BN HUB', 'HN ', 'HD ', 'HY ')):
+                    if 'BN HUB' in st_u or st_u.startswith(('BN ', 'HN ', 'HD ', 'HY ')):
                         hours_add = 36.0
+                    elif 'CTO' in st_u or st_u == 'CTO SC':
+                        hours_add = 3.0
                     elif st_u.startswith(('CT ', 'KG ', 'AG ', 'BL ', 'CM ', 'ST ', 'TV ', 'VL ', 'TG ', 'DT ', 'LA ')):
                         hours_add = 4.0
                     elif st_u.startswith(('BD ', 'DN ', 'TN ', 'VT ')):
@@ -725,20 +727,26 @@ def fetch_truck_eta_json(session_arr=None, token_mgr_arr=None, session_lh=None, 
             ):
                 continue
 
+            actual_dep = str(row.get('actualDepartureTime') or row.get('trackOutTime') or '').strip()
+            actual_arr = str(row.get('actualArrivalTime') or row.get('unloadEndTime') or '').strip()
+            p_dep = str(row.get('plannedDepartureTime') or row.get('scanTime') or '').strip()
+
+            # 🎯 BỎ QUA CÁC CHUYẾN XE ĐÃ ĐẾN SÀN TỪ TRƯỚC HÔM NAY
+            if actual_arr and actual_arr[:10] < today:
+                continue
+
             key = (send_net, trip)
             if key not in seen_keys:
                 seen_keys.add(key)
-                p_dep = str(row.get('plannedDepartureTime') or row.get('scanTime') or '').strip()
-                actual_dep = str(row.get('actualDepartureTime') or row.get('trackOutTime') or '').strip()
-                actual_arr = str(row.get('actualArrivalTime') or row.get('unloadEndTime') or '').strip()
                 ref_t = actual_dep or p_dep
 
-                # 🎯 THỜI GIAN DI CHUYỂN LINEHAUL BẮC - NAM = +36 TIẾNG TỪ THỜI DIỂM KHỞI HÀNH (BN HUB)
+                # 🎯 THỜI GIAN DI CHUYỂN: MIỀN BẮC = +36 TIẾNG, CẦN THƠ (CTO SC) = +3 TIẾNG, CÁC TỈNH KHÁC = +2 TIẾNG
+                hours_add = 36.0 if ('BN' in send_net.upper() or 'HN' in send_net.upper()) else (3.0 if 'CTO' in send_net.upper() else 2.0)
                 calc_eta = ""
                 if ref_t:
                     try:
                         dep_dt = datetime.datetime.strptime(ref_t[:19], '%Y-%m-%d %H:%M:%S')
-                        calc_eta = (dep_dt + datetime.timedelta(hours=36)).strftime('%Y-%m-%d %H:%M:%S')
+                        calc_eta = (dep_dt + datetime.timedelta(hours=hours_add)).strftime('%Y-%m-%d %H:%M:%S')
                     except Exception:
                         calc_eta = ref_t
 

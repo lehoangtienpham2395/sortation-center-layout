@@ -446,6 +446,8 @@ export default function InboundDashboard({
       if (hoursAdd === undefined) {
         if (stUpper.includes('BN HUB') || stUpper.startsWith('HN ') || stUpper.startsWith('HD ') || stUpper.startsWith('HY ')) {
           hoursAdd = 36.0;
+        } else if (stUpper.includes('CTO') || stUpper === 'CTO SC') {
+          hoursAdd = 3.0;
         } else if (['CT ', 'KG ', 'AG ', 'BL ', 'CM ', 'ST ', 'TV ', 'VL ', 'TG ', 'DT ', 'LA '].some(p => stUpper.startsWith(p))) {
           hoursAdd = 4.0;
         } else if (['BD ', 'DN ', 'TN ', 'VT '].some(p => stUpper.startsWith(p))) {
