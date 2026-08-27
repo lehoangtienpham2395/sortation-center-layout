@@ -1,24 +1,6 @@
 [
   {
     "op_date": "2026-08-27",
-    "station_name": "VT LONG ĐẤT",
-    "scan_hour": "2026-08-27 18:00",
-    "total_orders": 222,
-    "at_hub": 1,
-    "not_hub": 221,
-    "last_scan_time": "2026-08-27 18:34:53"
-  },
-  {
-    "op_date": "2026-08-27",
-    "station_name": "VT CHÂU ĐỨC",
-    "scan_hour": "2026-08-27 15:00",
-    "total_orders": 20,
-    "at_hub": 0,
-    "not_hub": 20,
-    "last_scan_time": "2026-08-27 15:50:02"
-  },
-  {
-    "op_date": "2026-08-27",
     "station_name": "BD DĨ AN",
     "scan_hour": "2026-08-27 18:00",
     "total_orders": 219,
@@ -28,12 +10,30 @@
   },
   {
     "op_date": "2026-08-27",
+    "station_name": "VT LONG ĐẤT",
+    "scan_hour": "2026-08-27 18:00",
+    "total_orders": 222,
+    "at_hub": 1,
+    "not_hub": 221,
+    "last_scan_time": "2026-08-27 18:34:53"
+  },
+  {
+    "op_date": "2026-08-27",
     "station_name": "BD DĨ AN",
     "scan_hour": "2026-08-27 19:00",
     "total_orders": 79,
     "at_hub": 0,
     "not_hub": 79,
     "last_scan_time": "2026-08-27 19:22:04"
+  },
+  {
+    "op_date": "2026-08-27",
+    "station_name": "VT CHÂU ĐỨC",
+    "scan_hour": "2026-08-27 15:00",
+    "total_orders": 20,
+    "at_hub": 0,
+    "not_hub": 20,
+    "last_scan_time": "2026-08-27 15:50:02"
   },
   {
     "op_date": "2026-08-27",
@@ -344,20 +344,20 @@
   {
     "op_date": "2026-08-27",
     "station_name": "SG CỦ CHI",
-    "scan_hour": "2026-08-27 21:00",
-    "total_orders": 36,
-    "at_hub": 0,
-    "not_hub": 36,
-    "last_scan_time": "2026-08-27 21:04:39"
-  },
-  {
-    "op_date": "2026-08-27",
-    "station_name": "SG CỦ CHI",
     "scan_hour": "2026-08-27 16:00",
     "total_orders": 507,
     "at_hub": 505,
     "not_hub": 2,
     "last_scan_time": "2026-08-27 16:26:21"
+  },
+  {
+    "op_date": "2026-08-27",
+    "station_name": "SG CỦ CHI",
+    "scan_hour": "2026-08-27 21:00",
+    "total_orders": 36,
+    "at_hub": 0,
+    "not_hub": 36,
+    "last_scan_time": "2026-08-27 21:04:39"
   },
   {
     "op_date": "2026-08-27",
@@ -372,8 +372,8 @@
     "op_date": "2026-08-27",
     "station_name": "SG KHÁNH HỘI",
     "scan_hour": "2026-08-27 14:00",
-    "total_orders": 440,
-    "at_hub": 370,
+    "total_orders": 439,
+    "at_hub": 369,
     "not_hub": 70,
     "last_scan_time": "2026-08-27 14:32:17"
   },
@@ -417,8 +417,8 @@
     "op_date": "2026-08-27",
     "station_name": "SG BÌNH TÂN",
     "scan_hour": "2026-08-27 16:00",
-    "total_orders": 380,
-    "at_hub": 373,
+    "total_orders": 378,
+    "at_hub": 371,
     "not_hub": 7,
     "last_scan_time": "2026-08-27 16:52:35"
   },
@@ -605,11 +605,20 @@
   {
     "op_date": "2026-08-26",
     "station_name": "CTO SC",
-    "scan_hour": "2026-08-26 16:00",
-    "total_orders": 47,
-    "at_hub": 46,
+    "scan_hour": "2026-08-26 15:00",
+    "total_orders": 790,
+    "at_hub": 789,
     "not_hub": 1,
-    "last_scan_time": "2026-08-26 16:59:34"
+    "last_scan_time": "2026-08-26 15:50:59"
+  },
+  {
+    "op_date": "2026-08-26",
+    "station_name": "CTO SC",
+    "scan_hour": "2026-08-26 18:00",
+    "total_orders": 240,
+    "at_hub": 239,
+    "not_hub": 1,
+    "last_scan_time": "2026-08-26 18:55:26"
   },
   {
     "op_date": "2026-08-26",
@@ -632,20 +641,11 @@
   {
     "op_date": "2026-08-26",
     "station_name": "CTO SC",
-    "scan_hour": "2026-08-26 15:00",
-    "total_orders": 790,
-    "at_hub": 789,
+    "scan_hour": "2026-08-26 16:00",
+    "total_orders": 47,
+    "at_hub": 46,
     "not_hub": 1,
-    "last_scan_time": "2026-08-26 15:50:59"
-  },
-  {
-    "op_date": "2026-08-26",
-    "station_name": "CTO SC",
-    "scan_hour": "2026-08-26 18:00",
-    "total_orders": 240,
-    "at_hub": 239,
-    "not_hub": 1,
-    "last_scan_time": "2026-08-26 18:55:26"
+    "last_scan_time": "2026-08-26 16:59:34"
   },
   {
     "op_date": "2026-08-26",
@@ -1414,21 +1414,21 @@
   },
   {
     "op_date": "2026-08-25",
-    "station_name": "VT LONG ĐẤT",
-    "scan_hour": "2026-08-25 19:00",
-    "total_orders": 18,
-    "at_hub": 17,
-    "not_hub": 1,
-    "last_scan_time": "2026-08-25 19:11:21"
-  },
-  {
-    "op_date": "2026-08-25",
     "station_name": "VT CHÂU ĐỨC",
     "scan_hour": "2026-08-25 15:00",
     "total_orders": 12,
     "at_hub": 11,
     "not_hub": 1,
     "last_scan_time": "2026-08-25 15:55:54"
+  },
+  {
+    "op_date": "2026-08-25",
+    "station_name": "VT LONG ĐẤT",
+    "scan_hour": "2026-08-25 19:00",
+    "total_orders": 18,
+    "at_hub": 17,
+    "not_hub": 1,
+    "last_scan_time": "2026-08-25 19:11:21"
   },
   {
     "op_date": "2026-08-25",
@@ -2306,20 +2306,20 @@
   {
     "op_date": "2026-08-25",
     "station_name": "SG CỦ CHI",
-    "scan_hour": "2026-08-25 10:00",
-    "total_orders": 209,
-    "at_hub": 209,
-    "not_hub": 0,
-    "last_scan_time": "2026-08-25 10:29:53"
-  },
-  {
-    "op_date": "2026-08-25",
-    "station_name": "SG CỦ CHI",
     "scan_hour": "2026-08-25 09:00",
     "total_orders": 320,
     "at_hub": 320,
     "not_hub": 0,
     "last_scan_time": "2026-08-25 09:59:59"
+  },
+  {
+    "op_date": "2026-08-25",
+    "station_name": "SG CỦ CHI",
+    "scan_hour": "2026-08-25 10:00",
+    "total_orders": 209,
+    "at_hub": 209,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-25 10:29:53"
   },
   {
     "op_date": "2026-08-24",
@@ -2495,20 +2495,20 @@
   {
     "op_date": "2026-08-24",
     "station_name": "SG THỦ ĐỨC",
-    "scan_hour": "2026-08-24 20:00",
-    "total_orders": 860,
-    "at_hub": 854,
-    "not_hub": 6,
-    "last_scan_time": "2026-08-24 20:59:45"
-  },
-  {
-    "op_date": "2026-08-24",
-    "station_name": "SG THỦ ĐỨC",
     "scan_hour": "2026-08-24 21:00",
     "total_orders": 205,
     "at_hub": 205,
     "not_hub": 0,
     "last_scan_time": "2026-08-24 21:07:48"
+  },
+  {
+    "op_date": "2026-08-24",
+    "station_name": "SG THỦ ĐỨC",
+    "scan_hour": "2026-08-24 20:00",
+    "total_orders": 860,
+    "at_hub": 854,
+    "not_hub": 6,
+    "last_scan_time": "2026-08-24 20:59:45"
   },
   {
     "op_date": "2026-08-24",
@@ -3990,8 +3990,8 @@
     "op_date": "2026-08-23",
     "station_name": "SG CỦ CHI",
     "scan_hour": "2026-08-23 12:00",
-    "total_orders": 230,
-    "at_hub": 230,
+    "total_orders": 229,
+    "at_hub": 229,
     "not_hub": 0,
     "last_scan_time": "2026-08-23 12:59:24"
   },
@@ -4003,6 +4003,15 @@
     "at_hub": 3,
     "not_hub": 0,
     "last_scan_time": "2026-08-23 19:13:53"
+  },
+  {
+    "op_date": "2026-08-23",
+    "station_name": "LA CẦN ĐƯỚC",
+    "scan_hour": "2026-08-23 12:00",
+    "total_orders": 1,
+    "at_hub": 1,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-23 12:51:55"
   },
   {
     "op_date": "2026-08-26",
@@ -4224,8 +4233,8 @@
     "op_date": "2026-08-22",
     "station_name": "SG TÂN TẠO",
     "scan_hour": "2026-08-22 20:00",
-    "total_orders": 784,
-    "at_hub": 781,
+    "total_orders": 783,
+    "at_hub": 780,
     "not_hub": 3,
     "last_scan_time": "2026-08-22 20:50:15"
   },
@@ -4528,15 +4537,6 @@
   },
   {
     "op_date": "2026-08-22",
-    "station_name": "BN HUB",
-    "scan_hour": "2026-08-22 17:00",
-    "total_orders": 13,
-    "at_hub": 12,
-    "not_hub": 1,
-    "last_scan_time": "2026-08-22 17:44:19"
-  },
-  {
-    "op_date": "2026-08-22",
     "station_name": "SG TÂN THỚI HIỆP",
     "scan_hour": "2026-08-22 20:00",
     "total_orders": 2,
@@ -4546,12 +4546,30 @@
   },
   {
     "op_date": "2026-08-22",
+    "station_name": "BN HUB",
+    "scan_hour": "2026-08-22 17:00",
+    "total_orders": 13,
+    "at_hub": 12,
+    "not_hub": 1,
+    "last_scan_time": "2026-08-22 17:44:19"
+  },
+  {
+    "op_date": "2026-08-22",
     "station_name": "SG TÂN SƠN NHÌ",
     "scan_hour": "2026-08-22 16:00",
     "total_orders": 155,
     "at_hub": 155,
     "not_hub": 0,
     "last_scan_time": "2026-08-22 16:53:26"
+  },
+  {
+    "op_date": "2026-08-22",
+    "station_name": "HCM HUB",
+    "scan_hour": "2026-08-22 20:00",
+    "total_orders": 2,
+    "at_hub": 2,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-22 20:48:05"
   },
   {
     "op_date": "2026-08-22",
@@ -4602,8 +4620,8 @@
     "op_date": "2026-08-22",
     "station_name": "SG CỦ CHI",
     "scan_hour": "2026-08-22 17:00",
-    "total_orders": 271,
-    "at_hub": 271,
+    "total_orders": 270,
+    "at_hub": 270,
     "not_hub": 0,
     "last_scan_time": "2026-08-22 17:54:54"
   },
@@ -4942,6 +4960,15 @@
   },
   {
     "op_date": "2026-08-22",
+    "station_name": "LA CẦN ĐƯỚC",
+    "scan_hour": "2026-08-22 17:00",
+    "total_orders": 1,
+    "at_hub": 1,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-22 17:37:44"
+  },
+  {
+    "op_date": "2026-08-22",
     "station_name": "SG CỦ CHI",
     "scan_hour": "2026-08-22 13:00",
     "total_orders": 377,
@@ -5011,15 +5038,6 @@
     "at_hub": 482,
     "not_hub": 0,
     "last_scan_time": "2026-08-22 15:59:54"
-  },
-  {
-    "op_date": "2026-08-22",
-    "station_name": "HCM HUB",
-    "scan_hour": "2026-08-22 20:00",
-    "total_orders": 1,
-    "at_hub": 1,
-    "not_hub": 0,
-    "last_scan_time": "2026-08-22 20:22:50"
   },
   {
     "op_date": "2026-08-22",
@@ -5104,21 +5122,21 @@
   },
   {
     "op_date": "2026-08-21",
-    "station_name": "VT LONG ĐẤT",
-    "scan_hour": "2026-08-21 16:00",
-    "total_orders": 233,
-    "at_hub": 232,
-    "not_hub": 1,
-    "last_scan_time": "2026-08-21 16:18:33"
-  },
-  {
-    "op_date": "2026-08-21",
     "station_name": "BN HUB",
     "scan_hour": "2026-08-21 18:00",
     "total_orders": 33,
     "at_hub": 28,
     "not_hub": 5,
     "last_scan_time": "2026-08-21 18:55:14"
+  },
+  {
+    "op_date": "2026-08-21",
+    "station_name": "VT LONG ĐẤT",
+    "scan_hour": "2026-08-21 16:00",
+    "total_orders": 233,
+    "at_hub": 232,
+    "not_hub": 1,
+    "last_scan_time": "2026-08-21 16:18:33"
   },
   {
     "op_date": "2026-08-22",
@@ -6087,8 +6105,8 @@
     "op_date": "2026-08-22",
     "station_name": "CTO SC",
     "scan_hour": "2026-08-22 13:00",
-    "total_orders": 3,
-    "at_hub": 3,
+    "total_orders": 2,
+    "at_hub": 2,
     "not_hub": 0,
     "last_scan_time": "2026-08-22 13:54:26"
   },
@@ -6428,20 +6446,20 @@
   {
     "op_date": "2026-08-20",
     "station_name": "SG THỦ ĐỨC",
-    "scan_hour": "2026-08-20 19:00",
-    "total_orders": 1,
-    "at_hub": 1,
-    "not_hub": 0,
-    "last_scan_time": "2026-08-20 19:59:54"
-  },
-  {
-    "op_date": "2026-08-20",
-    "station_name": "SG THỦ ĐỨC",
     "scan_hour": "2026-08-20 20:00",
     "total_orders": 358,
     "at_hub": 358,
     "not_hub": 0,
     "last_scan_time": "2026-08-20 20:58:59"
+  },
+  {
+    "op_date": "2026-08-20",
+    "station_name": "SG THỦ ĐỨC",
+    "scan_hour": "2026-08-20 19:00",
+    "total_orders": 1,
+    "at_hub": 1,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-20 19:59:54"
   },
   {
     "op_date": "2026-08-20",
@@ -6541,6 +6559,15 @@
     "at_hub": 206,
     "not_hub": 0,
     "last_scan_time": "2026-08-20 18:49:53"
+  },
+  {
+    "op_date": "2026-08-22",
+    "station_name": "LA CẦN ĐƯỚC",
+    "scan_hour": "2026-08-22 13:00",
+    "total_orders": 1,
+    "at_hub": 1,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-22 13:54:03"
   },
   {
     "op_date": "2026-08-20",
@@ -7635,8 +7662,8 @@
     "op_date": "2026-08-19",
     "station_name": "SG BÌNH TRỊ ĐÔNG",
     "scan_hour": "2026-08-19 20:00",
-    "total_orders": 205,
-    "at_hub": 205,
+    "total_orders": 204,
+    "at_hub": 204,
     "not_hub": 0,
     "last_scan_time": "2026-08-19 20:36:58"
   },
@@ -8292,10 +8319,10 @@
     "op_date": "2026-08-19",
     "station_name": "BN HUB",
     "scan_hour": "2026-08-19 20:00",
-    "total_orders": 9,
-    "at_hub": 8,
+    "total_orders": 10,
+    "at_hub": 9,
     "not_hub": 1,
-    "last_scan_time": "2026-08-19 20:28:21"
+    "last_scan_time": "2026-08-19 20:36:37"
   },
   {
     "op_date": "2026-08-19",
@@ -8733,10 +8760,10 @@
     "op_date": "2026-08-18",
     "station_name": "BN HUB",
     "scan_hour": "2026-08-18 18:00",
-    "total_orders": 3,
-    "at_hub": 2,
+    "total_orders": 4,
+    "at_hub": 3,
     "not_hub": 1,
-    "last_scan_time": "2026-08-18 18:43:22"
+    "last_scan_time": "2026-08-18 18:43:54"
   },
   {
     "op_date": "2026-08-18",
@@ -8796,9 +8823,9 @@
     "op_date": "2026-08-18",
     "station_name": "SG TÂN SƠN NHÌ",
     "scan_hour": "2026-08-18 18:00",
-    "total_orders": 39,
+    "total_orders": 38,
     "at_hub": 38,
-    "not_hub": 1,
+    "not_hub": 0,
     "last_scan_time": "2026-08-18 18:44:42"
   },
   {
@@ -9631,21 +9658,21 @@
   },
   {
     "op_date": "2026-08-17",
-    "station_name": "BN HUB",
-    "scan_hour": "2026-08-17 19:00",
-    "total_orders": 13,
-    "at_hub": 8,
-    "not_hub": 5,
-    "last_scan_time": "2026-08-17 19:59:35"
-  },
-  {
-    "op_date": "2026-08-17",
     "station_name": "VT LONG ĐẤT",
     "scan_hour": "2026-08-17 19:00",
     "total_orders": 100,
     "at_hub": 99,
     "not_hub": 1,
     "last_scan_time": "2026-08-17 19:18:59"
+  },
+  {
+    "op_date": "2026-08-17",
+    "station_name": "BN HUB",
+    "scan_hour": "2026-08-17 19:00",
+    "total_orders": 13,
+    "at_hub": 8,
+    "not_hub": 5,
+    "last_scan_time": "2026-08-17 19:59:35"
   },
   {
     "op_date": "2026-08-18",
@@ -11277,15 +11304,6 @@
     "last_scan_time": "2026-08-16 16:17:31"
   },
   {
-    "op_date": "2026-08-18",
-    "station_name": "SG TÂN TẠO",
-    "scan_hour": "2026-08-18 17:00",
-    "total_orders": 3,
-    "at_hub": 3,
-    "not_hub": 0,
-    "last_scan_time": "2026-08-18 17:39:57"
-  },
-  {
     "op_date": "2026-08-16",
     "station_name": "SG BÀ ĐIỂM",
     "scan_hour": "2026-08-16 14:00",
@@ -11293,6 +11311,15 @@
     "at_hub": 1,
     "not_hub": 0,
     "last_scan_time": "2026-08-16 14:39:56"
+  },
+  {
+    "op_date": "2026-08-18",
+    "station_name": "SG TÂN TẠO",
+    "scan_hour": "2026-08-18 17:00",
+    "total_orders": 3,
+    "at_hub": 3,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-18 17:39:57"
   },
   {
     "op_date": "2026-08-16",
@@ -14464,21 +14491,21 @@
   },
   {
     "op_date": "2026-08-13",
-    "station_name": "BN HUB",
-    "scan_hour": "2026-08-13 15:00",
-    "total_orders": 11,
-    "at_hub": 11,
-    "not_hub": 0,
-    "last_scan_time": "2026-08-13 15:50:52"
-  },
-  {
-    "op_date": "2026-08-13",
     "station_name": "CTO SC",
     "scan_hour": "2026-08-13 15:00",
     "total_orders": 497,
     "at_hub": 497,
     "not_hub": 0,
     "last_scan_time": "2026-08-13 15:52:59"
+  },
+  {
+    "op_date": "2026-08-13",
+    "station_name": "BN HUB",
+    "scan_hour": "2026-08-13 15:00",
+    "total_orders": 11,
+    "at_hub": 11,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-13 15:50:52"
   },
   {
     "op_date": "2026-08-13",
@@ -15455,20 +15482,20 @@
   {
     "op_date": "2026-08-12",
     "station_name": "SG BÀ ĐIỂM",
-    "scan_hour": "2026-08-12 15:00",
-    "total_orders": 15,
-    "at_hub": 15,
-    "not_hub": 0,
-    "last_scan_time": "2026-08-12 15:59:58"
-  },
-  {
-    "op_date": "2026-08-12",
-    "station_name": "SG BÀ ĐIỂM",
     "scan_hour": "2026-08-12 16:00",
     "total_orders": 26,
     "at_hub": 26,
     "not_hub": 0,
     "last_scan_time": "2026-08-12 16:23:40"
+  },
+  {
+    "op_date": "2026-08-12",
+    "station_name": "SG BÀ ĐIỂM",
+    "scan_hour": "2026-08-12 15:00",
+    "total_orders": 15,
+    "at_hub": 15,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-12 15:59:58"
   },
   {
     "op_date": "2026-08-12",
@@ -17687,20 +17714,20 @@
   {
     "op_date": "2026-08-10",
     "station_name": "SG CỦ CHI",
-    "scan_hour": "2026-08-10 16:00",
-    "total_orders": 367,
-    "at_hub": 367,
-    "not_hub": 0,
-    "last_scan_time": "2026-08-10 16:42:28"
-  },
-  {
-    "op_date": "2026-08-10",
-    "station_name": "SG CỦ CHI",
     "scan_hour": "2026-08-10 17:00",
     "total_orders": 199,
     "at_hub": 199,
     "not_hub": 0,
     "last_scan_time": "2026-08-10 17:37:13"
+  },
+  {
+    "op_date": "2026-08-10",
+    "station_name": "SG CỦ CHI",
+    "scan_hour": "2026-08-10 16:00",
+    "total_orders": 367,
+    "at_hub": 367,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-10 16:42:28"
   },
   {
     "op_date": "2026-08-10",
@@ -21224,20 +21251,20 @@
   {
     "op_date": "2026-08-06",
     "station_name": "SG NHƠN ĐỨC",
-    "scan_hour": "2026-08-06 20:00",
-    "total_orders": 207,
-    "at_hub": 207,
-    "not_hub": 0,
-    "last_scan_time": "2026-08-06 20:59:59"
-  },
-  {
-    "op_date": "2026-08-06",
-    "station_name": "SG NHƠN ĐỨC",
     "scan_hour": "2026-08-06 21:00",
     "total_orders": 112,
     "at_hub": 112,
     "not_hub": 0,
     "last_scan_time": "2026-08-06 21:08:01"
+  },
+  {
+    "op_date": "2026-08-06",
+    "station_name": "SG NHƠN ĐỨC",
+    "scan_hour": "2026-08-06 20:00",
+    "total_orders": 207,
+    "at_hub": 207,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-06 20:59:59"
   },
   {
     "op_date": "2026-08-06",
@@ -21881,20 +21908,20 @@
   {
     "op_date": "2026-08-06",
     "station_name": "SG CỦ CHI",
-    "scan_hour": "2026-08-06 11:00",
-    "total_orders": 177,
-    "at_hub": 177,
-    "not_hub": 0,
-    "last_scan_time": "2026-08-06 11:14:46"
-  },
-  {
-    "op_date": "2026-08-06",
-    "station_name": "SG CỦ CHI",
     "scan_hour": "2026-08-06 10:00",
     "total_orders": 151,
     "at_hub": 151,
     "not_hub": 0,
     "last_scan_time": "2026-08-06 10:59:55"
+  },
+  {
+    "op_date": "2026-08-06",
+    "station_name": "SG CỦ CHI",
+    "scan_hour": "2026-08-06 11:00",
+    "total_orders": 177,
+    "at_hub": 177,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-06 11:14:46"
   },
   {
     "op_date": "2026-08-07",
@@ -22411,21 +22438,21 @@
   },
   {
     "op_date": "2026-08-05",
-    "station_name": "SG PHÚ LÂM",
-    "scan_hour": "2026-08-05 18:00",
-    "total_orders": 95,
-    "at_hub": 95,
-    "not_hub": 0,
-    "last_scan_time": "2026-08-05 18:01:49"
-  },
-  {
-    "op_date": "2026-08-05",
     "station_name": "SG CHỢ LỚN",
     "scan_hour": "2026-08-05 19:00",
     "total_orders": 45,
     "at_hub": 45,
     "not_hub": 0,
     "last_scan_time": "2026-08-05 19:04:13"
+  },
+  {
+    "op_date": "2026-08-05",
+    "station_name": "SG PHÚ LÂM",
+    "scan_hour": "2026-08-05 18:00",
+    "total_orders": 95,
+    "at_hub": 95,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-05 18:01:49"
   },
   {
     "op_date": "2026-08-05",
@@ -24634,21 +24661,21 @@
   },
   {
     "op_date": "2026-08-03",
-    "station_name": "VT CHÂU ĐỨC",
-    "scan_hour": "2026-08-03 15:00",
-    "total_orders": 23,
-    "at_hub": 23,
-    "not_hub": 0,
-    "last_scan_time": "2026-08-03 15:42:41"
-  },
-  {
-    "op_date": "2026-08-03",
     "station_name": "VT VŨNG TÀU",
     "scan_hour": "2026-08-03 15:00",
     "total_orders": 9,
     "at_hub": 9,
     "not_hub": 0,
     "last_scan_time": "2026-08-03 15:37:14"
+  },
+  {
+    "op_date": "2026-08-03",
+    "station_name": "VT CHÂU ĐỨC",
+    "scan_hour": "2026-08-03 15:00",
+    "total_orders": 23,
+    "at_hub": 23,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-03 15:42:41"
   },
   {
     "op_date": "2026-08-03",
@@ -25085,20 +25112,20 @@
   {
     "op_date": "2026-08-03",
     "station_name": "SG BÌNH TRỊ ĐÔNG",
-    "scan_hour": "2026-08-03 21:00",
-    "total_orders": 113,
-    "at_hub": 113,
-    "not_hub": 0,
-    "last_scan_time": "2026-08-03 21:14:05"
-  },
-  {
-    "op_date": "2026-08-03",
-    "station_name": "SG BÌNH TRỊ ĐÔNG",
     "scan_hour": "2026-08-03 17:00",
     "total_orders": 26,
     "at_hub": 26,
     "not_hub": 0,
     "last_scan_time": "2026-08-03 17:50:33"
+  },
+  {
+    "op_date": "2026-08-03",
+    "station_name": "SG BÌNH TRỊ ĐÔNG",
+    "scan_hour": "2026-08-03 21:00",
+    "total_orders": 113,
+    "at_hub": 113,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-03 21:14:05"
   },
   {
     "op_date": "2026-08-03",
@@ -26740,21 +26767,21 @@
   },
   {
     "op_date": "2026-08-01",
-    "station_name": "SG ĐÔNG HƯNG THUẬN",
-    "scan_hour": "2026-08-01 20:00",
-    "total_orders": 146,
-    "at_hub": 146,
-    "not_hub": 0,
-    "last_scan_time": "2026-08-01 20:46:18"
-  },
-  {
-    "op_date": "2026-08-01",
     "station_name": "VL CHỢ LÁCH",
     "scan_hour": "2026-08-01 15:00",
     "total_orders": 2,
     "at_hub": 2,
     "not_hub": 0,
     "last_scan_time": "2026-08-01 15:18:08"
+  },
+  {
+    "op_date": "2026-08-01",
+    "station_name": "SG ĐÔNG HƯNG THUẬN",
+    "scan_hour": "2026-08-01 20:00",
+    "total_orders": 146,
+    "at_hub": 146,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-01 20:46:18"
   },
   {
     "op_date": "2026-08-01",
@@ -27317,20 +27344,20 @@
   {
     "op_date": "2026-08-01",
     "station_name": "SG HÓC MÔN",
-    "scan_hour": "2026-08-01 20:00",
-    "total_orders": 25,
-    "at_hub": 25,
-    "not_hub": 0,
-    "last_scan_time": "2026-08-01 20:26:12"
-  },
-  {
-    "op_date": "2026-08-01",
-    "station_name": "SG HÓC MÔN",
     "scan_hour": "2026-08-01 18:00",
     "total_orders": 6,
     "at_hub": 6,
     "not_hub": 0,
     "last_scan_time": "2026-08-01 18:46:57"
+  },
+  {
+    "op_date": "2026-08-01",
+    "station_name": "SG HÓC MÔN",
+    "scan_hour": "2026-08-01 20:00",
+    "total_orders": 25,
+    "at_hub": 25,
+    "not_hub": 0,
+    "last_scan_time": "2026-08-01 20:26:12"
   },
   {
     "op_date": "2026-08-01",
