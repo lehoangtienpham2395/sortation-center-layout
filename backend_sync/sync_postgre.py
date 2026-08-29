@@ -1471,8 +1471,8 @@ def sync_postgre_to_dashboard():
     fc_total_4stages = status_counts['Inbound'] + status_counts['Transporting'] + status_counts['Pickup Done'] + status_counts['Created']
     fc_total_weight  = round(status_weights['Inbound'] + status_weights['Transporting'] + status_weights['Pickup Done'] + status_weights['Created'], 3)
     
-    # 🎯 DYNAMIC LINEHAUL FORECAST FROM LINEHAUL INVENTORY (A06 BN HUB + A05 CTO SC, GỒM TỒN CŨ VÀ ĐƠN MỚI)
-    linehaul_items = [v for (z, a, s, stt, d), v in inv_group.items() if (a in ('A06', 'A05') or s in ('BN HUB', 'CTO SC')) and d <= today]
+    # 🎯 DYNAMIC LINEHAUL FORECAST FROM LINEHAUL INVENTORY (A06 BN HUB + A05 CTO SC, CHỈ TÍNH NGÀY HÔM NAY)
+    linehaul_items = [v for (z, a, s, stt, d), v in inv_group.items() if (a in ('A06', 'A05') or s in ('BN HUB', 'CTO SC')) and d == today]
     fc_linehaul = sum(v[0] for v in linehaul_items)
     linehaul_weight_ton = round(sum(v[1] for v in linehaul_items) / 1000.0, 1)
 
