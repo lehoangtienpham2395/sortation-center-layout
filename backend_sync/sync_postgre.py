@@ -951,7 +951,6 @@ def sync_postgre_to_dashboard():
                     )
                 )
             )
-        ORDER BY operation_date_created DESC, created_time DESC
     """
     try:
         conn_q = get_pg_conn()
@@ -1741,6 +1740,13 @@ def sync_postgre_to_dashboard():
                     "pickup_done_weight": pk_w,
                     "created_weight": cr_w
                 }
+                # TỐI ƯU TỐC ĐỘ: Nếu là ngày quá khứ (< yesterday) và file đã tồn tại hợp lệ thì bỏ qua (Đã đóng băng)
+                primary_status_file = os.path.join(DATA_DIR, "history", h_d, "inbound_orders_status.json")
+                if h_d < yesterday and os.path.exists(primary_status_file):
+                    continue
+
+                h_hourly = build_hourly_trend_for_date(conn_hist, h_d)
+
                 for h_root in [DATA_DIR, os.path.normpath(os.path.join(DATA_DIR, '..', 'public', 'data')), os.path.normpath(os.path.join(DATA_DIR, '..', 'src', 'data'))]:
                     h_path = os.path.join(h_root, "history", h_d)
                     os.makedirs(h_path, exist_ok=True)
@@ -1762,7 +1768,6 @@ def sync_postgre_to_dashboard():
 
                     write_json(os.path.join(h_path, "inbound_kpi_summary.json"), h_kpi)
                     write_json(target_status_file, h_status)
-                    h_hourly = build_hourly_trend_for_date(conn_hist, h_d)
                     write_json(os.path.join(h_path, "inbound_hourly_trend.json"), h_hourly)
         conn_hist.close()
     except Exception as _e_h:
