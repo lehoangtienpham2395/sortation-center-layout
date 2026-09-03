@@ -1086,10 +1086,6 @@ def main():
     for k, v in raw.items():
         print('   ' + k.ljust(20) + ': ' + str(len(v)) + ' ban ghi')
 
-    # Lưu checkpoint sau khi Phase 1 hoàn thành thành công
-    save_checkpoint('dispatch', end_str)
-    save_checkpoint('forecast', end_str)
-
     # ── Phase 2: trip_time_map ───────────────────────────────
     print('\nPhase 2 -- trip_time_map...')
     ttm = {}
@@ -1247,8 +1243,8 @@ def main():
         wb = clean_wb(r.get('billNo') or r.get('waybillNo'))
         st = str(r.get('scanDate') or '').strip()
         tc = clean_wb(r.get('transferCode') or r.get('transfercode') or r.get('billTaskCode'))
-        # Lấy "Trạm trước / Trạm tiếp theo" (upOrNextStation / sendSite) từ JFS Inbound API
-        send_st_raw = str(r.get('upOrNextStation') or r.get('sendSite') or r.get('sendNetworkName') or '').strip()
+        # Lấy "Trạm trước / Trạm tiếp theo" (sendSite / sendNetworkName / upOrNextStation) từ JFS Inbound API
+        send_st_raw = str(r.get('sendSite') or r.get('sendNetworkName') or r.get('upOrNextStation') or '').strip()
         send_st_upper = send_st_raw.upper()
         if 'CTC001' in send_st_upper or 'CTO SC' in send_st_upper:
             send_st = 'CTO SC'
@@ -1353,7 +1349,7 @@ def main():
         inb_t  = ib_scan_map.get(wb, '')
         outb_t = ob_map.get(wb, '')
         arr_t  = arr_scan_map.get(wb, '')
-        st_name = arr_station_map.get(wb) or ib_station_map.get(wb) or 'BN HUB'
+        st_name = arr_station_map.get(wb) or ib_station_map.get(wb) or 'Chưa xác định'
         
         st_src = 'Outbound' if outb_t else ('Inbound' if inb_t else 'Arrival')
 
@@ -1395,7 +1391,7 @@ def main():
     df['transporing_time']  = df.apply(lambda r: (ttm.get(r['trip_code'], {}).get('transporing_time', '') if r.get('trip_code') else '') or r.get('arrival_scanDate') or arr_scan_map.get(r['tracking'], ''), axis=1)
     df['transported_time']  = df['trip_code'].apply(lambda tc: ttm.get(tc, {}).get('transported_time', '') if tc else '')
 
-    df['Pickup_station'] = df.apply(lambda r: arr_station_map.get(r['tracking']) or ib_station_map.get(r['tracking']) or r.get('Pickup_station') or 'BN HUB', axis=1)
+    df['Pickup_station'] = df.apply(lambda r: arr_station_map.get(r['tracking']) or ib_station_map.get(r['tracking']) or r.get('Pickup_station') or 'Chưa xác định', axis=1)
 
     # 6 Lý do hoàn/trả hàng Backlog
     RETURN_REASONS = {
@@ -1802,6 +1798,11 @@ def main():
         cnt = cur.fetchone()[0]
         conn.close()
         print(f"   ✅ PostgreSQL updated: {cnt:,} rows in enriched.dispatch_enriched")
+
+        # 🛡️ LƯU CHECKPOINT SAU KHI GHI DATABASE THÀNH CÔNG (Bảo vệ tính toàn vẹn mốc thời gian)
+        save_checkpoint('dispatch', end_str)
+        save_checkpoint('forecast', end_str)
+        print(f"   🔖 Đã lưu checkpoint an toàn: {end_str}")
     except Exception as e:
         print(f"   ⚠️  PostgreSQL error: {e}")
 
