@@ -540,7 +540,7 @@ def main():
 
     # ✅ Đăng nhập với tài khoản có quyền truy cập rộng rãi trên hệ thống (Full Post Offices Scope)
     ADMIN_ACCOUNT = '660085'
-    ADMIN_PASSWORD = '246@Hoang'
+    ADMIN_PASSWORD = 'Hoang@246'
 
     print('=' * 65)
     print('  report_linehaul.py — Giám sát hàng đến Full 100%')

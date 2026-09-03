@@ -35,7 +35,7 @@ except ImportError:
 ACCOUNT      = os.environ.get('SYSTEM_ACCOUNT',  '').strip() or '660021'
 PASSWORD     = os.environ.get('SYSTEM_PASSWORD', '').strip() or 'Tien@giang2299'
 ARR_ACCOUNT  = '660085'
-ARR_PASSWORD = '246@Hoang'
+ARR_PASSWORD = 'Hoang@246'
 COUNTRY_ID   = '1'
 
 LOGIN_URL         = 'https://gw.jtcargo.com.vn/basicdata/login'

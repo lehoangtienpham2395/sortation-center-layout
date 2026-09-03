@@ -2694,7 +2694,7 @@ def run_once(session, token_mgr, rebuild_days=None):
     # Khởi tạo session và TokenManager riêng biệt cho nguồn Arrival sử dụng tài khoản 660085 (tránh xung đột cookies/session với user 660021)
     print("🔐 Khởi tạo session & TokenManager riêng biệt cho Arrival (User: 660085)...")
     arrival_session = build_session()
-    arrival_token_mgr = TokenManager(arrival_session, "660085", "246@Hoang", COUNTRY_ID)
+    arrival_token_mgr = TokenManager(arrival_session, "660085", "Hoang@246", COUNTRY_ID)
     try:
         arrival_token_mgr.get_token()
     except Exception as e_login_arr:
