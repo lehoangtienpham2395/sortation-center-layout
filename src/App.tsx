@@ -861,9 +861,12 @@ export default function App() {
 
       // 🎯 BỘ LỌC NGÀY VẬN HÀNH:
       // Outbound: Lọc chính xác theo ngày xuất kho (effectiveDate)
-      // Volume / Inventory: Lọc chính xác theo ngày vận hành được chọn (effectiveDate), không cộng dồn các ngày cũ
-      if (isOutboundMode || isVolumeMode) {
+      // Volume / Inventory: Là TỒN LIVE & DỰ BÁO XỬ LÝ TẠI SÀN -> Gồm đơn hôm nay (row.date === effectiveDate) CỘNG VỚI toàn bộ đơn tồn cũ chưa xuất kho từ các ngày trước (row.date <= effectiveDate)!
+      if (isOutboundMode) {
         const dateMatched = !effectiveDate || isDateMatch(row.date, effectiveDate);
+        if (!dateMatched) return;
+      } else if (isVolumeMode) {
+        const dateMatched = !effectiveDate || (normalizeDateStr(row.date) <= normalizeDateStr(effectiveDate));
         if (!dateMatched) return;
       }
 
@@ -886,9 +889,9 @@ export default function App() {
         selectedMap[key].weight += row.weight;
       }
 
-      // Populate inventoryMap (dùng cho tooltip — đồng nhất theo ngày effectiveDate)
+      // Populate inventoryMap (dùng cho tooltip — đồng nhất với Chute display gồm tồn cũ d <= effectiveDate)
       if (row.type === 'Inventory' && statusMatched) {
-        const dateMatched = !effectiveDate || isDateMatch(row.date, effectiveDate);
+        const dateMatched = !effectiveDate || (normalizeDateStr(row.date) <= normalizeDateStr(effectiveDate));
         if (dateMatched) {
           if (!inventoryMap[key]) {
             inventoryMap[key] = { volume: 0, weight: 0, capacity: row.capacity || 780, buuCuc: row.buuCuc };
