@@ -511,10 +511,28 @@ def refresh_operational_flags() -> None:
                 OR last_updated >= NOW() - INTERVAL '2 days'
         """)
         updated = cur.rowcount
+
+        # 🎯 Backfill outbound_scandate từ raw.scan_logs cho các đơn đã có scan OUTBOUND nhưng chưa cập nhật
+        cur.execute("""
+            UPDATE enriched.dispatch_enriched d
+            SET 
+                outbound_scandate = s.scan_time,
+                flag_outbound = 1,
+                is_completed = TRUE
+            FROM (
+                SELECT tracking, MIN(scan_time) as scan_time
+                FROM raw.scan_logs
+                WHERE scan_type = 'OUTBOUND'
+                GROUP BY tracking
+            ) s
+            WHERE d.tracking = s.tracking 
+              AND d.outbound_scandate IS NULL;
+        """)
+        bf_cnt = cur.rowcount
         conn.commit()
         cur.close()
         conn.close()
-        print(f"   ✅ Flags refreshed: {updated:,} rows ({_time.time()-t_start:.1f}s)")
+        print(f"   ✅ Flags refreshed: {updated:,} rows | Outbound backfilled: {bf_cnt:,} rows ({_time.time()-t_start:.1f}s)")
     except Exception as e:
         print(f"   ⚠️  Flag refresh error (non-fatal): {e}")
 
@@ -937,10 +955,10 @@ def sync_postgre_to_dashboard():
                 )
             )
             AND (
-                -- 🎯 LẤY TOÀN BỘ ĐƠN CHƯA OUTBOUND (HÀNG TỒN CŨ VÀ ĐƠN MỚI 15 NGÀY GẦN NHẤT)
+                -- 🎯 LẤY TOÀN BỘ ĐƠN CHƯA OUTBOUND (HÀNG TỒN QUAY VÒNG SÀN 5 NGÀY GẦN NHẤT)
                 (
                     outbound_scandate IS NULL
-                    AND operation_date_created::date >= ('{today}'::date - INTERVAL '15 days')
+                    AND operation_date_created::date >= ('{today}'::date - INTERVAL '5 days')
                 )
                 -- 🎯 CÁC ĐƠN ĐÃ OUTBOUND (LẤY ĐẦY ĐỦ LỊCH SỬ OUTBOUND TỪ 01/08/2026 ĐẾN NAY)
                 OR (

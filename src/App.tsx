@@ -861,13 +861,24 @@ export default function App() {
 
       // 🎯 BỘ LỌC NGÀY VẬN HÀNH:
       // Outbound: Lọc chính xác theo ngày xuất kho (effectiveDate)
-      // Volume / Inventory: Là TỒN LIVE & DỰ BÁO XỬ LÝ TẠI SÀN -> Gồm đơn hôm nay (row.date === effectiveDate) CỘNG VỚI toàn bộ đơn tồn cũ chưa xuất kho từ các ngày trước (row.date <= effectiveDate)!
+      // Volume / Inventory: Là TỒN LIVE & DỰ BÁO XỬ LÝ TẠI SÀN (chu kỳ quay vòng hàng tồn thực tế 5 ngày gần nhất tính đến effectiveDate)
       if (isOutboundMode) {
         const dateMatched = !effectiveDate || isDateMatch(row.date, effectiveDate);
         if (!dateMatched) return;
       } else if (isVolumeMode) {
-        const dateMatched = !effectiveDate || (normalizeDateStr(row.date) <= normalizeDateStr(effectiveDate));
-        if (!dateMatched) return;
+        if (effectiveDate) {
+          const normR = normalizeDateStr(row.date);
+          const normE = normalizeDateStr(effectiveDate);
+          if (effectiveDate.includes('..')) {
+            const [start, end] = effectiveDate.split('..');
+            if (normR < normalizeDateStr(start) || normR > normalizeDateStr(end)) return;
+          } else {
+            const effDt = new Date(normE);
+            effDt.setDate(effDt.getDate() - 5);
+            const minDtStr = effDt.toISOString().slice(0, 10);
+            if (normR > normE || normR < minDtStr) return;
+          }
+        }
       }
 
       // 🎯 BỘ LỌC LOẠI (Outbound / Backlog / Volume)
@@ -889,9 +900,22 @@ export default function App() {
         selectedMap[key].weight += row.weight;
       }
 
-      // Populate inventoryMap (dùng cho tooltip — đồng nhất với Chute display gồm tồn cũ d <= effectiveDate)
+      // Populate inventoryMap (dùng cho tooltip — đồng nhất với Chute display gồm tồn 5 ngày gần nhất)
       if (row.type === 'Inventory' && statusMatched) {
-        const dateMatched = !effectiveDate || (normalizeDateStr(row.date) <= normalizeDateStr(effectiveDate));
+        let dateMatched = true;
+        if (effectiveDate) {
+          const normR = normalizeDateStr(row.date);
+          const normE = normalizeDateStr(effectiveDate);
+          if (effectiveDate.includes('..')) {
+            const [start, end] = effectiveDate.split('..');
+            dateMatched = normR >= normalizeDateStr(start) && normR <= normalizeDateStr(end);
+          } else {
+            const effDt = new Date(normE);
+            effDt.setDate(effDt.getDate() - 5);
+            const minDtStr = effDt.toISOString().slice(0, 10);
+            dateMatched = normR <= normE && normR >= minDtStr;
+          }
+        }
         if (dateMatched) {
           if (!inventoryMap[key]) {
             inventoryMap[key] = { volume: 0, weight: 0, capacity: row.capacity || 780, buuCuc: row.buuCuc };
