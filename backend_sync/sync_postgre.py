@@ -1896,17 +1896,39 @@ def git_push(repo_dir: str, timestamp: str) -> None:
             return
         print(f"   ✅ git commit: {msg}")
 
-        # 4. git push
-        push = subprocess.run(
-            ["git", "push", "origin", "main"],
-            cwd=repo_dir, capture_output=True, text=True, timeout=60
-        )
-        if push.returncode != 0:
-            print(f"   ❌ git push failed: {push.stderr.strip()}")
-        else:
-            print(f"   ✅ git push origin main — Dashboard đã cập nhật!")
-            if push.stdout.strip():
-                print(f"      {push.stdout.strip()}")
+        # 4. git push (có cơ chế Retry 3 lần chống rớt mạng tạm thời)
+        max_retries = 3
+        push_success = False
+        for attempt in range(1, max_retries + 1):
+            try:
+                push = subprocess.run(
+                    ["git", "push", "origin", "main"],
+                    cwd=repo_dir, capture_output=True, text=True, timeout=60
+                )
+                if push.returncode == 0:
+                    print(f"   ✅ git push origin main (lần {attempt}) — Dashboard đã cập nhật!")
+                    if push.stdout.strip():
+                        print(f"      {push.stdout.strip()}")
+                    push_success = True
+                    break
+                else:
+                    err_msg = push.stderr.strip()
+                    if attempt < max_retries:
+                        wait_sec = attempt * 5
+                        print(f"   ⚠️  git push thất bại (lần {attempt}/{max_retries}): {err_msg} — Thử lại sau {wait_sec}s...")
+                        _time.sleep(wait_sec)
+                    else:
+                        print(f"   ❌ git push failed sau {max_retries} lần thử: {err_msg}")
+            except subprocess.TimeoutExpired:
+                if attempt < max_retries:
+                    wait_sec = attempt * 5
+                    print(f"   ⚠️  git push timeout 60s (lần {attempt}/{max_retries}) — Thử lại sau {wait_sec}s...")
+                    _time.sleep(wait_sec)
+                else:
+                    print(f"   ❌ git push timeout sau {max_retries} lần thử")
+            except Exception as _ep:
+                print(f"   ❌ Lỗi ngoại lệ khi git push: {_ep}")
+                break
 
     except subprocess.TimeoutExpired:
         print("   ❌ Git operation timeout (>60s)")
