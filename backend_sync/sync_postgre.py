@@ -1856,7 +1856,7 @@ def git_push(repo_dir: str, timestamp: str) -> None:
     """
     print("\n🚀 Phase 3: Git push → GitHub...")
     try:
-        # 1. git add CHI 8 file rolling (KHONG add data/history/ — write-once)
+        # 1. git add các file dữ liệu
         ROLLING_FILES = [
             "data/inventory.json", "data/outbound.json", "data/backlog.json",
             "data/inbound.json", "data/arrival.json", "data/heatmap.json",
@@ -1870,7 +1870,7 @@ def git_push(repo_dir: str, timestamp: str) -> None:
         ]
         add = subprocess.run(
             ["git", "add"] + ROLLING_FILES,
-            cwd=repo_dir, capture_output=True, text=True, timeout=30
+            cwd=repo_dir, capture_output=True, text=True, timeout=120
         )
         if add.returncode != 0:
             print(f"   ⚠️  git add failed: {add.stderr.strip()}")
@@ -1879,7 +1879,7 @@ def git_push(repo_dir: str, timestamp: str) -> None:
         # 2. Kiểm tra có gì thay đổi không
         status = subprocess.run(
             ["git", "status", "--porcelain"],
-            cwd=repo_dir, capture_output=True, text=True, timeout=10
+            cwd=repo_dir, capture_output=True, text=True, timeout=30
         )
         if not status.stdout.strip():
             print("   ℹ️  Không có thay đổi mới — bỏ qua commit")
@@ -1889,21 +1889,21 @@ def git_push(repo_dir: str, timestamp: str) -> None:
         msg = f"chore(data): auto-sync {timestamp}"
         commit = subprocess.run(
             ["git", "commit", "-m", msg],
-            cwd=repo_dir, capture_output=True, text=True, timeout=30
+            cwd=repo_dir, capture_output=True, text=True, timeout=60
         )
         if commit.returncode != 0:
             print(f"   ⚠️  git commit failed: {commit.stderr.strip()}")
             return
         print(f"   ✅ git commit: {msg}")
 
-        # 4. git push (có cơ chế Retry 3 lần chống rớt mạng tạm thời)
+        # 4. git push (có cơ chế Retry 3 lần + ép IPv4 chống kẹt mạng nội bộ)
         max_retries = 3
         push_success = False
         for attempt in range(1, max_retries + 1):
             try:
                 push = subprocess.run(
-                    ["git", "push", "origin", "main"],
-                    cwd=repo_dir, capture_output=True, text=True, timeout=60
+                    ["git", "-c", "http.ipResolve=ipv4", "push", "origin", "main"],
+                    cwd=repo_dir, capture_output=True, text=True, timeout=90
                 )
                 if push.returncode == 0:
                     print(f"   ✅ git push origin main (lần {attempt}) — Dashboard đã cập nhật!")
