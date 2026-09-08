@@ -1856,20 +1856,24 @@ def git_push(repo_dir: str, timestamp: str) -> None:
     """
     print("\n🚀 Phase 3: Git push → GitHub...")
     try:
-        # 1. git add các file dữ liệu
-        ROLLING_FILES = [
-            "data/inventory.json", "data/outbound.json", "data/backlog.json",
-            "data/inbound.json", "data/arrival.json", "data/heatmap.json",
-            "data/linehaul.json", "data/truck_eta.json", "data/last_update.json",
-            "data/hub_inventory_pivot.json", "data/latest.json.gz",
-            "data/inbound_kpi_summary.json", "data/inbound_hourly_trend.json",
-            "data/inbound_orders_status.json", "data/inbound_truck_eta.json",
-            "data/inbound_origin_station.json", "data/live/", "data/history/",
-            "public/data/", "src/data/live/", "src/data/history/",
-            "src/", "backend_sync/",
-        ]
+        # 0. Kiểm tra và dọn dẹp file lock tạm thời của VS Code nếu có
+        lock_file = os.path.join(repo_dir, ".git", "index.lock")
+        if os.path.exists(lock_file):
+            for _ in range(5):
+                _time.sleep(1)
+                if not os.path.exists(lock_file):
+                    break
+            else:
+                try:
+                    if _time.time() - os.path.getmtime(lock_file) > 60:
+                        os.remove(lock_file)
+                        print("   🧹 Đã dọn dẹp file lock cũ .git/index.lock")
+                except Exception:
+                    pass
+
+        # 1. git add siêu tốc: chỉ add các thư mục data thay đổi
         add = subprocess.run(
-            ["git", "add"] + ROLLING_FILES,
+            ["git", "add", "-A", "data/", "public/data/", "src/data/"],
             cwd=repo_dir, capture_output=True, text=True, timeout=120
         )
         if add.returncode != 0:
@@ -1922,7 +1926,7 @@ def git_push(repo_dir: str, timestamp: str) -> None:
             except subprocess.TimeoutExpired:
                 if attempt < max_retries:
                     wait_sec = attempt * 5
-                    print(f"   ⚠️  git push timeout 60s (lần {attempt}/{max_retries}) — Thử lại sau {wait_sec}s...")
+                    print(f"   ⚠️  git push timeout (lần {attempt}/{max_retries}) — Thử lại sau {wait_sec}s...")
                     _time.sleep(wait_sec)
                 else:
                     print(f"   ❌ git push timeout sau {max_retries} lần thử")
@@ -1930,8 +1934,8 @@ def git_push(repo_dir: str, timestamp: str) -> None:
                 print(f"   ❌ Lỗi ngoại lệ khi git push: {_ep}")
                 break
 
-    except subprocess.TimeoutExpired:
-        print("   ❌ Git operation timeout (>60s)")
+    except subprocess.TimeoutExpired as te:
+        print(f"   ❌ Git operation timeout: {te.cmd} (> {te.timeout}s)")
     except FileNotFoundError:
         print("   ❌ `git` không tìm thấy trong PATH")
     except Exception as e:
