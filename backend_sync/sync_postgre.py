@@ -1880,13 +1880,13 @@ def git_push(repo_dir: str, timestamp: str) -> None:
             print(f"   ⚠️  git add failed: {add.stderr.strip()}")
             return
 
-        # 2. Kiểm tra có gì thay đổi không
-        status = subprocess.run(
-            ["git", "status", "--porcelain"],
+        # 2. Kiểm tra xem có file dữ liệu nào thực sự thay đổi và đã được stage không
+        staged_check = subprocess.run(
+            ["git", "diff", "--cached", "--quiet"],
             cwd=repo_dir, capture_output=True, text=True, timeout=30
         )
-        if not status.stdout.strip():
-            print("   ℹ️  Không có thay đổi mới — bỏ qua commit")
+        if staged_check.returncode == 0:
+            print("   ℹ️  Không có thay đổi dữ liệu mới — bỏ qua commit và push")
             return
 
         # 3. git commit
