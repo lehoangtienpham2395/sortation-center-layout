@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-10 03:23:02",
-  "total_trucks_en_route": 13,
+  "generated_at": "2026-09-10 04:23:02",
+  "total_trucks_en_route": 12,
   "trucks": [
     {
       "send_network": "BN HUB",
@@ -131,38 +131,6 @@
       "op_date": "2026-09-09"
     },
     {
-      "send_network": "SG GÒ VẤP",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 57,
-      "weight_kg": 693.66,
-      "weight_ton": 0.694,
-      "planned_departure": "2026-09-09 20:15",
-      "planned_arrival": "2026-09-09 21:21",
-      "actual_departure": "2026-09-09 20:15",
-      "actual_arrival": "2026-09-09 20:15",
-      "eta": "2026-09-09 21:21",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-09-09"
-    },
-    {
-      "send_network": "AG TỊNH BIÊN",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 28,
-      "weight_kg": 194.7,
-      "weight_ton": 0.195,
-      "planned_departure": "",
-      "planned_arrival": "",
-      "actual_departure": "",
-      "actual_arrival": "",
-      "eta": "",
-      "rank": "Shuttle",
-      "status": "in_transit",
-      "op_date": "2026-09-09"
-    },
-    {
       "send_network": "SG BÀ ĐIỂM",
       "arrive_network": "HCM HUB",
       "trip_code": "DIRECT",
@@ -179,12 +147,12 @@
       "op_date": "2026-09-09"
     },
     {
-      "send_network": "SG AN PHÚ ĐÔNG",
+      "send_network": "AG TỊNH BIÊN",
       "arrive_network": "HCM HUB",
       "trip_code": "DIRECT",
-      "orders_count": 5,
-      "weight_kg": 41.5,
-      "weight_ton": 0.042,
+      "orders_count": 11,
+      "weight_kg": 80.3,
+      "weight_ton": 0.08,
       "planned_departure": "",
       "planned_arrival": "",
       "actual_departure": "",
@@ -208,6 +176,22 @@
       "eta": "2026-09-10 00:37",
       "rank": "Shuttle",
       "status": "arrived",
+      "op_date": "2026-09-09"
+    },
+    {
+      "send_network": "SG AN PHÚ ĐÔNG",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 5,
+      "weight_kg": 41.5,
+      "weight_ton": 0.042,
+      "planned_departure": "",
+      "planned_arrival": "",
+      "actual_departure": "",
+      "actual_arrival": "",
+      "eta": "",
+      "rank": "Shuttle",
+      "status": "in_transit",
       "op_date": "2026-09-09"
     }
   ]
