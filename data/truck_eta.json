@@ -1,22 +1,22 @@
 {
-  "generated_at": "2026-09-21 05:23:02",
-  "total_trucks_en_route": 11,
+  "generated_at": "2026-09-21 06:05:01",
+  "total_trucks_en_route": 14,
   "trucks": [
     {
       "send_network": "BN HUB",
       "arrive_network": "HCM HUB",
-      "trip_code": "DKGX26091900019",
-      "orders_count": 1595,
-      "weight_kg": 15715.54,
-      "weight_ton": 15.716,
-      "planned_departure": "2026-09-19 04:30:00",
-      "planned_arrival": "2026-09-20 14:57:09",
-      "actual_departure": "2026-09-19 02:57:09",
-      "actual_arrival": "2026-09-20 18:03:20",
-      "eta": "2026-09-20 14:57:09",
+      "trip_code": "DKGX26092000019",
+      "orders_count": 1500,
+      "weight_kg": 14816.52,
+      "weight_ton": 14.817,
+      "planned_departure": "2026-09-20 04:30:00",
+      "planned_arrival": "2026-09-21 14:25:15",
+      "actual_departure": "2026-09-20 02:25:15",
+      "actual_arrival": "",
+      "eta": "2026-09-21 14:25:15",
       "rank": "Linehaul",
-      "status": "arrived",
-      "op_date": "2026-09-20"
+      "status": "in_transit",
+      "op_date": "2026-09-21"
     },
     {
       "send_network": "BN HUB",
@@ -35,20 +35,20 @@
       "op_date": "2026-09-20"
     },
     {
-      "send_network": "CTO SC",
+      "send_network": "BN HUB",
       "arrive_network": "HCM HUB",
-      "trip_code": "DBGX26091900017",
-      "orders_count": 659,
-      "weight_kg": 9196.09,
-      "weight_ton": 9.196,
-      "planned_departure": "2026-09-19 23:00:00",
-      "planned_arrival": "2026-09-20 01:57:00",
-      "actual_departure": "2026-09-19 22:57:00",
-      "actual_arrival": "2026-09-20 02:04:32",
-      "eta": "2026-09-20 01:57:00",
+      "trip_code": "DBGX26092000011",
+      "orders_count": 814,
+      "weight_kg": 8032.77,
+      "weight_ton": 8.033,
+      "planned_departure": "2026-09-20 04:30:00",
+      "planned_arrival": "2026-09-21 16:25:37",
+      "actual_departure": "2026-09-20 04:25:37",
+      "actual_arrival": "",
+      "eta": "2026-09-21 16:25:37",
       "rank": "Linehaul",
-      "status": "arrived",
-      "op_date": "2026-09-19"
+      "status": "in_transit",
+      "op_date": "2026-09-21"
     },
     {
       "send_network": "CTO SC",
@@ -83,6 +83,54 @@
       "op_date": "2026-09-20"
     },
     {
+      "send_network": "SG CỦ CHI",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 86,
+      "weight_kg": 631.25,
+      "weight_ton": 0.631,
+      "planned_departure": "2026-09-21 05:40",
+      "planned_arrival": "2026-09-21 06:22",
+      "actual_departure": "2026-09-21 05:40",
+      "actual_arrival": "2026-09-20 15:16",
+      "eta": "2026-09-21 06:22",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-09-21"
+    },
+    {
+      "send_network": "Chưa xác định",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 36,
+      "weight_kg": 445.18,
+      "weight_ton": 0.445,
+      "planned_departure": "2026-09-21 05:21",
+      "planned_arrival": "2026-09-21 06:51",
+      "actual_departure": "2026-09-21 05:21",
+      "actual_arrival": "2026-09-17 10:45",
+      "eta": "2026-09-21 06:51",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-09-21"
+    },
+    {
+      "send_network": "SG BÌNH TÂN",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 26,
+      "weight_kg": 258.3,
+      "weight_ton": 0.258,
+      "planned_departure": "2026-09-21 01:56",
+      "planned_arrival": "2026-09-21 02:38",
+      "actual_departure": "2026-09-21 01:56",
+      "actual_arrival": "2026-09-20 21:44",
+      "eta": "2026-09-21 02:38",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-09-21"
+    },
+    {
       "send_network": "SG TÂN NHỰT",
       "arrive_network": "HCM HUB",
       "trip_code": "DIRECT",
@@ -96,7 +144,7 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
-      "op_date": "2026-09-20"
+      "op_date": "2026-09-21"
     },
     {
       "send_network": "AG CẦN ĐĂNG",
