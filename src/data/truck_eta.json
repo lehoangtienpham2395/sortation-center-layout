@@ -1,38 +1,22 @@
 {
-  "generated_at": "2026-10-02 05:23:05",
+  "generated_at": "2026-10-02 06:05:03",
   "total_trucks_en_route": 16,
   "trucks": [
     {
       "send_network": "BN HUB",
       "arrive_network": "HCM HUB",
-      "trip_code": "DBGX26093000007",
-      "orders_count": 1742,
-      "weight_kg": 18149.46,
-      "weight_ton": 18.149,
-      "planned_departure": "2026-09-30 04:30:00",
-      "planned_arrival": "2026-10-01 15:40:29",
-      "actual_departure": "2026-09-30 03:40:29",
-      "actual_arrival": "2026-10-01 19:25:35",
-      "eta": "2026-10-01 15:40:29",
+      "trip_code": "DKGX26100100002",
+      "orders_count": 1438,
+      "weight_kg": 16501.61,
+      "weight_ton": 16.502,
+      "planned_departure": "2026-10-01 04:30:00",
+      "planned_arrival": "2026-10-02 13:41:42",
+      "actual_departure": "2026-10-01 01:41:42",
+      "actual_arrival": "",
+      "eta": "2026-10-02 13:41:42",
       "rank": "Linehaul",
-      "status": "arrived",
-      "op_date": "2026-10-01"
-    },
-    {
-      "send_network": "CTO SC",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DBGX26093000008",
-      "orders_count": 838,
-      "weight_kg": 10725.9,
-      "weight_ton": 10.726,
-      "planned_departure": "2026-09-30 23:00:00",
-      "planned_arrival": "2026-10-01 01:56:49",
-      "actual_departure": "2026-09-30 22:56:49",
-      "actual_arrival": "2026-10-01 02:11:17",
-      "eta": "2026-10-01 01:56:49",
-      "rank": "Linehaul",
-      "status": "arrived",
-      "op_date": "2026-09-30"
+      "status": "in_transit",
+      "op_date": "2026-10-02"
     },
     {
       "send_network": "CTO SC",
@@ -64,7 +48,23 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
-      "op_date": "2026-10-01"
+      "op_date": "2026-10-02"
+    },
+    {
+      "send_network": "SG CỦ CHI",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 64,
+      "weight_kg": 958.36,
+      "weight_ton": 0.958,
+      "planned_departure": "2026-10-02 01:54",
+      "planned_arrival": "2026-10-02 02:36",
+      "actual_departure": "2026-10-02 01:54",
+      "actual_arrival": "2026-10-01 20:28",
+      "eta": "2026-10-02 02:36",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-10-02"
     },
     {
       "send_network": "TG HÒA KHÁNH",
@@ -192,7 +192,7 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
-      "op_date": "2026-10-01"
+      "op_date": "2026-10-02"
     },
     {
       "send_network": "AG TÂN CHÂU",
