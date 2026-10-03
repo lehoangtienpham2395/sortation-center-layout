@@ -1748,6 +1748,12 @@ def sync_postgre_to_dashboard():
     for fn, pl in micro_payloads.items():
         write_json(fn, pl)
 
+    try:
+        from sync_receiving_report import sync_receiving_table
+        sync_receiving_table()
+    except Exception as _esr:
+        print(f"   ⚠️ sync_receiving_table error: {_esr}")
+
     # Write live/ and history/{today}/ files
     live_rel = os.path.join(DATA_DIR, "live")
     hist_rel = os.path.join(DATA_DIR, "history", today)

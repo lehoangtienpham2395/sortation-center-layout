@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import InboundDashboard from './components/InboundDashboard';
 import HeatmapDashboard from './components/HeatmapDashboard';
 import KpiDashboard from './components/KpiDashboard';
+import InboundReceivingReport from './components/InboundReceivingReport';
 import { DatePicker } from './components/DatePicker';
 import { getTodayOpDate, getFormattedVietnamTime } from './utils/dateUtils';
 import { Menu } from 'lucide-react';
@@ -486,7 +487,7 @@ const isDateMatch = (rDate: string, sDate: string) => {
 export default function App() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [sidebarHovered, setSidebarHovered] = useState(false);
-  const [currentView, setCurrentView] = useState<'master' | 'inbound' | 'heatmap' | 'kpi' | 'maps'>('inbound');
+  const [currentView, setCurrentView] = useState<'master' | 'inbound' | 'heatmap' | 'kpi' | 'maps' | 'receiving'>('inbound');
   const [inboundData, setInboundData] = useState<any[]>([]);
   const [linehaulData, setLinehaulData] = useState<any[]>([]);
   const [arrivalData, setArrivalData] = useState<any[]>([]);
@@ -1951,9 +1952,10 @@ export default function App() {
                 {[
                   { id: 'master', label: 'Layout', color: '#4F8CFF', active: currentView === 'master', onClick: () => setCurrentView('master') },
                   { id: 'inbound', label: 'Inbound', color: '#B8F7E4', active: currentView === 'inbound', onClick: () => setCurrentView('inbound') },
+                  { id: 'receiving', label: 'Báo Cáo Nhận', color: '#38BDF8', active: currentView === 'receiving', onClick: () => setCurrentView('receiving') },
                   { id: 'heatmap', label: 'Heatmap', color: '#B8F7E4', active: currentView === 'heatmap', onClick: () => setCurrentView('heatmap') },
                   { id: 'kpi', label: 'KPI', color: '#F59E0B', active: currentView === 'kpi', onClick: () => setCurrentView('kpi') },
-    { id: 'maps', label: 'Maps', color: '#00F2FE', active: currentView === 'maps', onClick: () => setCurrentView('maps') },
+                  { id: 'maps', label: 'Maps', color: '#00F2FE', active: currentView === 'maps', onClick: () => setCurrentView('maps') },
                 ].map(item => {
                   return (
                     <button
@@ -2469,6 +2471,8 @@ export default function App() {
           >
             {currentView === 'master' ? (
               renderSVG()
+            ) : currentView === 'receiving' ? (
+              <InboundReceivingReport />
             ) : currentView === 'heatmap' ? (
               <HeatmapDashboard
                 loading={loading}
