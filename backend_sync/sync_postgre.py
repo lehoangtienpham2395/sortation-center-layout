@@ -729,11 +729,60 @@ def fetch_truck_eta_json(session_arr=None, token_mgr_arr=None, session_lh=None, 
         lh_session = session_lh or session_arr
         lh_tmgr = token_mgr_lh or token_mgr_arr
         lh_recs = pull_linehaul_consol(lh_session, lh_tmgr, start_4d, end_plus1) if (lh_session and lh_tmgr) else []
+
+        # 🎯 Bóc tách sản lượng thực dỡ tại HCM HUB qua Linehaul Ops (opsTraceSub)
+        # Đối với xe ghép nhiều chặng (VD: BN HUB -> HCM HUB -> CTO SC), loại bỏ hàng trung chuyển đi Cần Thơ / tỉnh khác
+        ops_hcm_map = {}
+        try:
+            ops_session = session_arr or session_lh
+            ops_tmgr = token_mgr_arr or token_mgr_lh
+            if hasattr(_pv6, 'URL_LINEHAUL_OPS') and ops_session and ops_tmgr:
+                hdrs_ops = {
+                    'Accept': 'application/json, text/plain, */*',
+                    'Content-Type': 'application/json;charset=utf-8',
+                    'lang': 'VN', 'langtype': 'VN',
+                    'routeName': 'opsTraceSub', 'User-Agent': 'Mozilla/5.0'
+                }
+                pl_ops = {
+                    'countryId': '1', 'current': 1, 'size': 500,
+                    'searchType': 1,
+                    'startScanTime': start_4d, 'endScanTime': end_plus1,
+                    'endNetworkCode': 'HCM004H'
+                }
+                r_ops = auth_post(ops_session, _pv6.URL_LINEHAUL_OPS, ops_tmgr, hdrs_ops, json_body=pl_ops, label='Ops HCM Inbound')
+                _raw_ops = r_ops.json().get('data')
+                _obj_ops = json.loads(_raw_ops) if isinstance(_raw_ops, str) else _raw_ops
+                if isinstance(_obj_ops, dict):
+                    for _rec in _obj_ops.get('records', []):
+                        _tc = str(_rec.get('traceCode') or '').strip().upper()
+                        if _tc:
+                            _ln = int(_rec.get('loadingNum') or 0)
+                            _lw = float(_rec.get('loadingWeight') or 0.0)
+                            _plate = str(_rec.get('plateNumber') or '').strip()
+                            if _tc not in ops_hcm_map:
+                                ops_hcm_map[_tc] = {'loadingNum': _ln, 'loadingWeight': _lw, 'plateNumber': _plate}
+                            else:
+                                ops_hcm_map[_tc]['loadingNum'] += _ln
+                                ops_hcm_map[_tc]['loadingWeight'] += _lw
+                                if _plate and not ops_hcm_map[_tc]['plateNumber']:
+                                    ops_hcm_map[_tc]['plateNumber'] = _plate
+                if ops_hcm_map:
+                    print(f"   🎯 Nạp thành công {len(ops_hcm_map)} chuyến Linehaul Ops (bóc tách hàng dỡ thực tế tại HCM HUB)")
+        except Exception as _e_ops:
+            print(f"   ⚠️ Lỗi lấy opsTraceSub HCM: {_e_ops}")
+
         for row in lh_recs:
             arr_net  = str(row.get('arriveNetworkName') or row.get('endName') or '').strip()
             send_net = str(row.get('sendNetworkName') or row.get('startName') or '').strip()
             trip     = str(row.get('shipmentNo') or row.get('taskNo') or '').strip().upper()
             orders_cnt = int(row.get('loadscanwaybillnum') or row.get('waybillNum') or 0)
+            wt_kg = float(row.get('loadpackageweight') or 0)
+
+            # 🎯 Bóc tách hàng dỡ thực tế tại HCM HUB (trừ hàng trung chuyển đi Cần Thơ / trạm khác trên xe liên chặng)
+            if trip in ops_hcm_map and ops_hcm_map[trip]['loadingNum'] > 0:
+                orders_cnt = ops_hcm_map[trip]['loadingNum']
+                if ops_hcm_map[trip]['loadingWeight'] > 0:
+                    wt_kg = round(ops_hcm_map[trip]['loadingWeight'], 2)
 
             # 🎯 CHỈ LẤY CÁC XE ĐANG CHẠY ĐẾN HCM HUB (INBOUND TRUCK ETA)
             # BỎ QUA các xe xuất phát từ HCM HUB đi tỉnh (Outbound Linehaul) và các xe gom nội tỉnh của 6 bưu cục chạy về CTO SC
@@ -777,11 +826,13 @@ def fetch_truck_eta_json(session_arr=None, token_mgr_arr=None, session_lh=None, 
                 if op_d > today:
                     continue
 
-                wt_kg = float(row.get('loadpackageweight') or 0)
+                plate = str(row.get('plateNumber') or (ops_hcm_map.get(trip, {}).get('plateNumber') or '')).strip()
+
                 trucks.append({
                     "send_network":     send_net,
                     "arrive_network":   arr_net,
                     "trip_code":        trip,
+                    "plate_number":     plate,
                     "orders_count":     orders_cnt,
                     "weight_kg":        wt_kg,
                     "weight_ton":       round(wt_kg / 1000.0, 3),
@@ -1872,18 +1923,37 @@ def git_push(repo_dir: str, timestamp: str) -> None:
                     pass
 
         # 1. git add siêu tốc: chỉ add các thư mục data thay đổi
+        no_win = subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
         add = subprocess.run(
             ["git", "add", "-A", "data/", "public/data/", "src/data/"],
-            cwd=repo_dir, capture_output=True, text=True, timeout=120
+            cwd=repo_dir, capture_output=True, text=True, timeout=120,
+            creationflags=no_win
         )
         if add.returncode != 0:
-            print(f"   ⚠️  git add failed: {add.stderr.strip()}")
-            return
+            err = add.stderr.strip()
+            if "bad signature" in err.lower() or "corrupt" in err.lower():
+                print("   ⚠️  Phát hiện .git/index bị corrupt, đang tự động khôi phục (git reset)...")
+                idx_file = os.path.join(repo_dir, ".git", "index")
+                try:
+                    if os.path.exists(idx_file):
+                        os.remove(idx_file)
+                    subprocess.run(["git", "reset"], cwd=repo_dir, capture_output=True, text=True, timeout=30, creationflags=no_win)
+                    add = subprocess.run(
+                        ["git", "add", "-A", "data/", "public/data/", "src/data/"],
+                        cwd=repo_dir, capture_output=True, text=True, timeout=120,
+                        creationflags=no_win
+                    )
+                except Exception as _ex_idx:
+                    print(f"   ⚠️  Không thể tự sửa git index: {_ex_idx}")
+            if add.returncode != 0:
+                print(f"   ⚠️  git add failed: {add.stderr.strip()}")
+                return
 
         # 2. Kiểm tra xem có file dữ liệu nào thực sự thay đổi và đã được stage không
         staged_check = subprocess.run(
             ["git", "diff", "--cached", "--quiet"],
-            cwd=repo_dir, capture_output=True, text=True, timeout=30
+            cwd=repo_dir, capture_output=True, text=True, timeout=30,
+            creationflags=no_win
         )
         if staged_check.returncode == 0:
             print("   ℹ️  Không có thay đổi dữ liệu mới — bỏ qua commit và push")
@@ -1893,7 +1963,8 @@ def git_push(repo_dir: str, timestamp: str) -> None:
         msg = f"chore(data): auto-sync {timestamp}"
         commit = subprocess.run(
             ["git", "commit", "-m", msg],
-            cwd=repo_dir, capture_output=True, text=True, timeout=60
+            cwd=repo_dir, capture_output=True, text=True, timeout=60,
+            creationflags=no_win
         )
         if commit.returncode != 0:
             print(f"   ⚠️  git commit failed: {commit.stderr.strip()}")
@@ -1907,7 +1978,8 @@ def git_push(repo_dir: str, timestamp: str) -> None:
             try:
                 push = subprocess.run(
                     ["git", "-c", "http.ipResolve=ipv4", "push", "origin", "main"],
-                    cwd=repo_dir, capture_output=True, text=True, timeout=90
+                    cwd=repo_dir, capture_output=True, text=True, timeout=90,
+                    creationflags=no_win
                 )
                 if push.returncode == 0:
                     print(f"   ✅ git push origin main (lần {attempt}) — Dashboard đã cập nhật!")
