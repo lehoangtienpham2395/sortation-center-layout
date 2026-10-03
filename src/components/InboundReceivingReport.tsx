@@ -78,6 +78,20 @@ export const InboundReceivingReport: React.FC = () => {
             fetchedJson = await res.json();
           }
         } catch {
+          // Fallback to GitHub raw
+        }
+      }
+
+      // 3. Fallback to GitHub Raw repository
+      if (!fetchedJson) {
+        try {
+          const res = await fetch(`https://raw.githubusercontent.com/lehoangtienpham2395/sortation-center-layout/main/data/inbound_receiving_table.json?t=${cacheBust}`, {
+            cache: 'no-store'
+          });
+          if (res.ok) {
+            fetchedJson = await res.json();
+          }
+        } catch {
           // Keep current state
         }
       }
