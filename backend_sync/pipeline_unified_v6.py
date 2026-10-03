@@ -1519,8 +1519,13 @@ def main():
     # 1. Loại bỏ đơn luân chuyển nội bộ Miền Bắc (BN HUB -> BN HUB)
     df = df[~((pk_s == 'BN HUB') & (nx_s == 'BN HUB'))].copy()
 
-    # 2. BỘ LỌC CỤM CTO SC (Áp dụng từ hôm nay trở đi theo quy định vận hành):
-    CAN_THO_SET = {'CTO SC', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'CT LONG MỸ'}
+    # 2. BỘ LỌC CỤM CTO SC (Cập nhật từ Danh sách khu vực trực thuộc mới nhất):
+    CAN_THO_SET = {
+        'CTO SC', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'CT LONG MỸ',
+        'AG NHƠN HƯNG', 'CT THỚI AN', 'AG NÚI SAM', 'CT PHONG ĐIỀN', 'DT MỸ AN', 'AG CẦN ĐĂNG',
+        'AG AN PHÚ', 'AG TÂN CHÂU', 'AG THOẠI SƠN', 'AG LONG XUYÊN', 'ST PHÚ LỢI', 'ST VĨNH CHÂU',
+        'TG HÒA KHÁNH', 'TG AN HỮU', 'VL VĨNH LONG'
+    }
     pk_s_curr = df['Pickup_station'].astype(str).str.upper().str.strip()
     nx_s_curr = df['Next_station'].astype(str).str.upper().str.strip()
 

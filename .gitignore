@@ -5,6 +5,10 @@ npm-debug.log*
 yarn-debug.log*
 node_modules
 dist
+__pycache__/
+*.pyc
+.git-rewrite/
+*.png
 
 # Backup files
 *.bak
@@ -18,10 +22,13 @@ latest.json
 outbound.json
 data/*.csv
 *.csv
+!backend_sync/config/valid.csv
 *.zip
 HCM_HUB_Dashboard_v2_5_Release_Stable*
+!output/Bao_Cao_Diem_Den_Tiep_Theo_Forecast_Linehaul_BN.xlsx
 
 # Tracked Dashboard JSON Files
+!data/bn_linehaul_bills.json
 !data/config.json
 !data/inbound.json
 !data/outbound.json

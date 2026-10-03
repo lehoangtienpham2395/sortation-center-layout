@@ -626,7 +626,10 @@ def fetch_truck_eta_json(session_arr=None, token_mgr_arr=None, session_lh=None, 
               AND (flag_arrival = 1 OR flag_pickup = 1)
               AND (is_completed = FALSE OR is_active = 1)
               AND UPPER(COALESCE(NULLIF(TRIM(pickup_station), ''), '')) NOT IN (
-                  'BN HUB', 'BNI001H', 'CTO SC', 'CTC001H', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'DT SA DEC', 'CT LONG MỸ'
+                  'BN HUB', 'BNI001H', 'CTO SC', 'CTC001H', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'DT SA DEC', 'CT LONG MỸ',
+                  'AG NHƠN HƯNG', 'CT THỚI AN', 'AG NÚI SAM', 'CT PHONG ĐIỀN', 'DT MỸ AN', 'AG CẦN ĐĂNG',
+                  'AG AN PHÚ', 'AG TÂN CHÂU', 'AG THOẠI SƠN', 'AG LONG XUYÊN', 'ST PHÚ LỢI', 'ST VĨNH CHÂU',
+                  'TG HÒA KHÁNH', 'TG AN HỮU', 'VL VĨNH LONG'
               )
               AND (
                   (transporing_time IS NOT NULL AND transporing_time::date >= CURRENT_DATE - INTERVAL '1 day')
@@ -784,9 +787,13 @@ def fetch_truck_eta_json(session_arr=None, token_mgr_arr=None, session_lh=None, 
                 if ops_hcm_map[trip]['loadingWeight'] > 0:
                     wt_kg = round(ops_hcm_map[trip]['loadingWeight'], 2)
 
-            # 🎯 CHỈ LẤY CÁC XE ĐANG CHẠY ĐẾN HCM HUB (INBOUND TRUCK ETA)
-            # BỎ QUA các xe xuất phát từ HCM HUB đi tỉnh (Outbound Linehaul) và các xe gom nội tỉnh của 6 bưu cục chạy về CTO SC
-            CAN_THO_SUB_STATIONS = {'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'DT SA DEC', 'CT LONG MỸ'}
+            # BỎ QUA các xe xuất phát từ HCM HUB đi tỉnh (Outbound Linehaul) và các xe gom nội tỉnh của cụm bưu cục chạy về CTO SC
+            CAN_THO_SUB_STATIONS = {
+                'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'DT SA DEC', 'CT LONG MỸ',
+                'AG NHƠN HƯNG', 'CT THỚI AN', 'AG NÚI SAM', 'CT PHONG ĐIỀN', 'DT MỸ AN', 'AG CẦN ĐĂNG',
+                'AG AN PHÚ', 'AG TÂN CHÂU', 'AG THOẠI SƠN', 'AG LONG XUYÊN', 'ST PHÚ LỢI', 'ST VĨNH CHÂU',
+                'TG HÒA KHÁNH', 'TG AN HỮU', 'VL VĨNH LONG'
+            }
             if (
                 orders_cnt <= 0 or not trip or 'HCM' in send_net.upper() or 
                 ('HCM' not in arr_net.upper() and arr_net != '') or
@@ -1108,8 +1115,13 @@ def sync_postgre_to_dashboard():
     }
 
     OFFICIAL_STATION_TO_AREA = {v[0].upper(): k for k, v in OFFICIAL_LAYOUT_MAP.items()}
-    # Hỗ trợ gom toàn bộ 6 trạm Cần Thơ & Đồng Tháp vào A05
-    CAN_THO_SET = {'CTO SC', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'CT LONG MỸ'}
+    # Hỗ trợ gom toàn bộ các trạm trực thuộc CTO SC (Cần Thơ, An Giang, Đồng Tháp, Sóc Trăng, Vĩnh Long, Tiền Giang) vào A05
+    CAN_THO_SET = {
+        'CTO SC', 'CT Ô MÔN', 'CT BÌNH THỦY', 'CT NINH KIỀU', 'DT CAO LÃNH', 'DT SA ĐÉC', 'CT LONG MỸ',
+        'AG NHƠN HƯNG', 'CT THỚI AN', 'AG NÚI SAM', 'CT PHONG ĐIỀN', 'DT MỸ AN', 'AG CẦN ĐĂNG',
+        'AG AN PHÚ', 'AG TÂN CHÂU', 'AG THOẠI SƠN', 'AG LONG XUYÊN', 'ST PHÚ LỢI', 'ST VĨNH CHÂU',
+        'TG HÒA KHÁNH', 'TG AN HỮU', 'VL VĨNH LONG'
+    }
     for ct_st in CAN_THO_SET:
         OFFICIAL_STATION_TO_AREA[ct_st] = 'A05'
 
