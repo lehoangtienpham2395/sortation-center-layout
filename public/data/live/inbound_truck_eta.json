@@ -1,40 +1,40 @@
 {
-  "op_date": "2026-10-04",
+  "op_date": "2026-10-05",
   "contract_version": "2.0.0",
   "trucks": [
     {
       "send_network": "BN HUB",
       "arrive_network": "HCM HUB",
-      "trip_code": "DKGX26100300002",
-      "plate_number": "51D-208.64",
-      "orders_count": 1437,
-      "weight_kg": 13753.86,
-      "weight_ton": 13.754,
-      "planned_departure": "2026-10-03 04:30:00",
-      "planned_arrival": "2026-10-04 14:00:02",
-      "actual_departure": "2026-10-03 02:00:02",
-      "actual_arrival": "2026-10-04 14:15:29",
-      "eta": "2026-10-04 14:00:02",
+      "trip_code": "DKGX26100400002",
+      "plate_number": "15H-091.31",
+      "orders_count": 1205,
+      "weight_kg": 13453.51,
+      "weight_ton": 13.454,
+      "planned_departure": "2026-10-04 04:30:00",
+      "planned_arrival": "2026-10-05 16:01:51",
+      "actual_departure": "2026-10-04 04:01:51",
+      "actual_arrival": "",
+      "eta": "2026-10-05 16:01:51",
       "rank": "Linehaul",
-      "status": "arrived",
-      "op_date": "2026-10-04"
+      "status": "in_transit",
+      "op_date": "2026-10-05"
     },
     {
-      "send_network": "CTO SC",
+      "send_network": "BN HUB",
       "arrive_network": "HCM HUB",
-      "trip_code": "DBGX26100300008",
-      "plate_number": "77H-048.67",
-      "orders_count": 541,
-      "weight_kg": 5746.43,
-      "weight_ton": 5.746,
-      "planned_departure": "2026-10-03 23:00:00",
-      "planned_arrival": "2026-10-04 01:46:36",
-      "actual_departure": "2026-10-03 22:46:36",
-      "actual_arrival": "2026-10-04 02:29:40",
-      "eta": "2026-10-04 01:46:36",
+      "trip_code": "DBGX26100400007",
+      "plate_number": "63H-047.58",
+      "orders_count": 422,
+      "weight_kg": 4439.84,
+      "weight_ton": 4.44,
+      "planned_departure": "2026-10-04 04:30:00",
+      "planned_arrival": "2026-10-05 16:17:15",
+      "actual_departure": "2026-10-04 04:17:15",
+      "actual_arrival": "",
+      "eta": "2026-10-05 16:17:15",
       "rank": "Linehaul",
-      "status": "arrived",
-      "op_date": "2026-10-03"
+      "status": "in_transit",
+      "op_date": "2026-10-05"
     },
     {
       "send_network": "CTO SC",
@@ -54,21 +54,20 @@
       "op_date": "2026-10-04"
     },
     {
-      "send_network": "BN HUB",
+      "send_network": "Chưa xác định",
       "arrive_network": "HCM HUB",
-      "trip_code": "DBGX26100300007",
-      "plate_number": "29K-024.50",
-      "orders_count": 129,
-      "weight_kg": 1371.46,
-      "weight_ton": 1.371,
-      "planned_departure": "2026-10-03 04:30:00",
-      "planned_arrival": "2026-10-04 16:00:42",
-      "actual_departure": "2026-10-03 04:00:42",
-      "actual_arrival": "2026-10-04 16:27:28",
-      "eta": "2026-10-04 16:00:42",
-      "rank": "Linehaul",
+      "trip_code": "DIRECT",
+      "orders_count": 12,
+      "weight_kg": 124.98,
+      "weight_ton": 0.125,
+      "planned_departure": "2026-10-05 04:00",
+      "planned_arrival": "2026-10-05 05:30",
+      "actual_departure": "2026-10-05 04:00",
+      "actual_arrival": "2026-09-28 18:48",
+      "eta": "2026-10-05 05:30",
+      "rank": "Shuttle",
       "status": "arrived",
-      "op_date": "2026-10-04"
+      "op_date": "2026-10-05"
     },
     {
       "send_network": "SG BÀ ĐIỂM",
@@ -84,7 +83,7 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
-      "op_date": "2026-10-04"
+      "op_date": "2026-10-05"
     },
     {
       "send_network": "SG KHÁNH HỘI",
@@ -100,7 +99,23 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
-      "op_date": "2026-10-04"
+      "op_date": "2026-10-05"
+    },
+    {
+      "send_network": "SG CỦ CHI",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 8,
+      "weight_kg": 54.94,
+      "weight_ton": 0.055,
+      "planned_departure": "2026-10-05 04:23",
+      "planned_arrival": "2026-10-05 05:05",
+      "actual_departure": "2026-10-05 04:23",
+      "actual_arrival": "2026-10-04 15:49",
+      "eta": "2026-10-05 05:05",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-10-05"
     }
   ]
 }
