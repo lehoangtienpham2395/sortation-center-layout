@@ -48,9 +48,9 @@ URL_FORECAST_COUNT = 'https://gw.jtcargo.com.vn/networkmanagement/omsWaybill/shi
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _cfg_candidates = [
+    os.path.join(BASE_DIR, 'config'),
     r'C:\Users\lehoa\OneDrive\Desktop\testing\Exportauto\Valid',
     r'C:\Users\lehoa\OneDrive\Desktop\testing\config',
-    os.path.join(BASE_DIR, 'config'),
     os.path.join(BASE_DIR, 'backend_sync', 'config'),
     os.path.abspath('.'),
     os.path.abspath('backend_sync'),
@@ -950,33 +950,32 @@ def main():
     now      = datetime.now(tz_vn)
     op_today = (now - timedelta(days=1)) if now.hour < 6 else now
 
-    # Checkpoint Manager: Tự động gối đầu mốc dừng của lần chạy trước
-    fallback_dispatch  = op_today.strftime('%Y-%m-%d 06:00:00')
-    dispatch_start_str = get_checkpoint('dispatch', fallback_dispatch)
-    forecast_start_str = get_checkpoint('forecast', fallback_dispatch)
+    # Checkpoint Manager:
+    # 1. Source Dispatch: Mặc định mốc khởi tạo là 7 ngày gần nhất, sau đó lấy mốc cache gần nhất mà kéo tiếp (không kéo lại 7 ngày mỗi lần)
+    fallback_dispatch_7d = (now - timedelta(days=7)).strftime('%Y-%m-%d 00:00:00')
+    dispatch_start_str   = get_checkpoint('dispatch', fallback_dispatch_7d)
+    forecast_start_str   = get_checkpoint('forecast', fallback_dispatch_7d)
 
     # ── DUAL-WINDOW DISPATCH (fix đơn rớt cập nhật trạng thái muộn) ──────────
-    # Window 1 (Checkpoint): Chỉ kéo đơn MỚI tạo từ lần chạy trước → now
-    # Window 2 (Repull):     Kéo lại TOÀN BỘ ngày vận hành hôm nay (06:00 → now)
-    #   → Bắt các đơn tạo TRƯỚC checkpoint nhưng có pickup/status MỚI sau checkpoint
-    #   → Ví dụ: đơn tạo 18:00, pickup 21:00, checkpoint=20:00 → Window 2 sẽ bắt được
     op_day_start_str  = op_today.strftime('%Y-%m-%d 06:00:00')   # đầu ngày vận hành
-    # Nếu checkpoint đã bao phủ cả ngày (== op_day_start), không cần Window 2
-    need_repull = dispatch_start_str > op_day_start_str           # True khi checkpoint > 06:00
+    need_repull       = dispatch_start_str > op_day_start_str     # True khi checkpoint > 06:00
 
-    # Tất cả các báo biểu khác (Inbound, Outbound, Arrival, Linehaul, Shuttle, Backlog): Giảm xuống 3 ngày
-    scan_3d_dt        = now - timedelta(days=3)
-    scan_3d_start_str = scan_3d_dt.strftime('%Y-%m-%d 00:00:00')
-    end_str           = now.strftime('%Y-%m-%d %H:%M:%S')
-    end_str_plus1     = (now + timedelta(days=1)).strftime('%Y-%m-%d 23:59:59')
+    # 2. Các source còn lại (Inbound, Outbound, Arrival, Linehaul, Shuttle, Backlog):
+    # Lần đầu kéo 7 ngày, sau đó duy trì kéo 3 ngày gần nhất
+    scan_7d_init = get_checkpoint('scan_7d_init', None)
+    scan_days = 3 if scan_7d_init else 7
+    scan_dt        = now - timedelta(days=scan_days)
+    scan_start_str = scan_dt.strftime('%Y-%m-%d 00:00:00')
+    end_str        = now.strftime('%Y-%m-%d %H:%M:%S')
+    end_str_plus1  = (now + timedelta(days=1)).strftime('%Y-%m-%d 23:59:59')
 
     print('=' * 65)
     print(f'PIPELINE UNIFIED V6 -- Dual-window Dispatch + 9 nguon song song')
-    print('Dispatch W1 (new):    ' + dispatch_start_str + '  ->  ' + end_str)
+    print('Dispatch W1 (cache):  ' + dispatch_start_str + '  ->  ' + end_str)
     if need_repull:
         print('Dispatch W2 (repull): ' + op_day_start_str + '  ->  ' + end_str + '  [cap nhat trang thai don cu]')
-    print('Forecast: ' + forecast_start_str + '  ->  ' + end_str)
-    print('Other:    ' + scan_3d_start_str + '  ->  ' + end_str)
+    print('Forecast:             ' + forecast_start_str + '  ->  ' + end_str)
+    print(f'Other ({scan_days}d):          ' + scan_start_str + '  ->  ' + end_str)
     print('=' * 65)
 
     session_main = build_session()
@@ -995,9 +994,9 @@ def main():
     oh_headers = load_json(cfg('outboundheaders.json'))
     op_payload = load_json(cfg('outboundpayload.json'))
 
-    # Scan dùng scan_3d_start_str (3 ngày gần nhất)
-    ip_payload['beginDate'] = scan_3d_start_str;  ip_payload['endDate'] = end_str
-    op_payload['beginDate'] = scan_3d_start_str;  op_payload['endDate'] = end_str
+    # Scan dùng scan_start_str (7 ngày lần đầu, sau đó 3 ngày)
+    ip_payload['beginDate'] = scan_start_str;  ip_payload['endDate'] = end_str
+    op_payload['beginDate'] = scan_start_str;  op_payload['endDate'] = end_str
 
     i_params = {'sqlCode': ip_payload.get('sqlCode', ''),
                 'dcr_key': '57b048fb-bc8c-4d24-982b-a750b7ce8693',
@@ -1018,7 +1017,7 @@ def main():
 
     bh_headers = load_json(cfg('backlogheaders.json'))
     bp_payload = load_json(cfg('backlogpayload.json'))
-    bp_payload['beginDate'] = scan_3d_start_str
+    bp_payload['beginDate'] = scan_start_str
 
     # ── Phase 1: Keo song song 9 nguon + Dispatch Window 2 (repull) ──────
     print('\nPhase 1 -- Keo song song 9 nguon...')
@@ -1038,14 +1037,14 @@ def main():
             # Dispatch Window 1: đơn MỚI từ checkpoint → now
             ex.submit(pull_dispatch,       session_main, tkn_main, dh_headers, dp_payload):        'dispatch',
             ex.submit(pull_forecast_by_time,session_main, tkn_main, forecast_start_str, end_str):   'forecast',
-            # Scan / Linehaul / Shuttle / Backlog: 3 ngày gần nhất
+            # Scan / Linehaul / Shuttle / Backlog: scan_start_str
             ex.submit(pull_scan,           session_main, tkn_main, ih_headers, i_params, ip_payload, 'Inbound'):  'inbound',
             ex.submit(pull_scan,           session_main, tkn_main, oh_headers, o_params, op_payload, 'Outbound'): 'outbound',
-            ex.submit(pull_arrival,        session_arr,  tkn_arr,  ih_headers, scan_3d_start_str, end_str):  'arrival',
-            ex.submit(pull_linehaul_ops,   session_main, tkn_main, scan_3d_start_str, end_str):              'lh_ops',
-            ex.submit(pull_linehaul_consol,session_main, tkn_main, scan_3d_start_str, end_str_plus1):        'lh_consol',
-            ex.submit(pull_shuttle,        session_arr,  tkn_arr,  scan_3d_start_str, end_str):              'shuttle',
-            ex.submit(pull_backlog,        session_main, tkn_main, bh_headers, bp_payload, scan_3d_start_str, end_str): 'backlog',
+            ex.submit(pull_arrival,        session_arr,  tkn_arr,  ih_headers, scan_start_str, end_str):  'arrival',
+            ex.submit(pull_linehaul_ops,   session_main, tkn_main, scan_start_str, end_str):              'lh_ops',
+            ex.submit(pull_linehaul_consol,session_main, tkn_main, scan_start_str, end_str_plus1):        'lh_consol',
+            ex.submit(pull_shuttle,        session_arr,  tkn_arr,  scan_start_str, end_str):              'shuttle',
+            ex.submit(pull_backlog,        session_main, tkn_main, bh_headers, bp_payload, scan_start_str, end_str): 'backlog',
         }
         # Dispatch Window 2 (repull): đơn CŨ có thể đã cập nhật trạng thái
         fut_w2 = None
@@ -1807,6 +1806,7 @@ def main():
         # 🛡️ LƯU CHECKPOINT SAU KHI GHI DATABASE THÀNH CÔNG (Bảo vệ tính toàn vẹn mốc thời gian)
         save_checkpoint('dispatch', end_str)
         save_checkpoint('forecast', end_str)
+        save_checkpoint('scan_7d_init', 'done')
         print(f"   🔖 Đã lưu checkpoint an toàn: {end_str}")
     except Exception as e:
         print(f"   ⚠️  PostgreSQL error: {e}")
