@@ -1,23 +1,7 @@
 {
-  "generated_at": "2026-10-10 07:23:02",
-  "total_trucks_en_route": 7,
+  "generated_at": "2026-10-10 08:23:02",
+  "total_trucks_en_route": 8,
   "trucks": [
-    {
-      "send_network": "Chưa xác định",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 34,
-      "weight_kg": 390.17,
-      "weight_ton": 0.39,
-      "planned_departure": "2026-10-10 04:35",
-      "planned_arrival": "2026-10-10 06:05",
-      "actual_departure": "2026-10-10 04:35",
-      "actual_arrival": "2026-10-09 20:10",
-      "eta": "2026-10-10 06:05",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-10-10"
-    },
     {
       "send_network": "SG CỦ CHI",
       "arrive_network": "HCM HUB",
@@ -35,17 +19,49 @@
       "op_date": "2026-10-09"
     },
     {
+      "send_network": "Chưa xác định",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 17,
+      "weight_kg": 188.64,
+      "weight_ton": 0.189,
+      "planned_departure": "2026-10-10 03:41",
+      "planned_arrival": "2026-10-10 05:11",
+      "actual_departure": "2026-10-10 03:41",
+      "actual_arrival": "2026-10-09 19:41",
+      "eta": "2026-10-10 05:11",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-10-10"
+    },
+    {
       "send_network": "SG BÌNH TÂN",
       "arrive_network": "HCM HUB",
       "trip_code": "DIRECT",
-      "orders_count": 16,
-      "weight_kg": 177.9,
-      "weight_ton": 0.178,
+      "orders_count": 17,
+      "weight_kg": 207.9,
+      "weight_ton": 0.208,
       "planned_departure": "2026-10-10 05:00",
       "planned_arrival": "2026-10-10 05:42",
       "actual_departure": "2026-10-10 05:00",
       "actual_arrival": "2026-10-09 23:04",
       "eta": "2026-10-10 05:42",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-10-10"
+    },
+    {
+      "send_network": "SG GÒ VẤP",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 13,
+      "weight_kg": 161.4,
+      "weight_ton": 0.161,
+      "planned_departure": "2026-10-10 03:45",
+      "planned_arrival": "2026-10-10 04:51",
+      "actual_departure": "2026-10-10 03:45",
+      "actual_arrival": "2026-10-09 20:10",
+      "eta": "2026-10-10 04:51",
       "rank": "Shuttle",
       "status": "arrived",
       "op_date": "2026-10-10"
@@ -65,22 +81,6 @@
       "rank": "Shuttle",
       "status": "in_transit",
       "op_date": "2026-10-10"
-    },
-    {
-      "send_network": "SG GÒ VẤP",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 10,
-      "weight_kg": 131.7,
-      "weight_ton": 0.132,
-      "planned_departure": "2026-10-09 20:08",
-      "planned_arrival": "2026-10-09 21:14",
-      "actual_departure": "2026-10-09 20:08",
-      "actual_arrival": "2026-10-09 20:08",
-      "eta": "2026-10-09 21:14",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-10-09"
     },
     {
       "send_network": "SG LONG THỚI",
@@ -112,6 +112,22 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
+      "op_date": "2026-10-10"
+    },
+    {
+      "send_network": "SG PHÚ LÂM",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 7,
+      "weight_kg": 81.26,
+      "weight_ton": 0.081,
+      "planned_departure": "2026-10-10 04:07",
+      "planned_arrival": "2026-10-10 05:25",
+      "actual_departure": "2026-10-10 04:07",
+      "actual_arrival": "2026-10-09 19:52",
+      "eta": "2026-10-10 05:25",
+      "rank": "Shuttle",
+      "status": "arrived",
       "op_date": "2026-10-10"
     }
   ]
