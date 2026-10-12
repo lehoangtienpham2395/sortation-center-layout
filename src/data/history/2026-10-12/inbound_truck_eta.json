@@ -3,6 +3,54 @@
   "contract_version": "2.0.0",
   "trucks": [
     {
+      "send_network": "SG CỦ CHI",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 268,
+      "weight_kg": 1867.65,
+      "weight_ton": 1.868,
+      "planned_departure": "2026-10-12 09:21",
+      "planned_arrival": "2026-10-12 10:03",
+      "actual_departure": "2026-10-12 09:21",
+      "actual_arrival": "2026-10-12 09:21",
+      "eta": "2026-10-12 10:03",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-10-12"
+    },
+    {
+      "send_network": "SG BÀ ĐIỂM",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 47,
+      "weight_kg": 1721.75,
+      "weight_ton": 1.722,
+      "planned_departure": "",
+      "planned_arrival": "",
+      "actual_departure": "",
+      "actual_arrival": "",
+      "eta": "",
+      "rank": "Shuttle",
+      "status": "in_transit",
+      "op_date": "2026-10-12"
+    },
+    {
+      "send_network": "SG BÌNH LỢI TRUNG",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 47,
+      "weight_kg": 378.23,
+      "weight_ton": 0.378,
+      "planned_departure": "",
+      "planned_arrival": "",
+      "actual_departure": "",
+      "actual_arrival": "",
+      "eta": "",
+      "rank": "Shuttle",
+      "status": "in_transit",
+      "op_date": "2026-10-12"
+    },
+    {
       "send_network": "Chưa xác định",
       "arrive_network": "HCM HUB",
       "trip_code": "DIRECT",
@@ -35,20 +83,20 @@
       "op_date": "2026-10-12"
     },
     {
-      "send_network": "SG CỦ CHI",
+      "send_network": "VL CHỢ LÁCH",
       "arrive_network": "HCM HUB",
       "trip_code": "DIRECT",
       "orders_count": 5,
-      "weight_kg": 39.75,
-      "weight_ton": 0.04,
-      "planned_departure": "2026-10-11 16:59",
-      "planned_arrival": "2026-10-11 17:41",
-      "actual_departure": "2026-10-11 16:59",
-      "actual_arrival": "2026-10-11 16:59",
-      "eta": "2026-10-11 17:41",
+      "weight_kg": 58.6,
+      "weight_ton": 0.059,
+      "planned_departure": "",
+      "planned_arrival": "",
+      "actual_departure": "",
+      "actual_arrival": "",
+      "eta": "",
       "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-10-11"
+      "status": "in_transit",
+      "op_date": "2026-10-12"
     }
   ]
 }
