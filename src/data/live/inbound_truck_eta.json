@@ -3,12 +3,28 @@
   "contract_version": "2.0.0",
   "trucks": [
     {
+      "send_network": "Chưa xác định",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 31,
+      "weight_kg": 278.87,
+      "weight_ton": 0.279,
+      "planned_departure": "2026-10-14 05:00",
+      "planned_arrival": "2026-10-14 06:30",
+      "actual_departure": "2026-10-14 05:00",
+      "actual_arrival": "2026-10-13 23:51",
+      "eta": "2026-10-14 06:30",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-10-14"
+    },
+    {
       "send_network": "SG CỦ CHI",
       "arrive_network": "HCM HUB",
       "trip_code": "DIRECT",
-      "orders_count": 39,
-      "weight_kg": 860.24,
-      "weight_ton": 0.86,
+      "orders_count": 27,
+      "weight_kg": 787.67,
+      "weight_ton": 0.788,
       "planned_departure": "2026-10-14 08:21",
       "planned_arrival": "2026-10-14 09:03",
       "actual_departure": "2026-10-14 08:21",
@@ -17,6 +33,22 @@
       "rank": "Shuttle",
       "status": "arrived",
       "op_date": "2026-10-14"
+    },
+    {
+      "send_network": "SG TÂN TẠO",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 24,
+      "weight_kg": 186.47,
+      "weight_ton": 0.186,
+      "planned_departure": "2026-10-13 19:32",
+      "planned_arrival": "2026-10-13 20:32",
+      "actual_departure": "2026-10-13 19:32",
+      "actual_arrival": "2026-10-13 19:32",
+      "eta": "2026-10-13 20:32",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-10-13"
     },
     {
       "send_network": "SG KHÁNH HỘI",
@@ -35,12 +67,28 @@
       "op_date": "2026-10-14"
     },
     {
-      "send_network": "SG BÌNH TÂN",
+      "send_network": "SG BÌNH LỢI TRUNG",
       "arrive_network": "HCM HUB",
       "trip_code": "DIRECT",
       "orders_count": 12,
-      "weight_kg": 226.65,
-      "weight_ton": 0.227,
+      "weight_kg": 74.6,
+      "weight_ton": 0.075,
+      "planned_departure": "",
+      "planned_arrival": "",
+      "actual_departure": "",
+      "actual_arrival": "",
+      "eta": "",
+      "rank": "Shuttle",
+      "status": "in_transit",
+      "op_date": "2026-10-14"
+    },
+    {
+      "send_network": "SG BÌNH TÂN",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 8,
+      "weight_kg": 189.86,
+      "weight_ton": 0.19,
       "planned_departure": "2026-10-13 16:23",
       "planned_arrival": "2026-10-13 17:05",
       "actual_departure": "2026-10-13 16:23",
@@ -51,20 +99,20 @@
       "op_date": "2026-10-13"
     },
     {
-      "send_network": "Chưa xác định",
+      "send_network": "SG GÒ VẤP",
       "arrive_network": "HCM HUB",
       "trip_code": "DIRECT",
-      "orders_count": 6,
-      "weight_kg": 55.95,
-      "weight_ton": 0.056,
-      "planned_departure": "2026-10-14 04:51",
-      "planned_arrival": "2026-10-14 06:21",
-      "actual_departure": "2026-10-14 04:51",
-      "actual_arrival": "2026-10-08 18:10",
-      "eta": "2026-10-14 06:21",
+      "orders_count": 7,
+      "weight_kg": 70.57,
+      "weight_ton": 0.071,
+      "planned_departure": "2026-10-13 19:55",
+      "planned_arrival": "2026-10-13 21:01",
+      "actual_departure": "2026-10-13 19:55",
+      "actual_arrival": "2026-10-13 19:55",
+      "eta": "2026-10-13 21:01",
       "rank": "Shuttle",
       "status": "arrived",
-      "op_date": "2026-10-14"
+      "op_date": "2026-10-13"
     },
     {
       "send_network": "SG ĐÔNG HƯNG THUẬN",
@@ -97,22 +145,6 @@
       "rank": "Shuttle",
       "status": "arrived",
       "op_date": "2026-10-13"
-    },
-    {
-      "send_network": "SG TÂN TẠO",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 5,
-      "weight_kg": 55.17,
-      "weight_ton": 0.055,
-      "planned_departure": "2026-10-14 00:20",
-      "planned_arrival": "2026-10-14 01:20",
-      "actual_departure": "2026-10-14 00:20",
-      "actual_arrival": "2026-10-13 19:32",
-      "eta": "2026-10-14 01:20",
-      "rank": "Shuttle",
-      "status": "arrived",
-      "op_date": "2026-10-14"
     }
   ]
 }
