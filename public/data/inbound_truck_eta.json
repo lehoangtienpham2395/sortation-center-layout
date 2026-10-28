@@ -1,5 +1,5 @@
 {
-  "op_date": "2026-10-28",
+  "op_date": "2026-10-29",
   "contract_version": "2.0.0",
   "trucks": [
     {
@@ -16,7 +16,39 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
+      "op_date": "2026-10-29"
+    },
+    {
+      "send_network": "SG CỦ CHI",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 21,
+      "weight_kg": 425.54,
+      "weight_ton": 0.426,
+      "planned_departure": "2026-10-28 18:06",
+      "planned_arrival": "2026-10-28 18:48",
+      "actual_departure": "2026-10-28 18:06",
+      "actual_arrival": "2026-10-28 18:06",
+      "eta": "2026-10-28 18:48",
+      "rank": "Shuttle",
+      "status": "arrived",
       "op_date": "2026-10-28"
+    },
+    {
+      "send_network": "Chưa xác định",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 19,
+      "weight_kg": 146.82,
+      "weight_ton": 0.147,
+      "planned_departure": "2026-10-29 04:02",
+      "planned_arrival": "2026-10-29 05:32",
+      "actual_departure": "2026-10-29 04:02",
+      "actual_arrival": "2026-10-28 21:17",
+      "eta": "2026-10-29 05:32",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-10-29"
     },
     {
       "send_network": "SG KHÁNH HỘI",
@@ -32,7 +64,7 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
-      "op_date": "2026-10-28"
+      "op_date": "2026-10-29"
     },
     {
       "send_network": "SG PHÚ LÂM",
@@ -67,6 +99,22 @@
       "op_date": "2026-10-28"
     },
     {
+      "send_network": "SG ĐẦM SEN",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 6,
+      "weight_kg": 108.3,
+      "weight_ton": 0.108,
+      "planned_departure": "",
+      "planned_arrival": "",
+      "actual_departure": "",
+      "actual_arrival": "",
+      "eta": "",
+      "rank": "Shuttle",
+      "status": "in_transit",
+      "op_date": "2026-10-29"
+    },
+    {
       "send_network": "SG GÒ VẤP",
       "arrive_network": "HCM HUB",
       "trip_code": "DIRECT",
@@ -83,22 +131,6 @@
       "op_date": "2026-10-28"
     },
     {
-      "send_network": "SG ĐẦM SEN",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 6,
-      "weight_kg": 108.3,
-      "weight_ton": 0.108,
-      "planned_departure": "",
-      "planned_arrival": "",
-      "actual_departure": "",
-      "actual_arrival": "",
-      "eta": "",
-      "rank": "Shuttle",
-      "status": "in_transit",
-      "op_date": "2026-10-28"
-    },
-    {
       "send_network": "VL CHỢ LÁCH",
       "arrive_network": "HCM HUB",
       "trip_code": "DIRECT",
@@ -112,7 +144,7 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
-      "op_date": "2026-10-28"
+      "op_date": "2026-10-29"
     }
   ]
 }
