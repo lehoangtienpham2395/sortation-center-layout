@@ -1,7 +1,23 @@
 {
-  "op_date": "2026-11-01",
+  "op_date": "2026-11-02",
   "contract_version": "2.0.0",
   "trucks": [
+    {
+      "send_network": "Chưa xác định",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 21,
+      "weight_kg": 185.37,
+      "weight_ton": 0.185,
+      "planned_departure": "2026-11-02 03:46",
+      "planned_arrival": "2026-11-02 05:16",
+      "actual_departure": "2026-11-02 03:46",
+      "actual_arrival": "2026-11-01 17:00",
+      "eta": "2026-11-02 05:16",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-11-02"
+    },
     {
       "send_network": "SG KHÁNH HỘI",
       "arrive_network": "HCM HUB",
@@ -16,23 +32,7 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
-      "op_date": "2026-11-01"
-    },
-    {
-      "send_network": "Chưa xác định",
-      "arrive_network": "HCM HUB",
-      "trip_code": "DIRECT",
-      "orders_count": 6,
-      "weight_kg": 45.92,
-      "weight_ton": 0.046,
-      "planned_departure": "2026-11-01 03:39",
-      "planned_arrival": "2026-11-01 05:09",
-      "actual_departure": "2026-11-01 03:39",
-      "actual_arrival": "",
-      "eta": "2026-11-01 05:09",
-      "rank": "Shuttle",
-      "status": "in_transit",
-      "op_date": "2026-11-01"
+      "op_date": "2026-11-02"
     },
     {
       "send_network": "SG VĨNH LỘC",
@@ -48,7 +48,7 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
-      "op_date": "2026-11-01"
+      "op_date": "2026-11-02"
     }
   ]
 }
