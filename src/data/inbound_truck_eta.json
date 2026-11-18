@@ -1,7 +1,39 @@
 {
-  "op_date": "2026-11-18",
+  "op_date": "2026-11-19",
   "contract_version": "2.0.0",
   "trucks": [
+    {
+      "send_network": "SG CỦ CHI",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 52,
+      "weight_kg": 1254.97,
+      "weight_ton": 1.255,
+      "planned_departure": "2026-11-19 04:32",
+      "planned_arrival": "2026-11-19 05:14",
+      "actual_departure": "2026-11-19 04:32",
+      "actual_arrival": "2026-11-18 21:00",
+      "eta": "2026-11-19 05:14",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-11-19"
+    },
+    {
+      "send_network": "LA ĐỨC HÒA",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 40,
+      "weight_kg": 308.0,
+      "weight_ton": 0.308,
+      "planned_departure": "2026-11-19 03:23",
+      "planned_arrival": "2026-11-19 03:53",
+      "actual_departure": "2026-11-19 03:23",
+      "actual_arrival": "2026-11-18 19:28",
+      "eta": "2026-11-19 03:53",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-11-19"
+    },
     {
       "send_network": "SG ĐẦM SEN",
       "arrive_network": "HCM HUB",
@@ -16,7 +48,7 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
-      "op_date": "2026-11-18"
+      "op_date": "2026-11-19"
     },
     {
       "send_network": "SG KHÁNH HỘI",
@@ -32,7 +64,23 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
-      "op_date": "2026-11-18"
+      "op_date": "2026-11-19"
+    },
+    {
+      "send_network": "SG BÌNH TÂN",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 9,
+      "weight_kg": 302.36,
+      "weight_ton": 0.302,
+      "planned_departure": "2026-11-19 03:28",
+      "planned_arrival": "2026-11-19 04:10",
+      "actual_departure": "2026-11-19 03:28",
+      "actual_arrival": "2026-11-17 20:33",
+      "eta": "2026-11-19 04:10",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-11-19"
     },
     {
       "send_network": "SG TÂN NHỰT",
@@ -81,6 +129,22 @@
       "rank": "Shuttle",
       "status": "arrived",
       "op_date": "2026-11-18"
+    },
+    {
+      "send_network": "Chưa xác định",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 5,
+      "weight_kg": 71.48,
+      "weight_ton": 0.071,
+      "planned_departure": "2026-11-19 04:02",
+      "planned_arrival": "2026-11-19 05:32",
+      "actual_departure": "2026-11-19 04:02",
+      "actual_arrival": "2026-11-09 11:57",
+      "eta": "2026-11-19 05:32",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-11-19"
     }
   ]
 }
