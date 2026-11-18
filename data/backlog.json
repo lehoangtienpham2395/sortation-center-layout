@@ -170,16 +170,6 @@
     "op_date": "2026-11-17"
   },
   {
-    "zone": "2",
-    "area_id": "B18",
-    "station_name": "SG HÓC MÔN",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0054,
-    "capacity": 780,
-    "op_date": "2026-11-16"
-  },
-  {
     "zone": "3",
     "area_id": "C01",
     "station_name": "VN BD SALE",
@@ -196,16 +186,6 @@
     "status": "Inbound",
     "volume": 2,
     "weight_ton": 0.01685,
-    "capacity": 780,
-    "op_date": "2026-11-16"
-  },
-  {
-    "zone": "2",
-    "area_id": "B03",
-    "station_name": "SG BÌNH TÂN",
-    "status": "Inbound",
-    "volume": 24,
-    "weight_ton": 0.26758,
     "capacity": 780,
     "op_date": "2026-11-16"
   },
@@ -238,6 +218,16 @@
     "weight_ton": 0.01728,
     "capacity": 1400,
     "op_date": "2026-11-04"
+  },
+  {
+    "zone": "2",
+    "area_id": "B03",
+    "station_name": "SG BÌNH TÂN",
+    "status": "Inbound",
+    "volume": 24,
+    "weight_ton": 0.26758,
+    "capacity": 780,
+    "op_date": "2026-11-16"
   },
   {
     "zone": "1",
@@ -350,16 +340,6 @@
     "op_date": "2026-11-14"
   },
   {
-    "zone": "1",
-    "area_id": "A05",
-    "station_name": "CTO SC",
-    "status": "Inbound",
-    "volume": 2,
-    "weight_ton": 0.076,
-    "capacity": 780,
-    "op_date": "2026-11-16"
-  },
-  {
     "zone": "3",
     "area_id": "C17",
     "station_name": "BD ĐÔNG HÒA",
@@ -368,16 +348,6 @@
     "weight_ton": 0.014,
     "capacity": 780,
     "op_date": "2026-11-16"
-  },
-  {
-    "zone": "3",
-    "area_id": "C17",
-    "station_name": "BD ĐÔNG HÒA",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.022,
-    "capacity": 780,
-    "op_date": "2026-11-09"
   },
   {
     "zone": "2",
@@ -400,26 +370,6 @@
     "op_date": "2026-11-16"
   },
   {
-    "zone": "2",
-    "area_id": "B05",
-    "station_name": "SG PHÚ LÂM",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.015,
-    "capacity": 780,
-    "op_date": "2026-11-18"
-  },
-  {
-    "zone": "3",
-    "area_id": "C03",
-    "station_name": "SG BÌNH LỢI TRUNG",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0396,
-    "capacity": 780,
-    "op_date": "2026-11-14"
-  },
-  {
     "zone": "3",
     "area_id": "C02",
     "station_name": "TG CHỢ GẠO",
@@ -438,16 +388,6 @@
     "weight_ton": 0.0447,
     "capacity": 1400,
     "op_date": "2026-11-11"
-  },
-  {
-    "zone": "5",
-    "area_id": "Z02",
-    "station_name": "SETN",
-    "status": "Inbound",
-    "volume": 2,
-    "weight_ton": 0.0108,
-    "capacity": 780,
-    "op_date": "2026-11-18"
   },
   {
     "zone": "2",
@@ -491,6 +431,86 @@
   },
   {
     "zone": "3",
+    "area_id": "C04",
+    "station_name": "SG BÌNH TRỊ ĐÔNG",
+    "status": "Inbound",
+    "volume": 1,
+    "weight_ton": 0.0068,
+    "capacity": 780,
+    "op_date": "2026-11-15"
+  },
+  {
+    "zone": "3",
+    "area_id": "C16",
+    "station_name": "SG NHƠN ĐỨC",
+    "status": "Inbound",
+    "volume": 1,
+    "weight_ton": 0.008,
+    "capacity": 780,
+    "op_date": "2026-11-17"
+  },
+  {
+    "zone": "1",
+    "area_id": "A05",
+    "station_name": "CTO SC",
+    "status": "Inbound",
+    "volume": 2,
+    "weight_ton": 0.076,
+    "capacity": 780,
+    "op_date": "2026-11-16"
+  },
+  {
+    "zone": "3",
+    "area_id": "C03",
+    "station_name": "SG BÌNH LỢI TRUNG",
+    "status": "Inbound",
+    "volume": 2,
+    "weight_ton": 0.04018,
+    "capacity": 780,
+    "op_date": "2026-11-18"
+  },
+  {
+    "zone": "3",
+    "area_id": "C17",
+    "station_name": "BD ĐÔNG HÒA",
+    "status": "Inbound",
+    "volume": 1,
+    "weight_ton": 0.022,
+    "capacity": 780,
+    "op_date": "2026-11-09"
+  },
+  {
+    "zone": "2",
+    "area_id": "B05",
+    "station_name": "SG PHÚ LÂM",
+    "status": "Inbound",
+    "volume": 1,
+    "weight_ton": 0.015,
+    "capacity": 780,
+    "op_date": "2026-11-18"
+  },
+  {
+    "zone": "3",
+    "area_id": "C03",
+    "station_name": "SG BÌNH LỢI TRUNG",
+    "status": "Inbound",
+    "volume": 1,
+    "weight_ton": 0.0396,
+    "capacity": 780,
+    "op_date": "2026-11-14"
+  },
+  {
+    "zone": "5",
+    "area_id": "Z02",
+    "station_name": "SETN",
+    "status": "Inbound",
+    "volume": 2,
+    "weight_ton": 0.0108,
+    "capacity": 780,
+    "op_date": "2026-11-18"
+  },
+  {
+    "zone": "3",
     "area_id": "C01",
     "station_name": "SG HẠNH THÔNG",
     "status": "Inbound",
@@ -520,24 +540,14 @@
     "op_date": "2026-11-14"
   },
   {
-    "zone": "3",
-    "area_id": "C04",
-    "station_name": "SG BÌNH TRỊ ĐÔNG",
+    "zone": "1",
+    "area_id": "A05",
+    "station_name": "CTO SC",
     "status": "Inbound",
     "volume": 1,
-    "weight_ton": 0.0068,
+    "weight_ton": 0.0072,
     "capacity": 780,
-    "op_date": "2026-11-15"
-  },
-  {
-    "zone": "3",
-    "area_id": "C03",
-    "station_name": "SG BÌNH LỢI TRUNG",
-    "status": "Inbound",
-    "volume": 2,
-    "weight_ton": 0.04018,
-    "capacity": 780,
-    "op_date": "2026-11-18"
+    "op_date": "2026-10-30"
   },
   {
     "zone": "3",
@@ -551,13 +561,23 @@
   },
   {
     "zone": "3",
-    "area_id": "C16",
-    "station_name": "SG NHƠN ĐỨC",
+    "area_id": "C10",
+    "station_name": "SG XUÂN HÒA",
     "status": "Inbound",
     "volume": 1,
-    "weight_ton": 0.008,
+    "weight_ton": 0.00799,
     "capacity": 780,
-    "op_date": "2026-11-17"
+    "op_date": "2026-11-14"
+  },
+  {
+    "zone": "2",
+    "area_id": "B18",
+    "station_name": "SG HÓC MÔN",
+    "status": "Inbound",
+    "volume": 1,
+    "weight_ton": 0.0054,
+    "capacity": 780,
+    "op_date": "2026-11-16"
   },
   {
     "zone": "5",
@@ -568,25 +588,5 @@
     "weight_ton": 0.07187,
     "capacity": 780,
     "op_date": "2026-11-18"
-  },
-  {
-    "zone": "1",
-    "area_id": "A05",
-    "station_name": "CTO SC",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.0072,
-    "capacity": 780,
-    "op_date": "2026-10-30"
-  },
-  {
-    "zone": "3",
-    "area_id": "C10",
-    "station_name": "SG XUÂN HÒA",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.00799,
-    "capacity": 780,
-    "op_date": "2026-11-14"
   }
 ]
