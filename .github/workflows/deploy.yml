@@ -29,7 +29,7 @@ jobs:
     timeout-minutes: 8
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment_1.outputs.page_url || steps.deployment_2.outputs.page_url || steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -55,6 +55,26 @@ jobs:
         with:
           path: './dist'
 
-      - name: Deploy to GitHub Pages
+      - name: Deploy to GitHub Pages (Attempt 1)
+        id: deployment_1
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Wait before retry (Attempt 2)
+        if: steps.deployment_1.outcome != 'success'
+        run: sleep 20
+
+      - name: Deploy to GitHub Pages (Attempt 2)
+        id: deployment_2
+        if: steps.deployment_1.outcome != 'success'
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
+      - name: Wait before final retry (Attempt 3)
+        if: steps.deployment_1.outcome != 'success' && steps.deployment_2.outcome != 'success'
+        run: sleep 30
+
+      - name: Deploy to GitHub Pages (Attempt 3)
         id: deployment
+        if: steps.deployment_1.outcome != 'success' && steps.deployment_2.outcome != 'success'
         uses: actions/deploy-pages@v4
