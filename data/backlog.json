@@ -10,46 +10,6 @@
     "op_date": "2026-11-18"
   },
   {
-    "zone": "2",
-    "area_id": "B05",
-    "station_name": "SG PHÚ LÂM",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.015,
-    "capacity": 780,
-    "op_date": "2026-11-18"
-  },
-  {
-    "zone": "2",
-    "area_id": "B03",
-    "station_name": "SG BÌNH TÂN",
-    "status": "Inbound",
-    "volume": 26,
-    "weight_ton": 0.507,
-    "capacity": 780,
-    "op_date": "2026-11-19"
-  },
-  {
-    "zone": "1",
-    "area_id": "A06",
-    "station_name": "BN HUB",
-    "status": "Inbound",
-    "volume": 7,
-    "weight_ton": 0.10801,
-    "capacity": 1400,
-    "op_date": "2026-11-20"
-  },
-  {
-    "zone": "1",
-    "area_id": "A06",
-    "station_name": "BN HUB",
-    "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.00617,
-    "capacity": 1400,
-    "op_date": "2026-11-21"
-  },
-  {
     "zone": "3",
     "area_id": "C12",
     "station_name": "SG PHÚ NHUẬN",
@@ -64,8 +24,8 @@
     "area_id": "A06",
     "station_name": "BN HUB",
     "status": "Inbound",
-    "volume": 42,
-    "weight_ton": 0.34104,
+    "volume": 15,
+    "weight_ton": 0.11774,
     "capacity": 1400,
     "op_date": "2026-11-22"
   },
@@ -74,18 +34,8 @@
     "area_id": "C12",
     "station_name": "SG PHÚ NHUẬN",
     "status": "Inbound",
-    "volume": 57,
-    "weight_ton": 0.51296,
-    "capacity": 780,
-    "op_date": "2026-11-22"
-  },
-  {
-    "zone": "3",
-    "area_id": "C17",
-    "station_name": "BD ĐÔNG HÒA",
-    "status": "Inbound",
-    "volume": 45,
-    "weight_ton": 0.44941,
+    "volume": 72,
+    "weight_ton": 0.63046,
     "capacity": 780,
     "op_date": "2026-11-22"
   },
@@ -100,14 +50,24 @@
     "op_date": "2026-11-21"
   },
   {
-    "zone": "2",
-    "area_id": "B05",
-    "station_name": "SG PHÚ LÂM",
+    "zone": "3",
+    "area_id": "C17",
+    "station_name": "BD ĐÔNG HÒA",
     "status": "Inbound",
-    "volume": 1,
-    "weight_ton": 0.006,
+    "volume": 45,
+    "weight_ton": 0.44941,
     "capacity": 780,
-    "op_date": "2026-11-20"
+    "op_date": "2026-11-22"
+  },
+  {
+    "zone": "3",
+    "area_id": "C01",
+    "station_name": "BD ĐÔNG HÒA",
+    "status": "Inbound",
+    "volume": 31,
+    "weight_ton": 0.23629,
+    "capacity": 780,
+    "op_date": "2026-11-22"
   },
   {
     "zone": "1",
@@ -130,26 +90,6 @@
     "op_date": "2026-11-22"
   },
   {
-    "zone": "3",
-    "area_id": "C01",
-    "station_name": "BD ĐÔNG HÒA",
-    "status": "Inbound",
-    "volume": 18,
-    "weight_ton": 0.12449,
-    "capacity": 780,
-    "op_date": "2026-11-22"
-  },
-  {
-    "zone": "3",
-    "area_id": "C01",
-    "station_name": "CT NGÃ SÁU",
-    "status": "Inbound",
-    "volume": 3,
-    "weight_ton": 0.024,
-    "capacity": 780,
-    "op_date": "2026-11-22"
-  },
-  {
     "zone": "2",
     "area_id": "B19",
     "station_name": "SG MINH XUÂN",
@@ -158,6 +98,16 @@
     "weight_ton": 0.0005,
     "capacity": 780,
     "op_date": "2026-11-12"
+  },
+  {
+    "zone": "2",
+    "area_id": "B03",
+    "station_name": "SG BÌNH TÂN",
+    "status": "Inbound",
+    "volume": 26,
+    "weight_ton": 0.507,
+    "capacity": 780,
+    "op_date": "2026-11-19"
   },
   {
     "zone": "2",
@@ -224,10 +174,10 @@
     "area_id": "A06",
     "station_name": "BN HUB",
     "status": "Inbound",
-    "volume": 4,
-    "weight_ton": 0.11548,
+    "volume": 7,
+    "weight_ton": 0.10801,
     "capacity": 1400,
-    "op_date": "2026-11-19"
+    "op_date": "2026-11-20"
   },
   {
     "zone": "1",
@@ -238,6 +188,56 @@
     "weight_ton": 0.00508,
     "capacity": 780,
     "op_date": "2026-11-18"
+  },
+  {
+    "zone": "2",
+    "area_id": "B05",
+    "station_name": "SG PHÚ LÂM",
+    "status": "Inbound",
+    "volume": 1,
+    "weight_ton": 0.015,
+    "capacity": 780,
+    "op_date": "2026-11-18"
+  },
+  {
+    "zone": "1",
+    "area_id": "A06",
+    "station_name": "BN HUB",
+    "status": "Inbound",
+    "volume": 4,
+    "weight_ton": 0.11548,
+    "capacity": 1400,
+    "op_date": "2026-11-19"
+  },
+  {
+    "zone": "1",
+    "area_id": "A06",
+    "station_name": "BN HUB",
+    "status": "Inbound",
+    "volume": 1,
+    "weight_ton": 0.00617,
+    "capacity": 1400,
+    "op_date": "2026-11-21"
+  },
+  {
+    "zone": "2",
+    "area_id": "B05",
+    "station_name": "SG PHÚ LÂM",
+    "status": "Inbound",
+    "volume": 1,
+    "weight_ton": 0.006,
+    "capacity": 780,
+    "op_date": "2026-11-20"
+  },
+  {
+    "zone": "3",
+    "area_id": "C01",
+    "station_name": "CT NGÃ SÁU",
+    "status": "Inbound",
+    "volume": 3,
+    "weight_ton": 0.024,
+    "capacity": 780,
+    "op_date": "2026-11-22"
   },
   {
     "zone": "1",
