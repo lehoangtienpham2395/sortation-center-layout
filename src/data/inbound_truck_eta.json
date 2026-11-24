@@ -1,5 +1,5 @@
 {
-  "op_date": "2026-11-24",
+  "op_date": "2026-11-25",
   "contract_version": "2.0.0",
   "trucks": [
     {
@@ -16,7 +16,7 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
-      "op_date": "2026-11-24"
+      "op_date": "2026-11-25"
     },
     {
       "send_network": "SG CỦ CHI",
@@ -48,7 +48,39 @@
       "eta": "",
       "rank": "Shuttle",
       "status": "in_transit",
-      "op_date": "2026-11-24"
+      "op_date": "2026-11-25"
+    },
+    {
+      "send_network": "SG THỦ ĐỨC",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 7,
+      "weight_kg": 94.05,
+      "weight_ton": 0.094,
+      "planned_departure": "2026-11-25 01:33",
+      "planned_arrival": "2026-11-25 02:51",
+      "actual_departure": "2026-11-25 01:33",
+      "actual_arrival": "2026-11-24 19:22",
+      "eta": "2026-11-25 02:51",
+      "rank": "Shuttle",
+      "status": "arrived",
+      "op_date": "2026-11-25"
+    },
+    {
+      "send_network": "Chưa xác định",
+      "arrive_network": "HCM HUB",
+      "trip_code": "DIRECT",
+      "orders_count": 6,
+      "weight_kg": 55.64,
+      "weight_ton": 0.056,
+      "planned_departure": "2026-11-25 01:33",
+      "planned_arrival": "2026-11-25 03:03",
+      "actual_departure": "2026-11-25 01:33",
+      "actual_arrival": "",
+      "eta": "2026-11-25 03:03",
+      "rank": "Shuttle",
+      "status": "in_transit",
+      "op_date": "2026-11-25"
     }
   ]
 }
